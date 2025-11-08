@@ -4,9 +4,14 @@ npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
+package-lock.json
+
+# === Environment variables ===
 .env
 .env.local
-.env.*.local
+.env.development.local
+.env.test.local
+.env.production.local
 
 # === Build output ===
 dist/
@@ -15,6 +20,7 @@ out/
 build/
 tmp/
 temp/
+.cache/
 
 # === Logs ===
 logs/
@@ -23,12 +29,44 @@ logs/
 *.seed
 *.pid.lock
 
-# === Editor ===
+# === Test coverage ===
+coverage/
+.nyc_output/
+jest-html-reporters-*
+
+# === Editor / IDE ===
 .vscode/
 .idea/
 *.swp
 *.swo
+*.sublime-project
+*.sublime-workspace
 
-# === System ===
+# === OS-specific ===
 .DS_Store
 Thumbs.db
+ehthumbs.db
+Icon?
+
+# === TypeScript ===
+*.tsbuildinfo
+
+# === Runtime files ===
+*.local
+*.bak
+*.tmp
+
+# === Docker / Containers (ถ้ามีใช้) ===
+docker-compose.override.yml
+.docker/
+Dockerfile.local
+
+# === Prisma / Database ===
+prisma/dev.db
+prisma/migrations/
+*.sqlite
+*.sqlite-journal
+
+# === Firebase / Cloud / Secrets ===
+firebase-debug.log
+serviceAccountKey.json
