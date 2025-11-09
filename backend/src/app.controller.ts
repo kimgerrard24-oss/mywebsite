@@ -1,12 +1,14 @@
 import { Controller, Get } from '@nestjs/common';
-import { AppService } from './app.service';
 
-@Controller()
+@Controller('api') // <--- root path
 export class AppController {
-  constructor(private readonly appService: AppService) {}
-
-  @Get()
+  @Get('hello') // <--- จะได้ path เต็ม = /api/hello
   getHello(): string {
-    return this.appService.getHello();
+    return 'Hello from NestJS 👋';
+  }
+
+  @Get('health')
+  getHealth(): object {
+    return { status: 'ok', message: 'NestJS backend is healthy ✅' };
   }
 }

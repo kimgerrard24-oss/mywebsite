@@ -1,20 +1,21 @@
-# === Node.js ===
+# === Node.js / Package Managers ===
 node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
-package-lock.json
 
-# === Environment variables ===
+# === Environment Variables ===
 .env
+**/.env
+!**/.env.example
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
 
-# === Build output ===
-dist/ 
+# === Build Output ===
+dist/
 .next/
 out/
 build/
@@ -29,7 +30,7 @@ logs/
 *.seed
 *.pid.lock
 
-# === Test coverage ===
+# === Test Coverage ===
 coverage/
 .nyc_output/
 jest-html-reporters-*
@@ -51,22 +52,27 @@ Icon?
 # === TypeScript ===
 *.tsbuildinfo
 
-# === Runtime files ===
+# === Runtime / Temp Files ===
 *.local
 *.bak
 *.tmp
 
-# === Docker / Containers (ถ้ามีใช้) ===
+# === Docker / Containers ===
 docker-compose.override.yml
 .docker/
 Dockerfile.local
 
 # === Prisma / Database ===
 prisma/dev.db
-prisma/migrations/
 *.sqlite
 *.sqlite-journal
+# ✅ เก็บ prisma/schema.prisma ไว้ใน repo (อย่า ignore)
+# ❌ อย่า ignore prisma/migrations ถ้าใช้ระบบ migration จริง
 
 # === Firebase / Cloud / Secrets ===
 firebase-debug.log
 serviceAccountKey.json
+
+# === Cache / Temporary build files ===
+.cache/
+*.cache

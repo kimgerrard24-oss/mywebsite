@@ -1,0 +1,14 @@
+apiVersion: serving.knative.dev/v1
+kind: Service
+metadata:
+  name: mywebsite-backend
+spec:
+  template:
+    spec:
+      containers:
+        - image: gcr.io/PROJECT_ID/mywebsite-backend:latest
+          env:
+            - name: NODE_ENV
+              value: "production"
+          ports:
+            - containerPort: 4000
