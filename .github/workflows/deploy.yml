@@ -1,11 +1,46 @@
+# file: mywebsite/.github/workflows/deploy.yml
 name: CI/CD Pipeline
-on: [push]
+
+on:
+  push:
+    branches: ["main"]
+
 jobs:
   build:
     runs-on: ubuntu-latest
+
     steps:
-      - uses: actions/checkout@v4
-      - name: Install dependencies
+      # 1) Checkout repository
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2) Install & build BACKEND
+      - name: Install backend dependencies
+        working-directory: backend
         run: npm ci
-      - name: Run build
+
+      - name: Build backend
+        working-directory: backend
         run: npm run build
+
+      # 3) Install & build FRONTEND
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Build frontend
+        working-directory: frontend
+        run: npm run build
+
+      # 4) Deploy to Linode via SSH
+      - name: Deploy to Linode
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.LINODE_HOST }}
+          username: root
+          key: ${{ secrets.LINODE_SSH_KEY }}
+          script: |
+            cd /var/www/phlyphant/mywebsite
+            git pull origin main
+            docker compose down
+            docker compose up -d --build

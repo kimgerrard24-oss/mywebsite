@@ -1,3 +1,4 @@
+# Backend/Dockerfile
 # ---------- Stage 1: Build ----------
 FROM node:22-slim AS build
 
@@ -11,13 +12,14 @@ RUN npm set registry https://registry.npmmirror.com \
     && npm set fetch-retry-maxtimeout 120000 \
     && npm set strict-ssl false
 
-# Copy package.json
+# Copy package files first (better caching)
 COPY package*.json ./
 
-# Install dependencies (include dev deps because build needs them)
-RUN npm ci
+# Install dependencies with cache
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci
 
-# Copy all files
+# Copy all files AFTER dependencies (cache-friendly)
 COPY . .
 
 # Generate Prisma client
