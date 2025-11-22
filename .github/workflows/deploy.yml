@@ -89,7 +89,7 @@ jobs:
             sleep 5
 
             echo "Running backend health check..."
-            HEALTH_URL="http://localhost:3001/system-check"
+            HEALTH_URL="http://localhost:4001/system-check"
 
             if curl -s --fail "$HEALTH_URL" > /dev/null; then
               echo "Health check passed. New version is running correctly."
