@@ -15,8 +15,8 @@ describe('AppController', () => {
   });
 
   describe('root', () => {
-    it('should return "Hello World!"', () => {
-      expect(appController.getHello()).toBe('Hello World!');
+    it('should return "PhlyPhant Backend: OK"', () => {
+      expect(appController.getHello()).toBe('PhlyPhant Backend: OK');
     });
   });
 });

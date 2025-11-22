@@ -1,0 +1,3 @@
+# บอก ESLint ว่าไม่ต้องตรวจโฟลเดอร์ที่ build แล้ว
+dist/
+node_modules/

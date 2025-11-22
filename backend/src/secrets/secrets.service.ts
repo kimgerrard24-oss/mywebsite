@@ -1,0 +1,184 @@
+// ==========================================
+// file: backend/src/secrets/secrets.service.ts
+// ==========================================
+import { Injectable, Logger } from '@nestjs/common';
+import {
+  SecretsManagerClient,
+  GetSecretValueCommand,
+} from '@aws-sdk/client-secrets-manager';
+
+@Injectable()
+export class SecretsService {
+  private readonly logger = new Logger(SecretsService.name);
+
+  private client = new SecretsManagerClient({
+    region: process.env.AWS_REGION || 'ap-southeast-7',
+  });
+
+  // ---------------------------------------------------------
+  // Fetch a secret from AWS Secrets Manager
+  // ---------------------------------------------------------
+  async getSecret(secretName: string): Promise<Record<string, string>> {
+    try {
+      const command = new GetSecretValueCommand({ SecretId: secretName });
+      const response = await this.client.send(command);
+
+      if (!response.SecretString) {
+        throw new Error('SecretString not found');
+      }
+      return JSON.parse(response.SecretString);
+    } catch (err) {
+      this.logger.error(`Failed to fetch secret: ${(err as Error).message}`);
+      throw err;
+    }
+  }
+
+  // ---------------------------------------------------------
+  // Normalize helper
+  // ---------------------------------------------------------
+  private pick(obj: Record<string, any>, keys: string[]): string {
+    for (const k of keys) {
+      if (typeof obj[k] === 'string' && obj[k].trim() !== '') {
+        return obj[k].trim();
+      }
+    }
+    return '';
+  }
+
+  // ---------------------------------------------------------
+  // OAuth Secrets Loader (Google + Facebook)
+  // ---------------------------------------------------------
+  async getOAuthSecrets(): Promise<Record<string, string>> {
+    const secretName =
+      process.env.AWS_OAUTH_SECRET_NAME ||
+      'OAuthClientIDSecretSocialLoginUrlRedirect';
+
+    const s = await this.getSecret(secretName);
+
+    // -----------------------------------------------------
+    // Normalize Google OAuth
+    // -----------------------------------------------------
+    const googleClientId =
+      this.pick(s, ['GOOGLE_CLIENT_ID', 'client_id', 'clientId']) ||
+      process.env.GOOGLE_CLIENT_ID ||
+      '';
+
+    const googleClientSecret =
+      this.pick(s, ['GOOGLE_CLIENT_SECRET', 'client_secret', 'clientSecret']) ||
+      process.env.GOOGLE_CLIENT_SECRET ||
+      '';
+
+    let googleCallback =
+      this.pick(s, [
+        'GOOGLE_CALLBACK_URL',
+        'GOOGLE_REDIRECT_URL',
+        'redirectUri',
+        'redirect_uri',
+        'redirect',
+        'redirect_url',
+        'redirectUrl',
+      ]) ||
+      process.env.GOOGLE_CALLBACK_URL ||
+      process.env.GOOGLE_REDIRECT_URL ||
+      '';
+
+    // Required production callback
+    const FINAL_GOOGLE_CALLBACK =
+      'https://api.phlyphant.com/auth/google/callback';
+
+    googleCallback = googleCallback.replace(/\/$/, '');
+    if (googleCallback !== FINAL_GOOGLE_CALLBACK) {
+      googleCallback = FINAL_GOOGLE_CALLBACK;
+    }
+
+    const googleRedirectAfterLogin =
+      this.pick(s, [
+        'GOOGLE_PROVIDER_REDIRECT_AFTER_LOGIN',
+        'redirect_after_login',
+        'provider_redirect',
+      ]) ||
+      process.env.GOOGLE_PROVIDER_REDIRECT_AFTER_LOGIN ||
+      '';
+
+    // -----------------------------------------------------
+    // Normalize Facebook OAuth
+    // -----------------------------------------------------
+    const facebookClientId =
+      this.pick(s, ['FACEBOOK_CLIENT_ID']) ||
+      process.env.FACEBOOK_CLIENT_ID ||
+      '';
+
+    const facebookClientSecret =
+      this.pick(s, ['FACEBOOK_CLIENT_SECRET']) ||
+      process.env.FACEBOOK_CLIENT_SECRET ||
+      '';
+
+    let facebookCallback =
+      this.pick(s, ['FACEBOOK_CALLBACK_URL', 'FACEBOOK_REDIRECT_URL']) ||
+      process.env.FACEBOOK_CALLBACK_URL ||
+      process.env.FACEBOOK_REDIRECT_URL ||
+      '';
+
+    const FINAL_FACEBOOK_CALLBACK =
+      'https://api.phlyphant.com/auth/facebook/callback';
+
+    facebookCallback = facebookCallback.replace(/\/$/, '');
+    if (facebookCallback !== FINAL_FACEBOOK_CALLBACK) {
+      facebookCallback = FINAL_FACEBOOK_CALLBACK;
+    }
+
+    const facebookRedirectAfterLogin =
+      this.pick(s, [
+        'FACEBOOK_PROVIDER_REDIRECT_AFTER_LOGIN',
+        'redirect_after_login',
+        'provider_redirect',
+      ]) ||
+      process.env.FACEBOOK_PROVIDER_REDIRECT_AFTER_LOGIN ||
+      '';
+
+    // -----------------------------------------------------
+    // Build normalized object
+    // -----------------------------------------------------
+    const normalized: Record<string, string> = {
+      GOOGLE_CLIENT_ID: googleClientId,
+      GOOGLE_CLIENT_SECRET: googleClientSecret,
+      GOOGLE_CALLBACK_URL: FINAL_GOOGLE_CALLBACK,
+      GOOGLE_REDIRECT_URL: FINAL_GOOGLE_CALLBACK,
+      GOOGLE_PROVIDER_REDIRECT_AFTER_LOGIN: googleRedirectAfterLogin,
+
+      FACEBOOK_CLIENT_ID: facebookClientId,
+      FACEBOOK_CLIENT_SECRET: facebookClientSecret,
+      FACEBOOK_CALLBACK_URL: FINAL_FACEBOOK_CALLBACK,
+      FACEBOOK_REDIRECT_URL: FINAL_FACEBOOK_CALLBACK,
+      FACEBOOK_PROVIDER_REDIRECT_AFTER_LOGIN: facebookRedirectAfterLogin,
+    };
+
+    // Inject normalized values into process.env
+    for (const [k, v] of Object.entries(normalized)) {
+      process.env[k] = v;
+    }
+
+    return normalized;
+  }
+
+  // ---------------------------------------------------------
+  // Cached values (avoid re-fetching AWS)
+  // ---------------------------------------------------------
+  cachedOAuthSecrets(): Record<string, string> {
+    return {
+      GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID || '',
+      GOOGLE_CLIENT_SECRET: process.env.GOOGLE_CLIENT_SECRET || '',
+      GOOGLE_CALLBACK_URL: process.env.GOOGLE_CALLBACK_URL || '',
+      GOOGLE_REDIRECT_URL: process.env.GOOGLE_REDIRECT_URL || '',
+      GOOGLE_PROVIDER_REDIRECT_AFTER_LOGIN:
+        process.env.GOOGLE_PROVIDER_REDIRECT_AFTER_LOGIN || '',
+
+      FACEBOOK_CLIENT_ID: process.env.FACEBOOK_CLIENT_ID || '',
+      FACEBOOK_CLIENT_SECRET: process.env.FACEBOOK_CLIENT_SECRET || '',
+      FACEBOOK_CALLBACK_URL: process.env.FACEBOOK_CALLBACK_URL || '',
+      FACEBOOK_REDIRECT_URL: process.env.FACEBOOK_REDIRECT_URL || '',
+      FACEBOOK_PROVIDER_REDIRECT_AFTER_LOGIN:
+        process.env.FACEBOOK_PROVIDER_REDIRECT_AFTER_LOGIN || '',
+    };
+  }
+}

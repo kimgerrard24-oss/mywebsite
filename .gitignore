@@ -72,6 +72,10 @@ prisma/dev.db
 # === Firebase / Cloud / Secrets ===
 firebase-debug.log
 serviceAccountKey.json
+firebase.txt 
+# ✅ Ignore Google OAuth credentials
+config/google-oauth-client.json
+
 
 # === Cache / Temporary build files ===
 .cache/

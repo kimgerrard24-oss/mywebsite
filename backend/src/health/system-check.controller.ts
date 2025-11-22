@@ -1,0 +1,49 @@
+// ==============================
+// file: src/system-check/system-check.controller.ts
+// ==============================
+import { Controller, Get, Inject, Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { SystemCheckService } from './system-check.service';
+
+@Controller('system-check')
+export class SystemCheckController {
+  private readonly logger = new Logger(SystemCheckController.name);
+
+  constructor(
+    private readonly systemCheck: SystemCheckService,
+    private readonly configService: ConfigService,
+  ) {}
+
+  /**
+   * GET /system-check
+   *
+   * Returns combined system status from SystemCheckService.
+   * Adds a small, non-sensitive environment summary for easier debugging in production.
+   *
+   * NOTE: Do not include secrets or sensitive values in this response.
+   */
+  @Get()
+  async checkAll() {
+    // Primary status (internal checks)
+    const status = await this.systemCheck.getStatus();
+
+    // Add safe environment metadata — only non-sensitive values useful for debugging
+    const envSummary = {
+      nodeEnv: this.configService.get<string>('NODE_ENV') || 'production',
+      backendUrl: this.configService.get<string>('BACKEND_PUBLIC_URL') || this.configService.get<string>('BASE_URL') || null,
+      allowedOrigins: (this.configService.get<string>('ALLOWED_ORIGINS') || '')
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean),
+      region: this.configService.get<string>('AWS_REGION') || 'ap-southeast-7',
+    };
+
+    // log minimal information for operators (no secrets)
+    this.logger.log(`System check requested (env=${envSummary.nodeEnv}, region=${envSummary.region})`);
+
+    return {
+      status,
+      env: envSummary,
+    };
+  }
+}

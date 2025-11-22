@@ -10,5 +10,11 @@ spec:
           env:
             - name: NODE_ENV
               value: "production"
+
+            # Cloud Run always provides PORT automatically
+            # Your NestJS must listen on process.env.PORT
+            - name: PORT
+              value: "8080"
+
           ports:
-            - containerPort: 4000
+            - containerPort: 8080

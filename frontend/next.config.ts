@@ -1,27 +1,41 @@
+import { withSentryConfig } from "@sentry/nextjs";
 import type { NextConfig } from "next";
 
-/**
- * Next.js Configuration
- * - turbopack.root: ป้องกัน warning เรื่อง workspace root
- * - reactCompiler: เปิดใช้งาน React Compiler (optional)
- * - rewrites: proxy /api/* → backend (NestJS) ที่ port 3000
- */
+const isProd = process.env.NODE_ENV === "production";
 
 const nextConfig: NextConfig = {
-  turbopack: {
-    root: __dirname,
-  },
-  reactCompiler: true,
+  output: "standalone",
 
-  // เพิ่ม proxy ไป backend NestJS
+  experimental: {
+    // 🔥 ปิด LightningCSS เพื่อแก้ error lightningcss.linux-x64-gnu.node
+    useLightningcss: false,
+
+    // ปิด optimizeCss (ป้องกัน LightningCSS อ้อมๆ)
+    optimizeCss: false,
+
+    // บังคับใช้ Webpack build worker (เสถียรที่สุดใน Docker)
+    webpackBuildWorker: true,
+  },
+
   async rewrites() {
-    return [
-      {
-        source: "/api/:path*", // ถ้า frontend เรียก /api/*
-        destination: "http://localhost:4000/api/:path*", // จะ proxy ไปยัง NestJS backend
-      },
-    ];
+    if (!isProd) {
+      return [
+        {
+          source: "/api/:path*",
+          destination: "http://localhost:4001/api/:path*",
+        },
+      ];
+    }
+
+    return [];
   },
 };
 
-export default nextConfig;
+export default withSentryConfig(nextConfig, {
+  org: "phlyphant",
+  project: "javascript-nextjs",
+  silent: !process.env.CI,
+  widenClientFileUpload: true,
+  disableLogger: true,
+  automaticVercelMonitors: true,
+});

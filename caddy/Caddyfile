@@ -1,0 +1,96 @@
+{
+    email admin@phlyphant.com
+}
+
+# ======================================
+# FRONTEND (Next.js)
+# ======================================
+phlyphant.com, www.phlyphant.com {
+    encode gzip
+
+    tls {
+        protocols tls1.2 tls1.3
+    }
+
+    header {
+        Strict-Transport-Security "max-age=15552000; includeSubDomains; preload"
+        X-Frame-Options "DENY"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "geolocation=(), microphone=(), camera=()"
+        Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https:; connect-src 'self' https://api.phlyphant.com wss://api.phlyphant.com; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https:;"
+    }
+
+    # FIXED: container name
+    reverse_proxy phlyphant-frontend:3000 {
+        header_up Host {host}
+        header_up X-Forwarded-For {remote}
+        header_up X-Real-IP {remote}
+        header_up X-Forwarded-Proto {scheme}
+    }
+}
+
+# ======================================
+# BACKEND (NestJS + Socket.IO)
+# ======================================
+api.phlyphant.com {
+    encode gzip
+
+    tls {
+        protocols tls1.2 tls1.3
+    }
+
+    header {
+        Strict-Transport-Security "max-age=15552000; includeSubDomains; preload"
+        X-Frame-Options "DENY"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        Permissions-Policy "geolocation=(), microphone=(), camera=()"
+        Content-Security-Policy "default-src 'none'; object-src 'none';"
+    }
+
+    @socketio {
+        path /socket.io
+        path /socket.io/*
+    }
+
+    handle @socketio {
+        # FIXED: container name
+        reverse_proxy phlyphant-backend:4001 {
+            transport http {
+                versions 1.1
+            }
+
+            header_up Host {host}
+            header_up X-Forwarded-For {remote}
+            header_up X-Real-IP {remote}
+            header_up X-Forwarded-Proto {scheme}
+            header_up Cookie {http.request.header.Cookie}
+            header_up Origin {http.request.header.Origin}
+
+            header_up Upgrade {http.request.header.Upgrade}
+            header_up Connection {http.request.header.Connection}
+            header_up Sec-WebSocket-Key {http.request.header.Sec-WebSocket-Key}
+            header_up Sec-WebSocket-Version {http.request.header.Sec-WebSocket-Version}
+            header_up Sec-WebSocket-Extensions {http.request.header.Sec-WebSocket-Extensions}
+            header_up Sec-WebSocket-Protocol {http.request.header.Sec-WebSocket-Protocol}
+
+            flush_interval -1s
+        }
+    }
+
+    handle {
+        # FIXED: container name
+        reverse_proxy phlyphant-backend:4001 {
+            transport http {
+                versions 2
+            }
+
+            header_up Host {host}
+            header_up X-Forwarded-For {remote}
+            header_up X-Real-IP {remote}
+            header_up X-Forwarded-Proto {scheme}
+            header_up Cookie {http.request.header.Cookie}
+        }
+    }
+}

@@ -1,0 +1,51 @@
+<!DOCTYPE html> 
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Socket.IO Test</title>
+  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+</head>
+<body>
+  <h1>🔌 Test Socket.IO Connection</h1>
+  <p id="status">Connecting...</p>
+  <input type="text" id="messageInput" placeholder="Type message..." />
+  <button id="sendBtn">Send</button>
+  <div id="log"></div>
+
+  <script>
+    const socket = io("https://api.test-localmywebsite.com", {
+      transports: ["websocket"],
+      path: "/socket.io/",
+      withCredentials: true,
+    });
+
+    const status = document.getElementById("status");
+    const log = document.getElementById("log");
+    const input = document.getElementById("messageInput");
+    const btn = document.getElementById("sendBtn");
+
+    socket.on("connect", () => {
+      status.innerText = "✅ Connected to server (" + socket.id + ")";
+    });
+
+    socket.on("server-reply", (msg) => {
+      const el = document.createElement("p");
+      el.textContent = "📩 Server reply: " + msg;
+      log.appendChild(el);
+    });
+
+    btn.addEventListener("click", () => {
+      const msg = input.value;
+      socket.emit("message", msg);
+      const el = document.createElement("p");
+      el.textContent = "🧠 Sent: " + msg;
+      log.appendChild(el);
+      input.value = "";
+    });
+
+    socket.on("disconnect", () => {
+      status.innerText = "❌ Disconnected from server";
+    });
+  </script>
+</body>
+</html>
