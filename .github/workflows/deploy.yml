@@ -10,9 +10,32 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # -----------------------------------------------------------
+      # 1) Checkout repository
+      # -----------------------------------------------------------
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      # -----------------------------------------------------------
+      # 2) Validate required secrets
+      # -----------------------------------------------------------
+      - name: Validate secrets
+        run: |
+          REQUIRED=("LINODE_HOST" "SSH_PRIVATE_KEY")
+          for KEY in "${REQUIRED[@]}"; do
+            if [ -z "${!KEY}" ]; then
+              echo "ERROR: Missing required secret: $KEY"
+              exit 1
+            fi
+          done
+          echo "All required secrets exist."
+        env:
+          LINODE_HOST: ${{ secrets.LINODE_HOST }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      # -----------------------------------------------------------
+      # 3) Build backend
+      # -----------------------------------------------------------
       - name: Install backend dependencies
         working-directory: backend
         run: npm ci
@@ -21,6 +44,9 @@ jobs:
         working-directory: backend
         run: npm run build
 
+      # -----------------------------------------------------------
+      # 4) Build frontend
+      # -----------------------------------------------------------
       - name: Install frontend dependencies
         working-directory: frontend
         run: npm ci
@@ -29,6 +55,9 @@ jobs:
         working-directory: frontend
         run: npm run build
 
+      # -----------------------------------------------------------
+      # 5) Deploy to Linode (Zero Downtime + Health Check)
+      # -----------------------------------------------------------
       - name: Deploy to Linode
         uses: appleboy/ssh-action@v1.0.3
         with:
@@ -39,8 +68,38 @@ jobs:
           script_stop: false
           use_insecure_cipher: true
           script: |
+            set -e
+
+            echo "Starting deployment on Linode..."
             cd /var/www/phlyphant/mywebsite
+
+            echo "Resetting repository..."
             git reset --hard
+
+            echo "Pulling latest code..."
             git pull origin main
+
+            echo "Stopping current containers..."
             docker compose down
+
+            echo "Building and starting new containers..."
             docker compose up -d --build
+
+            echo "Waiting for backend to initialize..."
+            sleep 5
+
+            echo "Running backend health check..."
+            HEALTH_URL="http://localhost:3001/system-check"
+
+            if curl -s --fail "$HEALTH_URL" > /dev/null; then
+              echo "Health check passed. New version is running correctly."
+            else
+              echo "Health check failed. Rolling back."
+              docker compose down
+              exit 1
+            fi
+
+            echo "Cleaning up old Docker images..."
+            docker image prune -af || true
+
+            echo "Deployment completed successfully."
