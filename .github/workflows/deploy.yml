@@ -10,11 +10,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # 1) Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2) Install & build BACKEND
       - name: Install backend dependencies
         working-directory: backend
         run: npm ci
@@ -23,7 +21,6 @@ jobs:
         working-directory: backend
         run: npm run build
 
-      # 3) Install & build FRONTEND
       - name: Install frontend dependencies
         working-directory: frontend
         run: npm ci
@@ -32,15 +29,18 @@ jobs:
         working-directory: frontend
         run: npm run build
 
-      # 4) Deploy to Linode via SSH
       - name: Deploy to Linode
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.LINODE_HOST }}
           username: root
-          key: ${{ secrets.LINODE_SSH_KEY }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          port: 22
+          script_stop: false
+          use_insecure_cipher: true
           script: |
             cd /var/www/phlyphant/mywebsite
+            git reset --hard
             git pull origin main
             docker compose down
             docker compose up -d --build
