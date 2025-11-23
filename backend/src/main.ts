@@ -1,6 +1,3 @@
-// ==============================
-// file: backend/src/main.ts
-// ==============================
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
@@ -210,6 +207,9 @@ async function bootstrap(): Promise<void> {
   // (ไม่แตะ ต้องการให้เหมือนเดิม)
   // ===============================================
 
+  // Graph API version (useable by facebook code path)
+  const FACEBOOK_GRAPH_VERSION = process.env.FACEBOOK_GRAPH_VERSION || 'v21.0';
+
   // ----------- Step 1: redirect ----------
   expressApp.get('/auth/:provider/redirect', async (req: Request, res: Response) => {
     try {
@@ -224,7 +224,7 @@ async function bootstrap(): Promise<void> {
       if (provider === 'google') {
         const params = new URLSearchParams({
           client_id: process.env.GOOGLE_CLIENT_ID || '',
-          redirect_uri: process.env.GOOGLE_REDIRECT_URL || '',
+          redirect_uri: process.env.GOOGLE_CALLBACK_URL || process.env.GOOGLE_REDIRECT_URL || '',
           response_type: 'code',
           scope: 'openid email profile',
           state,
@@ -239,14 +239,15 @@ async function bootstrap(): Promise<void> {
       if (provider === 'facebook') {
         const params = new URLSearchParams({
           client_id: process.env.FACEBOOK_CLIENT_ID || '',
-          redirect_uri: process.env.FACEBOOK_REDIRECT_URL || '',
+          redirect_uri: process.env.FACEBOOK_CALLBACK_URL || process.env.FACEBOOK_REDIRECT_URL || '',
           state,
           scope: 'email,public_profile',
           response_type: 'code',
         });
 
+        // use GRAPH version in dialog URL
         return res.redirect(
-          `https://www.facebook.com/v18.0/dialog/oauth?${params.toString()}`
+          `https://www.facebook.com/${FACEBOOK_GRAPH_VERSION}/dialog/oauth?${params.toString()}`
         );
       }
 
@@ -283,7 +284,7 @@ async function bootstrap(): Promise<void> {
             code,
             client_id: process.env.GOOGLE_CLIENT_ID || '',
             client_secret: process.env.GOOGLE_CLIENT_SECRET || '',
-            redirect_uri: process.env.GOOGLE_REDIRECT_URL || '',
+            redirect_uri: process.env.GOOGLE_CALLBACK_URL || process.env.GOOGLE_REDIRECT_URL || '',
             grant_type: 'authorization_code',
           }).toString(),
           {
@@ -324,12 +325,12 @@ async function bootstrap(): Promise<void> {
       }
 
       if (provider === 'facebook') {
-        const fbTokenUrl = 'https://graph.facebook.com/v18.0/oauth/access_token';
+        const fbTokenUrl = `https://graph.facebook.com/${FACEBOOK_GRAPH_VERSION}/oauth/access_token`;
         tokenResult = await axios.get(fbTokenUrl, {
           params: {
             client_id: process.env.FACEBOOK_CLIENT_ID || '',
             client_secret: process.env.FACEBOOK_CLIENT_SECRET || '',
-            redirect_uri: process.env.FACEBOOK_REDIRECT_URL || '',
+            redirect_uri: process.env.FACEBOOK_CALLBACK_URL || process.env.FACEBOOK_REDIRECT_URL || '',
             code,
           },
           timeout: 10000,

@@ -72,16 +72,15 @@ export class FirebaseAuthGuard implements CanActivate {
         const parsed = cookie.parse(req.headers.cookie);
         sessionCookieValue = parsed[cookieName] || null;
       }
-    } catch (err) {
-      const msg =
-        (typeof err === 'object' && err && 'message' in err
-          ? (err as any).message
-          : String(err));
+    } catch (error: unknown) {
+      const err =
+        error instanceof Error ? error.message : String(error);
 
-      this.logger.warn('Cookie parse failed: ' + msg);
+      this.logger.warn('Cookie parse failed: ' + err);
     }
 
-    const authHeader = (req.headers && (req.headers.authorization as string)) || '';
+    const authHeader =
+      (req.headers && (req.headers.authorization as string)) || '';
 
     try {
       if (sessionCookieValue) {
@@ -102,13 +101,11 @@ export class FirebaseAuthGuard implements CanActivate {
           return true;
         }
       }
-    } catch (err) {
-      const msg =
-        (typeof err === 'object' && err && 'message' in err
-          ? (err as any).message
-          : String(err));
+    } catch (error: unknown) {
+      const err =
+        error instanceof Error ? error.message : String(error);
 
-      this.logger.debug('Token verification failed: ' + msg);
+      this.logger.debug('Token verification failed: ' + err);
     }
 
     const upgradeHeader =

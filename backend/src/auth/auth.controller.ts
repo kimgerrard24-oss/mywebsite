@@ -15,6 +15,7 @@ import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from './auth.service';
 import { Response, Request } from 'express';
 import * as cookie from 'cookie';
+import passport from 'passport'; // <-- required for programmatic callback
 
 @Controller('auth')
 export class AuthController {
@@ -23,7 +24,7 @@ export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
   // =======================================
-  // Config for Frontend (Google only)
+  // CONFIG (Google only)
   // =======================================
   @Get('config')
   async getConfig() {
@@ -147,52 +148,99 @@ export class AuthController {
   }
 
   // =======================================
-  // FACEBOOK OAuth Callback
+  // FACEBOOK OAuth Callback (NEW FIXED VERSION)
   // =======================================
   @Get('facebook/callback')
-  @UseGuards(AuthGuard('facebook'))
   async facebookCallback(@Req() req: Request, @Res() res: Response) {
     try {
-      const user = req.user as any;
+      const query = req.query || {};
 
-      if (!user?.firebaseUid) {
-        this.logger.warn('[facebookCallback] missing firebaseUid');
-        return res.status(500).send('Authentication failed');
-      }
-
-      const customToken = await this.auth.createFirebaseCustomToken(
-        user.firebaseUid,
-        user,
+      this.logger.log(
+        `[facebookCallback] incomingQuery=${JSON.stringify(query)}`,
       );
 
-      if (!customToken) {
-        this.logger.warn('[facebookCallback] failed to create custom token');
-        return res.status(500).send('Authentication failed');
+      // If missing code or state → show clear error instead of passport internal error
+      if (!query.code || !query.state) {
+        this.logger.warn(
+          `[facebookCallback] Missing code or state. Query=${JSON.stringify(
+            query,
+          )}`,
+        );
+        return res
+          .status(400)
+          .send('Missing code or state in Facebook OAuth callback.');
       }
 
-      let origin =
-        (req as any).resolvedOrigin ||
-        (req as any).oauthOrigin ||
-        process.env.FACEBOOK_PROVIDER_REDIRECT_AFTER_LOGIN ||
-        'https://phlyphant.com';
+      // Handle via passport programmatically
+      return passport.authenticate(
+        'facebook',
+        { session: false },
+        async (err: any, user: any, info: any) => {
+          try {
+            if (err) {
+              this.logger.error(
+                `[facebookCallback] passport error: ${err?.message || err}`,
+              );
+              return res.status(500).send('Authentication failed');
+            }
 
-      try {
-        const parsed = new URL(origin);
-        origin = parsed.origin;
-      } catch {
-        origin = origin.replace(/\/.*$/, '');
-      }
-      origin = origin.replace(/\/+$/, '');
+            if (!user) {
+              this.logger.warn(
+                `[facebookCallback] No user returned. info=${JSON.stringify(
+                  info,
+                )}`,
+              );
+              return res.status(401).send('Authentication failed');
+            }
 
-      const redirectTo = `${origin}/auth/complete?customToken=${encodeURIComponent(
-        customToken,
-      )}`;
+            if (!user?.firebaseUid) {
+              this.logger.warn('[facebookCallback] missing firebaseUid');
+              return res.status(500).send('Authentication failed');
+            }
 
-      this.logger.log(`[facebookCallback] redirect=${redirectTo}`);
-      return res.redirect(302, redirectTo);
+            const customToken = await this.auth.createFirebaseCustomToken(
+              user.firebaseUid,
+              user,
+            );
+
+            if (!customToken) {
+              this.logger.warn('[facebookCallback] customToken creation failed');
+              return res.status(500).send('Authentication failed');
+            }
+
+            let origin =
+              (req as any).resolvedOrigin ||
+              (req as any).oauthOrigin ||
+              process.env.FACEBOOK_PROVIDER_REDIRECT_AFTER_LOGIN ||
+              'https://phlyphant.com';
+
+            try {
+              const parsed = new URL(origin);
+              origin = parsed.origin;
+            } catch {
+              origin = origin.replace(/\/.*$/, '');
+            }
+            origin = origin.replace(/\/+$/, '');
+
+            const redirectTo = `${origin}/auth/complete?customToken=${encodeURIComponent(
+              customToken,
+            )}`;
+
+            this.logger.log(`[facebookCallback] redirect=${redirectTo}`);
+            return res.redirect(302, redirectTo);
+          } catch (innerErr: any) {
+            this.logger.error(
+              `[facebookCallback] inner error: ${
+                innerErr?.message || innerErr
+              }`,
+            );
+            return res.status(500).send('Authentication error');
+          }
+        },
+      )(req as any, res as any);
     } catch (err: any) {
       this.logger.error(
-        `[facebookCallback] error: ${err?.message || String(err)}`,
+        `[facebookCallback] outer error: ${err?.message || String(err)}`,
       );
       return res.status(500).send('Authentication error');
     }
@@ -235,7 +283,7 @@ export class AuthController {
   }
 
   // =======================================
-  // Logout + Revoke Firebase Session
+  // Logout
   // =======================================
   @Post('logout')
   async logout(@Req() req: Request, @Res() res: Response) {

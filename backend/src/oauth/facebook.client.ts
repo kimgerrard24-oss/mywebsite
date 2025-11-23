@@ -30,13 +30,20 @@ function requireEnv(name: string): string {
   return v;
 }
 
-// Tokens ---------------------------------------------------------------
+// Facebook Graph API Version
+const GRAPH_VERSION = 'v21.0';
+
+// ---------------------------------------------------------------------
+// Exchange code → access token
+// ---------------------------------------------------------------------
 export async function exchangeFacebookCodeForTokens(code: string) {
   const clientId = requireEnv('FACEBOOK_CLIENT_ID');
   const clientSecret = requireEnv('FACEBOOK_CLIENT_SECRET');
-  const redirectUri = requireEnv('FACEBOOK_REDIRECT_URL');
 
-  const tokenUrl = 'https://graph.facebook.com/v17.0/oauth/access_token';
+  // ใช้ callback ที่ถูกต้อง
+  const redirectUri = requireEnv('FACEBOOK_CALLBACK_URL');
+
+  const tokenUrl = `https://graph.facebook.com/${GRAPH_VERSION}/oauth/access_token`;
 
   try {
     const res = await axios.get<FacebookTokenResponse>(tokenUrl, {
@@ -52,13 +59,17 @@ export async function exchangeFacebookCodeForTokens(code: string) {
     return res.data;
   } catch (err: any) {
     const detail = err?.response?.data || err?.message || 'Unknown error';
-    throw new Error(`Facebook Token Exchange Failed: ${JSON.stringify(detail)}`);
+    throw new Error(
+      `Facebook Token Exchange Failed: ${JSON.stringify(detail)}`
+    );
   }
 }
 
-// Profile --------------------------------------------------------------
+// ---------------------------------------------------------------------
+// Fetch Facebook user profile
+// ---------------------------------------------------------------------
 export async function fetchFacebookProfile(accessToken: string) {
-  const url = 'https://graph.facebook.com/me';
+  const url = `https://graph.facebook.com/${GRAPH_VERSION}/me`;
 
   try {
     const res = await axios.get<FacebookProfileResponse>(url, {
@@ -72,11 +83,15 @@ export async function fetchFacebookProfile(accessToken: string) {
     return normalizeFacebookProfile(res.data);
   } catch (err: any) {
     const detail = err?.response?.data || err?.message || 'Unknown error';
-    throw new Error(`Facebook Profile Fetch Failed: ${JSON.stringify(detail)}`);
+    throw new Error(
+      `Facebook Profile Fetch Failed: ${JSON.stringify(detail)}`
+    );
   }
 }
 
-// Normalize to match Hybrid OAuth + Firebase Admin
+// ---------------------------------------------------------------------
+// Normalize result
+// ---------------------------------------------------------------------
 function normalizeFacebookProfile(data: FacebookProfileResponse) {
   return {
     provider: 'facebook',

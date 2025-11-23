@@ -14,31 +14,14 @@ import { Request } from 'express';
 @Injectable()
 export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
   constructor(private readonly authService: AuthService) {
-    const normalizeUrl = (url: string): string => {
-      if (!url) return '';
-      let u = url.trim();
-      u = u.replace(/\?{2,}/g, '');
-      u = u.replace(/([^:]\/)\/+/g, '$1');
-      return u;
-    };
-
     const clientID = process.env.GOOGLE_CLIENT_ID || '';
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET || '';
 
-    let rawCallback =
+    // ใช้ callback URL แบบตรงๆ ไม่ replace path
+    const callbackURL =
       process.env.GOOGLE_CALLBACK_URL ||
       process.env.GOOGLE_REDIRECT_URL ||
       '';
-
-    rawCallback = normalizeUrl(rawCallback);
-
-    // Production rule:
-    // Keep domain (including api.<domain>) safe.
-    // Only replace path prefix "/api/auth" → "/auth"
-    rawCallback = rawCallback.replace('/api/auth/', '/auth/');
-    rawCallback = rawCallback.replace('/api/auth', '/auth');
-
-    const callbackURL = rawCallback;
 
     if (!clientID || !clientSecret || !callbackURL) {
       throw new Error('Missing Google OAuth configuration');
@@ -61,6 +44,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     refreshToken: string,
     profile: Profile,
   ) {
+    // คืนค่าต้นทาง (origin) ป้องกัน redirect ผิดโดเมน
     const requestedOrigin = (req as any).oauthOrigin;
     if (requestedOrigin) {
       (req as any).resolvedOrigin = requestedOrigin;

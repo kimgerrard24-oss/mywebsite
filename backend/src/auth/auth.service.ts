@@ -30,6 +30,7 @@ export class AuthService {
 
   // ==========================================
   // Normalize redirect URIs and remove corruption
+  // (แก้: ไม่ replace /api/auth อีกต่อไป)
   // ==========================================
   private normalizeRedirectUri(raw: string): string {
     if (!raw) return raw;
@@ -37,9 +38,6 @@ export class AuthService {
 
     // Remove accidental "???" or duplicated ?
     v = v.replace(/\?{2,}/g, '');
-
-    // Normalize accidental prefix
-    v = v.replace('/api/auth', '/auth');
 
     // Remove duplicated slashes except protocol
     v = v.replace(/([^:]\/)\/+/g, '$1');
@@ -82,7 +80,7 @@ export class AuthService {
 
     if (!clientId || !clientSecret || !redirectUri) {
       throw new Error(
-        `Missing Google OAuth configuration. Check env or AWS secret "${process.env.AWS_OAUTH_SECRET_NAME}".`
+        `Missing Google OAuth configuration. Check env or AWS secret "${process.env.AWS_OAUTH_SECRET_NAME}".`,
       );
     }
 
@@ -123,7 +121,7 @@ export class AuthService {
 
     if (!clientId || !clientSecret || !redirectUri) {
       throw new Error(
-        `Missing Facebook OAuth configuration. Check env or AWS secret "${process.env.AWS_OAUTH_SECRET_NAME}".`
+        `Missing Facebook OAuth configuration. Check env or AWS secret "${process.env.AWS_OAUTH_SECRET_NAME}".`,
       );
     }
 
@@ -134,7 +132,7 @@ export class AuthService {
   // GOOGLE — find or create
   // ==========================================
   async findOrCreateUserFromGoogle(profile: any) {
-    const email = profile.emails?.[0]?.value;
+    const email = profile.emails?.[0]?.value || null;
 
     let user = await this.prisma.user.findFirst({
       where: {
@@ -167,8 +165,8 @@ export class AuthService {
 
         user.firebaseUid = firebaseUid;
       } catch (err) {
-        this.logger.error("Failed to set firebaseUid for Google user");
-        throw new Error("Failed to set firebaseUid");
+        this.logger.error('Failed to set firebaseUid for Google user');
+        throw new Error('Failed to set firebaseUid');
       }
     }
 
@@ -215,8 +213,8 @@ export class AuthService {
 
         user.firebaseUid = firebaseUid;
       } catch (err) {
-        this.logger.error("Failed to set firebaseUid for Facebook user");
-        throw new Error("Failed to set firebaseUid");
+        this.logger.error('Failed to set firebaseUid for Facebook user');
+        throw new Error('Failed to set firebaseUid');
       }
     }
 
@@ -250,9 +248,8 @@ export class AuthService {
   // ==========================================
   // FIREBASE WRAPPERS (CUSTOM TOKEN + SESSION)
   // ==========================================
-
   createFirebaseCustomToken(uid: string, user: any) {
-    if (!uid || typeof uid !== "string") {
+    if (!uid || typeof uid !== 'string') {
       throw new Error(`Invalid UID for Firebase custom token: "${uid}"`);
     }
 

@@ -1,99 +1,95 @@
-// ==============================
-// file: pages/auth/complete.tsx
-// ==============================
+// pages/auth/complete.tsx
+// Next.js Page Router (TSX) - Hybrid OAuth + Firebase Custom Token Login
+// Semantic + SEO + Responsive + TailwindCSS
 
-// บังคับ SSR เพื่อไม่ให้ Next.js ทำเป็น Static
-export const getServerSideProps = async () => {
-  return { props: {} };
-};
-
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
+import Head from "next/head";
 import { useRouter } from "next/router";
-import { signInWithCustomToken } from "firebase/auth";
-import axios from "axios";
-import { getFirebaseAuth } from "../../firebase/client";
+import { getAuth, signInWithCustomToken } from "firebase/auth";
+import firebaseApp from "@/lib/firebaseClient"; // ต้องมีไฟล์นี้ตามโปรเจกของคุณ
 
-export default function AuthComplete() {
+interface CompleteProps {
+  customToken?: string | null;
+}
+
+export default function AuthComplete({ customToken }: CompleteProps) {
   const router = useRouter();
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  // Base URL ของเว็บไซต์คุณ
-  const SITE_URL =
-    process.env.NEXT_PUBLIC_SITE_URL || "https://phlyphant.com";
-
-  // Backend Production URL จาก env ของคุณ
-  const API_BASE =
-    process.env.NEXT_PUBLIC_API_BASE_URL ||
-    "https://api.phlyphant.com";
-
-  // หลัง login สำเร็จ ส่งกลับที่หน้า Dashboard
-  const REDIRECT_AFTER_LOGIN = "/dashboard";
 
   useEffect(() => {
-    if (!router.isReady) return;
+    const login = async () => {
+      const token = (window as any).__CUSTOM_TOKEN || customToken;
+      if (!token) {
+        router.replace("/login?error=missing_token");
+        return;
+      }
 
-    let token: string | undefined = undefined;
-
-    // 1) customToken จาก query
-    if (typeof router.query.customToken === "string") {
-      token = router.query.customToken;
-    }
-
-    // 2) customToken จาก hash (#customToken=xxx)
-    if (!token && typeof window !== "undefined") {
-      const hashParams = new URLSearchParams(
-        window.location.hash.replace("#", "")
-      );
-      token = hashParams.get("customToken") ?? undefined;
-    }
-
-    // 3) customToken จาก search (?customToken=xxx)
-    if (!token && typeof window !== "undefined") {
-      const urlParams = new URLSearchParams(window.location.search);
-      token = urlParams.get("customToken") ?? undefined;
-    }
-
-    // ถ้าไม่มี token → redirect
-    if (!token) {
-      setError("Missing custom token");
-      router.replace("/auth-check");
-      return;
-    }
-
-    const run = async () => {
       try {
-        const auth = getFirebaseAuth();
-
-        // 4) Firebase Sign-in
-        const userCred = await signInWithCustomToken(auth, token);
-        const idToken = await userCred.user.getIdToken(true);
-
-        // 5) ส่ง idToken → backend เพื่อสร้าง session cookie
-        await axios.post(
-          `${API_BASE}/auth/session`,
-          { idToken },
-          { withCredentials: true }
-        );
-
-        // รอให้ Cookie ถูกเขียนลงเบราว์เซอร์
-        await new Promise((res) => setTimeout(res, 200));
-
-        // 6) Redirect → dashboard
-        window.location.href = `${SITE_URL}${REDIRECT_AFTER_LOGIN}`;
-      } catch (err: any) {
-        console.error("Authentication failed:", err);
-        setError(err?.message || "Authentication failed");
-      } finally {
-        setLoading(false);
+        const auth = getAuth(firebaseApp);
+        await signInWithCustomToken(auth, token);
+        router.replace("/");
+      } catch (error) {
+        console.error("Sign-in error:", error);
+        router.replace("/login?error=signin_failed");
       }
     };
 
-    run();
-  }, [router.isReady]);
+    login();
+  }, [customToken, router]);
 
-  if (loading) return <p>Signing you in...</p>;
-  if (error) return <p>Error: {error}</p>;
+  return (
+    <>
+      <Head>
+        <title>กำลังเข้าสู่ระบบ… | Phlyphant</title>
+        <meta
+          name="description"
+          content="กำลังเข้าสู่ระบบเพื่อเข้าสู่ประสบการณ์ Social Media ของคุณบน Phlyphant"
+        />
+        <meta name="robots" content="noindex" />
+      </Head>
 
-  return <p>Done</p>;
+      <main className="min-h-screen w-full flex flex-col items-center justify-center bg-linear-to-b from-gray-50 to-gray-100 px-4">
+        <section className="text-center max-w-md w-full p-6 bg-white shadow-lg rounded-2xl border border-gray-200">
+          <h1 className="text-2xl md:text-3xl font-bold text-gray-800 mb-4">
+            กำลังเข้าสู่ระบบ
+          </h1>
+
+          <p className="text-gray-600 mb-6 text-base md:text-lg leading-relaxed">
+            ระบบกำลังตรวจสอบข้อมูล และพาคุณเข้าสู่บัญชีของคุณ…
+          </p>
+
+          <div className="flex justify-center">
+            <div className="h-12 w-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+          </div>
+        </section>
+
+        <footer className="mt-8 text-center text-gray-500 text-sm md:text-base">
+          © {new Date().getFullYear()} Phlyphant — All Rights Reserved
+        </footer>
+      </main>
+    </>
+  );
+}
+
+// รับ customToken จาก Backend ผ่าน POST auto-submit form
+export async function getServerSideProps({ req }: any) {
+  if (req.method === "POST") {
+    const raw = await new Promise<string>((resolve) => {
+      let data = "";
+      req.on("data", (chunk: Buffer) => (data += chunk.toString()));
+      req.on("end", () => resolve(data));
+    });
+
+    const body = new URLSearchParams(raw);
+    const customToken = body.get("customToken") || null;
+
+    return {
+      props: {
+        customToken,
+      },
+    };
+  }
+
+  return {
+    props: {},
+  };
 }

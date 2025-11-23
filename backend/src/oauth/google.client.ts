@@ -31,7 +31,9 @@ function requireEnv(name: string): string {
 export async function exchangeGoogleCodeForTokens(code: string): Promise<GoogleTokens> {
   const clientId = requireEnv('GOOGLE_CLIENT_ID');
   const clientSecret = requireEnv('GOOGLE_CLIENT_SECRET');
-  const redirectUri = requireEnv('GOOGLE_REDIRECT_URL');
+
+  // ❗แก้: ใช้ CALLBACK URL (Production ใช้ตัวนี้)
+  const redirectUri = requireEnv('GOOGLE_CALLBACK_URL');
 
   const tokenUrl = 'https://oauth2.googleapis.com/token';
 
