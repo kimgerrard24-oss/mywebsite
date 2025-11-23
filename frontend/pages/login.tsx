@@ -1,6 +1,7 @@
 // frontend/pages/login.tsx
 import React from 'react';
 import { useRouter } from 'next/router';
+import Cookies from 'js-cookie';
 
 const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'https://api.phlyphant.com';
 
@@ -8,11 +9,21 @@ export default function LoginPage() {
   const router = useRouter();
 
   function startOAuth(provider: 'google' | 'facebook') {
-    // Backend will start OAuth flow and redirect to provider
-    // We include origin so backend can redirect back to correct frontend after provider
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
-    const url = `${API_BASE}/auth/${provider}?origin=${encodeURIComponent(origin)}`;
-    // For best UX, use window.location.href
+
+    // --- NEW: create state & store in cookie ---
+    const state = crypto.randomUUID();
+
+    Cookies.set('oauth_state', state, {
+      secure: true,
+      sameSite: 'none',
+      path: '/',
+      domain: '.phlyphant.com',
+    });
+
+    // send state to backend too
+    const url = `${API_BASE}/auth/${provider}?origin=${encodeURIComponent(origin)}&state=${state}`;
+
     window.location.href = url;
   }
 
