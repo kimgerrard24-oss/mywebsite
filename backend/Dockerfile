@@ -19,7 +19,7 @@ COPY package*.json ./
 RUN --mount=type=cache,target=/root/.npm \
     npm ci
 
-# Copy all files AFTER dependencies (cache-friendly)
+# Copy all files AFTER dependencies
 COPY . .
 
 # Generate Prisma client
@@ -27,6 +27,7 @@ RUN npx prisma generate
 
 # Build NestJS
 RUN npm run build
+
 
 
 # ---------- Stage 2: Runtime ----------
@@ -41,11 +42,14 @@ ENV PORT=4001
 ENV DOCKER_ENV=true
 ENV REDIS_URL=redis://redis:6379
 
-# Copy only necessary build output
-COPY --from=build /app/dist ./dist
-COPY --from=build /app/node_modules ./node_modules
-COPY --from=build /app/prisma ./prisma
+# Copy only package files, then install ONLY production dependencies
 COPY package*.json ./
+RUN npm ci --omit=dev
+
+# Copy built output & prisma schema from stage build
+COPY --from=build /app/dist ./dist
+COPY --from=build /app/prisma ./prisma
+COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
 
 EXPOSE 4001
 
