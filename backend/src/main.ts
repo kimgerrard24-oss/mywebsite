@@ -1,3 +1,7 @@
+// bootstrap.ts (replace your current bootstrap with this)
+// ==========================================
+// file: backend/src/main.ts (or bootstrap.ts in your project)
+// ==========================================
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
@@ -204,11 +208,25 @@ async function bootstrap(): Promise<void> {
 
   // ===============================================
   // HYBRID OAUTH ROUTES (Google + Facebook)
-  // (ไม่แตะ ต้องการให้เหมือนเดิม)
   // ===============================================
 
-  // Graph API version (useable by facebook code path)
-  const FACEBOOK_GRAPH_VERSION = process.env.FACEBOOK_GRAPH_VERSION || 'v21.0';
+  // Graph API version — default to v20.0 (safe / supported)
+  const FACEBOOK_GRAPH_VERSION = process.env.FACEBOOK_GRAPH_VERSION || 'v20.0';
+
+  // Helper: validate minimal OAuth env before redirect
+  function minimalGoogleConfigOk(): boolean {
+    return Boolean(
+      (process.env.GOOGLE_CLIENT_ID || '').trim() &&
+        (process.env.GOOGLE_CALLBACK_URL || process.env.GOOGLE_REDIRECT_URL || '').trim(),
+    );
+  }
+
+  function minimalFacebookConfigOk(): boolean {
+    return Boolean(
+      (process.env.FACEBOOK_CLIENT_ID || '').trim() &&
+        (process.env.FACEBOOK_CALLBACK_URL || process.env.FACEBOOK_REDIRECT_URL || '').trim(),
+    );
+  }
 
   // ----------- Step 1: redirect ----------
   expressApp.get('/auth/:provider/redirect', async (req: Request, res: Response) => {
@@ -219,9 +237,16 @@ async function bootstrap(): Promise<void> {
 
       const state = generateState();
       const stateKey = `oauth_state_${state}`;
-      await redisClient.setex(stateKey, 300, '1');
+      await redisClient.setex(stateKey, 300, '1').catch((e) => {
+        logger.error('redis setex failed for state: ' + String(e));
+      });
 
       if (provider === 'google') {
+        if (!minimalGoogleConfigOk()) {
+          logger.error('Google OAuth misconfigured (missing client_id or redirect_uri)');
+          return res.status(500).json({ error: 'oauth_misconfigured' });
+        }
+
         const params = new URLSearchParams({
           client_id: process.env.GOOGLE_CLIENT_ID || '',
           redirect_uri: process.env.GOOGLE_CALLBACK_URL || process.env.GOOGLE_REDIRECT_URL || '',
@@ -232,11 +257,16 @@ async function bootstrap(): Promise<void> {
         });
 
         return res.redirect(
-          `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`
+          `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`,
         );
       }
 
       if (provider === 'facebook') {
+        if (!minimalFacebookConfigOk()) {
+          logger.error('Facebook OAuth misconfigured (missing client_id or redirect_uri)');
+          return res.status(500).json({ error: 'oauth_misconfigured' });
+        }
+
         const params = new URLSearchParams({
           client_id: process.env.FACEBOOK_CLIENT_ID || '',
           redirect_uri: process.env.FACEBOOK_CALLBACK_URL || process.env.FACEBOOK_REDIRECT_URL || '',
@@ -247,7 +277,7 @@ async function bootstrap(): Promise<void> {
 
         // use GRAPH version in dialog URL
         return res.redirect(
-          `https://www.facebook.com/${FACEBOOK_GRAPH_VERSION}/dialog/oauth?${params.toString()}`
+          `https://www.facebook.com/${FACEBOOK_GRAPH_VERSION}/dialog/oauth?${params.toString()}`,
         );
       }
 
@@ -269,7 +299,10 @@ async function bootstrap(): Promise<void> {
 
       const stateKey = `oauth_state_${state}`;
       const validState = await redisClient.get(stateKey);
-      if (!validState) return res.status(400).send('Invalid or expired state');
+      if (!validState) {
+        logger.warn('Invalid or expired oauth state: ' + state);
+        return res.status(400).send('Invalid or expired state');
+      }
 
       await redisClient.del(stateKey).catch(() => {});
 
@@ -277,6 +310,12 @@ async function bootstrap(): Promise<void> {
       let userInfo: any = null;
 
       if (provider === 'google') {
+        // validate config again
+        if (!minimalGoogleConfigOk()) {
+          logger.error('Google OAuth misconfigured at callback stage');
+          return res.status(500).send('oauth_misconfigured');
+        }
+
         const googleTokenUrl = 'https://oauth2.googleapis.com/token';
         tokenResult = await axios.post(
           googleTokenUrl,
@@ -319,12 +358,15 @@ async function bootstrap(): Promise<void> {
           process.env.GOOGLE_PROVIDER_REDIRECT_AFTER_LOGIN ||
           'https://phlyphant.com';
 
-        return res.redirect(
-          `${redirectBase}?one_time_key=${oneTimeKey}`
-        );
+        return res.redirect(`${redirectBase}?one_time_key=${oneTimeKey}`);
       }
 
       if (provider === 'facebook') {
+        if (!minimalFacebookConfigOk()) {
+          logger.error('Facebook OAuth misconfigured at callback stage');
+          return res.status(500).send('oauth_misconfigured');
+        }
+
         const fbTokenUrl = `https://graph.facebook.com/${FACEBOOK_GRAPH_VERSION}/oauth/access_token`;
         tokenResult = await axios.get(fbTokenUrl, {
           params: {
@@ -362,9 +404,7 @@ async function bootstrap(): Promise<void> {
           process.env.FACEBOOK_PROVIDER_REDIRECT_AFTER_LOGIN ||
           'https://phlyphant.com';
 
-        return res.redirect(
-          `${redirectBase}?one_time_key=${oneTimeKey}`
-        );
+        return res.redirect(`${redirectBase}?one_time_key=${oneTimeKey}`);
       }
 
       return res.status(400).json({ error: 'unknown_provider' });
@@ -395,8 +435,7 @@ async function bootstrap(): Promise<void> {
   expressApp.post('/auth/create_session', async (req: Request, res: Response) => {
     try {
       const idToken = String(req.body.idToken || '');
-      if (!idToken)
-        return res.status(400).json({ error: 'missing_idToken' });
+      if (!idToken) return res.status(400).json({ error: 'missing_idToken' });
 
       const firebase = nestApp.get(FirebaseAdminService);
       const decoded = await firebase.auth().verifyIdToken(idToken).catch(() => null);
@@ -404,9 +443,7 @@ async function bootstrap(): Promise<void> {
       if (!decoded) return res.status(401).json({ error: 'invalid_idToken' });
 
       const expiresIn = Number(process.env.SESSION_COOKIE_MAX_AGE_MS || 432000000);
-      const sessionCookie = await firebase.auth().createSessionCookie(idToken, {
-        expiresIn,
-      });
+      const sessionCookie = await firebase.auth().createSessionCookie(idToken, { expiresIn });
 
       const isProd = process.env.NODE_ENV === 'production';
       const cookieDomain = process.env.COOKIE_DOMAIN || undefined;

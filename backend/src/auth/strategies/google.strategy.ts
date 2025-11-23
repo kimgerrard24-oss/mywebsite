@@ -16,15 +16,19 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
   constructor(private readonly authService: AuthService) {
     const clientID = process.env.GOOGLE_CLIENT_ID || '';
     const clientSecret = process.env.GOOGLE_CLIENT_SECRET || '';
-
-    // ใช้ callback URL แบบตรงๆ ไม่ replace path
     const callbackURL =
       process.env.GOOGLE_CALLBACK_URL ||
       process.env.GOOGLE_REDIRECT_URL ||
       '';
 
-    if (!clientID || !clientSecret || !callbackURL) {
-      throw new Error('Missing Google OAuth configuration');
+    // ถ้า callback URL ว่างหรือไม่ถูกต้อง → แจ้ง error ชัดเจน
+    if (!clientID || !clientSecret) {
+      throw new Error('Missing Google OAuth client ID or secret');
+    }
+    if (!callbackURL || !callbackURL.startsWith('https://')) {
+      throw new Error(
+        `Invalid GOOGLE_CALLBACK_URL. Received: "${callbackURL}"`
+      );
     }
 
     const options: StrategyOptionsWithRequest = {
@@ -44,20 +48,16 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     refreshToken: string,
     profile: Profile,
   ) {
-    // คืนค่าต้นทาง (origin) ป้องกัน redirect ผิดโดเมน
+    // เก็บ origin เพื่อใช้ redirect หลังสำเร็จ
     const requestedOrigin = (req as any).oauthOrigin;
     if (requestedOrigin) {
       (req as any).resolvedOrigin = requestedOrigin;
     }
 
+    // Google บาง region ไม่ส่ง email ต้องรองรับ
     const email =
-      profile.emails && profile.emails.length > 0
-        ? profile.emails[0].value
-        : null;
-
-    if (!email) {
-      throw new Error('Google profile has no email');
-    }
+      profile.emails?.[0]?.value ||
+      `${profile.id}@google-oauth.phlyphant.local`;
 
     const user = await this.authService.validateGoogleUser({
       provider: 'google',

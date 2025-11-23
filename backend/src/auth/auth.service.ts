@@ -29,24 +29,20 @@ export class AuthService {
   ) {}
 
   // ==========================================
-  // Normalize redirect URIs and remove corruption
-  // (แก้: ไม่ replace /api/auth อีกต่อไป)
+  // Normalize redirect URIs
   // ==========================================
   private normalizeRedirectUri(raw: string): string {
     if (!raw) return raw;
     let v = raw.trim();
 
-    // Remove accidental "???" or duplicated ?
     v = v.replace(/\?{2,}/g, '');
-
-    // Remove duplicated slashes except protocol
     v = v.replace(/([^:]\/)\/+/g, '$1');
 
     return v;
   }
 
   // ==========================================
-  // GOOGLE CONFIG (ENV-Priority)
+  // GOOGLE CONFIG
   // ==========================================
   async getGoogleConfig(): Promise<GoogleOAuthConfig> {
     const raw = await this.secretsService.getOAuthSecrets();
@@ -88,7 +84,7 @@ export class AuthService {
   }
 
   // ==========================================
-  // FACEBOOK CONFIG (ENV-Priority)
+  // FACEBOOK CONFIG
   // ==========================================
   async getFacebookConfig(): Promise<FacebookOAuthConfig> {
     const raw = await this.secretsService.getOAuthSecrets();
@@ -221,7 +217,52 @@ export class AuthService {
     return user;
   }
 
-  // Google specific bridge
+  // ==========================================
+  // ✔️ ฟังก์ชันใหม่ที่แก้ error 'string | null'
+  // ==========================================
+  async getOrCreateOAuthUser(
+    provider: 'facebook' | 'google',
+    providerId: string,
+    email?: string,
+    name?: string,
+    picture?: string,
+  ): Promise<string> {
+    // ป้องกัน null → Prisma ต้องเป็น string
+    const safeEmail =
+      email && email.trim().length > 0
+        ? email
+        : `${provider}-${providerId}@placeholder.local`;
+
+    let user = await this.prisma.user.findFirst({
+      where: { provider, providerId },
+    });
+
+    if (!user) {
+      user = await this.prisma.user.create({
+        data: {
+          email: safeEmail,
+          name: name || '',
+          provider,
+          providerId,
+          avatarUrl: picture || null,
+        },
+      });
+    }
+
+    const firebaseUid =
+      user.firebaseUid || `oauth_${provider}_${user.id}`;
+
+    if (!user.firebaseUid) {
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { firebaseUid },
+      });
+    }
+
+    return firebaseUid;
+  }
+
+  // Google bridge
   async validateGoogleUser(data: {
     provider: string;
     providerId: string;
@@ -233,7 +274,7 @@ export class AuthService {
     return this.findOrCreateUserFromGoogle(data.profile);
   }
 
-  // Facebook specific bridge
+  // Facebook bridge
   async validateFacebookUser(data: {
     provider: string;
     providerId: string;
@@ -246,7 +287,7 @@ export class AuthService {
   }
 
   // ==========================================
-  // FIREBASE WRAPPERS (CUSTOM TOKEN + SESSION)
+  // FIREBASE WRAPPERS
   // ==========================================
   createFirebaseCustomToken(uid: string, user: any) {
     if (!uid || typeof uid !== 'string') {

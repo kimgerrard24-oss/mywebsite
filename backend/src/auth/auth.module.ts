@@ -1,7 +1,7 @@
 // ==============================
 // file: src/auth/auth.module.ts
 // ==============================
-import { Module, forwardRef } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 
@@ -11,33 +11,24 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { RedisModule } from '../redis/redis.module';
 
 import { GoogleStrategy } from './strategies/google.strategy';
-import { FacebookStrategy } from './strategies/facebook.strategy';
 
 @Module({
   imports: [
-    // Ensure secrets load BEFORE strategies
     SecretsModule,
-    forwardRef(() => SecretsModule),
-
     FirebaseAdminModule,
     PrismaModule,
-
-    // Required for OAuth state / CSRF / Session
-    RedisModule,
+    RedisModule, // optional แต่ปล่อยไว้ได้
   ],
 
   providers: [
     AuthService,
 
-    // OAuth Strategies (must load after secrets)
+    // ✔ ใช้แค่ Google Strategy ที่ยังใช้ Passport
     GoogleStrategy,
-    FacebookStrategy,
   ],
 
   controllers: [AuthController],
 
-  exports: [
-    AuthService,
-  ],
+  exports: [AuthService],
 })
 export class AuthModule {}

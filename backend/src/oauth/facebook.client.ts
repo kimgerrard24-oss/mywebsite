@@ -21,27 +21,29 @@ interface FacebookProfileResponse {
   };
 }
 
-// Safe ENV loader for production
-function requireEnv(name: string): string {
+// -------------------------------------------
+// Safe ENV loader (ไม่ throw ทันทีอีกต่อไป)
+// แค่ log warning และคืนค่า "" เพื่อไม่ให้ backend ตก
+// -------------------------------------------
+function safeEnv(name: string): string {
   const v = process.env[name];
   if (!v || v.trim() === '') {
-    throw new Error(`Missing required environment variable: ${name}`);
+    console.warn(`⚠️ Missing environment variable: ${name}`);
+    return '';
   }
-  return v;
+  return v.trim();
 }
 
 // Facebook Graph API Version
-const GRAPH_VERSION = 'v21.0';
+const GRAPH_VERSION = 'v20.0'; // ใช้เวอร์ชันจริงที่รองรับ
 
 // ---------------------------------------------------------------------
 // Exchange code → access token
 // ---------------------------------------------------------------------
 export async function exchangeFacebookCodeForTokens(code: string) {
-  const clientId = requireEnv('FACEBOOK_CLIENT_ID');
-  const clientSecret = requireEnv('FACEBOOK_CLIENT_SECRET');
-
-  // ใช้ callback ที่ถูกต้อง
-  const redirectUri = requireEnv('FACEBOOK_CALLBACK_URL');
+  const clientId = safeEnv('FACEBOOK_CLIENT_ID');
+  const clientSecret = safeEnv('FACEBOOK_CLIENT_SECRET');
+  const redirectUri = safeEnv('FACEBOOK_CALLBACK_URL');
 
   const tokenUrl = `https://graph.facebook.com/${GRAPH_VERSION}/oauth/access_token`;
 
@@ -97,7 +99,7 @@ function normalizeFacebookProfile(data: FacebookProfileResponse) {
     provider: 'facebook',
     providerId: data.id,
     name: data.name || null,
-    email: data.email || null,
+    email: data.email || null, // ปลอดภัย
     picture: data.picture?.data?.url || null,
   };
 }

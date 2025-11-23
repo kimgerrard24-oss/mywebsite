@@ -15,7 +15,7 @@ import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from './auth.service';
 import { Response, Request } from 'express';
 import * as cookie from 'cookie';
-import passport from 'passport'; // <-- required for programmatic callback
+import axios from 'axios';
 
 @Controller('auth')
 export class AuthController {
@@ -42,7 +42,7 @@ export class AuthController {
           redirectUri: safeRedirectUri,
         },
       };
-    } catch (err) {
+    } catch (err: any) {
       throw err;
     }
   }
@@ -63,9 +63,9 @@ export class AuthController {
       if (oauthOrigin) (req as any).oauthOrigin = oauthOrigin;
 
       this.logger.log(`[googleAuth] preserved origin=${oauthOrigin}`);
-    } catch (e) {
+    } catch (e: any) {
       this.logger.warn(
-        `[googleAuth] failed to preserve origin: ${(e as Error).message}`,
+        `[googleAuth] failed to preserve origin: ${e?.message}`,
       );
     }
   }
@@ -103,7 +103,7 @@ export class AuthController {
       try {
         const parsed = new URL(origin);
         origin = parsed.origin;
-      } catch {
+      } catch (e: any) {
         origin = origin.replace(/\/.*$/, '');
       }
 
@@ -124,12 +124,14 @@ export class AuthController {
   }
 
   // =======================================
-  // FACEBOOK OAuth Start
+  // FACEBOOK OAuth Start (MANUAL)
   // =======================================
   @Get('facebook')
-  @UseGuards(AuthGuard('facebook'))
-  async facebookAuth(@Req() req: Request) {
+  async facebookAuth(@Req() req: Request, @Res() res: Response) {
     try {
+      const clientId = process.env.FACEBOOK_CLIENT_ID || '';
+      const redirectUri: string = process.env.FACEBOOK_CALLBACK_URL || '';
+
       const qOrigin = (req.query?.origin as string) || '';
       const referer = (req.headers?.referer as string) || '';
       const fallback =
@@ -137,118 +139,110 @@ export class AuthController {
         'https://phlyphant.com';
 
       const oauthOrigin = (qOrigin || referer || fallback).toString();
-      if (oauthOrigin) (req as any).oauthOrigin = oauthOrigin;
+      (req as any).oauthOrigin = oauthOrigin;
 
-      this.logger.log(`[facebookAuth] preserved origin=${oauthOrigin}`);
-    } catch (e) {
-      this.logger.warn(
-        `[facebookAuth] preserve origin error: ${(e as Error).message}`,
-      );
+      const authUrl = `https://www.facebook.com/v12.0/dialog/oauth?client_id=${clientId}&redirect_uri=${encodeURIComponent(
+        redirectUri,
+      )}&response_type=code&scope=email,public_profile&state=123`;
+
+      this.logger.log(`[facebookAuth] redirecting to: ${authUrl}`);
+      return res.redirect(authUrl);
+    } catch (e: any) {
+      this.logger.error(`[facebookAuth] error: ${e.message}`);
+      return res.status(500).send('Facebook auth start error');
     }
   }
 
   // =======================================
-  // FACEBOOK OAuth Callback (NEW FIXED VERSION)
+  // FACEBOOK OAuth Callback (MANUAL)
   // =======================================
   @Get('facebook/callback')
   async facebookCallback(@Req() req: Request, @Res() res: Response) {
     try {
-      const query = req.query || {};
+      const { code } = req.query;
 
-      this.logger.log(
-        `[facebookCallback] incomingQuery=${JSON.stringify(query)}`,
-      );
-
-      // If missing code or state → show clear error instead of passport internal error
-      if (!query.code || !query.state) {
-        this.logger.warn(
-          `[facebookCallback] Missing code or state. Query=${JSON.stringify(
-            query,
-          )}`,
-        );
-        return res
-          .status(400)
-          .send('Missing code or state in Facebook OAuth callback.');
+      if (!code) {
+        this.logger.warn('[facebookCallback] missing code');
+        return res.status(400).send('Missing code');
       }
 
-      // Handle via passport programmatically
-      return passport.authenticate(
-        'facebook',
-        { session: false },
-        async (err: any, user: any, info: any) => {
-          try {
-            if (err) {
-              this.logger.error(
-                `[facebookCallback] passport error: ${err?.message || err}`,
-              );
-              return res.status(500).send('Authentication failed');
-            }
+      const clientId = process.env.FACEBOOK_CLIENT_ID || '';
+      const clientSecret = process.env.FACEBOOK_CLIENT_SECRET || '';
+      const redirectUri: string = process.env.FACEBOOK_CALLBACK_URL || '';
 
-            if (!user) {
-              this.logger.warn(
-                `[facebookCallback] No user returned. info=${JSON.stringify(
-                  info,
-                )}`,
-              );
-              return res.status(401).send('Authentication failed');
-            }
-
-            if (!user?.firebaseUid) {
-              this.logger.warn('[facebookCallback] missing firebaseUid');
-              return res.status(500).send('Authentication failed');
-            }
-
-            const customToken = await this.auth.createFirebaseCustomToken(
-              user.firebaseUid,
-              user,
-            );
-
-            if (!customToken) {
-              this.logger.warn('[facebookCallback] customToken creation failed');
-              return res.status(500).send('Authentication failed');
-            }
-
-            let origin =
-              (req as any).resolvedOrigin ||
-              (req as any).oauthOrigin ||
-              process.env.FACEBOOK_PROVIDER_REDIRECT_AFTER_LOGIN ||
-              'https://phlyphant.com';
-
-            try {
-              const parsed = new URL(origin);
-              origin = parsed.origin;
-            } catch {
-              origin = origin.replace(/\/.*$/, '');
-            }
-            origin = origin.replace(/\/+$/, '');
-
-            const redirectTo = `${origin}/auth/complete?customToken=${encodeURIComponent(
-              customToken,
-            )}`;
-
-            this.logger.log(`[facebookCallback] redirect=${redirectTo}`);
-            return res.redirect(302, redirectTo);
-          } catch (innerErr: any) {
-            this.logger.error(
-              `[facebookCallback] inner error: ${
-                innerErr?.message || innerErr
-              }`,
-            );
-            return res.status(500).send('Authentication error');
-          }
+      // 1) แลก code -> access_token
+      const tokenRes = await axios.get(
+        'https://graph.facebook.com/v12.0/oauth/access_token',
+        {
+          params: {
+            client_id: clientId,
+            client_secret: clientSecret,
+            redirect_uri: redirectUri,
+            code,
+          },
         },
-      )(req as any, res as any);
+      );
+
+      const accessToken = tokenRes.data.access_token;
+
+      // 2) ดึงข้อมูลผู้ใช้
+      const profileRes = await axios.get(
+        'https://graph.facebook.com/me',
+        {
+          params: {
+            access_token: accessToken,
+            fields: 'id,name,email,picture',
+          },
+        },
+      );
+
+      const profile = profileRes.data;
+
+      // 3) หา Firebase UID
+      const firebaseUid = await this.auth.getOrCreateOAuthUser(
+        'facebook',
+        profile.id,
+        profile.email,
+        profile.name,
+        profile.picture?.data?.url,
+      );
+
+      // 4) สร้าง custom token
+      const customToken = await this.auth.createFirebaseCustomToken(
+        firebaseUid,
+        profile,
+      );
+
+      let origin =
+        (req as any).oauthOrigin ||
+        process.env.FACEBOOK_PROVIDER_REDIRECT_AFTER_LOGIN ||
+        'https://phlyphant.com';
+
+      try {
+        const parsed = new URL(origin);
+        origin = parsed.origin;
+      } catch (e: any) {
+        origin = origin.replace(/\/.*$/, '');
+      }
+      origin = origin.replace(/\/+$/, '');
+
+      const redirectTo = `${origin}/auth/complete?customToken=${encodeURIComponent(
+        customToken,
+      )}`;
+
+      this.logger.log(`[facebookCallback] redirect=${redirectTo}`);
+      return res.redirect(302, redirectTo);
     } catch (err: any) {
       this.logger.error(
-        `[facebookCallback] outer error: ${err?.message || String(err)}`,
+        `[facebookCallback] error: ${err?.message || err}`,
       );
-      return res.status(500).send('Authentication error');
+      return res.status(500).send('Facebook callback error');
     }
   }
 
-  // =======================================
-  // Create Firebase Session Cookie
-  // =======================================
+  // ==================================================
+  // SESSION COOKIE + LOGOUT + CHECK
+  // ==================================================
   @Post('session')
   async createSession(@Body('idToken') idToken: string, @Res() res: Response) {
     if (!idToken) return res.status(400).json({ message: 'idToken required' });
@@ -277,14 +271,11 @@ export class AuthController {
       });
 
       return res.json({ uid: decoded.uid, email: decoded.email });
-    } catch (err) {
+    } catch (err: any) {
       return res.status(401).json({ message: 'Invalid ID token' });
     }
   }
 
-  // =======================================
-  // Logout
-  // =======================================
   @Post('logout')
   async logout(@Req() req: Request, @Res() res: Response) {
     try {
@@ -298,7 +289,7 @@ export class AuthController {
         try {
           const decoded = await this.auth.verifySessionCookie(session);
           if (decoded?.uid) await this.auth.revoke(decoded.uid);
-        } catch {}
+        } catch (e: any) {}
       }
 
       const cookieDomain = process.env.COOKIE_DOMAIN || '.phlyphant.com';
@@ -312,14 +303,11 @@ export class AuthController {
       });
 
       return res.json({ success: true });
-    } catch {
+    } catch (e: any) {
       return res.status(500).json({ success: false });
     }
   }
 
-  // =======================================
-  // Session Check
-  // =======================================
   @Get('session-check')
   async sessionCheck(@Req() req: Request) {
     try {
@@ -346,7 +334,7 @@ export class AuthController {
         oauth: !!decoded?.email,
         websocket: true,
       };
-    } catch {
+    } catch (e: any) {
       return {
         sessionCookie: false,
         firebaseAdmin: false,

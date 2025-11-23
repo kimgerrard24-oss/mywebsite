@@ -2,7 +2,7 @@
 // file: backend/src/app.module.ts
 // ==========================================
 
-import { Module } from '@nestjs/common';
+import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AwsModule } from './aws/aws.module';
 import { AuthModule } from './auth/auth.module';
@@ -19,22 +19,14 @@ import { UsersTestController } from './users/users.controller';
 import { PrismaModule } from './prisma/prisma.module';
 import { FirebaseAdminModule } from './firebase/firebase.module';
 
-// ❗ FIX: cookie-parser default import
 import cookieParser from 'cookie-parser';
-
-import { MiddlewareConsumer, NestModule } from '@nestjs/common';
 import helmet from 'helmet';
 
 @Module({
   imports: [
-    // ===============================================
-    // Secrets MUST load before Firebase/Auth modules
-    // ===============================================
-    SecretsModule,
-
-    // ===============================================
-    // Load ENV (.env.production) globally
-    // ===============================================
+    // =======================================================
+    // 1) MUST LOAD .env BEFORE ANY OTHER MODULE
+    // =======================================================
     ConfigModule.forRoot({
       envFilePath:
         process.env.NODE_ENV === 'production'
@@ -44,9 +36,33 @@ import helmet from 'helmet';
       cache: true,
     }),
 
-    // ===============================================
-    // Global Rate Limit (Security Hardening)
-    // ===============================================
+    // =======================================================
+    // 2) Secrets module (now ENV is loaded correctly)
+    // =======================================================
+    SecretsModule,
+
+    // =======================================================
+    // 3) Firebase BEFORE AuthModule
+    // =======================================================
+    FirebaseAdminModule,
+
+    // =======================================================
+    // 4) Auth Module Hybrid OAuth + Firebase
+    // =======================================================
+    AuthModule,
+
+    // Other core modules
+    AwsModule,
+    HealthModule,
+    PrismaModule,
+    RedisModule,
+    AppCacheModule,
+    QueueModule,
+
+    // Sentry global monitoring
+    SentryModule.forRoot(),
+
+    // Rate limiting
     ThrottlerModule.forRoot({
       throttlers: [
         {
@@ -55,28 +71,6 @@ import helmet from 'helmet';
         },
       ],
     }),
-
-    // ===============================================
-    // Firebase Admin MUST load before AuthModule
-    // ===============================================
-    FirebaseAdminModule,
-
-    // ===============================================
-    // AuthModule — Hybrid OAuth + Firebase Admin Login
-    // ===============================================
-    AuthModule,
-
-    AwsModule,
-    HealthModule,
-    PrismaModule,
-    RedisModule,
-    AppCacheModule,
-    QueueModule,
-
-    // ===============================================
-    // Global Sentry Error Monitoring
-    // ===============================================
-    SentryModule.forRoot(),
   ],
 
   controllers: [AppController, UsersTestController],
@@ -94,14 +88,9 @@ import helmet from 'helmet';
 })
 export class AppModule implements NestModule {
   configure(consumer: MiddlewareConsumer) {
-    // ==========================================================
-    // Global Security Middleware
-    // ==========================================================
     consumer
       .apply(
-        // ❗ FIX: cookieParser default import usage
         cookieParser(process.env.SECRET_KEY),
-
         helmet({
           contentSecurityPolicy: false,
           crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },

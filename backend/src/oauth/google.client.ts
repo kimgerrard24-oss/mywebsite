@@ -18,22 +18,36 @@ interface GoogleUserInfo {
   picture?: string;
 }
 
-// Require environment variable
-function requireEnv(name: string): string {
+// ---------------------------------------------------------------------
+// Safe ENV loader (ไม่ throw backend crash อีกต่อไป)
+// ---------------------------------------------------------------------
+function safeEnv(name: string): string {
   const value = process.env[name];
   if (!value || value.trim() === '') {
-    throw new Error(`Missing required environment variable: ${name}`);
+    console.warn(`⚠️ Missing environment variable: ${name}`);
+    return '';
   }
-  return value;
+  return value.trim();
 }
 
-// Exchange authorization code for tokens -----------------------------
-export async function exchangeGoogleCodeForTokens(code: string): Promise<GoogleTokens> {
-  const clientId = requireEnv('GOOGLE_CLIENT_ID');
-  const clientSecret = requireEnv('GOOGLE_CLIENT_SECRET');
+// ---------------------------------------------------------------------
+// Exchange authorization code for tokens
+// ---------------------------------------------------------------------
+export async function exchangeGoogleCodeForTokens(
+  code: string
+): Promise<GoogleTokens> {
+  const clientId = safeEnv('GOOGLE_CLIENT_ID');
+  const clientSecret = safeEnv('GOOGLE_CLIENT_SECRET');
+  const redirectUri =
+    safeEnv('GOOGLE_CALLBACK_URL') ||
+    safeEnv('GOOGLE_REDIRECT_URL') ||
+    safeEnv('GOOGLE_REDIRECT_URI');
 
-  // ❗แก้: ใช้ CALLBACK URL (Production ใช้ตัวนี้)
-  const redirectUri = requireEnv('GOOGLE_CALLBACK_URL');
+  if (!clientId || !clientSecret || !redirectUri) {
+    throw new Error(
+      'Google OAuth configuration missing (clientId, clientSecret, or redirectUri)'
+    );
+  }
 
   const tokenUrl = 'https://oauth2.googleapis.com/token';
 
@@ -58,30 +72,45 @@ export async function exchangeGoogleCodeForTokens(code: string): Promise<GoogleT
   }
 }
 
-// Fetch user profile --------------------------------------------------
-export async function fetchGoogleProfile(idToken?: string, accessToken?: string) {
+// ---------------------------------------------------------------------
+// Fetch user profile
+// ---------------------------------------------------------------------
+export async function fetchGoogleProfile(
+  idToken?: string,
+  accessToken?: string
+) {
   const userInfoUrl = 'https://www.googleapis.com/oauth2/v3/userinfo';
 
-  if (!accessToken) {
-    throw new Error('Missing Google accessToken');
+  if (!accessToken && !idToken) {
+    throw new Error('Missing Google accessToken or idToken');
   }
 
   try {
+    const headers: Record<string, string> = {};
+
+    if (accessToken) {
+      headers['Authorization'] = `Bearer ${accessToken}`;
+    } else if (idToken) {
+      headers['Authorization'] = `Bearer ${idToken}`;
+    }
+
     const res = await axios.get<GoogleUserInfo>(userInfoUrl, {
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-      },
+      headers,
       timeout: 10000,
     });
 
     return normalizeGoogleProfile(res.data);
   } catch (err: any) {
     const detail = err?.response?.data || err?.message || 'Unknown error';
-    throw new Error(`Google Profile Fetch Failed: ${JSON.stringify(detail)}`);
+    throw new Error(
+      `Google Profile Fetch Failed: ${JSON.stringify(detail)}`
+    );
   }
 }
 
-// Normalize for Hybrid OAuth + Firebase Admin Usage ------------------
+// ---------------------------------------------------------------------
+// Normalize for Hybrid OAuth + Firebase Admin Usage
+// ---------------------------------------------------------------------
 function normalizeGoogleProfile(data: GoogleUserInfo) {
   return {
     provider: 'google',
