@@ -5,17 +5,17 @@ WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 
-# Copy package files first
+# Copy only package files first
 COPY package*.json ./
 
 # Install dependencies with cache
 RUN --mount=type=cache,target=/root/.npm \
     npm ci
 
-# Copy entire project AFTER deps
+# Copy project sources
 COPY . .
 
-# Copy env file for build time
+# Copy env file for build time (must exist inside /frontend)
 COPY .env.production .env.production
 
 # Build Next.js (Turbopack)
@@ -31,17 +31,15 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 
-# Copy only runtime files
+# Install required dependencies for Next.js runtime
+RUN apt-get update -y && apt-get install -y openssl
+
+# Copy runtime files
 COPY package*.json ./
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/public ./public
 COPY --from=build /app/.next ./.next
 
-# ❌ REMOVE: npm ci --omit=dev (สาเหตุ RAM OOM)
-# เพราะ node_modules จาก build stage พร้อมใช้งานแล้ว
-
-# Expose frontend port
 EXPOSE 3000
 
-# Start Next.js
 CMD ["npm", "run", "start"]

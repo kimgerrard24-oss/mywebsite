@@ -1,11 +1,15 @@
-# === Node.js / Package Managers ===
+# ============================================================
+# =============== Node.js / Package Managers ==================
+# ============================================================
 node_modules/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# === Environment Variables ===
+# ============================================================
+# ===================== Environment Files =====================
+# ============================================================
 .env
 **/.env
 !**/.env.example
@@ -13,8 +17,15 @@ pnpm-debug.log*
 .env.development.local
 .env.test.local
 .env.production.local
+.env*.backup
+*.env.bak
 
-# === Build Output ===
+# Prisma env (allow define in repo)
+prisma/.env
+
+# ============================================================
+# =================== Build Output / Artifacts ================
+# ============================================================
 dist/
 .next/
 out/
@@ -22,20 +33,54 @@ build/
 tmp/
 temp/
 .cache/
+.cache-loader/
+**/.turbo/
+.next/static/
+frontend/.next/
+backend/dist/
 
-# === Logs ===
+# Next.js standalone output
+standalone/
+frontend/standalone/
+
+# Turbopack
+**/.turbopack/
+
+# ============================================================
+# ======================= Log Files ===========================
+# ============================================================
 logs/
 *.log
 *.pid
 *.seed
 *.pid.lock
+npm-debug.log*
 
-# === Test Coverage ===
+# PM2 logs
+.pmd/
+pm2/logs/
+
+# ============================================================
+# ====================== Test Coverage ========================
+# ============================================================
 coverage/
 .nyc_output/
 jest-html-reporters-*
+jest-coverage/
+test-results/
 
-# === Editor / IDE ===
+# ============================================================
+# ==================== OS Generated Files =====================
+# ============================================================
+.DS_Store
+Thumbs.db
+ehthumbs.db
+Icon?
+Desktop.ini
+
+# ============================================================
+# ===================== Editor / IDE Files ===================
+# ============================================================
 .vscode/
 .idea/
 *.swp
@@ -43,40 +88,123 @@ jest-html-reporters-*
 *.sublime-project
 *.sublime-workspace
 
-# === OS-specific ===
-.DS_Store
-Thumbs.db
-ehthumbs.db
-Icon?
-
-# === TypeScript ===
+# ============================================================
+# ====================== TypeScript ===========================
+# ============================================================
 *.tsbuildinfo
+tsconfig.tsbuildinfo
 
-# === Runtime / Temp Files ===
+# ============================================================
+# ================== Runtime / Temp Files =====================
+# ============================================================
 *.local
 *.bak
 *.tmp
+*.temp
+*.out
+*.orig
 
-# === Docker / Containers ===
+# ============================================================
+# =================== Docker Related Files ====================
+# ============================================================
 docker-compose.override.yml
 .docker/
 Dockerfile.local
+**/.dockerignore-backup
+**/docker-cache/
 
-# === Prisma / Database ===
+# ============================================================
+# ================= Prisma / Database Files ===================
+# ============================================================
+# Local DB for development only
 prisma/dev.db
 *.sqlite
 *.sqlite-journal
-# ✅ เก็บ prisma/schema.prisma ไว้ใน repo (อย่า ignore)
-# ❌ อย่า ignore prisma/migrations ถ้าใช้ระบบ migration จริง
 
-# === Firebase / Cloud / Secrets ===
+# Keep migrations for production
+!prisma/migrations/
+
+# ============================================================
+# ============== Firebase / Secrets / Cloud Files =============
+# ============================================================
 firebase-debug.log
 serviceAccountKey.json
-firebase.txt 
-# ✅ Ignore Google OAuth credentials
+firebase.txt
 config/google-oauth-client.json
 
+# AWS related secret cache
+.aws/
+.aws-sam/
 
-# === Cache / Temporary build files ===
+# ============================================================
+# ==================== Build Cache Files ======================
+# ============================================================
 .cache/
 *.cache
+.cache-loader/
+.eslintcache
+.stylelintcache
+
+# ============================================================
+# ======================= Frontend Cache ======================
+# ============================================================
+frontend/.next/cache/
+frontend/.vercel/
+frontend/.swc/
+
+# ============================================================
+# ======================= Backend Cache =======================
+# ============================================================
+backend/.cache/
+backend/.tsbuildinfo
+
+# ============================================================
+# ================== Monitoring / Grafana =====================
+# ============================================================
+monitoring/grafana/data/
+monitoring/grafana/plugins/
+monitoring/grafana/log/
+monitoring/grafana/grafana.ini
+monitoring/grafana/grafana.db
+
+# ============================================================
+# =================== SSL / Certificates ======================
+# ============================================================
+*.pem
+*.key
+*.crt
+*.csr
+cert/
+secrets/
+certs/
+
+# ============================================================== 
+# ================= Production Secrets Protections ==============
+# ==============================================================
+
+# Never track private SSH / deploy keys
+id_rsa
+id_rsa.pub
+*.pem
+*.ppk
+
+# Never track GitHub Actions secrets
+.github/workflows/secrets.local
+
+# ============================================================
+# ====================== Misc Exceptions ======================
+# ============================================================
+
+# Prevent committing extremely large files
+*.tgz
+*.tar
+*.zip
+*.gz
+
+# Prevent accidental uploads
+uploads/
+uploads_tmp/
+
+# Temp build for CI/CD
+infra/tmp/
+infra/deploy-temp/

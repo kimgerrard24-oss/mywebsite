@@ -45,11 +45,26 @@ jobs:
         run: npm run build
 
       # -----------------------------------------------------------
-      # 3) Build backend Docker image & Push to GHCR  (✔ NEW)
+      # 3) Login to GHCR (used by both frontend & backend)
       # -----------------------------------------------------------
       - name: Login to GHCR
         run: echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" --password-stdin
 
+      # -----------------------------------------------------------
+      # 4) Build + Push Frontend Docker image (✔ FIXED)
+      # -----------------------------------------------------------
+      - name: Build frontend Docker image
+        run: |
+          docker build \
+            -t ghcr.io/${{ secrets.GHCR_USERNAME }}/mywebsite-frontend:latest \
+            frontend
+
+      - name: Push frontend Docker image
+        run: docker push ghcr.io/${{ secrets.GHCR_USERNAME }}/mywebsite-frontend:latest
+
+      # -----------------------------------------------------------
+      # 5) Build + Push Backend Docker image
+      # -----------------------------------------------------------
       - name: Build backend Docker image
         run: |
           docker build \
@@ -60,7 +75,7 @@ jobs:
         run: docker push ghcr.io/${{ secrets.GHCR_USERNAME }}/mywebsite-backend:latest
 
       # -----------------------------------------------------------
-      # 4) Deploy to Linode  (✔ FIXED)
+      # 6) Deploy to Linode
       # -----------------------------------------------------------
       - name: Deploy to Linode
         uses: appleboy/ssh-action@v1.0.3
@@ -107,7 +122,6 @@ jobs:
 
             echo "Running health check..."
             HEALTH_URL="http://localhost:4001/system-check"
-
             if curl -s --fail "$HEALTH_URL" > /dev/null; then
               echo "Health check OK"
             else
