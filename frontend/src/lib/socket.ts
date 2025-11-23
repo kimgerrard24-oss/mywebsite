@@ -29,7 +29,7 @@ export function getSocket(): Socket {
   // ตั้งค่าเพื่อให้เข้ากับ backend NestJS ของคุณเป๊ะ
   // ============================
   socketInstance = io(socketUrl, {
-    path: "/socket.io/",
+    path: "/socket.io",
     withCredentials: true,          // ส่ง session cookie ไป backend (HttpOnly)
     transports: ["websocket", "polling"],
     autoConnect: false,
