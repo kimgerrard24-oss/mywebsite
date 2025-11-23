@@ -57,7 +57,7 @@ jobs:
         run: npm run build
 
       # -----------------------------------------------------------
-      # 5) Deploy to Linode (Zero Downtime + Health Check)
+      # 5) Deploy to Linode (Fixed: ไม่ build บนเซิร์ฟเวอร์อีก)
       # -----------------------------------------------------------
       - name: Deploy to Linode
         uses: appleboy/ssh-action@v1.0.3
@@ -83,8 +83,11 @@ jobs:
             echo "Stopping current containers..."
             docker compose down
 
-            echo "Building and starting new containers..."
-            docker compose up -d --build
+            echo "Pulling latest images (NO BUILD ON SERVER)..."
+            docker compose pull
+
+            echo "Starting new containers..."
+            docker compose up -d --remove-orphans
 
             echo "Waiting for backend to initialize..."
             sleep 5

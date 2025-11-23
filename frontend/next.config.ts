@@ -1,3 +1,4 @@
+// file: frontend/next.config.js
 import { withSentryConfig } from "@sentry/nextjs";
 import type { NextConfig } from "next";
 
@@ -7,14 +8,12 @@ const nextConfig: NextConfig = {
   output: "standalone",
 
   experimental: {
-    // 🔥 ปิด LightningCSS เพื่อแก้ error lightningcss.linux-x64-gnu.node
+    // แก้ error lightningcss
     useLightningcss: false,
-
-    // ปิด optimizeCss (ป้องกัน LightningCSS อ้อมๆ)
     optimizeCss: false,
 
-    // บังคับใช้ Webpack build worker (เสถียรที่สุดใน Docker)
-    webpackBuildWorker: true,
+    // ❌ REMOVE: webpackBuildWorker (กิน RAM สูงขึ้นบน Docker)
+    // webpackBuildWorker: true,
   },
 
   async rewrites() {
@@ -35,7 +34,11 @@ export default withSentryConfig(nextConfig, {
   org: "phlyphant",
   project: "javascript-nextjs",
   silent: !process.env.CI,
+
   widenClientFileUpload: true,
+
+  // ❌ ไม่ควรใช้บน Linode + Docker
+  automaticVercelMonitors: false,
+
   disableLogger: true,
-  automaticVercelMonitors: true,
 });
