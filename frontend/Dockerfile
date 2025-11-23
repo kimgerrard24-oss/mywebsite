@@ -15,8 +15,6 @@ RUN --mount=type=cache,target=/root/.npm \
 # Copy project sources
 COPY . .
 
-# Copy env file for build time (must exist inside /frontend)
-COPY .env.production .env.production
 
 # Build Next.js (Turbopack)
 RUN --mount=type=cache,target=/root/.npm \

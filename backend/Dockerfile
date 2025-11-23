@@ -42,14 +42,16 @@ ENV PORT=4001
 ENV DOCKER_ENV=true
 ENV REDIS_URL=redis://redis:6379
 
-# Copy only package files, then install ONLY production dependencies
+# Copy package.json
 COPY package*.json ./
-RUN npm ci --omit=dev
 
-# Copy built output & prisma schema from stage build
+
+# ✔ ใช้ node_modules จาก build stage (มี Prisma Engine)
+COPY --from=build /app/node_modules ./node_modules
+
+# Copy built output & prisma schema
 COPY --from=build /app/dist ./dist
 COPY --from=build /app/prisma ./prisma
-COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
 
 EXPOSE 4001
 
