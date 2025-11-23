@@ -71,6 +71,8 @@ jobs:
           script_stop: false
           use_insecure_cipher: true
           envs: GHCR_USERNAME,GHCR_TOKEN
+          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
           script: |
             set -e
 
