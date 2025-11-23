@@ -3,15 +3,13 @@ set -e
 
 ###############################################################
 # 1) Load GH_OWNER (GitHub username / org)
-#    - Use argument if provided
-#    - Otherwise fallback to GHCR_USERNAME from environment
+#    - Default = phlyphant (owner ของ GHCR จริง)
 ###############################################################
-GH_OWNER="${1:-$GHCR_USERNAME}"
+GH_OWNER="${1:-phlyphant}"
 
 if [ -z "$GH_OWNER" ]; then
   echo "ERROR: Missing GitHub owner."
   echo "Usage: ./deploy.sh <gh_owner>"
-  echo "Or set GHCR_USERNAME as environment variable."
   exit 1
 fi
 

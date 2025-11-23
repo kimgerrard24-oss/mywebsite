@@ -22,7 +22,7 @@ jobs:
       # -----------------------------------------------------------
       - name: Validate secrets
         run: |
-          REQUIRED=("LINODE_HOST" "SSH_PRIVATE_KEY")
+          REQUIRED=("LINODE_HOST" "LINODE_SSH_KEY" "GHCR_USERNAME" "GHCR_TOKEN")
           for KEY in "${REQUIRED[@]}"; do
             if [ -z "${!KEY}" ]; then
               echo "ERROR: Missing required secret: $KEY"
@@ -32,7 +32,9 @@ jobs:
           echo "All required secrets exist."
         env:
           LINODE_HOST: ${{ secrets.LINODE_HOST }}
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+          LINODE_SSH_KEY: ${{ secrets.LINODE_SSH_KEY }}
+          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
 
       # -----------------------------------------------------------
       # 3) Build backend
@@ -57,17 +59,18 @@ jobs:
         run: npm run build
 
       # -----------------------------------------------------------
-      # 5) Deploy to Linode (Fixed: ไม่ build บนเซิร์ฟเวอร์อีก)
+      # 5) Deploy to Linode
       # -----------------------------------------------------------
       - name: Deploy to Linode
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.LINODE_HOST }}
           username: root
-          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          key: ${{ secrets.LINODE_SSH_KEY }}
           port: 22
           script_stop: false
           use_insecure_cipher: true
+          envs: GHCR_USERNAME,GHCR_TOKEN
           script: |
             set -e
 
@@ -82,6 +85,9 @@ jobs:
 
             echo "Stopping current containers..."
             docker compose down
+
+            echo "Logging into GHCR..."
+            echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
 
             echo "Pulling latest images (NO BUILD ON SERVER)..."
             docker compose pull
