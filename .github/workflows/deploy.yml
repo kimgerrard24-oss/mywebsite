@@ -19,7 +19,7 @@ jobs:
       # -----------------------------------------------------------
       - name: Validate secrets
         run: |
-          REQUIRED=("LINODE_HOST" "LINODE_SSH_KEY" "GHCR_USERNAME" "GHCR_TOKEN")
+          REQUIRED=("LINODE_HOST" "LINODE_SSH_KEY" "GHCR_USERNAME" "GHCR_TOKEN" "SENTRY_AUTH_TOKEN")
           for KEY in "${REQUIRED[@]}"; do
             if [ -z "${!KEY}" ]; then
               echo "ERROR: Missing required secret: $KEY"
@@ -32,30 +32,55 @@ jobs:
           LINODE_SSH_KEY: ${{ secrets.LINODE_SSH_KEY }}
           GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
           GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
 
       # -----------------------------------------------------------
-      # 2) Build frontend
+      # 2) Create Sentry build env file (✔ FIXED)
+      # -----------------------------------------------------------
+      - name: Create Sentry env for frontend
+        working-directory: frontend
+        run: |
+          echo "SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}" > .env.sentry-build-plugin
+          echo "SENTRY_ORG=phlyphant" >> .env.sentry-build-plugin
+          echo "SENTRY_PROJECT=javascript-nextjs" >> .env.sentry-build-plugin
+
+      # -----------------------------------------------------------
+      # 3) Create .env.production (frontend)
+      # -----------------------------------------------------------
+      - name: Create .env.production for frontend
+        working-directory: frontend
+        run: |
+          echo "NEXT_PUBLIC_API_BASE=${{ secrets.NEXT_PUBLIC_API_BASE }}" > .env.production
+          echo "NEXT_PUBLIC_BACKEND_URL=${{ secrets.NEXT_PUBLIC_BACKEND_URL }}" >> .env.production
+
+      # -----------------------------------------------------------
+      # 4) Build frontend
       # -----------------------------------------------------------
       - name: Install frontend dependencies
         working-directory: frontend
         run: npm ci
 
-      - name: Build frontend
+      - name: Build frontend with Sentry
         working-directory: frontend
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
         run: npm run build
 
       # -----------------------------------------------------------
-      # 3) Login to GHCR (used by both frontend & backend)
+      # 5) Login to GHCR
       # -----------------------------------------------------------
       - name: Login to GHCR
         run: echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" --password-stdin
 
       # -----------------------------------------------------------
-      # 4) Build + Push Frontend Docker image (✔ FIXED)
+      # 6) Build + Push Frontend Docker image (✔ FIXED)
       # -----------------------------------------------------------
       - name: Build frontend Docker image
         run: |
           docker build \
+            --build-arg SENTRY_AUTH_TOKEN="${{ secrets.SENTRY_AUTH_TOKEN }}" \
+            --build-arg SENTRY_ORG="phlyphant" \
+            --build-arg SENTRY_PROJECT="javascript-nextjs" \
             -t ghcr.io/${{ secrets.GHCR_USERNAME }}/mywebsite-frontend:latest \
             frontend
 
@@ -63,7 +88,7 @@ jobs:
         run: docker push ghcr.io/${{ secrets.GHCR_USERNAME }}/mywebsite-frontend:latest
 
       # -----------------------------------------------------------
-      # 5) Build + Push Backend Docker image
+      # 7) Build + Push Backend Docker image
       # -----------------------------------------------------------
       - name: Build backend Docker image
         run: |
@@ -75,7 +100,7 @@ jobs:
         run: docker push ghcr.io/${{ secrets.GHCR_USERNAME }}/mywebsite-backend:latest
 
       # -----------------------------------------------------------
-      # 6) Deploy to Linode
+      # 8) Deploy to Linode
       # -----------------------------------------------------------
       - name: Deploy to Linode
         uses: appleboy/ssh-action@v1.0.3
@@ -96,41 +121,27 @@ jobs:
           script: |
             set -e
 
-            echo "Starting deployment on Linode..."
             cd /var/www/phlyphant/mywebsite
-
-            echo "Resetting repository..."
             git reset --hard
-
-            echo "Pulling latest code..."
             git pull origin main
 
-            echo "Stopping current containers..."
             docker compose down
 
-            echo "Logging into GHCR on server..."
             echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
 
-            echo "Pulling latest images..."
             docker compose pull
-
-            echo "Starting new containers..."
             docker compose up -d --remove-orphans
 
-            echo "Waiting for backend to initialize..."
             sleep 5
 
-            echo "Running health check..."
             HEALTH_URL="http://localhost:4001/system-check"
             if curl -s --fail "$HEALTH_URL" > /dev/null; then
               echo "Health check OK"
             else
-              echo "Health check failed. Rolling back."
               docker compose down
               exit 1
             fi
 
-            echo "Cleaning old images..."
             docker image prune -af || true
 
             echo "Deployment successful."
