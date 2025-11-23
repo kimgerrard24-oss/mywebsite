@@ -11,15 +11,9 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # -----------------------------------------------------------
-      # 1) Checkout repository
-      # -----------------------------------------------------------
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # -----------------------------------------------------------
-      # 2) Validate required secrets
-      # -----------------------------------------------------------
       - name: Validate secrets
         run: |
           REQUIRED=("LINODE_HOST" "LINODE_SSH_KEY" "GHCR_USERNAME" "GHCR_TOKEN")
@@ -36,9 +30,6 @@ jobs:
           GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
           GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
 
-      # -----------------------------------------------------------
-      # 3) Build backend
-      # -----------------------------------------------------------
       - name: Install backend dependencies
         working-directory: backend
         run: npm ci
@@ -47,9 +38,6 @@ jobs:
         working-directory: backend
         run: npm run build
 
-      # -----------------------------------------------------------
-      # 4) Build frontend
-      # -----------------------------------------------------------
       - name: Install frontend dependencies
         working-directory: frontend
         run: npm ci
@@ -59,10 +47,16 @@ jobs:
         run: npm run build
 
       # -----------------------------------------------------------
-      # 5) Deploy to Linode
+      # 5) Deploy to Linode  (✔ FIXED)
       # -----------------------------------------------------------
       - name: Deploy to Linode
         uses: appleboy/ssh-action@v1.0.3
+
+        # ENV here = values that will be attached to envs:
+        env:
+          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+
         with:
           host: ${{ secrets.LINODE_HOST }}
           username: root
@@ -70,9 +64,10 @@ jobs:
           port: 22
           script_stop: false
           use_insecure_cipher: true
+
+          # This tells ssh-action to send these environment vars into the SSH environment
           envs: GHCR_USERNAME,GHCR_TOKEN
-          GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
-          GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+
           script: |
             set -e
 
