@@ -1,6 +1,4 @@
-// ==========================================
-// file: backend/src/main.ts (or bootstrap.ts in your project)
-// ==========================================
+// backend/src/main.ts (or bootstrap.ts in your project)
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
@@ -68,6 +66,11 @@ async function bootstrap(): Promise<void> {
 
   expressApp.use(helmet());
 
+  // Register cookieParser early so req.cookies is available for routes/middleware.
+  // (moved before cors to be defensive — cookieParser doesn't interfere with CORS,
+  // but ensures req.cookies is populated for any middleware/route that runs next)
+  expressApp.use(cookieParser());
+
   nestApp.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -79,9 +82,6 @@ async function bootstrap(): Promise<void> {
   );
 
   nestApp.useGlobalInterceptors(new SentryInterceptor());
-
-  // cookieParser should be registered early so req.cookies is available in routes/middleware
-  expressApp.use(cookieParser());
 
   // ===============================================
   // CORS CONFIG

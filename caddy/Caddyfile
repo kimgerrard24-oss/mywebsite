@@ -19,7 +19,6 @@ phlyphant.com, www.phlyphant.com {
         Referrer-Policy "strict-origin-when-cross-origin"
         Permissions-Policy "geolocation=(), microphone=(), camera=()"
 
-        # --- FIXED CSP for Google/Facebook/Firebase OAuth ---
         Content-Security-Policy "
             default-src 'self';
             script-src 'self' 'unsafe-inline' 'unsafe-eval' https: blob:;
@@ -50,7 +49,9 @@ phlyphant.com, www.phlyphant.com {
         header_up X-Real-IP {remote}
         header_up X-Forwarded-Proto {scheme}
         header_up Cookie {http.request.header.Cookie}
-        header_down Set-Cookie {>Set-Cookie}
+
+        # Removed the incorrect Set-Cookie override
+        header_down -Set-Cookie
     }
 }
 
@@ -71,7 +72,6 @@ api.phlyphant.com {
         Referrer-Policy "strict-origin-when-cross-origin"
         Permissions-Policy "geolocation=(), microphone=(), camera=()"
 
-        # --- FIXED CSP ---
         Content-Security-Policy "
             default-src 'self';
             img-src 'self' data:;
@@ -92,7 +92,6 @@ api.phlyphant.com {
         "
     }
 
-    # --- FIXED Socket.IO path ---
     @socketio {
         path /socket.io
     }
@@ -110,11 +109,10 @@ api.phlyphant.com {
 
             header_up Upgrade {http.request.header.Upgrade}
             header_up Connection {http.request.header.Connection}
-
-            # forward Cookie header for websocket handshake if needed
             header_up Cookie {http.request.header.Cookie}
-            # ensure Set-Cookie from backend can flow back (harmless for ws fallback)
-            header_down Set-Cookie {>Set-Cookie}
+
+            # Removed faulty Set-Cookie override
+            header_down -Set-Cookie
         }
     }
 
@@ -129,7 +127,9 @@ api.phlyphant.com {
             header_up X-Real-IP {remote}
             header_up X-Forwarded-Proto {scheme}
             header_up Cookie {http.request.header.Cookie}
-            header_down Set-Cookie {>Set-Cookie}
+
+            # Removed faulty Set-Cookie override
+            header_down -Set-Cookie
         }
     }
 }
