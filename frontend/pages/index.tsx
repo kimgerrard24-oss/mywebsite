@@ -1,22 +1,17 @@
 // pages/index.tsx
 import Head from "next/head";
 import { FormEvent, useState } from "react";
+import Cookies from "js-cookie";
 
 export default function HomePage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  // FIXED: fallback API base (เหมือน system-check)
+  // unified API URL
   const backend =
     process.env.NEXT_PUBLIC_BACKEND_URL ||
     process.env.NEXT_PUBLIC_API_BASE ||
     "https://api.phlyphant.com";
-
-  const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
-  const facebookClientId = process.env.NEXT_PUBLIC_FACEBOOK_CLIENT_ID;
-
-  const googleRedirect = process.env.NEXT_PUBLIC_GOOGLE_REDIRECT_URL;
-  const facebookRedirect = process.env.NEXT_PUBLIC_FACEBOOK_REDIRECT_URL;
 
   const handleLocalLogin = async (e: FormEvent) => {
     e.preventDefault();
@@ -36,19 +31,33 @@ export default function HomePage() {
     }
   };
 
-  const loginWithGoogle = () => {
-    const url =
-      `${backend}/auth/google?client_id=${googleClientId}` +
-      `&redirect_uri=${encodeURIComponent(googleRedirect || "")}`;
+  // ==========================================
+  // FIXED: Correct OAuth start (same flow as login.tsx)
+  // ==========================================
+  const startOAuth = (provider: "google" | "facebook") => {
+    const origin =
+      typeof window !== "undefined" ? window.location.origin : "";
+
+    // generate secure state
+    const state = window.crypto.randomUUID();
+
+    // store state in cookie
+    Cookies.set("oauth_state", state, {
+      secure: true,
+      sameSite: "lax",
+      path: "/",
+      domain: ".phlyphant.com",
+    });
+
+    const url = `${backend}/auth/${provider}?origin=${encodeURIComponent(
+      origin
+    )}&state=${state}`;
+
     window.location.href = url;
   };
 
-  const loginWithFacebook = () => {
-    const url =
-      `${backend}/auth/facebook?client_id=${facebookClientId}` +
-      `&redirect_uri=${encodeURIComponent(facebookRedirect || "")}`;
-    window.location.href = url;
-  };
+  const loginWithGoogle = () => startOAuth("google");
+  const loginWithFacebook = () => startOAuth("facebook");
 
   return (
     <>
@@ -60,7 +69,6 @@ export default function HomePage() {
         />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
 
-        {/* Open Graph */}
         <meta property="og:title" content="PhlyPhant Social Platform" />
         <meta
           property="og:description"
@@ -106,7 +114,9 @@ export default function HomePage() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium mb-1">Password</label>
+                <label className="block text-sm font-medium mb-1">
+                  Password
+                </label>
                 <input
                   type="password"
                   required

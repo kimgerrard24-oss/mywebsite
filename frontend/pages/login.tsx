@@ -3,26 +3,31 @@ import React from 'react';
 import { useRouter } from 'next/router';
 import Cookies from 'js-cookie';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'https://api.phlyphant.com';
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_BASE_URL ?? 'https://api.phlyphant.com';
 
 export default function LoginPage() {
   const router = useRouter();
 
   function startOAuth(provider: 'google' | 'facebook') {
-    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const origin =
+      typeof window !== 'undefined' ? window.location.origin : '';
 
-    // --- NEW: create state & store in cookie ---
-    const state = crypto.randomUUID();
+    // --- FIX: generate state correctly in browser ---
+    const state = window.crypto.randomUUID();
 
+    // --- FIX: proper cookie for OAuth redirect flow ---
     Cookies.set('oauth_state', state, {
       secure: true,
-      sameSite: 'none',
+      sameSite: 'lax', // <— critical fix
       path: '/',
       domain: '.phlyphant.com',
     });
 
-    // send state to backend too
-    const url = `${API_BASE}/auth/${provider}?origin=${encodeURIComponent(origin)}&state=${state}`;
+    // send state to backend as well
+    const url = `${API_BASE}/auth/${provider}?origin=${encodeURIComponent(
+      origin,
+    )}&state=${state}`;
 
     window.location.href = url;
   }

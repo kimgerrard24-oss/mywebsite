@@ -1,25 +1,28 @@
 // frontend/lib/api.ts
 // Small API wrapper for auth endpoints. Uses credentials: 'include' to forward cookies.
 
+// Use only actual production ENV variables
 const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? 'https://api.phlyphant.com';
+  process.env.NEXT_PUBLIC_BACKEND_URL ??
+  process.env.NEXT_PUBLIC_API_BASE ??
+  "https://api.phlyphant.com";
 
 async function jsonFetch<T>(
   input: RequestInfo,
   init?: RequestInit
 ): Promise<T> {
   const res = await fetch(input, {
-    credentials: 'include', // important to include cookies
+    credentials: "include",
     headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
+      "Content-Type": "application/json",
+      Accept: "application/json",
       ...(init && init.headers ? (init.headers as Record<string, string>) : {}),
     },
     ...init,
   });
 
   if (!res.ok) {
-    const text = await res.text().catch(() => '');
+    const text = await res.text().catch(() => "");
     let body = text;
     try {
       body = text ? JSON.parse(text) : text;
@@ -32,38 +35,33 @@ async function jsonFetch<T>(
     throw err;
   }
 
-  // handle empty body
-  const contentType = res.headers.get('content-type') ?? '';
-  if (!contentType.includes('application/json')) {
-    // @ts-ignore
+  const contentType = res.headers.get("content-type") ?? "";
+  if (!contentType.includes("application/json")) {
     return (await res.text()) as T;
   }
   return (await res.json()) as T;
 }
 
 export async function createSessionCookie(idToken: string) {
-  // POST /auth/session  body { idToken }
   return jsonFetch<{ ok: true }>(`${API_BASE}/auth/session`, {
-    method: 'POST',
+    method: "POST",
     body: JSON.stringify({ idToken }),
   });
 }
 
 export async function logout(): Promise<{ ok: true } | void> {
-  return jsonFetch(`${API_BASE}/auth/logout`, { method: 'POST' });
+  return jsonFetch(`${API_BASE}/auth/logout`, { method: "POST" });
 }
 
 export async function sessionCheckServerSide(
   cookieHeader?: string
 ): Promise<{ valid: boolean; user?: any } | null> {
-  // For SSR: call session-check with cookie header forwarded
   const url = `${API_BASE}/auth/session-check`;
   const res = await fetch(url, {
-    method: 'GET',
-    credentials: 'include',
+    method: "GET",
+    credentials: "include",
     headers: {
-      Accept: 'application/json',
-      // forward cookie if provided (in server-side context)
+      Accept: "application/json",
       ...(cookieHeader ? { cookie: cookieHeader } : {}),
     },
   });

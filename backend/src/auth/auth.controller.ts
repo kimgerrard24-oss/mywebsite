@@ -6,15 +6,12 @@ import {
   Get,
   Req,
   Res,
-  UseGuards,
-  Post,
-  Body,
   Logger,
 } from '@nestjs/common';
-import { AuthGuard } from '@nestjs/passport';
 import { AuthService } from './auth.service';
 import { Response, Request } from 'express';
 import * as cookie from 'cookie';
+import crypto from 'crypto';
 import axios from 'axios';
 
 @Controller('auth')
@@ -24,177 +21,190 @@ export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
   // =======================================
-  // GOOGLE OAuth Start (FIXED state support)
+  // GOOGLE OAuth Start (no passport)
   // =======================================
   @Get('google')
-  @UseGuards(AuthGuard('google'))
-  async googleAuth(@Req() req: Request) {
+  async googleAuth(@Req() req: Request, @Res() res: Response) {
     try {
-      // read state from frontend
-      const state = req.query.state as string;
-      if (!state) {
-        this.logger.warn('[googleAuth] missing state from frontend');
-      } else {
-        (req as any).oauthState = state;
-      }
+      const state = crypto.randomBytes(16).toString('hex');
 
-      const qOrigin = (req.query?.origin as string) || '';
-      const referer = (req.headers?.referer as string) || '';
-      const envFallback =
-        process.env.GOOGLE_PROVIDER_REDIRECT_AFTER_LOGIN || '';
+      res.cookie('oauth_state', state, {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'lax',
+        domain: process.env.COOKIE_DOMAIN || '.phlyphant.com',
+        path: '/',
+      });
 
-      const oauthOrigin = (qOrigin || referer || envFallback).toString();
-      if (oauthOrigin) (req as any).oauthOrigin = oauthOrigin;
+      const clientId = process.env.GOOGLE_CLIENT_ID || '';
+      const redirectUri =
+        process.env.GOOGLE_CALLBACK_URL ||
+        process.env.GOOGLE_REDIRECT_URL ||
+        '';
 
-      this.logger.log(
-        `[googleAuth] origin=${oauthOrigin} state=${state}`,
-      );
+      const params = new URLSearchParams({
+        client_id: clientId,
+        redirect_uri: redirectUri,
+        response_type: 'code',
+        scope: 'openid email profile',
+        state,
+        prompt: 'select_account',
+      });
+
+      const authUrl =
+        `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+
+      this.logger.log(`[googleAuth] redirect=${authUrl}`);
+      return res.redirect(authUrl);
     } catch (e: any) {
-      this.logger.warn(
-        `[googleAuth] failed to preserve origin: ${e?.message}`,
-      );
+      this.logger.error('[googleAuth] error: ' + e.message);
+      return res.status(500).send('Google auth error');
     }
   }
 
   // =======================================
-  // GOOGLE OAuth Callback (FIXED state check)
+  // GOOGLE OAuth Callback (no passport)
   // =======================================
   @Get('google/callback')
-  @UseGuards(AuthGuard('google'))
   async googleCallback(@Req() req: Request, @Res() res: Response) {
     try {
-      // 1) Read state from query (Google returns this)
+      const code = req.query.code as string;
       const returnedState = req.query.state as string;
 
-      // 2) Read state from cookie
+      if (!code || !returnedState) {
+        return res.status(400).send('Missing code or state');
+      }
+
       const raw = req.headers.cookie || '';
       const parsed = cookie.parse(raw);
       const storedState = parsed['oauth_state'];
 
-      if (!returnedState || !storedState || returnedState !== storedState) {
+      if (!storedState || returnedState !== storedState) {
         this.logger.warn(
           `[googleCallback] state mismatch returned=${returnedState} stored=${storedState}`,
         );
         return res.status(400).send('Invalid or expired state');
       }
 
-      const user = req.user as any;
+      // Exchange code for tokens
+      const tokenRes = await axios.post(
+        'https://oauth2.googleapis.com/token',
+        new URLSearchParams({
+          code,
+          client_id: process.env.GOOGLE_CLIENT_ID || '',
+          client_secret: process.env.GOOGLE_CLIENT_SECRET || '',
+          redirect_uri:
+            process.env.GOOGLE_CALLBACK_URL ||
+            process.env.GOOGLE_REDIRECT_URL ||
+            '',
+          grant_type: 'authorization_code',
+        }).toString(),
+        {
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        },
+      );
 
-      if (!user?.firebaseUid) {
-        this.logger.warn('[googleCallback] user missing firebaseUid');
-        return res.status(500).send('Authentication failed');
-      }
+      const accessToken = tokenRes.data.access_token;
+
+      const infoRes = await axios.get(
+        'https://www.googleapis.com/oauth2/v3/userinfo',
+        {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        },
+      );
+
+      const profile = infoRes.data;
+
+      const firebaseUid =
+        profile.sub ||
+        profile.id ||
+        `google:${profile.email || crypto.randomUUID()}`;
 
       const customToken = await this.auth.createFirebaseCustomToken(
-        user.firebaseUid,
-        user,
+        firebaseUid,
+        profile,
       );
 
-      if (!customToken) {
-        this.logger.warn('[googleCallback] failed to create custom token');
-        return res.status(500).send('Authentication failed');
-      }
-
-      let origin =
-        (req as any).resolvedOrigin ||
-        (req as any).oauthOrigin ||
+      const redirectBase =
         process.env.GOOGLE_PROVIDER_REDIRECT_AFTER_LOGIN ||
-        'https://phlyphant.com';
+        'https://www.phlyphant.com';
 
-      try {
-        const parsed = new URL(origin);
-        origin = parsed.origin;
-      } catch (e: any) {
-        origin = origin.replace(/\/.*$/, '');
-      }
+      const finalUrl =
+        `${redirectBase}/auth/complete?customToken=${encodeURIComponent(
+          customToken,
+        )}`;
 
-      origin = origin.replace(/\/+$/, '');
-
-      const redirectTo = `${origin}/auth/complete?customToken=${encodeURIComponent(
-        customToken,
-      )}`;
-
-      this.logger.log(`[googleCallback] redirect=${redirectTo}`);
-      return res.redirect(302, redirectTo);
+      this.logger.log(`[googleCallback] redirect=${finalUrl}`);
+      return res.redirect(finalUrl);
     } catch (err: any) {
-      this.logger.error(
-        `[googleCallback] error: ${err?.message || String(err)}`,
-      );
+      this.logger.error('[googleCallback] error: ' + err.message);
       return res.status(500).send('Authentication error');
     }
   }
 
   // =======================================
-  // FACEBOOK OAuth Start (FIXED state support)
+  // FACEBOOK OAuth Start (unchanged)
   // =======================================
   @Get('facebook')
   async facebookAuth(@Req() req: Request, @Res() res: Response) {
     try {
+      const state = crypto.randomBytes(16).toString('hex');
+
+      res.cookie('oauth_state', state, {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'lax',
+        domain: process.env.COOKIE_DOMAIN || '.phlyphant.com',
+        path: '/',
+      });
+
       const clientId = process.env.FACEBOOK_CLIENT_ID || '';
-      const redirectUri: string = process.env.FACEBOOK_CALLBACK_URL || '';
+      const redirectUri = process.env.FACEBOOK_CALLBACK_URL || '';
 
-      // read state from frontend
-      const state = (req.query.state as string) || '';
-      if (!state) {
-        this.logger.warn('[facebookAuth] missing state from frontend');
-      }
-      (req as any).oauthState = state;
-
-      const qOrigin = (req.query?.origin as string) || '';
-      const referer = (req.headers?.referer as string) || '';
-      const fallback =
-        process.env.FACEBOOK_PROVIDER_REDIRECT_AFTER_LOGIN ||
-        'https://phlyphant.com';
-
-      const oauthOrigin = (qOrigin || referer || fallback).toString();
-      (req as any).oauthOrigin = oauthOrigin;
-
-      const authUrl = `https://www.facebook.com/v12.0/dialog/oauth?client_id=${clientId}&redirect_uri=${encodeURIComponent(
-        redirectUri,
-      )}&response_type=code&scope=email,public_profile&state=${encodeURIComponent(
+      const params = new URLSearchParams({
+        client_id: clientId,
+        redirect_uri: redirectUri,
+        response_type: 'code',
+        scope: 'email,public_profile',
         state,
-      )}`;
+      });
 
-      this.logger.log(
-        `[facebookAuth] redirecting to: ${authUrl} origin=${oauthOrigin} state=${state}`,
-      );
+      const authUrl =
+        `https://www.facebook.com/v12.0/dialog/oauth?${params.toString()}`;
+
+      this.logger.log(`[facebookAuth] redirect=${authUrl}`);
       return res.redirect(authUrl);
     } catch (e: any) {
-      this.logger.error(`[facebookAuth] error: ${e.message}`);
-      return res.status(500).send('Facebook auth start error');
+      this.logger.error('[facebookAuth] error: ' + e.message);
+      return res.status(500).send('Facebook auth error');
     }
   }
 
   // =======================================
-  // FACEBOOK OAuth Callback (FIXED state check)
+  // FACEBOOK Callback (unchanged)
   // =======================================
   @Get('facebook/callback')
   async facebookCallback(@Req() req: Request, @Res() res: Response) {
     try {
-      const { code, state: returnedState } = req.query;
+      const code = req.query.code as string;
+      const returnedState = req.query.state as string;
 
-      if (!code) {
-        this.logger.warn('[facebookCallback] missing code');
-        return res.status(400).send('Missing code');
+      if (!code || !returnedState) {
+        return res.status(400).send('Missing code or state');
       }
 
-      // 1) Read state from cookie
       const raw = req.headers.cookie || '';
       const parsed = cookie.parse(raw);
       const storedState = parsed['oauth_state'];
 
-      if (!returnedState || !storedState || returnedState !== storedState) {
-        this.logger.warn(
-          `[facebookCallback] state mismatch returned=${returnedState} stored=${storedState}`,
-        );
+      if (!storedState || returnedState !== storedState) {
         return res.status(400).send('Invalid or expired state');
       }
 
       const clientId = process.env.FACEBOOK_CLIENT_ID || '';
       const clientSecret = process.env.FACEBOOK_CLIENT_SECRET || '';
-      const redirectUri: string = process.env.FACEBOOK_CALLBACK_URL || '';
+      const redirectUri = process.env.FACEBOOK_CALLBACK_URL || '';
 
-      // 1) แลก code -> access_token
       const tokenRes = await axios.get(
         'https://graph.facebook.com/v12.0/oauth/access_token',
         {
@@ -209,7 +219,6 @@ export class AuthController {
 
       const accessToken = tokenRes.data.access_token;
 
-      // 2) ข้อมูลผู้ใช้
       const profileRes = await axios.get(
         'https://graph.facebook.com/me',
         {
@@ -222,7 +231,6 @@ export class AuthController {
 
       const profile = profileRes.data;
 
-      // 3) หา Firebase UID
       const firebaseUid = await this.auth.getOrCreateOAuthUser(
         'facebook',
         profile.id,
@@ -231,35 +239,24 @@ export class AuthController {
         profile.picture?.data?.url,
       );
 
-      // 4) สร้าง custom token
       const customToken = await this.auth.createFirebaseCustomToken(
         firebaseUid,
         profile,
       );
 
-      let origin =
-        (req as any).oauthOrigin ||
+      const redirectBase =
         process.env.FACEBOOK_PROVIDER_REDIRECT_AFTER_LOGIN ||
-        'https://phlyphant.com';
+        'https://www.phlyphant.com';
 
-      try {
-        const parsed = new URL(origin);
-        origin = parsed.origin;
-      } catch (e: any) {
-        origin = origin.replace(/\/.*$/, '');
-      }
-      origin = origin.replace(/\/+$/, '');
+      const finalUrl =
+        `${redirectBase}/auth/complete?customToken=${encodeURIComponent(
+          customToken,
+        )}`;
 
-      const redirectTo = `${origin}/auth/complete?customToken=${encodeURIComponent(
-        customToken,
-      )}`;
-
-      this.logger.log(`[facebookCallback] redirect=${redirectTo}`);
-      return res.redirect(302, redirectTo);
+      this.logger.log(`[facebookCallback] redirect=${finalUrl}`);
+      return res.redirect(finalUrl);
     } catch (err: any) {
-      this.logger.error(
-        `[facebookCallback] error: ${err?.message || err}`,
-      );
+      this.logger.error('[facebookCallback] error: ' + err.message);
       return res.status(500).send('Facebook callback error');
     }
   }

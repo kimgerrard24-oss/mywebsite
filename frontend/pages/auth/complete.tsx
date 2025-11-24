@@ -5,33 +5,46 @@ import { useRouter } from "next/router";
 import { getAuth, signInWithCustomToken } from "firebase/auth";
 import firebaseApp from "@/lib/firebaseClient";
 
-interface CompleteProps {
-  customToken?: string | null;
-}
-
-export default function AuthComplete({ customToken }: CompleteProps) {
+export default function AuthComplete() {
   const router = useRouter();
 
   useEffect(() => {
-    const login = async () => {
-      const token = (window as any).__CUSTOM_TOKEN || customToken;
-      if (!token) {
-        router.replace("/login?error=missing_token");
+    const run = async () => {
+      const oneTimeKey = router.query.one_time_key as string | undefined;
+
+      if (!oneTimeKey) {
+        router.replace("/login?error=missing_key");
         return;
       }
 
       try {
+        // call backend to exchange one_time_key → customToken
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_BASE}/auth/custom_token?key=${encodeURIComponent(
+            oneTimeKey
+          )}`,
+          { method: "GET", credentials: "include" }
+        );
+
+        const data = await res.json();
+
+        if (!data?.customToken) {
+          router.replace("/login?error=missing_token");
+          return;
+        }
+
         const auth = getAuth(firebaseApp);
-        await signInWithCustomToken(auth, token);
+        await signInWithCustomToken(auth, data.customToken);
+
         router.replace("/");
-      } catch (error) {
-        console.error("Sign-in error:", error);
+      } catch (err) {
+        console.error("complete-login-error:", err);
         router.replace("/login?error=signin_failed");
       }
     };
 
-    login();
-  }, [customToken, router]);
+    if (router.isReady) run();
+  }, [router]);
 
   return (
     <>
@@ -65,59 +78,4 @@ export default function AuthComplete({ customToken }: CompleteProps) {
       </main>
     </>
   );
-}
-
-export async function getServerSideProps({ req }: any) {
-  if (req.method === "POST") {
-    const raw = await new Promise<string>((resolve) => {
-      let data = "";
-      req.on("data", (chunk: Buffer) => (data += chunk.toString()));
-      req.on("end", () => resolve(data));
-    });
-
-    let customToken: string | null = null;
-
-    const contentType = req.headers["content-type"] || "";
-
-    // Case 1: application/x-www-form-urlencoded
-    if (contentType.includes("application/x-www-form-urlencoded")) {
-      const body = new URLSearchParams(raw);
-      customToken = body.get("customToken") || null;
-    }
-
-    // Case 2: application/json
-    else if (contentType.includes("application/json")) {
-      try {
-        const json = JSON.parse(raw);
-        customToken = json.customToken || null;
-      } catch {
-        customToken = null;
-      }
-    }
-
-    // Case 3: fallback (unknown content-type)
-    else {
-      try {
-        const body = new URLSearchParams(raw);
-        customToken = body.get("customToken") || null;
-
-        if (!customToken) {
-          const json = JSON.parse(raw);
-          customToken = json.customToken || null;
-        }
-      } catch {
-        customToken = null;
-      }
-    }
-
-    return {
-      props: {
-        customToken,
-      },
-    };
-  }
-
-  return {
-    props: {},
-  };
 }

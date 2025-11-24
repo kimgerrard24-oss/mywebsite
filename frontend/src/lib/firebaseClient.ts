@@ -1,32 +1,52 @@
-// ==============================
 // lib/firebaseClient.ts
-// ==============================
+// Safe client-side Firebase initializer for Next.js (no null returns)
 
-import { initializeApp, getApps } from "firebase/app";
+import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
+import { getAuth, type Auth } from "firebase/auth";
 
-const firebaseConfig = {
-  apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY || "",
-  authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN || "",
-  projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID || "",
-  storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET || "",
-  messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || "",
-  appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID || "",
-};
+let appInstance: FirebaseApp | undefined;
+let authInstance: Auth | undefined;
 
-// หาก ENV หาย จะป้องกัน Firebase crash
-function validateFirebaseConfig(cfg: Record<string, string>) {
-  for (const k in cfg) {
-    if (!cfg[k]) {
-      console.warn(`Firebase config missing: ${k}`);
-      // ยัง initialize ได้ แต่แจ้งเตือนให้รู้ปัญหา
+function createFirebase(): void {
+  if (typeof window === "undefined") {
+    return; // SSR: do nothing, but never set null
+  }
+
+  if (!appInstance) {
+    const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
+    const authDomain = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN;
+    const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+    const storageBucket = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET;
+    const messagingSenderId = process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID;
+    const appId = process.env.NEXT_PUBLIC_FIREBASE_APP_ID;
+
+    if (!apiKey || !authDomain || !projectId || !appId) {
+      console.error("Missing NEXT_PUBLIC_FIREBASE_* env variables");
+      return;
     }
+
+    const config = {
+      apiKey,
+      authDomain,
+      projectId,
+      storageBucket: storageBucket ?? undefined,
+      messagingSenderId: messagingSenderId ?? undefined,
+      appId,
+    };
+
+    appInstance = getApps().length === 0 ? initializeApp(config) : getApp();
+    authInstance = getAuth(appInstance);
   }
 }
 
-validateFirebaseConfig(firebaseConfig);
+export function getFirebaseApp(): FirebaseApp {
+  if (!appInstance) createFirebase();
+  if (!appInstance) throw new Error("Firebase app not initialized");
+  return appInstance;
+}
 
-const firebaseApp = !getApps().length
-  ? initializeApp(firebaseConfig)
-  : getApps()[0];
-
-export default firebaseApp;
+export function getFirebaseAuth(): Auth {
+  if (!authInstance) createFirebase();
+  if (!authInstance) throw new Error("Firebase auth not initialized");
+  return authInstance;
+}
