@@ -49,6 +49,8 @@ phlyphant.com, www.phlyphant.com {
         header_up X-Forwarded-For {remote}
         header_up X-Real-IP {remote}
         header_up X-Forwarded-Proto {scheme}
+        header_up Cookie {http.request.header.Cookie}
+        header_down Set-Cookie {>Set-Cookie}
     }
 }
 
@@ -108,6 +110,11 @@ api.phlyphant.com {
 
             header_up Upgrade {http.request.header.Upgrade}
             header_up Connection {http.request.header.Connection}
+
+            # forward Cookie header for websocket handshake if needed
+            header_up Cookie {http.request.header.Cookie}
+            # ensure Set-Cookie from backend can flow back (harmless for ws fallback)
+            header_down Set-Cookie {>Set-Cookie}
         }
     }
 
@@ -122,6 +129,7 @@ api.phlyphant.com {
             header_up X-Real-IP {remote}
             header_up X-Forwarded-Proto {scheme}
             header_up Cookie {http.request.header.Cookie}
+            header_down Set-Cookie {>Set-Cookie}
         }
     }
 }

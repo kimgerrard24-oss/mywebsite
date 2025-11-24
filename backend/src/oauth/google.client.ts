@@ -19,12 +19,12 @@ interface GoogleUserInfo {
 }
 
 // ---------------------------------------------------------------------
-// Safe ENV loader (ไม่ throw backend crash อีกต่อไป)
+// Safe ENV loader (no emoji, no crash, returns empty string if missing)
 // ---------------------------------------------------------------------
 function safeEnv(name: string): string {
   const value = process.env[name];
   if (!value || value.trim() === '') {
-    console.warn(`⚠️ Missing environment variable: ${name}`);
+    console.warn(`Missing environment variable: ${name}`);
     return '';
   }
   return value.trim();
@@ -38,14 +38,23 @@ export async function exchangeGoogleCodeForTokens(
 ): Promise<GoogleTokens> {
   const clientId = safeEnv('GOOGLE_CLIENT_ID');
   const clientSecret = safeEnv('GOOGLE_CLIENT_SECRET');
-  const redirectUri =
-    safeEnv('GOOGLE_CALLBACK_URL') ||
-    safeEnv('GOOGLE_REDIRECT_URL') ||
-    safeEnv('GOOGLE_REDIRECT_URI');
+
+  // Normalize redirectUri — prioritize CALLBACK over REDIRECT
+  const redirectUriRaw =
+    process.env.GOOGLE_CALLBACK_URL ||
+    process.env.GOOGLE_REDIRECT_URL ||
+    process.env.GOOGLE_REDIRECT_URI ||
+    '';
+
+  const redirectUri = redirectUriRaw.trim();
 
   if (!clientId || !clientSecret || !redirectUri) {
+    const missing = [];
+    if (!clientId) missing.push('GOOGLE_CLIENT_ID');
+    if (!clientSecret) missing.push('GOOGLE_CLIENT_SECRET');
+    if (!redirectUri) missing.push('GOOGLE_CALLBACK_URL / GOOGLE_REDIRECT_URL');
     throw new Error(
-      'Google OAuth configuration missing (clientId, clientSecret, or redirectUri)'
+      `Google OAuth configuration missing: ${missing.join(', ')}`
     );
   }
 

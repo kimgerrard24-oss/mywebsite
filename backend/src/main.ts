@@ -1,4 +1,3 @@
-// bootstrap.ts (replace your current bootstrap with this)
 // ==========================================
 // file: backend/src/main.ts (or bootstrap.ts in your project)
 // ==========================================
@@ -63,7 +62,10 @@ async function bootstrap(): Promise<void> {
   const nestApp = await NestFactory.create(AppModule, { cors: false });
   const expressApp = nestApp.getHttpAdapter().getInstance() as Express;
 
-  expressApp.set('trust proxy', true);
+  // When behind a reverse proxy (Caddy) set trust proxy to 1
+  // so that secure/cookie/proxy-related headers are handled correctly.
+  expressApp.set('trust proxy', 1);
+
   expressApp.use(helmet());
 
   nestApp.useGlobalPipes(
@@ -78,6 +80,7 @@ async function bootstrap(): Promise<void> {
 
   nestApp.useGlobalInterceptors(new SentryInterceptor());
 
+  // cookieParser should be registered early so req.cookies is available in routes/middleware
   expressApp.use(cookieParser());
 
   // ===============================================
@@ -111,6 +114,7 @@ async function bootstrap(): Promise<void> {
         'Cache-Control',
         'Pragma',
         'Expires',
+        'Cookie', // <-- ensure Cookie header is allowed
       ],
       exposedHeaders: ['Set-Cookie'],
       optionsSuccessStatus: 204,
@@ -240,6 +244,23 @@ async function bootstrap(): Promise<void> {
       await redisClient.setex(stateKey, 300, '1').catch((e) => {
         logger.error('redis setex failed for state: ' + String(e));
       });
+
+      // Set a compatibility cookie for older flows that expect oauth_state cookie
+      // Use domain from env (recommended: .phlyphant.com) so cookie is accessible across subdomains.
+      try {
+        const cookieDomain = process.env.COOKIE_DOMAIN || '.phlyphant.com';
+        const isProd = process.env.NODE_ENV === 'production';
+        res.cookie('oauth_state', state, {
+          httpOnly: true,
+          secure: isProd,
+          sameSite: 'none',
+          domain: cookieDomain,
+          path: '/',
+          maxAge: 5 * 60 * 1000,
+        });
+      } catch (e) {
+        logger.warn('Failed to set oauth_state cookie (non-fatal): ' + String(e));
+      }
 
       if (provider === 'google') {
         if (!minimalGoogleConfigOk()) {

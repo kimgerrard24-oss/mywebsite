@@ -15,31 +15,29 @@ export default () => {
       : 432000000,
   );
 
-  const cookieDomain = process.env.COOKIE_DOMAIN || '';
+  // Use a sensible default domain for production so cookies set by backend
+  // are valid across phlyphant.com and api.phlyphant.com when COOKIE_DOMAIN
+  // is not explicitly provided.
+  const cookieDomain =
+    (process.env.COOKIE_DOMAIN && String(process.env.COOKIE_DOMAIN).trim()) ||
+    (process.env.NODE_ENV === 'production' ? '.phlyphant.com' : '');
 
   // For redirect/callback we prefer explicit CALLBACK over REDIRECT env var if present,
   // then fallback to the other var, then to empty string so downstream code sees a string.
-  const googleRedirectUrl =
-    process.env.GOOGLE_CALLBACK_URL ||
-    process.env.GOOGLE_REDIRECT_URL ||
-    process.env.GOOGLE_REDIRECT_URI ||
-    '';
-
   const googleCallbackUrl =
     process.env.GOOGLE_CALLBACK_URL ||
     process.env.GOOGLE_REDIRECT_URL ||
     process.env.GOOGLE_REDIRECT_URI ||
     '';
 
-  const facebookRedirectUrl =
-    process.env.FACEBOOK_CALLBACK_URL ||
-    process.env.FACEBOOK_REDIRECT_URL ||
-    '';
+  const googleRedirectUrl = googleCallbackUrl; // keep both fields present; they reference the same canonical value
 
   const facebookCallbackUrl =
     process.env.FACEBOOK_CALLBACK_URL ||
     process.env.FACEBOOK_REDIRECT_URL ||
     '';
+
+  const facebookRedirectUrl = facebookCallbackUrl;
 
   return {
     nodeEnv,
@@ -55,7 +53,8 @@ export default () => {
       redirectUrl: String(googleRedirectUrl),
       callbackUrl: String(googleCallbackUrl),
       providerRedirectAfterLogin: String(
-        process.env.GOOGLE_PROVIDER_REDIRECT_AFTER_LOGIN || '',
+        process.env.GOOGLE_PROVIDER_REDIRECT_AFTER_LOGIN ||
+          'https://phlyphant.com',
       ),
     },
     facebook: {
@@ -64,7 +63,8 @@ export default () => {
       redirectUrl: String(facebookRedirectUrl),
       callbackUrl: String(facebookCallbackUrl),
       providerRedirectAfterLogin: String(
-        process.env.FACEBOOK_PROVIDER_REDIRECT_AFTER_LOGIN || '',
+        process.env.FACEBOOK_PROVIDER_REDIRECT_AFTER_LOGIN ||
+          'https://phlyphant.com',
       ),
     },
     firebaseBase64: String(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64 || ''),

@@ -10,7 +10,6 @@ import {
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { Response, Request } from 'express';
-import * as cookie from 'cookie';
 import crypto from 'crypto';
 import axios from 'axios';
 
@@ -34,6 +33,7 @@ export class AuthController {
         sameSite: 'none',
         domain: process.env.COOKIE_DOMAIN || '.phlyphant.com',
         path: '/',
+        maxAge: 5 * 60 * 1000
       });
 
       const clientId = process.env.GOOGLE_CLIENT_ID || '';
@@ -75,9 +75,7 @@ export class AuthController {
         return res.status(400).send('Missing code or state');
       }
 
-      const raw = req.headers.cookie || '';
-      const parsed = cookie.parse(raw);
-      const storedState = parsed['oauth_state'];
+      const storedState = req.cookies?.oauth_state;
 
       if (!storedState || returnedState !== storedState) {
         this.logger.warn(
@@ -155,6 +153,7 @@ export class AuthController {
         sameSite: 'none',
         domain: process.env.COOKIE_DOMAIN || '.phlyphant.com',
         path: '/',
+        maxAge: 5 * 60 * 1000
       });
 
       const clientId = process.env.FACEBOOK_CLIENT_ID || '';
@@ -192,9 +191,7 @@ export class AuthController {
         return res.status(400).send('Missing code or state');
       }
 
-      const raw = req.headers.cookie || '';
-      const parsed = cookie.parse(raw);
-      const storedState = parsed['oauth_state'];
+      const storedState = req.cookies?.oauth_state;
 
       if (!storedState || returnedState !== storedState) {
         return res.status(400).send('Invalid or expired state');
