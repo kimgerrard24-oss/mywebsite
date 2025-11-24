@@ -40,19 +40,17 @@ export default function SystemCheckPage() {
     setResults((prev) => ({ ...prev, tailwind: "OK" }));
 
     const tests = async () => {
-      // Backend / DB / Redis / S3 Check
       try {
-        // --- FIX HERE: remove withCredentials ---
         const { data } = await axios.get(`${api}/system-check`);
 
         setResults((p) => ({
           ...p,
-          backend: data.backend ? "OK" : "ERROR",
-          postgres: data.postgres ? "OK" : "ERROR",
-          redis: data.redis ? "OK" : "ERROR",
-          secrets: data.secrets ? "OK" : "ERROR",
-          s3: data.s3 ? "OK" : "ERROR",
-          queue: data.queue ? "OK" : "ERROR",
+          backend: data.status.backend ? "OK" : "ERROR",
+          postgres: data.status.postgres ? "OK" : "ERROR",
+          redis: data.status.redis ? "OK" : "ERROR",
+          secrets: data.status.secrets ? "OK" : "ERROR",
+          s3: data.status.s3 ? "OK" : "ERROR",
+          queue: data.status.queue ? "OK" : "ERROR",
         }));
       } catch {
         setResults((p) => ({
