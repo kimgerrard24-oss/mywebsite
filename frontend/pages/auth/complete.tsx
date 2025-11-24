@@ -2,8 +2,9 @@
 import { useEffect } from "react";
 import Head from "next/head";
 import { useRouter } from "next/router";
-import { getAuth, signInWithCustomToken } from "firebase/auth";
-import firebaseApp from "@/lib/firebaseClient";
+import { signInWithCustomToken } from "firebase/auth";
+
+import { getFirebaseApp, getFirebaseAuth } from "@/lib/firebaseClient";
 
 export default function AuthComplete() {
   const router = useRouter();
@@ -18,7 +19,6 @@ export default function AuthComplete() {
       }
 
       try {
-        // call backend to exchange one_time_key → customToken
         const res = await fetch(
           `${process.env.NEXT_PUBLIC_API_BASE}/auth/custom_token?key=${encodeURIComponent(
             oneTimeKey
@@ -33,7 +33,13 @@ export default function AuthComplete() {
           return;
         }
 
-        const auth = getAuth(firebaseApp);
+        const app = getFirebaseApp();
+        if (!app) {
+          router.replace("/login?error=firebase_not_initialized");
+          return;
+        }
+
+        const auth = getFirebaseAuth();
         await signInWithCustomToken(auth, data.customToken);
 
         router.replace("/");
