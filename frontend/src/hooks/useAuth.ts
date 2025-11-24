@@ -27,19 +27,19 @@ export function useAuth() {
 
         if (!mounted) return;
 
-        // ================================
-        // FIX: normalize backend response
-        // ================================
         const data = res.data || {};
 
-        const valid =
-          data.valid === true ||
-          data.sessionCookie === true ||
-          data.user != null;
+        // ======================================
+        // FIX #1 — ใช้ backend key ที่ถูกต้อง
+        // ======================================
+        const valid = data.valid === true;
 
         if (valid) {
-          const email = data.email || data.user?.email || null;
-          const uid = data.uid || data.user?.uid || null;
+          // ======================================
+          // FIX #2 — อ่านข้อมูลจาก backend โดยตรง
+          // ======================================
+          const email = data.email || null;
+          const uid = data.uid || null;
 
           setUser({
             id: uid ? String(uid) : undefined,

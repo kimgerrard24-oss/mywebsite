@@ -1,158 +1,180 @@
 // ==============================
-// file: pages/auth-check.tsx
+// file: pages/auth/complete.tsx
+// OAuth Callback → Set Firebase Session → Redirect
 // ==============================
+
 import { useEffect, useState } from "react";
+import Head from "next/head";
+import { useRouter } from "next/router";
 import axios from "@/lib/axios";
-import { CheckCircle, XCircle, Loader2, LogIn, LogOut } from "lucide-react";
+import { getFirebaseAuth } from "firebase/client";
+import { signInWithCustomToken } from "firebase/auth";
+import { Loader2, CheckCircle, XCircle } from "lucide-react";
 
-type Status = "OK" | "ERROR" | "LOADING";
+type Status = "LOADING" | "SETTING_SESSION" | "DONE" | "ERROR";
 
-export default function AuthCheckPage() {
+export default function AuthCompletePage() {
+  const router = useRouter();
   const [status, setStatus] = useState<Status>("LOADING");
+  const [message, setMessage] = useState<string>("กำลังตรวจสอบข้อมูลจาก OAuth...");
   const [details, setDetails] = useState<any>(null);
 
-  const SITE_URL =
-    process.env.NEXT_PUBLIC_SITE_URL ||
-    "https://www.phlyphant.com";
-
   const API_BASE =
-    process.env.NEXT_PUBLIC_API_BASE ||
-    "https://api.phlyphant.com";
-
-  const checkSession = async () => {
-    try {
-      const res = await axios.get(`${API_BASE}/auth/session-check`, {
-        withCredentials: true,
-      });
-
-      if (res.data?.sessionCookie === true) {
-        setStatus("OK");
-        setDetails(res.data);
-      } else {
-        setStatus("ERROR");
-      }
-    } catch {
-      setStatus("ERROR");
-    }
-  };
+    process.env.NEXT_PUBLIC_API_BASE || "https://api.phlyphant.com";
+  const SITE_URL =
+    process.env.NEXT_PUBLIC_SITE_URL || "https://phlyphant.com";
 
   // ================================
-  // ✔ Correct OAuth start (backend generates state)
+  // STEP 1 — Fetch custom token from backend (one-time key)
   // ================================
-  const googleLogin = () => {
-    window.location.href = `${API_BASE}/auth/google`;
-  };
-
-  const facebookLogin = () => {
-    window.location.href = `${API_BASE}/auth/facebook`;
-  };
-
-  const logout = async () => {
-    try {
-      await axios.post(`${API_BASE}/auth/logout`, {}, {
-        withCredentials: true,
-      });
-      checkSession();
-    } catch (err) {}
-  };
-
   useEffect(() => {
-    checkSession();
-  }, []);
+    const run = async () => {
+      try {
+        const { key } = router.query;
+        if (!key || typeof key !== "string") {
+          setStatus("ERROR");
+          setMessage("Missing OAuth key parameter");
+          return;
+        }
 
+        setMessage("กำลังโหลดข้อมูลเข้าสู่ระบบ...");
+        const tokenRes = await axios.get(`${API_BASE}/auth/custom_token?key=${key}`, {
+          withCredentials: true,
+        });
+
+        const customToken = tokenRes.data?.customToken;
+        if (!customToken) {
+          setStatus("ERROR");
+          setMessage("ไม่พบข้อมูล Custom Token หรือหมดอายุแล้ว");
+          return;
+        }
+
+        // ================================
+        // STEP 2 — Sign in with Firebase
+        // ================================
+        setStatus("SETTING_SESSION");
+        setMessage("กำลังเข้าสู่ระบบด้วย Firebase...");
+
+        const auth = getFirebaseAuth();
+        if (!auth) {
+          setStatus("ERROR");
+          setMessage("Firebase auth not initialized");
+          return;
+        }
+
+        await signInWithCustomToken(auth, customToken);
+        const user = auth.currentUser;
+        if (!user) {
+          setStatus("ERROR");
+          setMessage("ไม่สามารถเข้าสู่ระบบด้วย Firebase ได้");
+          return;
+        }
+
+        const idToken = await user.getIdToken(true);
+
+        // ================================
+        // STEP 3 — Send idToken to backend → Create Session Cookie
+        // ================================
+        setMessage("กำลังสร้าง session cookie...");
+        await axios.post(
+          `${API_BASE}/auth/create_session`,
+          { idToken },
+          { withCredentials: true }
+        );
+
+        // ================================
+        // STEP 4 — Final session-check
+        // ================================
+        const final = await axios.get(`${API_BASE}/auth/session-check`, {
+          withCredentials: true,
+        });
+
+        setDetails(final.data);
+
+        if (final.data?.valid === true || final.data?.sessionCookie === true) {
+          setStatus("DONE");
+          setMessage("เข้าสู่ระบบสำเร็จ กำลังพาไปหน้าแรก...");
+          setTimeout(() => router.push("/"), 1200);
+        } else {
+          setStatus("ERROR");
+          setMessage("Session cookie สร้างไม่สำเร็จ");
+        }
+      } catch (err) {
+        console.error(err);
+        setStatus("ERROR");
+        setMessage("เกิดข้อผิดพลาดระหว่างเข้าสู่ระบบ");
+      }
+    };
+
+    if (router.isReady) run();
+  }, [router]);
+
+  // ================================
+  // UI Icons
+  // ================================
   const StatusIcon =
-    status === "OK" ? (
-      <CheckCircle className="w-8 h-8 text-green-600" />
+    status === "DONE" ? (
+      <CheckCircle className="w-12 h-12 text-green-600" />
     ) : status === "ERROR" ? (
-      <XCircle className="w-8 h-8 text-red-600" />
+      <XCircle className="w-12 h-12 text-red-600" />
     ) : (
-      <Loader2 className="w-8 h-8 animate-spin text-yellow-600" />
+      <Loader2 className="w-12 h-12 animate-spin text-blue-600" />
     );
 
+  // ================================
+  // Render
+  // ================================
   return (
-    <div className="min-h-screen p-6 sm:p-10 bg-linear-to-br from-purple-100 via-white to-blue-100">
-      <div className="max-w-3xl mx-auto bg-white/80 backdrop-blur-xl shadow-2xl border rounded-3xl p-6 sm:p-10">
+    <>
+      <Head>
+        <title>Completing Login… | PhlyPhant</title>
+        <meta
+          name="description"
+          content="Completing secure login using Hybrid OAuth and Firebase Authentication."
+        />
+        <meta name="robots" content="noindex,nofollow" />
+      </Head>
 
-        <h1
-          className="text-3xl md:text-4xl font-extrabold text-center 
-          bg-linear-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent drop-shadow-sm mb-10"
+      <main className="min-h-screen flex items-center justify-center p-6 bg-linear-to-br from-slate-100 via-white to-slate-200">
+        <section
+          className="
+            max-w-lg w-full 
+            bg-white/80 backdrop-blur-xl 
+            shadow-2xl rounded-2xl border 
+            p-8 sm:p-10
+            text-center
+          "
         >
-          Hybrid OAuth + Firebase Admin Test
-        </h1>
+          <div className="flex justify-center mb-6">{StatusIcon}</div>
 
-        <div className="flex items-center justify-center mb-8">
-          {StatusIcon}
-          <span className="ml-4 text-lg md:text-xl font-semibold">
-            Session Status:{" "}
-            {status === "OK"
-              ? "VALID (Authenticated)"
-              : status === "ERROR"
-              ? "INVALID / NO SESSION"
-              : "Checking..."}
-          </span>
-        </div>
+          <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-4">
+            กำลังดำเนินการเข้าสู่ระบบ
+          </h1>
 
-        {details && status === "OK" && (
-          <div className="bg-green-50 border border-green-200 p-5 rounded-xl mb-8">
-            <h2 className="font-bold text-green-700 text-lg mb-2">
-              User Details
-            </h2>
-            <pre className="text-sm text-green-700 whitespace-pre-wrap">
+          <p className="text-gray-600 text-base sm:text-lg mb-6">{message}</p>
+
+          {details && (
+            <pre className="text-left text-xs sm:text-sm bg-gray-50 p-4 rounded-xl border overflow-x-auto">
               {JSON.stringify(details, null, 2)}
             </pre>
-          </div>
-        )}
+          )}
 
-        {status !== "OK" && (
-          <div className="text-center mb-8">
-            <p className="text-gray-600 mb-4">
-              คุณยังไม่ได้ Login หรือ Session หมดอายุ
-            </p>
-
-            <div className="flex flex-col gap-4 items-center">
-              <button
-                onClick={googleLogin}
-                className="
-                  px-6 py-3 rounded-xl text-white font-semibold
-                  bg-blue-600 hover:bg-blue-700
-                  hover:shadow-lg hover:scale-105
-                  transition-all flex items-center gap-2
-                "
-              >
-                <LogIn className="w-5 h-5" /> Login with Google
-              </button>
-
-              <button
-                onClick={facebookLogin}
-                className="
-                  px-6 py-3 rounded-xl text-white font-semibold
-                  bg-blue-800 hover:bg-blue-900
-                  hover:shadow-lg hover:scale-105
-                  transition-all flex items-center gap-2
-                "
-              >
-                <LogIn className="w-5 h-5" /> Login with Facebook
-              </button>
-            </div>
-          </div>
-        )}
-
-        {status === "OK" && (
-          <div className="text-center">
+          {status === "ERROR" && (
             <button
-              onClick={logout}
+              onClick={() => (window.location.href = `${SITE_URL}/login`)}
               className="
-                px-6 py-3 rounded-xl font-semibold
-                bg-red-500 text-white hover:bg-red-600
-                hover:shadow-lg hover:scale-105
-                transition-all flex items-center gap-2 mx-auto
+                mt-6 px-6 py-3 
+                bg-red-600 text-white 
+                rounded-xl font-medium 
+                hover:bg-red-700 
+                transition-all
               "
             >
-              <LogOut className="w-5 h-5" /> Logout
+              กลับไปหน้าล็อกอิน
             </button>
-          </div>
-        )}
-      </div>
-    </div>
+          )}
+        </section>
+      </main>
+    </>
   );
 }

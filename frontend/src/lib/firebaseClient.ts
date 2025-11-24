@@ -1,4 +1,7 @@
-// lib/firebaseClient.ts
+// ==============================
+// file: lib/firebaseClient.ts
+// ==============================
+
 // Safe client-side Firebase initializer for Next.js (no null returns)
 
 import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
@@ -35,7 +38,7 @@ function createFirebase(): void {
       appId,
     };
 
-    // FIXED: safer initialization for Next.js 16
+    // Safer initialization for Next.js 16
     if (getApps().length > 0) {
       appInstance = getApp();
     } else {
@@ -46,14 +49,14 @@ function createFirebase(): void {
   }
 }
 
-export function getFirebaseApp(): FirebaseApp {
+export function getFirebaseApp(): FirebaseApp | null {
+  if (typeof window === "undefined") return null;
   if (!appInstance) createFirebase();
-  if (!appInstance) throw new Error("Firebase app not initialized");
-  return appInstance;
+  return appInstance ?? null;
 }
 
-export function getFirebaseAuth(): Auth {
+export function getFirebaseAuth(): Auth | null {
+  if (typeof window === "undefined") return null;
   if (!authInstance) createFirebase();
-  if (!authInstance) throw new Error("Firebase auth not initialized");
-  return authInstance;
+  return authInstance ?? null;
 }

@@ -6,10 +6,6 @@ import axios, { InternalAxiosRequestConfig } from "axios";
 
 // -------------------------------------------------------
 // Backend Base URL Resolution (Production Safe)
-// Priority:
-// 1) NEXT_PUBLIC_BACKEND_URL
-// 2) NEXT_PUBLIC_API_BASE
-// 3) Default Production API
 // -------------------------------------------------------
 const baseURL =
   process.env.NEXT_PUBLIC_BACKEND_URL ||
@@ -38,6 +34,13 @@ API.interceptors.request.use((cfg: InternalAxiosRequestConfig) => {
   cfg.headers["Cache-Control"] = "no-store";
   cfg.headers["Pragma"] = "no-cache";
   cfg.headers["Expires"] = "0";
+
+  // -------------------------------------------------------
+  // FIX (only fix needed):
+  // Force cookies to be included for all axios requests
+  // -------------------------------------------------------
+  cfg.withCredentials = true;
+
   return cfg;
 });
 

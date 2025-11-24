@@ -4,8 +4,10 @@
 import {
   Controller,
   Get,
+  Post,
   Req,
   Res,
+  Body,
   Logger,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
@@ -13,6 +15,7 @@ import { Response, Request } from 'express';
 import crypto from 'crypto';
 import axios from 'axios';
 import IORedis from 'ioredis';
+import * as admin from 'firebase-admin';
 
 const redis = new IORedis(process.env.REDIS_URL || 'redis://redis:6379', {
   maxRetriesPerRequest: 3,
@@ -310,6 +313,56 @@ export class AuthController {
     } catch (err: any) {
       this.logger.error('[facebookCallback] error: ' + err.message);
       return res.status(500).send('Facebook callback error');
+    }
+  }
+
+  // =======================================
+  // CREATE SESSION COOKIE AFTER /auth/complete
+  // =======================================
+  @Post('complete')
+  async complete(@Body() body: any, @Res() res: Response) {
+    const { customToken } = body;
+
+    if (!customToken) {
+      return res.status(400).json({ error: 'Missing customToken' });
+    }
+
+    try {
+      const sessionCookie = await admin.auth().createSessionCookie(customToken, {
+        expiresIn: 1000 * 60 * 60 * 24 * 5
+      });
+
+      res.cookie('__session', sessionCookie, {
+        httpOnly: true,
+        secure: true,
+        sameSite: 'none',
+        domain: process.env.COOKIE_DOMAIN || '.phlyphant.com',
+        path: '/',
+        maxAge: 1000 * 60 * 60 * 24 * 5
+      });
+
+      return res.json({ ok: true });
+    } catch (e: any) {
+      return res.status(500).json({ error: e.message });
+    }
+  }
+
+  // =======================================
+  // SESSION CHECK
+  // =======================================
+  @Get('session-check')
+  async sessionCheck(@Req() req: Request, @Res() res: Response) {
+    const cookie = req.cookies?.__session;
+
+    if (!cookie) {
+      return res.status(401).json({ valid: false });
+    }
+
+    try {
+      const decoded = await admin.auth().verifySessionCookie(cookie, true);
+      return res.json({ valid: true, decoded });
+    } catch (e: any) {
+      return res.status(401).json({ valid: false });
     }
   }
 }

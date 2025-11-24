@@ -28,7 +28,8 @@ export default function AuthCheckPage() {
         withCredentials: true,
       });
 
-      if (res.data?.sessionCookie === true) {
+      // FIX #1 — check the correct key returned by backend
+      if (res.data?.valid === true) {
         setStatus("OK");
         setDetails(res.data);
       } else {
@@ -43,22 +44,16 @@ export default function AuthCheckPage() {
   // Login with Google
   // ==============================================
   const googleLogin = () => {
-    const redirectAfter = `${SITE_URL}/auth/complete`;
-
-    window.location.href = `${API_BASE}/auth/google?origin=${encodeURIComponent(
-      redirectAfter
-    )}`;
+    // FIX #2 — use direct backend OAuth endpoint
+    window.location.href = `${API_BASE}/auth/google`;
   };
 
   // ==============================================
   // Login with Facebook
   // ==============================================
   const facebookLogin = () => {
-    const redirectAfter = `${SITE_URL}/auth/complete`;
-
-    window.location.href = `${API_BASE}/auth/facebook?origin=${encodeURIComponent(
-      redirectAfter
-    )}`;
+    // FIX #2 — use direct backend OAuth endpoint
+    window.location.href = `${API_BASE}/auth/facebook`;
   };
 
   // ==============================================
@@ -70,8 +65,7 @@ export default function AuthCheckPage() {
         withCredentials: true,
       });
       checkSession();
-    } catch (err) {
-    }
+    } catch (err) {}
   };
 
   useEffect(() => {

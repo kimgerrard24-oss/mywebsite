@@ -41,8 +41,11 @@ async function jsonFetch<T>(
   return (await res.json()) as T;
 }
 
+// ==================================================
+// FIX #1: correct backend session cookie endpoint
+// ==================================================
 export async function createSessionCookie(idToken: string) {
-  return jsonFetch<{ ok: true }>(`${API_BASE}/auth/session`, {
+  return jsonFetch<{ ok: true }>(`${API_BASE}/auth/create_session`, {
     method: "POST",
     body: JSON.stringify({ idToken }),
   });
@@ -52,9 +55,9 @@ export async function logout(): Promise<{ ok: true } | void> {
   return jsonFetch(`${API_BASE}/auth/logout`, { method: "POST" });
 }
 
-// =============================================
-// FIX: Normalize backend response + correct cookie header
-// =============================================
+// ==================================================
+// FIX #2: Correct + minimal session check logic
+// ==================================================
 export async function sessionCheckServerSide(
   cookieHeader?: string
 ): Promise<{ valid: boolean; user?: any } | null> {
@@ -74,14 +77,10 @@ export async function sessionCheckServerSide(
   }
 
   try {
-    const raw = await res.json();
-    const data = raw as Record<string, any>;
+    const data = (await res.json()) as Record<string, any>;
 
-    const valid =
-      data.valid === true ||
-      data.sessionCookie === true ||
-      data.user != null ||
-      data.uid != null;
+    // backend truth
+    const valid = data.valid === true;
 
     return {
       valid,
@@ -92,22 +91,17 @@ export async function sessionCheckServerSide(
   }
 }
 
-// =============================================
-// FIX: Normalize client-side session check
-// =============================================
+// ==================================================
+// FIX #3: Correct minimal client-side validator
+// ==================================================
 export async function sessionCheckClient(): Promise<{
   valid: boolean;
   user?: any;
 }> {
   const url = `${API_BASE}/auth/session-check`;
-  const raw = await jsonFetch(url);
-  const data = raw as Record<string, any>;
+  const data = (await jsonFetch(url)) as Record<string, any>;
 
-  const valid =
-    data.valid === true ||
-    data.sessionCookie === true ||
-    data.user != null ||
-    data.uid != null;
+  const valid = data.valid === true;
 
   return {
     valid,
