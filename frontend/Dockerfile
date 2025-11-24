@@ -12,9 +12,6 @@ COPY package*.json ./
 RUN --mount=type=cache,target=/root/.npm \
     npm ci
 
-# Copy env (IMPORTANT for Next.js Production Build)
-COPY .env.production .env.production
-
 # Copy project sources
 COPY . .
 

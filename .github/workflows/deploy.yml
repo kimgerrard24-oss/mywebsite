@@ -35,7 +35,7 @@ jobs:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
 
       # -----------------------------------------------------------
-      # 2) Create Sentry build env file ONLY (no .env.production)
+      # 2) Create Sentry env for frontend
       # -----------------------------------------------------------
       - name: Create Sentry env for frontend
         working-directory: frontend
@@ -43,6 +43,12 @@ jobs:
           echo "SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}" > .env.sentry-build-plugin
           echo "SENTRY_ORG=phlyphant" >> .env.sentry-build-plugin
           echo "SENTRY_PROJECT=javascript-nextjs" >> .env.sentry-build-plugin
+
+      # -----------------------------------------------------------
+      # (NEW) Create frontend .env.production
+      # -----------------------------------------------------------
+      - name: Create frontend .env.production
+        run: echo "${{ secrets.FRONTEND_ENV_PRODUCTION }}" > frontend/.env.production
 
       # -----------------------------------------------------------
       # 3) Build frontend
@@ -64,7 +70,7 @@ jobs:
         run: echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" --password-stdin
 
       # -----------------------------------------------------------
-      # 5) Build + Push Frontend Docker image (✔ FIXED — No secrets inside image)
+      # 5) Build + Push Frontend Docker image
       # -----------------------------------------------------------
       - name: Build frontend Docker image
         run: |
