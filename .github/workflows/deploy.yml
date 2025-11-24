@@ -90,6 +90,12 @@ jobs:
             -t ghcr.io/${{ secrets.GHCR_USERNAME }}/mywebsite-backend:latest \
             backend
 
+      # -----------------------------------------------------------
+      # (NEW) Create backend .env.production
+      # -----------------------------------------------------------
+      - name: Create backend .env.production
+        run: echo "${{ secrets.BACKEND_ENV_PRODUCTION }}" > backend/.env.production
+
       - name: Push backend image to GHCR
         run: docker push ghcr.io/${{ secrets.GHCR_USERNAME }}/mywebsite-backend:latest
 
