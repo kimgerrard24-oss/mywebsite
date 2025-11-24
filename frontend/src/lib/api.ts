@@ -26,9 +26,8 @@ async function jsonFetch<T>(
     let body = text;
     try {
       body = text ? JSON.parse(text) : text;
-    } catch (e) {
-      // ignore
-    }
+    } catch (e) {}
+
     const err: any = new Error(`Request failed: ${res.status}`);
     err.status = res.status;
     err.body = body;
@@ -53,10 +52,14 @@ export async function logout(): Promise<{ ok: true } | void> {
   return jsonFetch(`${API_BASE}/auth/logout`, { method: "POST" });
 }
 
+// =============================================
+// FIX: Normalize backend response + correct cookie header
+// =============================================
 export async function sessionCheckServerSide(
   cookieHeader?: string
 ): Promise<{ valid: boolean; user?: any } | null> {
   const url = `${API_BASE}/auth/session-check`;
+
   const res = await fetch(url, {
     method: "GET",
     credentials: "include",
@@ -69,15 +72,45 @@ export async function sessionCheckServerSide(
   if (!res.ok) {
     return { valid: false };
   }
+
   try {
-    const data = await res.json();
-    return data;
+    const raw = await res.json();
+    const data = raw as Record<string, any>;
+
+    const valid =
+      data.valid === true ||
+      data.sessionCookie === true ||
+      data.user != null ||
+      data.uid != null;
+
+    return {
+      valid,
+      ...data,
+    };
   } catch {
     return { valid: false };
   }
 }
 
-export async function sessionCheckClient(): Promise<{ valid: boolean; user?: any }> {
+// =============================================
+// FIX: Normalize client-side session check
+// =============================================
+export async function sessionCheckClient(): Promise<{
+  valid: boolean;
+  user?: any;
+}> {
   const url = `${API_BASE}/auth/session-check`;
-  return jsonFetch(url);
+  const raw = await jsonFetch(url);
+  const data = raw as Record<string, any>;
+
+  const valid =
+    data.valid === true ||
+    data.sessionCookie === true ||
+    data.user != null ||
+    data.uid != null;
+
+  return {
+    valid,
+    ...data,
+  };
 }

@@ -35,13 +35,18 @@ export default function AccountPage({ user, valid }: Props) {
 
 export const getServerSideProps: GetServerSideProps = async (ctx) => {
   const cookieHeader = ctx.req.headers.cookie;
+
   try {
     const result = await validateSessionOnServer(cookieHeader);
+
     if (!result || !result.valid) {
       return { props: { valid: false } };
     }
 
-    const user = result.user ?? null;
+    // FIX: ปรับให้ TS รับ user แบบ optional
+    const data = result as Record<string, any>;
+    const user = data.user ?? null;
+
     return {
       props: {
         valid: true,

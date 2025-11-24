@@ -14,7 +14,7 @@ import { getAuth, type Auth } from "firebase/auth";
 let firebaseApp: FirebaseApp | undefined;
 let firebaseAuth: Auth | undefined;
 
-// Run only on client
+// Safe client-only initializer
 function createFirebase() {
   if (typeof window === "undefined") {
     return;
@@ -50,7 +50,9 @@ function createFirebase() {
     }
 
     firebaseAuth = getAuth(firebaseApp);
-    firebaseAuth.useDeviceLanguage();
+    if (firebaseAuth) {
+      firebaseAuth.useDeviceLanguage();
+    }
   }
 }
 
@@ -64,5 +66,5 @@ export function getFirebaseAuth(): Auth | undefined {
   return firebaseAuth;
 }
 
-// default export (backward compatibility)
-export default getFirebaseApp();
+// ⛔ removed wrong default export to prevent SSR initialization
+// export default getFirebaseApp();

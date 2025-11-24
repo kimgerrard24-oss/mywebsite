@@ -4,7 +4,6 @@
 import { sessionCheckServerSide } from './api';
 
 export async function validateSessionOnServer(cookieHeader?: string) {
-  // Always return a consistent result shape
   try {
     const result = await sessionCheckServerSide(cookieHeader);
 
@@ -12,12 +11,22 @@ export async function validateSessionOnServer(cookieHeader?: string) {
       return { valid: false };
     }
 
-    // Must always contain at least { valid: boolean }
-    if (typeof result.valid !== 'boolean') {
-      return { valid: false };
-    }
+    const data = result as Record<string, any>;
 
-    return result;
+    // Normalize backend response correctly
+    const valid =
+      data.valid === true ||
+      data.sessionCookie === true ||
+      data.user != null ||
+      data.uid != null;
+
+    // Do NOT spread "valid" from backend again
+    const { valid: _ignored, ...rest } = data;
+
+    return {
+      valid,
+      ...rest,
+    };
   } catch {
     return { valid: false };
   }

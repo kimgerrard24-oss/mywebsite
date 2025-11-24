@@ -16,7 +16,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // ป้องกัน SSR
+    // SSR: do nothing
     if (typeof window === 'undefined') {
       setLoading(false);
       return;
@@ -24,19 +24,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const auth: Auth | undefined = getFirebaseAuth();
 
-    // ถ้า Firebase ยังไม่ initial → หยุดโหลด
+    // Firebase not initialized → stop loading (safe fallback)
     if (!auth) {
       setUser(null);
       setLoading(false);
       return;
     }
 
+    // Safe subscription
     const unsubscribe = onAuthStateChanged(auth, (u) => {
       setUser(u);
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    return () => {
+      try {
+        unsubscribe();
+      } catch {}
+    };
   }, []);
 
   return (

@@ -9,7 +9,8 @@ let authInstance: Auth | undefined;
 
 function createFirebase(): void {
   if (typeof window === "undefined") {
-    return; // SSR: do nothing, but never set null
+    // SSR: do nothing
+    return;
   }
 
   if (!appInstance) {
@@ -34,7 +35,13 @@ function createFirebase(): void {
       appId,
     };
 
-    appInstance = getApps().length === 0 ? initializeApp(config) : getApp();
+    // FIXED: safer initialization for Next.js 16
+    if (getApps().length > 0) {
+      appInstance = getApp();
+    } else {
+      appInstance = initializeApp(config);
+    }
+
     authInstance = getAuth(appInstance);
   }
 }

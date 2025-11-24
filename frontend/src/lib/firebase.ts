@@ -22,7 +22,7 @@ const firebaseConfig: FirebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID ?? "",
 };
 
-// Warn missing keys (client-side only)
+// Warn missing keys only on client
 if (typeof window !== "undefined") {
   const required: Array<keyof FirebaseConfig> = ["apiKey", "authDomain", "projectId", "appId"];
   for (const k of required) {
@@ -38,7 +38,10 @@ function createFirebaseApp(): FirebaseApp | null {
   if (typeof window === "undefined") return null;
 
   try {
-    if (getApps().length === 0) {
+    // FIXED: safer initialization for Next.js 14–16
+    if (getApps().length > 0) {
+      return getApp();
+    } else {
       if (!firebaseConfig.apiKey || !firebaseConfig.projectId || !firebaseConfig.appId) {
         console.error(
           "Firebase initialization aborted: missing required NEXT_PUBLIC_FIREBASE_* values"
@@ -47,7 +50,6 @@ function createFirebaseApp(): FirebaseApp | null {
       }
       return initializeApp(firebaseConfig as any);
     }
-    return getApp();
   } catch (err) {
     console.error("Firebase initialization error:", err);
     return null;
@@ -68,6 +70,7 @@ export function getFirebaseApp(): FirebaseApp | null {
 export function getFirebaseAuth(): Auth | null {
   const app = getFirebaseApp();
   if (!app) return null;
+
   try {
     return getAuth(app);
   } catch (err) {

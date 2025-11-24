@@ -11,7 +11,6 @@ export function useAuth() {
   const [user, setUser] = useState<Partial<User> | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Simplified: Production environment variables only
   const API_BASE =
     process.env.NEXT_PUBLIC_BACKEND_URL ||
     process.env.NEXT_PUBLIC_API_BASE ||
@@ -28,13 +27,24 @@ export function useAuth() {
 
         if (!mounted) return;
 
-        if (res.data.sessionCookie === true) {
+        // ================================
+        // FIX: normalize backend response
+        // ================================
+        const data = res.data || {};
+
+        const valid =
+          data.valid === true ||
+          data.sessionCookie === true ||
+          data.user != null;
+
+        if (valid) {
+          const email = data.email || data.user?.email || null;
+          const uid = data.uid || data.user?.uid || null;
+
           setUser({
-            id: res.data.uid ? String(res.data.uid) : undefined,
-            email: res.data.email,
-            username: res.data.email
-              ? res.data.email.split("@")[0]
-              : "unknown",
+            id: uid ? String(uid) : undefined,
+            email: email || undefined,
+            username: email ? email.split("@")[0] : "unknown",
           });
         } else {
           setUser(null);

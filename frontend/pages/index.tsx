@@ -7,7 +7,6 @@ export default function HomePage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  // unified API URL
   const backend =
     process.env.NEXT_PUBLIC_BACKEND_URL ||
     process.env.NEXT_PUBLIC_API_BASE ||
@@ -32,26 +31,15 @@ export default function HomePage() {
   };
 
   // ==========================================
-  // FIXED: Correct OAuth start (same flow as login.tsx)
+  // FIXED: OAuth start (no manual state generation)
   // ==========================================
   const startOAuth = (provider: "google" | "facebook") => {
     const origin =
       typeof window !== "undefined" ? window.location.origin : "";
 
-    // generate secure state
-    const state = window.crypto.randomUUID();
-
-    // store state in cookie
-    Cookies.set("oauth_state", state, {
-      secure: true,
-      sameSite: "lax",
-      path: "/",
-      domain: ".phlyphant.com",
-    });
-
     const url = `${backend}/auth/${provider}?origin=${encodeURIComponent(
       origin
-    )}&state=${state}`;
+    )}`;
 
     window.location.href = url;
   };

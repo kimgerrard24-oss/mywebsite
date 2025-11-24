@@ -31,7 +31,7 @@ export class AuthController {
       res.cookie('oauth_state', state, {
         httpOnly: true,
         secure: true,
-        sameSite: 'lax',
+        sameSite: 'none',
         domain: process.env.COOKIE_DOMAIN || '.phlyphant.com',
         path: '/',
       });
@@ -86,7 +86,6 @@ export class AuthController {
         return res.status(400).send('Invalid or expired state');
       }
 
-      // Exchange code for tokens
       const tokenRes = await axios.post(
         'https://oauth2.googleapis.com/token',
         new URLSearchParams({
@@ -143,7 +142,7 @@ export class AuthController {
   }
 
   // =======================================
-  // FACEBOOK OAuth Start (unchanged)
+  // FACEBOOK OAuth Start
   // =======================================
   @Get('facebook')
   async facebookAuth(@Req() req: Request, @Res() res: Response) {
@@ -153,7 +152,7 @@ export class AuthController {
       res.cookie('oauth_state', state, {
         httpOnly: true,
         secure: true,
-        sameSite: 'lax',
+        sameSite: 'none',
         domain: process.env.COOKIE_DOMAIN || '.phlyphant.com',
         path: '/',
       });
@@ -181,7 +180,7 @@ export class AuthController {
   }
 
   // =======================================
-  // FACEBOOK Callback (unchanged)
+  // FACEBOOK Callback
   // =======================================
   @Get('facebook/callback')
   async facebookCallback(@Req() req: Request, @Res() res: Response) {

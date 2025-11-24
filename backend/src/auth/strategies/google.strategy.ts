@@ -21,16 +21,6 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       process.env.GOOGLE_REDIRECT_URL ||
       '';
 
-    // ถ้า callback URL ว่างหรือไม่ถูกต้อง → แจ้ง error ชัดเจน
-    if (!clientID || !clientSecret) {
-      throw new Error('Missing Google OAuth client ID or secret');
-    }
-    if (!callbackURL || !callbackURL.startsWith('https://')) {
-      throw new Error(
-        `Invalid GOOGLE_CALLBACK_URL. Received: "${callbackURL}"`
-      );
-    }
-
     const options: StrategyOptionsWithRequest = {
       clientID,
       clientSecret,
@@ -48,13 +38,11 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     refreshToken: string,
     profile: Profile,
   ) {
-    // เก็บ origin เพื่อใช้ redirect หลังสำเร็จ
     const requestedOrigin = (req as any).oauthOrigin;
     if (requestedOrigin) {
       (req as any).resolvedOrigin = requestedOrigin;
     }
 
-    // Google บาง region ไม่ส่ง email ต้องรองรับ
     const email =
       profile.emails?.[0]?.value ||
       `${profile.id}@google-oauth.phlyphant.local`;
