@@ -2,7 +2,7 @@
 // file: pages/auth-check.tsx
 // ==============================
 import { useEffect, useState } from "react";
-import axios from "../src/lib/axios"; // ใช้ axios instance ของระบบ
+import axios from "../src/lib/axios";
 import { CheckCircle, XCircle, Loader2, LogIn, LogOut } from "lucide-react";
 
 type Status = "OK" | "ERROR" | "LOADING";
@@ -11,12 +11,10 @@ export default function AuthCheckPage() {
   const [status, setStatus] = useState<Status>("LOADING");
   const [details, setDetails] = useState<any>(null);
 
-  // Production Frontend URL
   const SITE_URL =
     process.env.NEXT_PUBLIC_SITE_URL ||
     "https://phlyphant.com";
 
-  // Production Backend URL
   const API_BASE =
     process.env.NEXT_PUBLIC_API_BASE ||
     "https://api.phlyphant.com";
@@ -26,7 +24,9 @@ export default function AuthCheckPage() {
   // ==============================================
   const checkSession = async () => {
     try {
-      const res = await axios.get(`/auth/session-check`);
+      const res = await axios.get(`${API_BASE}/auth/session-check`, {
+        withCredentials: true,
+      });
 
       if (res.data?.sessionCookie === true) {
         setStatus("OK");
@@ -34,7 +34,7 @@ export default function AuthCheckPage() {
       } else {
         setStatus("ERROR");
       }
-    } catch (err) {
+    } catch {
       setStatus("ERROR");
     }
   };
@@ -66,10 +66,11 @@ export default function AuthCheckPage() {
   // ==============================================
   const logout = async () => {
     try {
-      await axios.post(`/auth/logout`, {});
+      await axios.post(`${API_BASE}/auth/logout`, {}, {
+        withCredentials: true,
+      });
       checkSession();
     } catch (err) {
-      //
     }
   };
 
@@ -127,7 +128,6 @@ export default function AuthCheckPage() {
             </p>
 
             <div className="flex flex-col gap-4 items-center">
-
               <button
                 onClick={googleLogin}
                 className="
@@ -152,7 +152,6 @@ export default function AuthCheckPage() {
                 <LogIn className="w-5 h-5" /> Login with Facebook
               </button>
             </div>
-
           </div>
         )}
 

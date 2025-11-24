@@ -31,9 +31,6 @@ export default function SystemCheckPage() {
     socket: "LOADING",
   });
 
-  // -------------------------------------------------------
-  // Production API base URL (strict for OAuth + Cookies)
-  // -------------------------------------------------------
   const api =
     process.env.NEXT_PUBLIC_BACKEND_URL ||
     process.env.NEXT_PUBLIC_API_BASE ||
@@ -43,13 +40,10 @@ export default function SystemCheckPage() {
     setResults((prev) => ({ ...prev, tailwind: "OK" }));
 
     const tests = async () => {
-      // ------------------------------
-      // Backend / DB / Redis / S3
-      // ------------------------------
+      // Backend / DB / Redis / S3 Check
       try {
-        const { data } = await axios.get(`${api}/system-check`, {
-          withCredentials: true,
-        });
+        // --- FIX HERE: remove withCredentials ---
+        const { data } = await axios.get(`${api}/system-check`);
 
         setResults((p) => ({
           ...p,
@@ -72,14 +66,11 @@ export default function SystemCheckPage() {
         }));
       }
 
-      // ------------------------------
-      // WebSocket Check (Production)
-      // ------------------------------
+      // WebSocket Check
       try {
         await new Promise((res) => setTimeout(res, 300));
 
         const socket: Socket = io(api.replace("https://", "wss://"), {
-          withCredentials: true,
           transports: ["websocket", "polling"],
           path: "/socket.io/",
           autoConnect: true,
@@ -110,9 +101,6 @@ export default function SystemCheckPage() {
     tests();
   }, [api]);
 
-  // -------------------------------
-  // Status UI
-  // -------------------------------
   const renderStatus = (label: string, status: Status) => {
     if (status === "LOADING")
       return (

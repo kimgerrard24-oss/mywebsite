@@ -6,7 +6,12 @@ export default function HomePage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  const backend = process.env.NEXT_PUBLIC_BACKEND_URL;
+  // FIXED: fallback API base (เหมือน system-check)
+  const backend =
+    process.env.NEXT_PUBLIC_BACKEND_URL ||
+    process.env.NEXT_PUBLIC_API_BASE ||
+    "https://api.phlyphant.com";
+
   const googleClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
   const facebookClientId = process.env.NEXT_PUBLIC_FACEBOOK_CLIENT_ID;
 
@@ -23,6 +28,7 @@ export default function HomePage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email, password }),
       });
+
       window.location.href =
         process.env.NEXT_PUBLIC_OAUTH_REDIRECT_AFTER_LOGIN || "/";
     } catch (err) {
@@ -65,7 +71,6 @@ export default function HomePage() {
       </Head>
 
       <main className="min-h-screen flex flex-col">
-        {/* HERO SECTION */}
         <header className="w-full py-6 border-b bg-white/80 backdrop-blur">
           <nav className="container mx-auto px-4 flex items-center justify-between">
             <h1 className="text-2xl font-bold text-blue-600">PhlyPhant</h1>
@@ -79,7 +84,6 @@ export default function HomePage() {
         </header>
 
         <section className="flex flex-col-reverse md:flex-row flex-1 container mx-auto px-4 py-10 gap-10">
-          {/* LEFT SIDE (Login Form) */}
           <article className="flex-1 bg-white shadow-lg rounded-xl p-8 flex flex-col justify-center">
             <h2 className="text-3xl font-bold mb-6 text-gray-900">
               Welcome to PhlyPhant
@@ -88,7 +92,6 @@ export default function HomePage() {
               เข้าสู่ระบบเพื่อเริ่มใช้งานแพลตฟอร์มโซเชียลใหม่ล่าสุดของไทย
             </p>
 
-            {/* LOCAL LOGIN FORM */}
             <form className="space-y-5" onSubmit={handleLocalLogin}>
               <div>
                 <label className="block text-sm font-medium mb-1">Email</label>
@@ -122,7 +125,6 @@ export default function HomePage() {
               </button>
             </form>
 
-            {/* SOCIAL LOGIN BUTTONS */}
             <div className="mt-8 space-y-4">
               <button
                 onClick={loginWithGoogle}
@@ -150,7 +152,6 @@ export default function HomePage() {
             </div>
           </article>
 
-          {/* RIGHT SIDE (Illustration / Branding) */}
           <aside className="flex-1 flex items-center justify-center">
             <img
               src="/images/social-hero.svg"

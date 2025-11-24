@@ -11,8 +11,9 @@ export function useAuth() {
   const [user, setUser] = useState<Partial<User> | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // ใช้ ENV ตาม Production
+  // ใช้ ENV ตาม Production ที่คุณใช้อยู่จริง
   const API_BASE =
+    process.env.NEXT_PUBLIC_BACKEND_URL ||
     process.env.NEXT_PUBLIC_API_BASE_URL ||
     process.env.NEXT_PUBLIC_API_BASE ||
     "https://api.phlyphant.com";
@@ -34,7 +35,7 @@ export function useAuth() {
             email: res.data.email,
             username: res.data.email
               ? res.data.email.split("@")[0]
-              : "unknown"
+              : "unknown",
           });
         } else {
           setUser(null);

@@ -1,12 +1,9 @@
 // pages/auth/complete.tsx
-// Next.js Page Router (TSX) - Hybrid OAuth + Firebase Custom Token Login
-// Semantic + SEO + Responsive + TailwindCSS
-
 import { useEffect } from "react";
 import Head from "next/head";
 import { useRouter } from "next/router";
 import { getAuth, signInWithCustomToken } from "firebase/auth";
-import firebaseApp from "@/lib/firebaseClient"; // ต้องมีไฟล์นี้ตามโปรเจกของคุณ
+import firebaseApp from "@/lib/firebaseClient";
 
 interface CompleteProps {
   customToken?: string | null;
@@ -70,7 +67,6 @@ export default function AuthComplete({ customToken }: CompleteProps) {
   );
 }
 
-// รับ customToken จาก Backend ผ่าน POST auto-submit form
 export async function getServerSideProps({ req }: any) {
   if (req.method === "POST") {
     const raw = await new Promise<string>((resolve) => {
@@ -79,8 +75,40 @@ export async function getServerSideProps({ req }: any) {
       req.on("end", () => resolve(data));
     });
 
-    const body = new URLSearchParams(raw);
-    const customToken = body.get("customToken") || null;
+    let customToken: string | null = null;
+
+    const contentType = req.headers["content-type"] || "";
+
+    // Case 1: application/x-www-form-urlencoded
+    if (contentType.includes("application/x-www-form-urlencoded")) {
+      const body = new URLSearchParams(raw);
+      customToken = body.get("customToken") || null;
+    }
+
+    // Case 2: application/json
+    else if (contentType.includes("application/json")) {
+      try {
+        const json = JSON.parse(raw);
+        customToken = json.customToken || null;
+      } catch {
+        customToken = null;
+      }
+    }
+
+    // Case 3: fallback (unknown content-type)
+    else {
+      try {
+        const body = new URLSearchParams(raw);
+        customToken = body.get("customToken") || null;
+
+        if (!customToken) {
+          const json = JSON.parse(raw);
+          customToken = json.customToken || null;
+        }
+      } catch {
+        customToken = null;
+      }
+    }
 
     return {
       props: {

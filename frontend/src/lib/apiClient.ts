@@ -6,13 +6,14 @@ import axios, { InternalAxiosRequestConfig } from "axios";
 
 // -------------------------------------------------------
 // Backend Base URL Resolution (Production Safe)
-// -------------------------------------------------------
 // Priority:
-// 1) NEXT_PUBLIC_API_BASE_URL
-// 2) NEXT_PUBLIC_API_BASE
-// 3) Default Production API: https://api.phlyphant.com
+// 1) NEXT_PUBLIC_BACKEND_URL        (production correct env key)
+// 2) NEXT_PUBLIC_API_BASE_URL       (fallback old naming)
+// 3) NEXT_PUBLIC_API_BASE           (fallback)
+// 4) Default Production API
 // -------------------------------------------------------
 const baseURL =
+  process.env.NEXT_PUBLIC_BACKEND_URL ||
   process.env.NEXT_PUBLIC_API_BASE_URL ||
   process.env.NEXT_PUBLIC_API_BASE ||
   "https://api.phlyphant.com";
@@ -22,14 +23,14 @@ const baseURL =
 // -------------------------------------------------------
 const API = axios.create({
   baseURL,
-  withCredentials: true, // Required for HttpOnly session cookie
+  withCredentials: true,
   headers: {
     "Content-Type": "application/json",
     "Cache-Control": "no-store",
     Pragma: "no-cache",
     Expires: "0",
   },
-  timeout: 10000, // Avoid hanging endpoints
+  timeout: 10000,
 });
 
 // -------------------------------------------------------
