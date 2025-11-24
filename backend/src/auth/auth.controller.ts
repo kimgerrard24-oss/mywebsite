@@ -48,7 +48,7 @@ export class AuthController {
 
       res.cookie('oauth_state', state, {
         httpOnly: true,
-        secure: true,
+        secure: process.env.NODE_ENV === 'production',
         sameSite: 'none',
         domain: process.env.COOKIE_DOMAIN || '.phlyphant.com',
         path: '/',
@@ -188,7 +188,7 @@ export class AuthController {
 
       res.cookie('oauth_state', state, {
         httpOnly: true,
-        secure: true,
+        secure: process.env.NODE_ENV === 'production',
         sameSite: 'none',
         domain: process.env.COOKIE_DOMAIN || '.phlyphant.com',
         path: '/',
@@ -318,32 +318,44 @@ export class AuthController {
 
   // =======================================
   // CREATE SESSION COOKIE AFTER /auth/complete
+  //
+  // Important: frontend must exchange the customToken (from query)
+  // with Firebase client SDK (signInWithCustomToken) to obtain an
+  // ID token, then POST { idToken } to this endpoint. Server must
+  // create a session cookie from the ID token (not from a custom token).
   // =======================================
   @Post('complete')
   async complete(@Body() body: any, @Res() res: Response) {
-    const { customToken } = body;
+    const idToken = body?.idToken as string | undefined;
 
-    if (!customToken) {
-      return res.status(400).json({ error: 'Missing customToken' });
+    if (!idToken) {
+      return res.status(400).json({ error: 'Missing idToken' });
     }
 
     try {
-      const sessionCookie = await admin.auth().createSessionCookie(customToken, {
-        expiresIn: 1000 * 60 * 60 * 24 * 5
+      const expiresIn = Number(process.env.SESSION_COOKIE_MAX_AGE_MS || 432000000); // 5 days
+
+      const sessionCookie = await admin.auth().createSessionCookie(idToken, {
+        expiresIn,
       });
 
-      res.cookie('__session', sessionCookie, {
+      const cookieName = process.env.SESSION_COOKIE_NAME || '__session';
+      const cookieDomain = process.env.COOKIE_DOMAIN || '.phlyphant.com';
+      const isProd = process.env.NODE_ENV === 'production';
+
+      res.cookie(cookieName, sessionCookie, {
         httpOnly: true,
-        secure: true,
+        secure: isProd,
         sameSite: 'none',
-        domain: process.env.COOKIE_DOMAIN || '.phlyphant.com',
+        domain: cookieDomain,
         path: '/',
-        maxAge: 1000 * 60 * 60 * 24 * 5
+        maxAge: expiresIn,
       });
 
       return res.json({ ok: true });
     } catch (e: any) {
-      return res.status(500).json({ error: e.message });
+      this.logger.error('[complete] session cookie error: ' + String(e));
+      return res.status(500).json({ error: 'create_session_failed', detail: e?.message });
     }
   }
 
@@ -352,7 +364,7 @@ export class AuthController {
   // =======================================
   @Get('session-check')
   async sessionCheck(@Req() req: Request, @Res() res: Response) {
-    const cookie = req.cookies?.__session;
+    const cookie = req.cookies?.__session || req.cookies?.[process.env.SESSION_COOKIE_NAME || '__session'];
 
     if (!cookie) {
       return res.status(401).json({ valid: false });
@@ -362,6 +374,7 @@ export class AuthController {
       const decoded = await admin.auth().verifySessionCookie(cookie, true);
       return res.json({ valid: true, decoded });
     } catch (e: any) {
+      this.logger.warn('[session-check] invalid session: ' + String(e));
       return res.status(401).json({ valid: false });
     }
   }

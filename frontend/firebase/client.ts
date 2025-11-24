@@ -15,8 +15,9 @@ let firebaseApp: FirebaseApp | undefined;
 let firebaseAuth: Auth | undefined;
 
 // Safe client-only initializer
-function createFirebase() {
+function createFirebase(): void {
   if (typeof window === "undefined") {
+    // SSR: do nothing
     return;
   }
 
@@ -31,10 +32,9 @@ function createFirebase() {
       const appId = process.env.NEXT_PUBLIC_FIREBASE_APP_ID;
 
       if (!apiKey || !authDomain || !projectId || !appId) {
-        console.error(
+        throw new Error(
           "Firebase initialization aborted: missing NEXT_PUBLIC_FIREBASE_* env"
         );
-        return;
       }
 
       firebaseApp = initializeApp({
@@ -50,21 +50,24 @@ function createFirebase() {
     }
 
     firebaseAuth = getAuth(firebaseApp);
-    if (firebaseAuth) {
-      firebaseAuth.useDeviceLanguage();
-    }
+    firebaseAuth.useDeviceLanguage();
   }
 }
 
-export function getFirebaseApp(): FirebaseApp | undefined {
+export function getFirebaseApp(): FirebaseApp {
   if (!firebaseApp) createFirebase();
+  if (!firebaseApp) {
+    throw new Error("Firebase app not initialized");
+  }
   return firebaseApp;
 }
 
-export function getFirebaseAuth(): Auth | undefined {
+export function getFirebaseAuth(): Auth {
   if (!firebaseAuth) createFirebase();
+  if (!firebaseAuth) {
+    throw new Error("Firebase auth not initialized");
+  }
   return firebaseAuth;
 }
 
-// ⛔ removed wrong default export to prevent SSR initialization
-// export default getFirebaseApp();
+// No default export (prevents SSR initialization)

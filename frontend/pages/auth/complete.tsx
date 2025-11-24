@@ -1,117 +1,101 @@
 // ==============================
 // file: pages/auth/complete.tsx
-// OAuth Callback → Set Firebase Session → Redirect
+// OAuth Callback → Create Firebase Session Cookie
 // ==============================
 
 import { useEffect, useState } from "react";
 import Head from "next/head";
 import { useRouter } from "next/router";
 import axios from "@/lib/axios";
-import { getFirebaseAuth } from "firebase/client";
-import { signInWithCustomToken } from "firebase/auth";
+import { getFirebaseAuth } from "@/lib/firebaseClient";
+import { signInWithCustomToken, Auth } from "firebase/auth";
 import { Loader2, CheckCircle, XCircle } from "lucide-react";
 
-type Status = "LOADING" | "SETTING_SESSION" | "DONE" | "ERROR";
+type Status = "LOADING" | "FIREBASE_LOGIN" | "SETTING_SESSION" | "DONE" | "ERROR";
 
 export default function AuthCompletePage() {
   const router = useRouter();
   const [status, setStatus] = useState<Status>("LOADING");
-  const [message, setMessage] = useState<string>("กำลังตรวจสอบข้อมูลจาก OAuth...");
+  const [message, setMessage] = useState("กำลังตรวจสอบข้อมูลจาก OAuth...");
   const [details, setDetails] = useState<any>(null);
 
   const API_BASE =
     process.env.NEXT_PUBLIC_API_BASE || "https://api.phlyphant.com";
-  const SITE_URL =
-    process.env.NEXT_PUBLIC_SITE_URL || "https://phlyphant.com";
 
-  // ================================
-  // STEP 1 — Fetch custom token from backend (one-time key)
-  // ================================
+  const SITE_URL =
+    process.env.NEXT_PUBLIC_SITE_URL || "https://www.phlyphant.com";
+
   useEffect(() => {
+    if (!router.isReady) return;
+
     const run = async () => {
       try {
-        const { key } = router.query;
-        if (!key || typeof key !== "string") {
+        const { customToken } = router.query;
+
+        if (!customToken || typeof customToken !== "string") {
           setStatus("ERROR");
-          setMessage("Missing OAuth key parameter");
+          setMessage("ไม่พบ customToken จาก OAuth callback");
           return;
         }
 
-        setMessage("กำลังโหลดข้อมูลเข้าสู่ระบบ...");
-        const tokenRes = await axios.get(`${API_BASE}/auth/custom_token?key=${key}`, {
-          withCredentials: true,
-        });
-
-        const customToken = tokenRes.data?.customToken;
-        if (!customToken) {
-          setStatus("ERROR");
-          setMessage("ไม่พบข้อมูล Custom Token หรือหมดอายุแล้ว");
-          return;
-        }
-
-        // ================================
-        // STEP 2 — Sign in with Firebase
-        // ================================
-        setStatus("SETTING_SESSION");
+        // ---------------------------------------------
+        // STEP 1 — Sign in with Firebase
+        // ---------------------------------------------
+        setStatus("FIREBASE_LOGIN");
         setMessage("กำลังเข้าสู่ระบบด้วย Firebase...");
 
-        const auth = getFirebaseAuth();
-        if (!auth) {
-          setStatus("ERROR");
-          setMessage("Firebase auth not initialized");
-          return;
-        }
+        const auth = getFirebaseAuth() as Auth;
 
         await signInWithCustomToken(auth, customToken);
+
         const user = auth.currentUser;
         if (!user) {
           setStatus("ERROR");
-          setMessage("ไม่สามารถเข้าสู่ระบบด้วย Firebase ได้");
+          setMessage("ไม่สามารถเข้าสู่ระบบ Firebase ได้");
           return;
         }
 
         const idToken = await user.getIdToken(true);
 
-        // ================================
-        // STEP 3 — Send idToken to backend → Create Session Cookie
-        // ================================
+        // ---------------------------------------------
+        // STEP 2 — Send customToken to backend → Create session cookie
+        // ---------------------------------------------
+        setStatus("SETTING_SESSION");
         setMessage("กำลังสร้าง session cookie...");
+
         await axios.post(
-          `${API_BASE}/auth/create_session`,
-          { idToken },
+          `${API_BASE}/auth/complete`,
+          { customToken },
           { withCredentials: true }
         );
 
-        // ================================
-        // STEP 4 — Final session-check
-        // ================================
-        const final = await axios.get(`${API_BASE}/auth/session-check`, {
+        // ---------------------------------------------
+        // STEP 3 — Verify session cookie
+        // ---------------------------------------------
+        const verify = await axios.get(`${API_BASE}/auth/session-check`, {
           withCredentials: true,
         });
 
-        setDetails(final.data);
+        setDetails(verify.data);
 
-        if (final.data?.valid === true || final.data?.sessionCookie === true) {
+        if (verify.data?.valid === true) {
           setStatus("DONE");
           setMessage("เข้าสู่ระบบสำเร็จ กำลังพาไปหน้าแรก...");
-          setTimeout(() => router.push("/"), 1200);
+          setTimeout(() => router.push("/"), 1500);
         } else {
           setStatus("ERROR");
-          setMessage("Session cookie สร้างไม่สำเร็จ");
+          setMessage("Session cookie ไม่ถูกสร้าง");
         }
       } catch (err) {
         console.error(err);
         setStatus("ERROR");
-        setMessage("เกิดข้อผิดพลาดระหว่างเข้าสู่ระบบ");
+        setMessage("เกิดข้อผิดพลาดระหว่างสร้าง session");
       }
     };
 
-    if (router.isReady) run();
+    run();
   }, [router]);
 
-  // ================================
-  // UI Icons
-  // ================================
   const StatusIcon =
     status === "DONE" ? (
       <CheckCircle className="w-12 h-12 text-green-600" />
@@ -121,13 +105,10 @@ export default function AuthCompletePage() {
       <Loader2 className="w-12 h-12 animate-spin text-blue-600" />
     );
 
-  // ================================
-  // Render
-  // ================================
   return (
     <>
       <Head>
-        <title>Completing Login… | PhlyPhant</title>
+        <title>กำลังเข้าสู่ระบบ… | PhlyPhant</title>
         <meta
           name="description"
           content="Completing secure login using Hybrid OAuth and Firebase Authentication."
