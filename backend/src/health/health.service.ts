@@ -35,9 +35,9 @@ export class HealthService {
     }
   }
 
-  // ============================================================================
-  // UPDATED: Required Authentication + OAuth + Firebase + JWT_ENV checks
-  // ============================================================================
+  // ============================================================================  
+  // UPDATED: Remove AWS S3 credentials from required list
+  // ============================================================================  
   async secretsCheck() {
     const required = [
       'DATABASE_URL',
@@ -61,17 +61,19 @@ export class HealthService {
       'FACEBOOK_CALLBACK_URL',
       'FACEBOOK_PROVIDER_REDIRECT_AFTER_LOGIN',
 
-      // Firebase Auth
+      // Firebase
       'FIREBASE_SERVICE_ACCOUNT_BASE64',
 
       // Redis
       'REDIS_URL',
 
-      // AWS S3
-      'AWS_ACCESS_KEY_ID',
-      'AWS_SECRET_ACCESS_KEY',
+      // R2 (optional but recommended)
+      'R2_ACCESS_KEY_ID',
+      'R2_SECRET_ACCESS_KEY',
+      'R2_BUCKET_NAME',
+      'R2_ENDPOINT',
 
-      // Optional but recommended
+      // Optional
       'ALLOWED_ORIGINS',
     ];
 
@@ -83,20 +85,31 @@ export class HealthService {
     };
   }
 
+  // ============================================================================
+  // UPDATED: Use R2 instead of AWS S3
+  // ============================================================================
   async s3Check() {
     try {
-      const region = process.env.AWS_REGION || 'ap-southeast-7';
-      const bucket = process.env.AWS_S3_BUCKET;
+      const endpoint = process.env.R2_ENDPOINT || '';
+      const bucket = process.env.R2_BUCKET_NAME || '';
+      const key = process.env.R2_ACCESS_KEY_ID || '';
+      const secret = process.env.R2_SECRET_ACCESS_KEY || '';
 
-      if (!bucket) return { ok: false, error: 'AWS_S3_BUCKET is not set' };
+      if (!endpoint || !bucket || !key || !secret) {
+        return { ok: false, error: 'R2 env vars missing' };
+      }
 
-      const client = new S3Client({ region });
+      const client = new S3Client({
+        region: 'auto',
+        endpoint,
+        forcePathStyle: true,
+        credentials: {
+          accessKeyId: key,
+          secretAccessKey: secret,
+        },
+      });
 
-      await client.send(
-        new HeadBucketCommand({
-          Bucket: bucket,
-        }),
-      );
+      await client.send(new HeadBucketCommand({ Bucket: bucket }));
 
       return { ok: true };
     } catch (err: unknown) {
@@ -113,9 +126,6 @@ export class HealthService {
     }
   }
 
-  // =====================================================
-  // UPDATED: Use production URL and Origin from ENV
-  // =====================================================
   async socketCheck() {
     try {
       const t = Date.now();
@@ -158,7 +168,7 @@ export class HealthService {
       postgres: (await this.dbCheck()).ok,
       redis: (await this.redisCheck()).ok,
       secrets: (await this.secretsCheck()).ok,
-      s3: (await this.s3Check()).ok,
+      s3: (await this.s3Check()).ok,  // now R2-only
       queue: (await this.queueCheck()).ok,
       socket: (await this.socketCheck()).ok,
     };

@@ -1,102 +1,101 @@
 // ==============================
-// file: src/aws/aws-secrets.service.ts
+// file: src/aws/aws.service.ts
 // ==============================
 import { Injectable, Logger } from '@nestjs/common';
-import {
-  SecretsManagerClient,
-  GetSecretValueCommand,
-  GetSecretValueCommandOutput,
-} from '@aws-sdk/client-secrets-manager';
-
-type SecretValue = Record<string, unknown> | string | null;
+import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl as getS3SignedUrl } from '@aws-sdk/s3-request-presigner';
+import { randomUUID } from 'crypto';
+import * as mime from 'mime-types';
 
 @Injectable()
-export class AwsSecretsService {
-  private client: SecretsManagerClient;
-  private logger = new Logger(AwsSecretsService.name);
+export class AwsService {
+  private readonly s3: S3Client;
+  private readonly bucket: string;
+  private readonly folder: string;
+  private readonly r2Endpoint: string;
+  private readonly signedExpiresSec: number;
+  private readonly logger = new Logger(AwsService.name);
 
   constructor() {
-    // Configure client using environment variables if provided.
-    // If no explicit credentials are present, the SDK will fallback to instance role / environment chain.
-    const region = process.env.AWS_REGION || process.env.AWS_DEFAULT_REGION || undefined;
+    // -----------------------------
+    // Use Cloudflare R2 only
+    // -----------------------------
+    const r2AccessKey = process.env.R2_ACCESS_KEY_ID || '';
+    const r2SecretKey = process.env.R2_SECRET_ACCESS_KEY || '';
+    const r2Endpoint = process.env.R2_ENDPOINT || '';
+    const r2Bucket = process.env.R2_BUCKET_NAME || '';
 
-    const creds =
-      process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY
-        ? {
-            accessKeyId: process.env.AWS_ACCESS_KEY_ID,
-            secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
-            sessionToken: process.env.AWS_SESSION_TOKEN || undefined,
-          }
-        : undefined;
+    if (!r2AccessKey || !r2SecretKey || !r2Endpoint || !r2Bucket) {
+      this.logger.error('Missing R2 configuration (R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_ENDPOINT, R2_BUCKET_NAME)');
+    }
 
-    const clientConfig: any = {};
-    if (region) clientConfig.region = region;
-    if (creds) clientConfig.credentials = creds;
+    this.s3 = new S3Client({
+      region: 'auto',
+      endpoint: r2Endpoint,
+      forcePathStyle: true,
+      credentials: {
+        accessKeyId: r2AccessKey,
+        secretAccessKey: r2SecretKey,
+      },
+    });
 
-    this.client = new SecretsManagerClient(clientConfig);
+    this.bucket = r2Bucket;
+    this.r2Endpoint = r2Endpoint;
+
+    this.folder = process.env.S3_UPLOAD_FOLDER || 'uploads';
+
+    this.signedExpiresSec = Number(process.env.SIGNED_URL_EXPIRES_SECONDS || '3600');
+
+    if (!this.bucket) {
+      this.logger.warn('R2 bucket name is not configured. Upload/sign-url operations may fail.');
+    }
   }
 
-  /**
-   * Fetch a secret from AWS Secrets Manager.
-   * - If DISABLE_AWS_SECRET=true, this will return null immediately.
-   * - If secret content is JSON, it will be parsed and returned as an object.
-   * - If secret content is plain string, the string will be returned.
-   *
-   * Returns null when secret is missing or cannot be fetched.
-   */
-  async getSecret(secretName: string): Promise<SecretValue> {
-    if (!secretName) return null;
+  // -----------------------------
+  // Upload buffer to R2
+  // -----------------------------
+  async uploadBuffer(buffer: Buffer, originalName: string, contentType?: string): Promise<string> {
+    const detectedType = contentType || mime.lookup(originalName) || 'application/octet-stream';
 
-    // Allow local / dev override: if DISABLE_AWS_SECRET is set, skip fetching.
-    if (String(process.env.DISABLE_AWS_SECRET || '').toLowerCase() === 'true') {
-      this.logger.debug(`AwsSecretsService: fetching secrets is disabled (DISABLE_AWS_SECRET=true). Skipping: ${secretName}`);
-      return null;
+    const safeOriginal = originalName.replace(/\s+/g, '_');
+    const key = `${this.folder}/${Date.now()}-${randomUUID()}-${safeOriginal}`;
+
+    const cmd = new PutObjectCommand({
+      Bucket: this.bucket,
+      Key: key,
+      Body: buffer,
+      ContentType: detectedType,
+    });
+
+    await this.s3.send(cmd);
+    return key;
+  }
+
+  // -----------------------------
+  // Generate signed URL using R2
+  // -----------------------------
+  async generateSignedUrl(objectKey: string): Promise<string> {
+    if (!this.bucket) {
+      throw new Error('R2 bucket is not configured');
     }
+
+    const cleanKey = objectKey.replace(/^\/+/, '');
 
     try {
-      const cmd = new GetSecretValueCommand({ SecretId: secretName });
-      const res: GetSecretValueCommandOutput = await this.client.send(cmd);
+      const getCmd = new GetObjectCommand({
+        Bucket: this.bucket,
+        Key: cleanKey,
+      });
 
-      // Prefer SecretString
-      if (typeof res.SecretString === 'string' && res.SecretString.length > 0) {
-        const txt = res.SecretString.trim();
-        try {
-          return JSON.parse(txt);
-        } catch {
-          // not JSON — return raw string
-          return txt;
-        }
-      }
+      const signed = await getS3SignedUrl(this.s3, getCmd, {
+        expiresIn: this.signedExpiresSec,
+      });
 
-      // Fallback to SecretBinary
-      if (res.SecretBinary) {
-        const buff = Buffer.from(res.SecretBinary as Uint8Array);
-        const txt = buff.toString('utf8').trim();
-        try {
-          return JSON.parse(txt);
-        } catch {
-          return txt;
-        }
-      }
-
-      return null;
-    } catch (err: unknown) {
-      // Log error without exposing secret contents
-      this.logger.error(`Failed to fetch secret "${secretName}": ${(err as any)?.message ?? String(err)}`);
-      return null;
+      return signed;
+    } catch (e) {
+      const msg = (e && (e as any).message) ? (e as any).message : String(e);
+      this.logger.error('R2 presigned URL generation failed: ' + msg);
+      throw new Error('Signed URL generation failed');
     }
-  }
-
-  /**
-   * Convenience helper: fetch the OAuth client redirect mapping secret (if used).
-   * This reads the environment variable AWS_OAUTH_SECRET_NAME and returns its parsed value.
-   */
-  async getOAuthRedirectSecret(): Promise<SecretValue> {
-    const name = process.env.AWS_OAUTH_SECRET_NAME || process.env.AWS_SECRET_NAME || '';
-    if (!name) {
-      this.logger.debug('AwsSecretsService: no AWS_OAUTH_SECRET_NAME or AWS_SECRET_NAME configured');
-      return null;
-    }
-    return this.getSecret(name);
   }
 }

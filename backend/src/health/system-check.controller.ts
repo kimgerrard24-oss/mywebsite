@@ -27,19 +27,26 @@ export class SystemCheckController {
     // Primary status (internal checks)
     const status = await this.systemCheck.getStatus();
 
-    // Add safe environment metadata — only non-sensitive values useful for debugging
+    // Updated: Use R2 endpoint instead of AWS region
     const envSummary = {
       nodeEnv: this.configService.get<string>('NODE_ENV') || 'production',
-      backendUrl: this.configService.get<string>('BACKEND_PUBLIC_URL') || this.configService.get<string>('BASE_URL') || null,
+      backendUrl:
+        this.configService.get<string>('BACKEND_PUBLIC_URL') ||
+        this.configService.get<string>('BASE_URL') ||
+        null,
       allowedOrigins: (this.configService.get<string>('ALLOWED_ORIGINS') || '')
         .split(',')
-        .map(s => s.trim())
+        .map((s) => s.trim())
         .filter(Boolean),
-      region: this.configService.get<string>('AWS_REGION') || 'ap-southeast-7',
+      
+      // UPDATED: Show R2 endpoint instead of AWS region
+      r2Endpoint: this.configService.get<string>('R2_ENDPOINT') || null,
     };
 
-    // log minimal information for operators (no secrets)
-    this.logger.log(`System check requested (env=${envSummary.nodeEnv}, region=${envSummary.region})`);
+    // Minimal, safe logging
+    this.logger.log(
+      `System check requested (env=${envSummary.nodeEnv}, r2Endpoint=${envSummary.r2Endpoint})`,
+    );
 
     return {
       status,

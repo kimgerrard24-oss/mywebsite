@@ -3,7 +3,6 @@
 // ==============================
 import { Injectable, Logger } from '@nestjs/common';
 import { S3Client, PutObjectCommand, GetObjectCommand } from '@aws-sdk/client-s3';
-import { getSignedUrl as getCloudfrontSignedUrl } from '@aws-sdk/cloudfront-signer';
 import { getSignedUrl as getS3SignedUrl } from '@aws-sdk/s3-request-presigner';
 import { randomUUID } from 'crypto';
 import * as mime from 'mime-types';
@@ -13,62 +12,40 @@ export class AwsService {
   private readonly s3: S3Client;
   private readonly bucket: string;
   private readonly folder: string;
-  private readonly cfUrl: string;
-  private readonly keyPairId: string;
-  private readonly privateKey: string;
   private readonly signedExpiresSec: number;
   private readonly logger = new Logger(AwsService.name);
 
   constructor() {
+    // -----------------------------
+    // Cloudflare R2 only
+    // -----------------------------
+    const r2Endpoint = process.env.R2_ENDPOINT || '';
+    const r2AccessKey = process.env.R2_ACCESS_KEY_ID || '';
+    const r2SecretKey = process.env.R2_SECRET_ACCESS_KEY || '';
+    const r2Bucket = process.env.R2_BUCKET_NAME || '';
+
+    if (!r2Endpoint || !r2AccessKey || !r2SecretKey || !r2Bucket) {
+      this.logger.error('Missing R2 configuration (endpoint/key/bucket)');
+    }
+
     this.s3 = new S3Client({
-      region: process.env.AWS_REGION || 'ap-southeast-7',
+      region: 'auto',
+      endpoint: r2Endpoint,
+      forcePathStyle: true,
       credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID || '',
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY || '',
+        accessKeyId: r2AccessKey,
+        secretAccessKey: r2SecretKey,
       },
     });
 
-    this.bucket =
-      process.env.AWS_S3_BUCKET ||
-      process.env.S3_BUCKET ||
-      process.env.AWS_BUCKET_NAME ||
-      process.env.R2_BUCKET_NAME ||
-      '';
-
-    if (!this.bucket) {
-      this.logger.error('No S3/R2 bucket configured in environment variables');
-    }
+    this.bucket = r2Bucket;
 
     this.folder = process.env.S3_UPLOAD_FOLDER || 'uploads';
-
-    this.cfUrl = process.env.CLOUDFRONT_URL || process.env.R2_ENDPOINT || '';
-
-    this.keyPairId = process.env.CLOUDFRONT_KEY_PAIR_ID || '';
-
-    const pkEnv = process.env.CLOUDFRONT_PRIVATE_KEY || '';
-    const pkBase64 = process.env.CLOUDFRONT_PRIVATE_KEY_BASE64 || '';
-
-    let keyRaw = pkEnv;
-
-    if (!keyRaw && pkBase64) {
-      try {
-        keyRaw = Buffer.from(pkBase64, 'base64').toString('utf-8');
-      } catch {
-        this.logger.error('Failed to decode CLOUDFRONT_PRIVATE_KEY_BASE64');
-      }
-    }
-
-    const cleanedKey = keyRaw.replace(/\\n/g, '\n').trim();
-    this.privateKey = cleanedKey;
 
     this.signedExpiresSec = Number(process.env.SIGNED_URL_EXPIRES_SECONDS || '3600');
 
     if (!this.bucket) {
-      this.logger.warn('Bucket not configured; upload/sign-url operations may fail.');
-    }
-
-    if ((this.keyPairId && !this.privateKey) || (!this.keyPairId && this.privateKey)) {
-      this.logger.warn('CloudFront signing is incomplete (missing keyPairId or privateKey).');
+      this.logger.warn('R2 bucket not configured');
     }
   }
 
@@ -96,25 +73,6 @@ export class AwsService {
 
     const cleanKey = objectKey.replace(/^\/+/, '');
 
-    if (this.cfUrl && this.keyPairId && this.privateKey) {
-      try {
-        const url = `${this.cfUrl.replace(/\/+$/, '')}/${cleanKey}`;
-        const expires = Math.floor(Date.now() / 1000) + this.signedExpiresSec;
-
-        const signed = getCloudfrontSignedUrl({
-          url,
-          keyPairId: this.keyPairId,
-          privateKey: this.privateKey,
-          dateLessThan: new Date(expires * 1000),
-        });
-
-        return signed;
-      } catch (e) {
-        const msg = (e && (e as any).message) ? (e as any).message : String(e);
-        this.logger.error('CloudFront signed URL generation failed: ' + msg);
-      }
-    }
-
     try {
       const getCmd = new GetObjectCommand({
         Bucket: this.bucket,
@@ -128,7 +86,7 @@ export class AwsService {
       return signed;
     } catch (e) {
       const msg = (e && (e as any).message) ? (e as any).message : String(e);
-      this.logger.error('S3 presigned URL generation failed: ' + msg);
+      this.logger.error('R2 presigned URL generation failed: ' + msg);
       throw new Error('Signed URL generation failed');
     }
   }

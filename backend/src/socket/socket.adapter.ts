@@ -8,7 +8,6 @@ import {
   SecretsManagerClient,
   GetSecretValueCommand,
 } from '@aws-sdk/client-secrets-manager';
-import { S3Client, HeadBucketCommand } from '@aws-sdk/client-s3';
 
 @Injectable()
 export class SocketAdapterCheckService {
@@ -18,10 +17,6 @@ export class SocketAdapterCheckService {
   ) {}
 
   private secrets = new SecretsManagerClient({
-    region: process.env.AWS_REGION || 'ap-southeast-7',
-  });
-
-  private s3 = new S3Client({
     region: process.env.AWS_REGION || 'ap-southeast-7',
   });
 
@@ -66,20 +61,26 @@ export class SocketAdapterCheckService {
     }
   }
 
+  // =====================================================
+  // R2 BUCKET CHECK (แทน AWS S3)
+  // Cloudflare R2 ไม่ใช้ AWS SDK, ต้องตรวจด้วย HTTP HEAD
+  // =====================================================
   async checkS3() {
     try {
       const bucket =
-        process.env.AWS_S3_BUCKET ||
-        process.env.R2_BUCKET_NAME;
+        process.env.R2_BUCKET_NAME || null;
 
-      if (!bucket) return false;
+      const endpoint =
+        process.env.R2_ENDPOINT || null;
 
-      const cmd = new HeadBucketCommand({
-        Bucket: bucket,
-      });
+      if (!bucket || !endpoint) return false;
 
-      await this.s3.send(cmd);
-      return true;
+      const cleanEndpoint = endpoint.replace(/\/+$/, '');
+      const url = `${cleanEndpoint}/${bucket}`;
+
+      const res = await fetch(url, { method: 'HEAD' });
+
+      return res.status === 200 || res.status === 204;
     } catch {
       return false;
     }
@@ -136,7 +137,7 @@ export class SocketAdapterCheckService {
       postgres: await this.checkPostgres(),
       redis: await this.checkRedis(),
       secrets: await this.checkSecrets(),
-      s3: await this.checkS3(),
+      s3: await this.checkS3(), // now R2
       queue: await this.checkQueue(),
       socket: await this.checkSocket(),
     };
