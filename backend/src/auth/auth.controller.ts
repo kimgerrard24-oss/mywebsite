@@ -12,6 +12,19 @@ import { AuthService } from './auth.service';
 import { Response, Request } from 'express';
 import crypto from 'crypto';
 import axios from 'axios';
+import IORedis from 'ioredis';
+
+const redis = new IORedis(process.env.REDIS_URL || 'redis://redis:6379', {
+  maxRetriesPerRequest: 3,
+});
+
+function normalizeRedirectUri(raw: string): string {
+  if (!raw) return raw;
+  let s = raw.trim();
+  s = s.replace(/\?{2,}/g, '');
+  s = s.replace(/([^:]\/)\/+/g, '$1');
+  return s;
+}
 
 @Controller('auth')
 export class AuthController {
@@ -20,12 +33,15 @@ export class AuthController {
   constructor(private readonly auth: AuthService) {}
 
   // =======================================
-  // GOOGLE OAuth Start (no passport)
+  // GOOGLE OAuth Start
   // =======================================
   @Get('google')
   async googleAuth(@Req() req: Request, @Res() res: Response) {
     try {
       const state = crypto.randomBytes(16).toString('hex');
+      const stateKey = `oauth_state_${state}`;
+
+      await redis.setex(stateKey, 300, '1');
 
       res.cookie('oauth_state', state, {
         httpOnly: true,
@@ -33,14 +49,15 @@ export class AuthController {
         sameSite: 'none',
         domain: process.env.COOKIE_DOMAIN || '.phlyphant.com',
         path: '/',
-        maxAge: 5 * 60 * 1000
+        maxAge: 5 * 60 * 1000,
       });
 
       const clientId = process.env.GOOGLE_CLIENT_ID || '';
-      const redirectUri =
+      const redirectUri = normalizeRedirectUri(
         process.env.GOOGLE_CALLBACK_URL ||
-        process.env.GOOGLE_REDIRECT_URL ||
-        '';
+          process.env.GOOGLE_REDIRECT_URL ||
+          '',
+      );
 
       const params = new URLSearchParams({
         client_id: clientId,
@@ -63,7 +80,7 @@ export class AuthController {
   }
 
   // =======================================
-  // GOOGLE OAuth Callback (no passport)
+  // GOOGLE OAuth Callback
   // =======================================
   @Get('google/callback')
   async googleCallback(@Req() req: Request, @Res() res: Response) {
@@ -75,14 +92,30 @@ export class AuthController {
         return res.status(400).send('Missing code or state');
       }
 
-      const storedState = req.cookies?.oauth_state;
+      const storedStateCookie = req.cookies?.oauth_state || null;
+      const redisKey = `oauth_state_${returnedState}`;
+      const redisState = await redis.get(redisKey);
 
-      if (!storedState || returnedState !== storedState) {
+      let validState = false;
+
+      if (redisState === '1') {
+        validState = true;
+        await redis.del(redisKey).catch(() => {});
+      } else if (storedStateCookie && storedStateCookie === returnedState) {
+        validState = true;
+      }
+
+      if (!validState) {
         this.logger.warn(
-          `[googleCallback] state mismatch returned=${returnedState} stored=${storedState}`,
+          `[googleCallback] state mismatch returned=${returnedState} cookie=${storedStateCookie} redis=${redisState}`,
         );
         return res.status(400).send('Invalid or expired state');
       }
+
+      res.clearCookie('oauth_state', {
+        domain: process.env.COOKIE_DOMAIN || '.phlyphant.com',
+        path: '/',
+      });
 
       const tokenRes = await axios.post(
         'https://oauth2.googleapis.com/token',
@@ -90,10 +123,11 @@ export class AuthController {
           code,
           client_id: process.env.GOOGLE_CLIENT_ID || '',
           client_secret: process.env.GOOGLE_CLIENT_SECRET || '',
-          redirect_uri:
+          redirect_uri: normalizeRedirectUri(
             process.env.GOOGLE_CALLBACK_URL ||
-            process.env.GOOGLE_REDIRECT_URL ||
-            '',
+              process.env.GOOGLE_REDIRECT_URL ||
+              '',
+          ),
           grant_type: 'authorization_code',
         }).toString(),
         {
@@ -146,6 +180,8 @@ export class AuthController {
   async facebookAuth(@Req() req: Request, @Res() res: Response) {
     try {
       const state = crypto.randomBytes(16).toString('hex');
+      const stateKey = `oauth_state_${state}`;
+      await redis.setex(stateKey, 300, '1');
 
       res.cookie('oauth_state', state, {
         httpOnly: true,
@@ -153,11 +189,13 @@ export class AuthController {
         sameSite: 'none',
         domain: process.env.COOKIE_DOMAIN || '.phlyphant.com',
         path: '/',
-        maxAge: 5 * 60 * 1000
+        maxAge: 5 * 60 * 1000,
       });
 
       const clientId = process.env.FACEBOOK_CLIENT_ID || '';
-      const redirectUri = process.env.FACEBOOK_CALLBACK_URL || '';
+      const redirectUri = normalizeRedirectUri(
+        process.env.FACEBOOK_CALLBACK_URL || '',
+      );
 
       const params = new URLSearchParams({
         client_id: clientId,
@@ -191,15 +229,33 @@ export class AuthController {
         return res.status(400).send('Missing code or state');
       }
 
-      const storedState = req.cookies?.oauth_state;
+      const storedStateCookie = req.cookies?.oauth_state || null;
+      const redisKey = `oauth_state_${returnedState}`;
+      const redisState = await redis.get(redisKey);
 
-      if (!storedState || returnedState !== storedState) {
+      let validState = false;
+
+      if (redisState === '1') {
+        validState = true;
+        await redis.del(redisKey).catch(() => {});
+      } else if (storedStateCookie && storedStateCookie === returnedState) {
+        validState = true;
+      }
+
+      if (!validState) {
         return res.status(400).send('Invalid or expired state');
       }
 
+      res.clearCookie('oauth_state', {
+        domain: process.env.COOKIE_DOMAIN || '.phlyphant.com',
+        path: '/',
+      });
+
       const clientId = process.env.FACEBOOK_CLIENT_ID || '';
       const clientSecret = process.env.FACEBOOK_CLIENT_SECRET || '';
-      const redirectUri = process.env.FACEBOOK_CALLBACK_URL || '';
+      const redirectUri = normalizeRedirectUri(
+        process.env.FACEBOOK_CALLBACK_URL || '',
+      );
 
       const tokenRes = await axios.get(
         'https://graph.facebook.com/v12.0/oauth/access_token',

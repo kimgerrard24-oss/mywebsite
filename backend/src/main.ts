@@ -319,12 +319,22 @@ async function bootstrap(): Promise<void> {
       if (!code || !state) return res.status(400).send('Missing code or state');
 
       const stateKey = `oauth_state_${state}`;
-      const validState = await redisClient.get(stateKey);
+      // <-- changed: allow cookie fallback if Redis key not present (compatibility)
+      let validState = await redisClient.get(stateKey);
+
+      // fallback: check oauth_state cookie (older flows / compatibility)
+      const cookieState = (req.cookies as Record<string, string> | undefined)?.oauth_state;
+      if (!validState && cookieState && cookieState === state) {
+        validState = '1';
+        logger.log('Accepted oauth_state from cookie fallback');
+      }
+
       if (!validState) {
-        logger.warn('Invalid or expired oauth state: ' + state);
+        logger.warn(`Invalid or expired oauth state. returned=${state}, cookie=${cookieState}`);
         return res.status(400).send('Invalid or expired state');
       }
 
+      // remove redis key if present (best-effort)
       await redisClient.del(stateKey).catch(() => {});
 
       let tokenResult: any = null;
