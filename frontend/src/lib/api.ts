@@ -12,12 +12,12 @@ async function jsonFetch<T>(
 ): Promise<T> {
   const res = await fetch(input, {
     credentials: "include",
+    ...init,
     headers: {
       "Content-Type": "application/json",
       Accept: "application/json",
-      ...(init && init.headers ? (init.headers as Record<string, string>) : {}),
+      ...(init?.headers ? (init.headers as Record<string, string>) : {}),
     },
-    ...init,
   });
 
   if (!res.ok) {
@@ -25,7 +25,7 @@ async function jsonFetch<T>(
     let body = text;
     try {
       body = text ? JSON.parse(text) : text;
-    } catch (e) {}
+    } catch {}
 
     const err: any = new Error(`Request failed: ${res.status}`);
     err.status = res.status;

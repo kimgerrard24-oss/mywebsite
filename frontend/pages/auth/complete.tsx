@@ -25,6 +25,9 @@ export default function AuthCompletePage() {
   const SITE_URL =
     process.env.NEXT_PUBLIC_SITE_URL || "https://www.phlyphant.com";
 
+  // เปลี่ยนจาก /home → /dashboard ตามคำขอ
+  const REDIRECT_AFTER_LOGIN = "/dashboard";
+
   useEffect(() => {
     if (!router.isReady) return;
 
@@ -38,12 +41,10 @@ export default function AuthCompletePage() {
           return;
         }
 
-        // STEP 1 — Sign in with Firebase
         setStatus("FIREBASE_LOGIN");
         setMessage("กำลังเข้าสู่ระบบด้วย Firebase...");
 
         const auth = getFirebaseAuth() as Auth;
-
         await signInWithCustomToken(auth, customToken);
 
         const user = auth.currentUser;
@@ -53,10 +54,8 @@ export default function AuthCompletePage() {
           return;
         }
 
-        // ⇨ FIX: ต้องใช้ idToken ไม่ใช่ customToken
         const idToken = await user.getIdToken(true);
 
-        // STEP 2 — Send idToken to backend → Create session cookie
         setStatus("SETTING_SESSION");
         setMessage("กำลังสร้าง session cookie...");
 
@@ -66,7 +65,6 @@ export default function AuthCompletePage() {
           { withCredentials: true }
         );
 
-        // STEP 3 — Verify session cookie
         const verify = await axios.get(`${API_BASE}/auth/session-check`, {
           withCredentials: true,
         });
@@ -76,7 +74,12 @@ export default function AuthCompletePage() {
         if (verify.data?.valid === true) {
           setStatus("DONE");
           setMessage("เข้าสู่ระบบสำเร็จ กำลังพาไปหน้าแรก...");
-          setTimeout(() => router.push("/"), 1500);
+
+          // ***** จุดแก้ไขตามคำสั่งของคุณ *****
+          setTimeout(() => {
+            router.replace(REDIRECT_AFTER_LOGIN);
+          }, 1000);
+
         } else {
           setStatus("ERROR");
           setMessage("Session cookie ไม่ถูกสร้าง");
@@ -129,7 +132,7 @@ export default function AuthCompletePage() {
 
           <p className="text-gray-600 text-base sm:text-lg mb-6">{message}</p>
 
-          {details && (
+          {status !== "DONE" && details && (
             <pre className="text-left text-xs sm:text-sm bg-gray-50 p-4 rounded-xl border overflow-x-auto">
               {JSON.stringify(details, null, 2)}
             </pre>

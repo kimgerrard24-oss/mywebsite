@@ -4,7 +4,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import axios from "axios";
+import axios from "@/lib/axios"; // FIX: ต้องใช้ axios instance ของระบบ
 import type { User } from "@/types/index";
 
 export function useAuth() {
@@ -31,14 +31,15 @@ export function useAuth() {
         const valid = data.valid === true;
 
         if (valid) {
-          // FIXED: Read values from decoded (Firebase session cookie payload)
           const decoded = data.decoded || {};
-          const email = decoded.email || null;
-          const uid = decoded.user_id || null;
+
+          // FIX: mapping ให้ปลอดภัย
+          const uid = decoded.user_id ? String(decoded.user_id) : undefined;
+          const email = decoded.email || undefined;
 
           setUser({
-            id: uid ? String(uid) : undefined,
-            email: email || undefined,
+            id: uid,
+            email: email,
             username: email ? email.split("@")[0] : "unknown",
           });
         } else {

@@ -1,6 +1,8 @@
 // frontend/pages/login.tsx
-import React from 'react';
+import React, { useEffect } from 'react';
 import { useRouter } from 'next/router';
+import axios from '@/lib/axios';
+import Cookies from 'js-cookie';
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE ||
@@ -10,9 +12,31 @@ const API_BASE =
 export default function LoginPage() {
   const router = useRouter();
 
+  // ================================
+  // FIX: ถ้ามี session แล้ว → ห้ามกลับหน้า login
+  // ================================
+  useEffect(() => {
+    const session = Cookies.get('__session');
+    if (!session) return;
+
+    async function verify() {
+      try {
+        const res = await axios.get(`${API_BASE}/auth/session-check`, {
+          withCredentials: true,
+        });
+
+        if (res.data?.valid === true) {
+          router.replace('/dashboard');
+        }
+      } catch {
+        // ignore error → user ยังไม่ login
+      }
+    }
+
+    verify();
+  }, [router]);
+
   function startOAuth(provider: 'google' | 'facebook') {
-    // frontend ไม่สร้าง state / ไม่สร้าง cookie อีกแล้ว
-    // ให้ backend จัดการทุกอย่างเพียงผู้เดียว
     const url = `${API_BASE}/auth/${provider}`;
     window.location.href = url;
   }

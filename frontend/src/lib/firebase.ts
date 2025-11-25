@@ -27,7 +27,7 @@ const firebaseConfig: FirebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID ?? "",
 };
 
-// warn on client only
+// Warn only on client
 if (typeof window !== "undefined") {
   const required: Array<keyof FirebaseConfig> = [
     "apiKey",
@@ -47,57 +47,45 @@ if (typeof window !== "undefined") {
   }
 }
 
-function createFirebaseApp(): FirebaseApp | null {
-  if (typeof window === "undefined") return null;
-
-  try {
-    if (getApps().length > 0) {
-      return getApp();
-    }
-
-    if (
-      !firebaseConfig.apiKey ||
-      !firebaseConfig.projectId ||
-      !firebaseConfig.appId
-    ) {
-      console.error(
-        "Firebase initialization aborted: missing required NEXT_PUBLIC_FIREBASE_* values"
-      );
-      return null;
-    }
-
-    return initializeApp(firebaseConfig as any);
-  } catch (err) {
-    console.error("Firebase initialization error:", err);
-    return null;
+function createFirebaseApp(): FirebaseApp {
+  if (typeof window === "undefined") {
+    throw new Error("Firebase cannot be initialized on server");
   }
+
+  if (getApps().length > 0) {
+    return getApp();
+  }
+
+  if (
+    !firebaseConfig.apiKey ||
+    !firebaseConfig.projectId ||
+    !firebaseConfig.appId
+  ) {
+    throw new Error(
+      "Firebase initialization aborted: missing required NEXT_PUBLIC_FIREBASE_*"
+    );
+  }
+
+  return initializeApp(firebaseConfig as any);
 }
 
-// FIXED: clear initialization logic
+// Strict, guaranteed instance
 let firebaseApp: FirebaseApp | null = null;
 
-export function getFirebaseApp(): FirebaseApp | null {
-  if (typeof window === "undefined") return null;
-
-  if (firebaseApp === null) {
-    const app = createFirebaseApp();
-    if (app) firebaseApp = app;
+export function getFirebaseApp(): FirebaseApp {
+  if (typeof window === "undefined") {
+    throw new Error("getFirebaseApp() cannot run on SSR");
   }
 
+  if (!firebaseApp) {
+    firebaseApp = createFirebaseApp();
+  }
   return firebaseApp;
 }
 
-export function getFirebaseAuth(): Auth | null {
+export function getFirebaseAuth(): Auth {
   const app = getFirebaseApp();
-  if (!app) return null;
-
-  try {
-    return getAuth(app);
-  } catch (err) {
-    console.error("getFirebaseAuth error:", err);
-    return null;
-  }
+  return getAuth(app);
 }
 
-// IMPORTANT FIX – do NOT auto-export getFirebaseApp() result
 export default {};

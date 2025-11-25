@@ -1,6 +1,6 @@
 // pages/index.tsx
 import Head from "next/head";
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useState } from "react";
 import Cookies from "js-cookie";
 
 export default function HomePage() {
@@ -11,6 +11,16 @@ export default function HomePage() {
     process.env.NEXT_PUBLIC_BACKEND_URL ||
     process.env.NEXT_PUBLIC_API_BASE ||
     "https://api.phlyphant.com";
+
+  // ================================================
+  // FIX 1: ห้ามให้ผู้ใช้ที่ login แล้วกลับมาหน้า login
+  // ================================================
+  useEffect(() => {
+    const session = Cookies.get("__session");
+    if (session) {
+      window.location.href = "/home";
+    }
+  }, []);
 
   const handleLocalLogin = async (e: FormEvent) => {
     e.preventDefault();
@@ -24,14 +34,13 @@ export default function HomePage() {
         body: JSON.stringify({ email, password }),
       });
 
-      window.location.href =
-        process.env.NEXT_PUBLIC_OAUTH_REDIRECT_AFTER_LOGIN || "/";
+      // FIX 2: หลัง login สำเร็จ redirect ไปหน้า Home จริง
+      window.location.href = "/home";
     } catch (err) {
       console.error("Login failed", err);
     }
   };
 
-  // OAuth start (cleaned)
   const startOAuth = (provider: "google" | "facebook") => {
     const url = `${backend}/auth/${provider}`;
     window.location.href = url;

@@ -1,9 +1,8 @@
 // frontend/pages/account.tsx
-// Example protected page using getServerSideProps to validate session cookie
 import React from 'react';
 import { GetServerSideProps } from 'next';
 
-// ⭐ แก้ path ให้ถูกต้องตามโครงสร้างโปรเจกจริงของคุณ
+// path ถูกต้องตามโครงสร้างโปรเจกคุณ
 import { validateSessionOnServer } from '@/lib/auth';
 import LogoutButton from '@/components/auth/LogoutButton';
 
@@ -40,10 +39,15 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
     const result = await validateSessionOnServer(cookieHeader);
 
     if (!result || !result.valid) {
-      return { props: { valid: false } };
+      // แก้ตรงนี้: redirect อัตโนมัติ (ไม่ render invalid state)
+      return {
+        redirect: {
+          destination: '/login',
+          permanent: false,
+        },
+      };
     }
 
-    // FIX: ปรับให้ TS รับ user แบบ optional
     const data = result as Record<string, any>;
     const user = data.user ?? null;
 
@@ -53,7 +57,12 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
         user,
       },
     };
-  } catch (err) {
-    return { props: { valid: false } };
+  } catch {
+    return {
+      redirect: {
+        destination: '/login',
+        permanent: false,
+      },
+    };
   }
 };

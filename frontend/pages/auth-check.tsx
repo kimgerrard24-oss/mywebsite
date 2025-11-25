@@ -2,7 +2,7 @@
 // file: pages/auth-check.tsx
 // ==============================
 import { useEffect, useState } from "react";
-import axios from "../src/lib/axios";
+import axios from "@/lib/axios"; // FIX: correct import path
 import { CheckCircle, XCircle, Loader2, LogIn, LogOut } from "lucide-react";
 
 type Status = "OK" | "ERROR" | "LOADING";
@@ -20,7 +20,7 @@ export default function AuthCheckPage() {
     "https://api.phlyphant.com";
 
   // ==============================================
-  // Check Hybrid OAuth + Firebase Admin Session
+  // Session Check (Hybrid OAuth + Firebase Admin)
   // ==============================================
   const checkSession = async () => {
     try {
@@ -28,10 +28,20 @@ export default function AuthCheckPage() {
         withCredentials: true,
       });
 
-      // FIX #1 — check the correct key returned by backend
-      if (res.data?.valid === true) {
+      if (res.data && res.data.valid === true) {
         setStatus("OK");
         setDetails(res.data);
+        return;
+      }
+
+      // FIX: retry once due to cookie propagation delay
+      const retry = await axios.get(`${API_BASE}/auth/session-check`, {
+        withCredentials: true,
+      });
+
+      if (retry.data && retry.data.valid === true) {
+        setStatus("OK");
+        setDetails(retry.data);
       } else {
         setStatus("ERROR");
       }
@@ -44,7 +54,6 @@ export default function AuthCheckPage() {
   // Login with Google
   // ==============================================
   const googleLogin = () => {
-    // FIX #2 — use direct backend OAuth endpoint
     window.location.href = `${API_BASE}/auth/google`;
   };
 
@@ -52,7 +61,6 @@ export default function AuthCheckPage() {
   // Login with Facebook
   // ==============================================
   const facebookLogin = () => {
-    // FIX #2 — use direct backend OAuth endpoint
     window.location.href = `${API_BASE}/auth/facebook`;
   };
 
@@ -65,7 +73,7 @@ export default function AuthCheckPage() {
         withCredentials: true,
       });
       checkSession();
-    } catch (err) {}
+    } catch {}
   };
 
   useEffect(() => {

@@ -1,5 +1,5 @@
 // ==============================
-// file: frontend/firebase/client.ts
+// file: frontend/lib/firebaseClient.ts
 // Safe Firebase initialization for Next.js 16
 // ==============================
 
@@ -69,5 +69,3 @@ export function getFirebaseAuth(): Auth {
   }
   return firebaseAuth;
 }
-
-// No default export (prevents SSR initialization)

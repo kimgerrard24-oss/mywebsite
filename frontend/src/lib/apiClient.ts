@@ -4,22 +4,17 @@
 
 import axios, { InternalAxiosRequestConfig } from "axios";
 
-// -------------------------------------------------------
-// Backend Base URL Resolution (Production Safe)
-// -------------------------------------------------------
 const baseURL =
   process.env.NEXT_PUBLIC_BACKEND_URL ||
   process.env.NEXT_PUBLIC_API_BASE ||
   "https://api.phlyphant.com";
 
-// -------------------------------------------------------
-// Axios Instance (with Production security hardening)
-// -------------------------------------------------------
+// Create axios instance
 const API = axios.create({
   baseURL,
   withCredentials: true,
   headers: {
-    "Content-Type": "application/json",
+    // Remove Content-Type from default headers (GET must not send it)
     "Cache-Control": "no-store",
     Pragma: "no-cache",
     Expires: "0",
@@ -27,68 +22,50 @@ const API = axios.create({
   timeout: 10000,
 });
 
-// -------------------------------------------------------
-// Request Interceptor (Enforce no-cache)
-// -------------------------------------------------------
+// Force cookies
 API.interceptors.request.use((cfg: InternalAxiosRequestConfig) => {
+  cfg.withCredentials = true;
+
+  // Only set Content-Type for requests with body
+  if (
+    cfg.method &&
+    ["post", "put", "patch"].includes(cfg.method.toLowerCase())
+  ) {
+    cfg.headers["Content-Type"] = "application/json";
+  }
+
   cfg.headers["Cache-Control"] = "no-store";
   cfg.headers["Pragma"] = "no-cache";
   cfg.headers["Expires"] = "0";
 
-  // FIX: force cookies for all requests
-  cfg.withCredentials = true;
-
   return cfg;
 });
 
-// -------------------------------------------------------
-// Path Normalization (SAFE, preserves query strings)
-// -------------------------------------------------------
+// Minimal, safe path normalizer
 function normalizePath(path: string): string {
   if (!path) return "/";
-
-  // Keep query string intact
-  const [pathname, query] = path.split("?", 2);
-
-  // Normalize only pathname
-  const clean = "/" + pathname.replace(/^\/+/, "");
-
-  return query ? `${clean}?${query}` : clean;
+  // If full path already, return as-is
+  if (path.startsWith("/")) return path;
+  // Prevent accidental removal of relative paths
+  return `/${path}`;
 }
 
-// -------------------------------------------------------
-// HTTP Helpers (Type-Safe)
-// -------------------------------------------------------
-export async function apiGet<T = unknown>(
-  path: string,
-  config: any = {}
-): Promise<T> {
+export async function apiGet<T = unknown>(path: string, config: any = {}): Promise<T> {
   const res = await API.get<T>(normalizePath(path), config);
   return res.data;
 }
 
-export async function apiPost<T = unknown>(
-  path: string,
-  body?: unknown,
-  config: any = {}
-): Promise<T> {
+export async function apiPost<T = unknown>(path: string, body?: unknown, config: any = {}): Promise<T> {
   const res = await API.post<T>(normalizePath(path), body, config);
   return res.data;
 }
 
-export async function apiPut<T = unknown>(
-  path: string,
-  body?: unknown,
-  config: any = {}
-): Promise<T> {
+export async function apiPut<T = unknown>(path: string, body?: unknown, config: any = {}): Promise<T> {
   const res = await API.put<T>(normalizePath(path), body, config);
   return res.data;
 }
 
-export async function apiDelete<T = unknown>(
-  path: string,
-  config: any = {}
-): Promise<T> {
+export async function apiDelete<T = unknown>(path: string, config: any = {}): Promise<T> {
   const res = await API.delete<T>(normalizePath(path), config);
   return res.data;
 }

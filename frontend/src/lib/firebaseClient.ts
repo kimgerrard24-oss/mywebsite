@@ -4,8 +4,8 @@
 
 // Safe client-side Firebase initializer for Next.js (fixed)
 // - prevents SSR initialization
-// - guarantees single initialization
-// - safe retry behavior
+// - guarantees correct retry logic
+// - ensures getFirebaseAuth() never returns null silently
 // ==============================
 
 import {
@@ -18,16 +18,16 @@ import { getAuth, type Auth } from "firebase/auth";
 
 let appInstance: FirebaseApp | null = null;
 let authInstance: Auth | null = null;
-let initialized = false;
+
+// control initialization but allow retry if failed
+let initializing = false;
 
 function createFirebase(): void {
-  if (typeof window === "undefined") {
-    return;
-  }
+  if (typeof window === "undefined") return;
 
-  // Prevent duplicate init (Next.js refresh/hydration)
-  if (initialized) return;
-  initialized = true;
+  // prevent simultaneous double-init
+  if (initializing) return;
+  initializing = true;
 
   try {
     const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
@@ -39,8 +39,7 @@ function createFirebase(): void {
     const appId = process.env.NEXT_PUBLIC_FIREBASE_APP_ID;
 
     if (!apiKey || !authDomain || !projectId || !appId) {
-      console.error("Missing NEXT_PUBLIC_FIREBASE_* env variables");
-      return;
+      throw new Error("Missing required NEXT_PUBLIC_FIREBASE_* env variables");
     }
 
     const config = {
@@ -52,7 +51,6 @@ function createFirebase(): void {
       appId,
     };
 
-    // Next.js safe initialization
     if (getApps().length === 0) {
       appInstance = initializeApp(config);
     } else {
@@ -63,22 +61,39 @@ function createFirebase(): void {
     authInstance.useDeviceLanguage();
   } catch (err) {
     console.error("Firebase initialization failed:", err);
+
     appInstance = null;
     authInstance = null;
-    initialized = false; // allow retry on next call
+
+    // allow retry next time
+    initializing = false;
+    return;
   }
+
+  // init success
+  initializing = false;
 }
 
-export function getFirebaseApp(): FirebaseApp | null {
-  if (typeof window === "undefined") return null;
+export function getFirebaseApp(): FirebaseApp {
+  if (typeof window === "undefined") {
+    throw new Error("getFirebaseApp() cannot run on SSR");
+  }
 
   if (!appInstance) createFirebase();
+  if (!appInstance) {
+    throw new Error("Firebase app not initialized (client)");
+  }
   return appInstance;
 }
 
-export function getFirebaseAuth(): Auth | null {
-  if (typeof window === "undefined") return null;
+export function getFirebaseAuth(): Auth {
+  if (typeof window === "undefined") {
+    throw new Error("getFirebaseAuth() cannot run on SSR");
+  }
 
   if (!authInstance) createFirebase();
+  if (!authInstance) {
+    throw new Error("Firebase auth not initialized (client)");
+  }
   return authInstance;
 }

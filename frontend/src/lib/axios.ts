@@ -28,21 +28,30 @@ const instance = axios.create({
 });
 
 // -----------------------------------------------------
-// FIX #1 — Enforce withCredentials = true on every call
+// FIX — ensure headers always exist & set safely
 // -----------------------------------------------------
 instance.interceptors.request.use((config) => {
-  config.withCredentials = true; // critical fix
+  config.withCredentials = true;
 
-  // no-cache enforced
-  config.headers["Cache-Control"] = "no-store";
-  config.headers["Pragma"] = "no-cache";
-  config.headers["Expires"] = "0";
+  const h: any = config.headers ?? {};
 
-  // enforce Accept header
-  if (!config.headers["Accept"]) {
-    config.headers["Accept"] = "application/json";
+  if (typeof h.set === "function") {
+    h.set("Cache-Control", "no-store");
+    h.set("Pragma", "no-cache");
+    h.set("Expires", "0");
+    if (!h.get("Accept")) {
+      h.set("Accept", "application/json");
+    }
+  } else {
+    h["Cache-Control"] = "no-store";
+    h["Pragma"] = "no-cache";
+    h["Expires"] = "0";
+    if (!h["Accept"]) {
+      h["Accept"] = "application/json";
+    }
   }
 
+  config.headers = h;
   return config;
 });
 

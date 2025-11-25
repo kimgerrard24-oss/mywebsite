@@ -1,7 +1,10 @@
 // frontend/context/AuthContext.tsx
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { User } from 'firebase/auth';
-import { getFirebaseAuth } from '../../firebase/client';
+
+// FIX: แก้ path ให้ตรงกับ firebase client จริงของระบบ
+import { getFirebaseAuth } from '@/lib/firebaseClient';
+
 import { onAuthStateChanged, type Auth } from 'firebase/auth';
 
 type AuthContextType = {
@@ -16,22 +19,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // SSR: do nothing
     if (typeof window === 'undefined') {
       setLoading(false);
       return;
     }
 
-    const auth: Auth | undefined = getFirebaseAuth();
+    let auth: Auth;
 
-    // Firebase not initialized → stop loading (safe fallback)
-    if (!auth) {
-      setUser(null);
-      setLoading(false);
-      return;
-    }
+try {
+  auth = getFirebaseAuth() as Auth;
+} catch (err) {
+  console.error("Firebase init error in AuthContext:", err);
+  setUser(null);
+  setLoading(false);
+  return;
+}
 
-    // Safe subscription
+
     const unsubscribe = onAuthStateChanged(auth, (u) => {
       setUser(u);
       setLoading(false);

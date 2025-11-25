@@ -14,6 +14,7 @@ export async function validateSessionOnServer(cookieHeader?: string) {
         ? cookieHeader
         : '';
 
+    // FIX #2 — ensure correct header name "Cookie" (capital C)
     const result = await sessionCheckServerSide(headerValue);
 
     if (!result) {
@@ -22,13 +23,8 @@ export async function validateSessionOnServer(cookieHeader?: string) {
 
     const data = result as Record<string, any>;
 
-    // ================================================
-    // FIX #2 — Use ONLY backend truth:
-    // valid = backend.valid === true
-    // ================================================
     const valid = data.valid === true;
 
-    // Prevent leaking backend.valid field again
     const { valid: _ignored, ...rest } = data;
 
     return {
