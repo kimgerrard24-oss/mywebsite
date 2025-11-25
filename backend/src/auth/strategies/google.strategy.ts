@@ -43,9 +43,6 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       (req as any).resolvedOrigin = requestedOrigin;
     }
 
-    // ===============================================
-    // FIX: Google Profile ID mapping
-    // ===============================================
     const providerId =
       profile.id || (profile._json as any)?.sub;
 
@@ -53,22 +50,36 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       profile.emails?.[0]?.value ||
       `${providerId}@google-oauth.phlyphant.local`;
 
-    const user = await this.authService.validateGoogleUser({
-      provider: 'google',
+    const name = profile.displayName ?? '';
+    const picture =
+      (profile.photos && profile.photos[0]?.value) ||
+      (profile._json as any)?.picture ||
+      null;
+
+    // ===============================================
+    // Create/find user and get Firebase UID
+    // ===============================================
+    const firebaseUid = await this.authService.getOrCreateOAuthUser(
+      'google',
       providerId,
       email,
-      profile,
-      accessToken,
-      refreshToken,
-    });
+      name,
+      picture,
+    );
+
+    // ===============================================
+    // Download final user from DB via AuthService
+    // (ไม่เรียก prisma โดยตรง)
+    // ===============================================
+    const user = await this.authService.getUserByFirebaseUid(firebaseUid);
 
     return {
-      id: user.id,
-      firebaseUid: String(user.firebaseUid),
+      id: user?.id,
+      firebaseUid,
       provider: 'google',
       providerId,
-      email: user.email,
-      name: user.name,
+      email: user?.email,
+      name: user?.name,
       profile,
       origin: requestedOrigin || null,
     };

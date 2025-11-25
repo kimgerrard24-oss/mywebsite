@@ -14,7 +14,7 @@ model User {
   name        String?
   provider    String
   providerId  String
-  firebaseUid String   @unique
+  firebaseUid String?  @unique            // <-- แก้ตรงนี้เท่านั้น
   avatarUrl   String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt

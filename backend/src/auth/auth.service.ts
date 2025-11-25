@@ -114,11 +114,10 @@ export class AuthService {
   }
 
   // ==========================================
-  // GOOGLE — find or create (แก้ providerId เป็น profile.sub)
+  // GOOGLE
   // ==========================================
   async findOrCreateUserFromGoogle(profile: any) {
     const email = profile.emails?.[0]?.value || null;
-
     const providerId = profile.sub || profile.id;
 
     let user = await this.prisma.user.findFirst({
@@ -137,6 +136,7 @@ export class AuthService {
           name: profile.displayName ?? null,
           provider: 'google',
           providerId,
+          firebaseUid: null,
         },
       });
     }
@@ -160,6 +160,9 @@ export class AuthService {
     return user;
   }
 
+  // ==========================================
+  // FACEBOOK
+  // ==========================================
   async findOrCreateUserFromFacebook(profile: any) {
     const email =
       profile.emails?.[0]?.value ||
@@ -182,6 +185,7 @@ export class AuthService {
           name: profile.displayName ?? null,
           provider: 'facebook',
           providerId: profile.id,
+          firebaseUid: null,
         },
       });
     }
@@ -205,6 +209,9 @@ export class AuthService {
     return user;
   }
 
+  // ==========================================
+  // Hybrid OAuth
+  // ==========================================
   async getOrCreateOAuthUser(
     provider: 'facebook' | 'google',
     providerId: string,
@@ -229,6 +236,7 @@ export class AuthService {
           provider,
           providerId,
           avatarUrl: picture || null,
+          firebaseUid: null,
         },
       });
     }
@@ -246,14 +254,18 @@ export class AuthService {
     return firebaseUid;
   }
 
-  async validateGoogleUser(data: any) {
-    return this.findOrCreateUserFromGoogle(data.profile);
+  // ==========================================
+  // ADDED FUNCTION (ตามคำขอ)
+  // ==========================================
+  async getUserByFirebaseUid(firebaseUid: string) {
+    return this.prisma.user.findUnique({
+      where: { firebaseUid },
+    });
   }
 
-  async validateFacebookUser(data: any) {
-    return this.findOrCreateUserFromFacebook(data.profile);
-  }
-
+  // ==========================================
+  // Firebase
+  // ==========================================
   createFirebaseCustomToken(uid: string, user: any) {
     if (!uid || typeof uid !== 'string') {
       throw new Error(`Invalid UID for Firebase custom token: "${uid}"`);
