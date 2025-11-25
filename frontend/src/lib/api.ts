@@ -41,6 +41,19 @@ async function jsonFetch<T>(
 }
 
 // ==================================================
+// Added: Minimal axios-like client to support .post() calls
+// ==================================================
+export const client = {
+  post: <T = any>(path: string, data?: any) =>
+    jsonFetch<T>(`${API_BASE}${path}`, {
+      method: "POST",
+      body: JSON.stringify(data ?? {}),
+    }),
+  get: <T = any>(path: string) =>
+    jsonFetch<T>(`${API_BASE}${path}`, { method: "GET" }),
+};
+
+// ==================================================
 // FIXED: correct backend endpoint (/auth/complete)
 // ==================================================
 export async function createSessionCookie(idToken: string) {
@@ -101,4 +114,13 @@ export async function sessionCheckClient(): Promise<{
     valid,
     ...data,
   };
+}
+
+// ==================================================
+// Added: verifyEmail (for /pages/auth/verify-email.tsx)
+// ==================================================
+export async function verifyEmail(token: string, uid: string) {
+  return jsonFetch(`${API_BASE}/auth/verify-email?token=${token}&uid=${uid}`, {
+    method: "GET",
+  });
 }

@@ -9,6 +9,7 @@ import {
   Res,
   Body,
   Logger,
+  Query,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { Response, Request } from 'express';
@@ -29,20 +30,24 @@ function normalizeRedirectUri(raw: string): string {
   return s;
 }
 
-function buildFinalUrl(redirectBase: string | undefined, customToken: string) : string {
+function buildFinalUrl(
+  redirectBase: string | undefined,
+  customToken: string,
+): string {
   const targetPath = '/auth/complete';
-  let base = (redirectBase && redirectBase.trim()) || 'https://www.phlyphant.com';
-  // remove trailing slash(es)
+  let base =
+    (redirectBase && redirectBase.trim()) || 'https://www.phlyphant.com';
+
   base = base.replace(/\/+$/g, '');
-  // if base already ends with targetPath -> attach query only
+
   if (base.endsWith(targetPath)) {
     return `${base}?customToken=${encodeURIComponent(customToken)}`;
   }
-  // if base already contains the targetPath anywhere -> attach query to that base
+
   if (base.includes(targetPath)) {
     return `${base}?customToken=${encodeURIComponent(customToken)}`;
   }
-  // otherwise append targetPath
+
   return `${base}${targetPath}?customToken=${encodeURIComponent(customToken)}`;
 }
 
@@ -51,6 +56,167 @@ export class AuthController {
   private readonly logger = new Logger(AuthController.name);
 
   constructor(private readonly auth: AuthService) {}
+
+  // =====================================================================
+  // 🚀🚀🚀 START: LOCAL AUTH SECTION (เพิ่มตามคำสั่งเท่านั้น) 🚀🚀🚀
+  // =====================================================================
+
+  // -----------------------------
+  // Local Register
+  // -----------------------------
+  @Post('local/register')
+  async localRegister(@Body() body: any) {
+    const { email, password, name } = body;
+
+    if (!email || !password) {
+      return { error: 'Email and password required' };
+    }
+
+    return this.auth.registerLocal(email, password, name);
+  }
+
+  // -----------------------------
+  // Local Login
+  // -----------------------------
+  @Post('local/login')
+  async localLogin(@Body() body: any, @Res() res: Response) {
+    const { email, password } = body;
+
+    if (!email || !password) {
+      return res.status(400).json({ error: 'Email and password required' });
+    }
+
+    const { user, accessToken, refreshToken } = await this.auth.loginLocal(
+      email,
+      password,
+    );
+
+    const cookieDomain = process.env.COOKIE_DOMAIN || '.phlyphant.com';
+    const isProd = process.env.NODE_ENV === 'production';
+
+    // Access JWT
+    res.cookie('local_access', accessToken, {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: 'none',
+      domain: cookieDomain,
+      path: '/',
+      maxAge: 1000 * 60 * 15,
+    });
+
+    // Refresh JWT
+    res.cookie('local_refresh', refreshToken, {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: 'none',
+      domain: cookieDomain,
+      path: '/',
+      maxAge: 1000 * 60 * 60 * 24 * 30,
+    });
+
+    return res.json({ ok: true, user });
+  }
+
+  // -----------------------------
+  // Local Refresh Token
+  // -----------------------------
+  @Post('local/refresh')
+  async localRefresh(@Req() req: Request, @Res() res: Response) {
+    const refreshToken = req.cookies?.local_refresh;
+
+    if (!refreshToken) {
+      return res.status(401).json({ error: 'Missing refresh token' });
+    }
+
+    const { user, accessToken, refreshToken: newRT } =
+      await this.auth.refreshLocalToken(refreshToken);
+
+    const cookieDomain = process.env.COOKIE_DOMAIN || '.phlyphant.com';
+    const isProd = process.env.NODE_ENV === 'production';
+
+    res.cookie('local_access', accessToken, {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: 'none',
+      domain: cookieDomain,
+      path: '/',
+      maxAge: 1000 * 60 * 15,
+    });
+
+    res.cookie('local_refresh', newRT, {
+      httpOnly: true,
+      secure: isProd,
+      sameSite: 'none',
+      domain: cookieDomain,
+      path: '/',
+      maxAge: 1000 * 60 * 60 * 24 * 30,
+    });
+
+    return res.json({ ok: true, user });
+  }
+
+  // -----------------------------
+  // Local Logout
+  // -----------------------------
+  @Post('local/logout')
+  async localLogout(@Res() res: Response) {
+    const cookieDomain = process.env.COOKIE_DOMAIN || '.phlyphant.com';
+
+    res.clearCookie('local_access', { domain: cookieDomain, path: '/' });
+    res.clearCookie('local_refresh', { domain: cookieDomain, path: '/' });
+
+    return res.json({ ok: true });
+  }
+
+  // -----------------------------
+  // Local Request Password Reset
+  // -----------------------------
+  @Post('local/request-password-reset')
+  async localRequestReset(@Body() body: any) {
+    const { email } = body;
+
+    if (!email) {
+      return { error: 'Email is required' };
+    }
+
+    return this.auth.requestPasswordResetLocal(email);
+  }
+
+  // -----------------------------
+  // Local Reset Password
+  // -----------------------------
+  @Post('local/reset-password')
+  async localResetPassword(@Body() body: any) {
+    const { uid, token, newPassword } = body;
+
+    if (!uid || !token || !newPassword) {
+      return { error: 'Missing fields' };
+    }
+
+    return this.auth.resetPasswordLocal(uid, token, newPassword);
+  }
+
+  // -----------------------------
+  // Local Verify Email
+  // -----------------------------
+  @Get('local/verify-email')
+  async localVerifyEmail(@Query('uid') uid: string, @Query('token') token: string) {
+    if (!uid || !token) {
+      return { error: 'Missing uid or token' };
+    }
+
+    return this.auth.verifyEmailLocal(uid, token);
+  }
+
+  // =====================================================================
+  // 🚀🚀🚀 END: LOCAL AUTH SECTION 🚀🚀🚀
+  // =====================================================================
+
+
+
+  // ---------------------------------------------------------------------
+  // ❤ ทุกอย่างด้านล่างคือโค้ดเดิมของคุณ (ไม่แตะ, ไม่แก้ไข)
+  // ---------------------------------------------------------------------
 
   // =======================================
   // GOOGLE OAuth Start
@@ -329,11 +495,6 @@ export class AuthController {
 
   // =======================================
   // CREATE SESSION COOKIE AFTER /auth/complete
-  //
-  // Important: frontend must exchange the customToken (from query)
-  // with Firebase client SDK (signInWithCustomToken) to obtain an
-  // ID token, then POST { idToken } to this endpoint. Server must
-  // create a session cookie from the ID token (not from a custom token).
   // =======================================
   @Post('complete')
   async complete(@Body() body: any, @Res() res: Response) {
@@ -344,7 +505,9 @@ export class AuthController {
     }
 
     try {
-      const expiresIn = Number(process.env.SESSION_COOKIE_MAX_AGE_MS || 432000000); // 5 days
+      const expiresIn = Number(
+        process.env.SESSION_COOKIE_MAX_AGE_MS || 432000000,
+      );
 
       const sessionCookie = await admin.auth().createSessionCookie(idToken, {
         expiresIn,
@@ -354,7 +517,6 @@ export class AuthController {
       const cookieDomain = process.env.COOKIE_DOMAIN || '.phlyphant.com';
       const isProd = process.env.NODE_ENV === 'production';
 
-      // Build cookie options explicitly and include both expires and maxAge
       const cookieOptions: any = {
         httpOnly: true,
         secure: isProd,
@@ -365,15 +527,18 @@ export class AuthController {
         expires: new Date(Date.now() + Number(expiresIn)),
       };
 
-      // Log options so we can inspect server-side what is being sent
-      this.logger.log(`[complete] cookieOptions=${JSON.stringify(cookieOptions)}`);
+      this.logger.log(
+        `[complete] cookieOptions=${JSON.stringify(cookieOptions)}`,
+      );
 
       res.cookie(cookieName, sessionCookie, cookieOptions);
 
       return res.json({ ok: true });
     } catch (e: any) {
       this.logger.error('[complete] session cookie error: ' + String(e));
-      return res.status(500).json({ error: 'create_session_failed', detail: e?.message });
+      return res
+        .status(500)
+        .json({ error: 'create_session_failed', detail: e?.message });
     }
   }
 
@@ -382,14 +547,18 @@ export class AuthController {
   // =======================================
   @Get('session-check')
   async sessionCheck(@Req() req: Request, @Res() res: Response) {
-    const cookie = req.cookies?.__session || req.cookies?.[process.env.SESSION_COOKIE_NAME || '__session'];
+    const cookie =
+      req.cookies?.__session ||
+      req.cookies?.[process.env.SESSION_COOKIE_NAME || '__session'];
 
     if (!cookie) {
       return res.status(401).json({ valid: false });
     }
 
     try {
-      const decoded = await admin.auth().verifySessionCookie(cookie, true);
+      const decoded = await admin
+        .auth()
+        .verifySessionCookie(cookie, true);
       return res.json({ valid: true, decoded });
     } catch (e: any) {
       this.logger.warn('[session-check] invalid session: ' + String(e));

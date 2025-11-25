@@ -1,10 +1,20 @@
 // ==============================
 // file: src/auth/auth.service.ts
 // ==============================
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  UnauthorizedException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { FirebaseAdminService } from '../firebase/firebase.service';
 import { SecretsService } from '../secrets/secrets.service';
+
+import * as bcrypt from 'bcrypt';
+import { randomBytes } from 'crypto';
+import { sign, verify } from 'jsonwebtoken';
 
 interface GoogleOAuthConfig {
   clientId: string;
@@ -28,6 +38,253 @@ export class AuthService {
     private readonly secretsService: SecretsService,
   ) {}
 
+  // -------------------------------------------------------
+  // Utility สำหรับ Local Auth
+  // -------------------------------------------------------
+  private async hash(data: string) {
+    return bcrypt.hash(data, 12); // cost 12 สำหรับ production
+  }
+
+  private async compareHash(data: string, hash: string) {
+    return bcrypt.compare(data, hash);
+  }
+
+  private signAccessToken(payload: any) {
+    return sign(payload, process.env.JWT_SECRET, { expiresIn: '15m' });
+  }
+
+  private signRefreshToken(payload: any) {
+    return sign(payload, process.env.JWT_SECRET, { expiresIn: '30d' });
+  }
+
+  // -------------------------------------------------------
+  // Local Register
+  // -------------------------------------------------------
+  async registerLocal(email: string, password: string, name?: string) {
+    const normalizedEmail = email.toLowerCase();
+
+    const existing = await this.prisma.user.findUnique({ where: { email: normalizedEmail } });
+    if (existing) throw new BadRequestException('Email already registered');
+
+    const passwordHash = await this.hash(password);
+
+    const user = await this.prisma.user.create({
+      data: {
+        email: normalizedEmail,
+        hashedPassword: passwordHash,
+        name: name || null,
+        provider: 'local',
+      },
+    });
+
+    // Create Email Verification Token
+    const token = randomBytes(32).toString('hex');
+    const tokenHash = await this.hash(token);
+    const expires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 ชั่วโมง
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        emailVerifyTokenHash: tokenHash,
+        emailVerifyTokenExpires: expires,
+      },
+    });
+
+    const verifyLink =
+      `${process.env.NEXT_PUBLIC_SITE_URL}/auth/verify-email?token=${token}&uid=${user.id}`;
+
+    this.logger.debug(`Email verification link: ${verifyLink}`);
+
+    return { ok: true, userId: user.id };
+  }
+
+  // -------------------------------------------------------
+  // Local Login
+  // -------------------------------------------------------
+  async loginLocal(email: string, password: string) {
+    const normalized = email.toLowerCase();
+    const user = await this.prisma.user.findUnique({ where: { email: normalized } });
+
+    if (!user || !user.hashedPassword) {
+      throw new UnauthorizedException('Invalid credentials');
+    }
+
+    const valid = await this.compareHash(password, user.hashedPassword);
+    if (!valid) throw new UnauthorizedException('Invalid credentials');
+
+    const accessToken = this.signAccessToken({
+      sub: user.id,
+      email: user.email,
+      provider: 'local',
+    });
+
+    const refreshToken = this.signRefreshToken({ sub: user.id });
+    const refreshHash = await this.hash(refreshToken);
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { currentRefreshTokenHash: refreshHash },
+    });
+
+    return {
+      user: { id: user.id, email: user.email },
+      accessToken,
+      refreshToken,
+    };
+  }
+
+  // -------------------------------------------------------
+  // Refresh Token (Local)
+  // -------------------------------------------------------
+  async refreshLocalToken(refreshToken: string) {
+    let payload: any;
+
+    try {
+      payload = verify(refreshToken, process.env.JWT_SECRET);
+    } catch {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });
+    if (!user || !user.currentRefreshTokenHash) {
+      throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    const ok = await this.compareHash(refreshToken, user.currentRefreshTokenHash);
+    if (!ok) {
+      // token reuse attack — revoke user token
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { currentRefreshTokenHash: null },
+      });
+      throw new ForbiddenException('Refresh token reuse detected');
+    }
+
+    const newAccess = this.signAccessToken({
+      sub: user.id,
+      email: user.email,
+      provider: 'local',
+    });
+
+    const newRefresh = this.signRefreshToken({ sub: user.id });
+    const newRefreshHash = await this.hash(newRefresh);
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { currentRefreshTokenHash: newRefreshHash },
+    });
+
+    return {
+      accessToken: newAccess,
+      refreshToken: newRefresh,
+      user: { id: user.id, email: user.email },
+    };
+  }
+
+  // -------------------------------------------------------
+  // Request Password Reset (Local)
+  // -------------------------------------------------------
+  async requestPasswordResetLocal(email: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { email: email.toLowerCase() },
+    });
+
+    if (!user) return { ok: true }; // ไม่บอกว่ามี user หรือไม่
+
+    const token = randomBytes(32).toString('hex');
+    const tokenHash = await this.hash(token);
+
+    const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 ชั่วโมง
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordResetTokenHash: tokenHash,
+        passwordResetTokenExpires: expires,
+      },
+    });
+
+    const resetLink =
+      `${process.env.NEXT_PUBLIC_SITE_URL}/auth/reset-password?token=${token}&uid=${user.id}`;
+
+    this.logger.debug(`Password reset link: ${resetLink}`);
+
+    return { ok: true };
+  }
+
+  // -------------------------------------------------------
+  // Reset Password (Local)
+  // -------------------------------------------------------
+  async resetPasswordLocal(uid: string, token: string, newPassword: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: uid } });
+
+    if (
+      !user ||
+      !user.passwordResetTokenHash ||
+      !user.passwordResetTokenExpires
+    ) {
+      throw new BadRequestException('Invalid token');
+    }
+
+    if (user.passwordResetTokenExpires < new Date()) {
+      throw new BadRequestException('Token expired');
+    }
+
+    const ok = await this.compareHash(token, user.passwordResetTokenHash);
+    if (!ok) throw new BadRequestException('Invalid token');
+
+    const newHash = await this.hash(newPassword);
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        hashedPassword: newHash,
+        passwordResetTokenHash: null,
+        passwordResetTokenExpires: null,
+      },
+    });
+
+    // revoke refresh token
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { currentRefreshTokenHash: null },
+    });
+
+    return { ok: true };
+  }
+
+  // -------------------------------------------------------
+  // Verify Email (Local)
+  // -------------------------------------------------------
+  async verifyEmailLocal(uid: string, token: string) {
+    const user = await this.prisma.user.findUnique({ where: { id: uid } });
+
+    if (!user || !user.emailVerifyTokenHash || !user.emailVerifyTokenExpires) {
+      throw new BadRequestException('Invalid token');
+    }
+
+    if (user.emailVerifyTokenExpires < new Date()) {
+      throw new BadRequestException('Token expired');
+    }
+
+    const ok = await this.compareHash(token, user.emailVerifyTokenHash);
+    if (!ok) throw new BadRequestException('Invalid token');
+
+    await this.prisma.user.update({
+      where: { id: uid },
+      data: {
+        isEmailVerified: true,
+        emailVerifyTokenHash: null,
+        emailVerifyTokenExpires: null,
+      },
+    });
+
+    return { ok: true };
+  }
+
+  // -------------------------------------------------------
+  // ส่วนเดิมของคุณ (ไม่แก้)
+  // -------------------------------------------------------
   private normalizeRedirectUri(raw: string): string {
     if (!raw) return raw;
     let v = raw.trim();
@@ -122,10 +379,7 @@ export class AuthService {
 
     let user = await this.prisma.user.findFirst({
       where: {
-        OR: [
-          { provider: 'google', providerId },
-          { email },
-        ],
+        OR: [{ provider: 'google', providerId }, { email }],
       },
     });
 
@@ -164,17 +418,11 @@ export class AuthService {
   // FACEBOOK
   // ==========================================
   async findOrCreateUserFromFacebook(profile: any) {
-    const email =
-      profile.emails?.[0]?.value ||
-      profile._json?.email ||
-      null;
+    const email = profile.emails?.[0]?.value || profile._json?.email || null;
 
     let user = await this.prisma.user.findFirst({
       where: {
-        OR: [
-          { provider: 'facebook', providerId: profile.id },
-          { email },
-        ],
+        OR: [{ provider: 'facebook', providerId: profile.id }, { email }],
       },
     });
 
@@ -241,8 +489,7 @@ export class AuthService {
       });
     }
 
-    const firebaseUid =
-      user.firebaseUid || `oauth_${provider}_${user.id}`;
+    const firebaseUid = user.firebaseUid || `oauth_${provider}_${user.id}`;
 
     if (!user.firebaseUid) {
       await this.prisma.user.update({

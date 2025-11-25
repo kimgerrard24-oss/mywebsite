@@ -31,6 +31,11 @@ import { FirebaseAdminService } from './firebase/firebase.service';
 
 import type { Request, Response } from 'express';
 
+// ------------------------
+// rate limiter
+// ------------------------
+import rateLimit from 'express-rate-limit';
+
 const logger = new Logger('bootstrap');
 
 function createRedisClient(): IORedis {
@@ -116,10 +121,6 @@ async function bootstrap(): Promise<void> {
     }),
   );
 
-  // Extra middleware to ensure Access-Control-Allow-Origin echoes the allowed origin
-  // and to always include Access-Control-Allow-Credentials for allowed origins.
-  // This helps ensure proxies or intermediate layers don't accidentally send back a
-  // mismatched or wildcard origin which can cause browsers to refuse Set-Cookie.
   expressApp.use((req: Request, res: Response, next) => {
     const origin = req.headers.origin as string | undefined;
     if (!origin) return next();
@@ -129,7 +130,6 @@ async function bootstrap(): Promise<void> {
       // echo the origin exactly (do not set wildcard) when allowed
       res.setHeader('Access-Control-Allow-Origin', origin);
       res.setHeader('Access-Control-Allow-Credentials', 'true');
-      // explicit expose of Set-Cookie (already set in cors options but ensure present)
       res.setHeader('Access-Control-Expose-Headers', 'Set-Cookie');
       // Vary: Origin helps caches/proxies handle per-origin responses
       const prevVary = res.getHeader('Vary');
@@ -142,7 +142,34 @@ async function bootstrap(): Promise<void> {
     return next();
   });
 
-  // Add a small startup log that outputs important env values (non-secret)
+  // -----------------------------
+  // Rate limiting for local auth endpoints
+  // -----------------------------
+  expressApp.use(
+    '/auth/local/login',
+    rateLimit({
+      windowMs: 15 * 60 * 1000,
+      max: 10,
+      standardHeaders: true,
+      legacyHeaders: false,
+      message: 'Too many login attempts from this IP, please try again later',
+    }),
+  );
+
+  expressApp.use(
+    '/auth/local/request-password-reset',
+    rateLimit({
+      windowMs: 60 * 60 * 1000,
+      max: 5,
+      standardHeaders: true,
+      legacyHeaders: false,
+      message: 'Too many password reset requests from this IP, please try again later',
+    }),
+  );
+
+  // ============================
+  // Startup logs (non-secret)
+  // ============================
   try {
     const googleProviderRedirect = process.env.GOOGLE_PROVIDER_REDIRECT_AFTER_LOGIN || '';
     const facebookProviderRedirect = process.env.FACEBOOK_PROVIDER_REDIRECT_AFTER_LOGIN || '';
@@ -163,12 +190,11 @@ async function bootstrap(): Promise<void> {
       logger.log(`Startup check: FACEBOOK_PROVIDER_REDIRECT_AFTER_LOGIN (origin)=${normalizedFacebookOrigin || '<invalid URL>'}`);
     }
 
-    // Warn if provider redirect contains '/auth/complete' — common cause of duplicate path
     if (/(\/auth\/?complete)/i.test(googleProviderRedirect)) {
-      logger.warn('GOOGLE_PROVIDER_REDIRECT_AFTER_LOGIN contains path like /auth/complete — this may cause duplicated /auth/complete in redirects. Prefer an origin like https://www.phlyphant.com');
+      logger.warn('GOOGLE_PROVIDER_REDIRECT_AFTER_LOGIN contains path like /auth/complete — this may cause duplicated redirects');
     }
     if (/(\/auth\/?complete)/i.test(facebookProviderRedirect)) {
-      logger.warn('FACEBOOK_PROVIDER_REDIRECT_AFTER_LOGIN contains path like /auth/complete — this may cause duplicated /auth/complete in redirects. Prefer an origin like https://www.phlyphant.com');
+      logger.warn('FACEBOOK_PROVIDER_REDIRECT_AFTER_LOGIN contains path like /auth/complete — this may cause duplicated redirects');
     }
   } catch (e) {
     logger.warn('Startup env check failed: ' + String(e));
@@ -213,7 +239,6 @@ async function bootstrap(): Promise<void> {
     maxHttpBufferSize: 1e8,
   });
 
-  // Redis adapter
   const redisUrl =
     process.env.DOCKER_ENV === 'true'
       ? process.env.REDIS_URL || 'redis://redis:6379'
@@ -257,7 +282,9 @@ async function bootstrap(): Promise<void> {
 
       const firebase = nestApp.get(FirebaseAdminService);
 
-      const decoded = await firebase.auth().verifySessionCookie(sessionCookie, true)
+      const decoded = await firebase
+        .auth()
+        .verifySessionCookie(sessionCookie, true)
         .catch(() => null);
 
       (socket as any).user = decoded || null;
