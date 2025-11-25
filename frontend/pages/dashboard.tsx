@@ -1,7 +1,6 @@
 // frontend/pages/dashboard.tsx
 import React from "react";
 import { GetServerSideProps } from "next";
-import axios from "@/lib/axios";
 import LogoutButton from "@/components/auth/LogoutButton";
 import { validateSessionOnServer } from "@/lib/auth";
 
@@ -28,33 +27,72 @@ export default function Dashboard({ valid, user }: DashboardProps) {
     );
   }
 
+  // ===========================
+  // Provider label formatting
+  // ===========================
+  const provider = user?.firebase?.sign_in_provider || "unknown";
+
+  const providerLabel =
+    provider === "google.com"
+      ? "Google"
+      : provider === "facebook.com"
+      ? "Facebook"
+      : provider === "password"
+      ? "Email/Password"
+      : provider === "custom"
+      ? "Custom Token"
+      : provider;
+
+  // ===========================
+  // Avatar fallback
+  // ===========================
+  const avatar =
+    user?.picture ||
+    user?.picture_url ||
+    user?.avatar ||
+    "/images/default-avatar.png";
+
   return (
     <main className="min-h-screen bg-linear-to-br from-slate-100 via-white to-slate-200 p-6">
       <div className="max-w-4xl mx-auto bg-white shadow-xl rounded-2xl p-8 border">
 
-        {/* Header */}
         <header className="flex items-center justify-between mb-10">
           <h1 className="text-3xl font-bold text-gray-800">Dashboard</h1>
           <LogoutButton />
         </header>
 
-        {/* User Info */}
+        {/* =============================
+            USER PROFILE SECTION
+        ============================== */}
         <section className="flex items-center gap-6 mb-10">
           <img
-            src={user?.picture || "/images/default-avatar.png"}
+            src={avatar}
             alt="avatar"
-            className="w-20 h-20 rounded-full border object-cover"
+            className="w-24 h-24 rounded-full border shadow-md object-cover"
           />
+
           <div>
-            <h2 className="text-xl font-semibold">{user?.name || "ผู้ใช้"}</h2>
-            <p className="text-gray-600">{user?.email}</p>
+            <h2 className="text-2xl font-semibold text-gray-900">
+              {user?.name || user?.email?.split("@")[0] || "ผู้ใช้"}
+            </h2>
+
+            {user?.email && (
+              <p className="text-gray-700 mt-1">Email: {user.email}</p>
+            )}
+
             <p className="text-sm text-gray-500 mt-1">
-              Provider: {user?.firebase?.sign_in_provider || "unknown"}
+              Provider: {providerLabel}
             </p>
+
+            {user?.user_id && (
+              <p className="text-sm text-gray-500">UID: {user.user_id}</p>
+            )}
           </div>
         </section>
 
-        {/* Main Quick Menu */}
+        {/* =============================
+            QUICK MENU
+        ============================== */}
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
           <a
             href="/account"
@@ -81,9 +119,13 @@ export default function Dashboard({ valid, user }: DashboardProps) {
           </a>
         </section>
 
-        {/* Raw JSON Debug (optional) */}
+        {/* =============================
+            DEBUG INFORMATION
+        ============================== */}
         <details className="bg-gray-100 p-4 rounded-xl border text-gray-800">
-          <summary className="cursor-pointer font-medium mb-2">Debug: User Data</summary>
+          <summary className="cursor-pointer font-medium mb-2">
+            Debug: User Data
+          </summary>
           <pre className="overflow-x-auto text-sm">
             {JSON.stringify(user, null, 2)}
           </pre>

@@ -26,7 +26,7 @@ export default function AuthCompletePage() {
     process.env.NEXT_PUBLIC_SITE_URL || "https://www.phlyphant.com";
 
   // เปลี่ยนจาก /home → /dashboard ตามคำขอ
-  const REDIRECT_AFTER_LOGIN = "/dashboard";
+  const REDIRECT_AFTER_LOGIN = "/feed";
 
   useEffect(() => {
     if (!router.isReady) return;

@@ -26,7 +26,7 @@ export default function LoginPage() {
         });
 
         if (res.data?.valid === true) {
-          router.replace('/dashboard');
+          router.replace('/feed');
         }
       } catch {
         // ignore error → user ยังไม่ login
