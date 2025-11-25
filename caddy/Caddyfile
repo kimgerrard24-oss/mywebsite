@@ -49,9 +49,6 @@ phlyphant.com, www.phlyphant.com {
         header_up X-Real-IP {remote}
         header_up X-Forwarded-Proto {scheme}
         header_up Cookie {http.request.header.Cookie}
-
-        # Removed the incorrect Set-Cookie override
-        header_down -Set-Cookie
     }
 }
 
@@ -110,9 +107,6 @@ api.phlyphant.com {
             header_up Upgrade {http.request.header.Upgrade}
             header_up Connection {http.request.header.Connection}
             header_up Cookie {http.request.header.Cookie}
-
-            # Removed faulty Set-Cookie override
-            header_down -Set-Cookie
         }
     }
 
@@ -127,9 +121,6 @@ api.phlyphant.com {
             header_up X-Real-IP {remote}
             header_up X-Forwarded-Proto {scheme}
             header_up Cookie {http.request.header.Cookie}
-
-            # Removed faulty Set-Cookie override
-            header_down -Set-Cookie
         }
     }
 }

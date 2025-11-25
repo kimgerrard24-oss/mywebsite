@@ -72,7 +72,8 @@ async function bootstrap(): Promise<void> {
   const expressApp = nestApp.getHttpAdapter().getInstance() as Express;
 
   // trust proxy (for HTTPS cookies behind Caddy)
-  expressApp.set('trust proxy', 1);
+  // set to true to ensure express understands X-Forwarded-* headers
+  expressApp.set('trust proxy', true);
 
   expressApp.use(helmet());
 
@@ -114,6 +115,32 @@ async function bootstrap(): Promise<void> {
       optionsSuccessStatus: 204,
     }),
   );
+
+  // Extra middleware to ensure Access-Control-Allow-Origin echoes the allowed origin
+  // and to always include Access-Control-Allow-Credentials for allowed origins.
+  // This helps ensure proxies or intermediate layers don't accidentally send back a
+  // mismatched or wildcard origin which can cause browsers to refuse Set-Cookie.
+  expressApp.use((req: Request, res: Response, next) => {
+    const origin = req.headers.origin as string | undefined;
+    if (!origin) return next();
+
+    const ok = corsRegex.some((r) => r.test(origin));
+    if (ok) {
+      // echo the origin exactly (do not set wildcard) when allowed
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Access-Control-Allow-Credentials', 'true');
+      // explicit expose of Set-Cookie (already set in cors options but ensure present)
+      res.setHeader('Access-Control-Expose-Headers', 'Set-Cookie');
+      // Vary: Origin helps caches/proxies handle per-origin responses
+      const prevVary = res.getHeader('Vary');
+      if (!prevVary) {
+        res.setHeader('Vary', 'Origin');
+      } else if (typeof prevVary === 'string' && !prevVary.includes('Origin')) {
+        res.setHeader('Vary', `${prevVary}, Origin`);
+      }
+    }
+    return next();
+  });
 
   // Add a small startup log that outputs important env values (non-secret)
   try {
