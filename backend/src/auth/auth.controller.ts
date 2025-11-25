@@ -354,14 +354,21 @@ export class AuthController {
       const cookieDomain = process.env.COOKIE_DOMAIN || '.phlyphant.com';
       const isProd = process.env.NODE_ENV === 'production';
 
-      res.cookie(cookieName, sessionCookie, {
+      // Build cookie options explicitly and include both expires and maxAge
+      const cookieOptions: any = {
         httpOnly: true,
         secure: isProd,
         sameSite: 'none',
         domain: cookieDomain,
         path: '/',
         maxAge: expiresIn,
-      });
+        expires: new Date(Date.now() + Number(expiresIn)),
+      };
+
+      // Log options so we can inspect server-side what is being sent
+      this.logger.log(`[complete] cookieOptions=${JSON.stringify(cookieOptions)}`);
+
+      res.cookie(cookieName, sessionCookie, cookieOptions);
 
       return res.json({ ok: true });
     } catch (e: any) {
