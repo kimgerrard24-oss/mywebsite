@@ -12,25 +12,40 @@ export class UsersService {
 
   async createUser(email: string, passwordHash: string, displayName?: string) {
     return this.prisma.user.create({
-      data: { email, hashedPassword: passwordHash, displayName },
+      data: {
+        email,
+        hashedPassword: passwordHash,
+        provider: "local",
+        providerId: email, // แก้ตาม Prisma model (required)
+        name: displayName ?? null, // ใช้ field name ที่มีจริงใน schema
+      },
     });
   }
 
   async setRefreshTokenHash(userId: string, hash: string | null) {
-    return this.prisma.user.update({ where: { id: userId }, data: { currentRefreshTokenHash: hash } });
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: { currentRefreshTokenHash: hash },
+    });
   }
 
   async setEmailVerifyToken(userId: string, hash: string, expires: Date) {
     return this.prisma.user.update({
       where: { id: userId },
-      data: { emailVerifyTokenHash: hash, emailVerifyTokenExpires: expires },
+      data: {
+        emailVerifyTokenHash: hash,
+        emailVerifyTokenExpires: expires,
+      },
     });
   }
 
   async setPasswordResetToken(userId: string, hash: string, expires: Date) {
     return this.prisma.user.update({
       where: { id: userId },
-      data: { passwordResetTokenHash: hash, passwordResetTokenExpires: expires },
+      data: {
+        passwordResetTokenHash: hash,
+        passwordResetTokenExpires: expires,
+      },
     });
   }
 
@@ -42,7 +57,15 @@ export class UsersService {
       },
     });
     if (!user) return null;
-    return this.prisma.user.update({ where: { id: user.id }, data: { isEmailVerified: true, emailVerifyTokenHash: null, emailVerifyTokenExpires: null } });
+
+    return this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        isEmailVerified: true,
+        emailVerifyTokenHash: null,
+        emailVerifyTokenExpires: null,
+      },
+    });
   }
 
   async resetPasswordByToken(tokenHash: string, newPasswordHash: string) {
@@ -53,9 +76,14 @@ export class UsersService {
       },
     });
     if (!user) return null;
+
     return this.prisma.user.update({
       where: { id: user.id },
-      data: { hashedPassword: newPasswordHash, passwordResetTokenHash: null, passwordResetTokenExpires: null },
+      data: {
+        hashedPassword: newPasswordHash,
+        passwordResetTokenHash: null,
+        passwordResetTokenExpires: null,
+      },
     });
   }
 }

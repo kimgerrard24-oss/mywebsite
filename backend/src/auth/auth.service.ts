@@ -50,11 +50,13 @@ export class AuthService {
   }
 
   private signAccessToken(payload: any) {
-    return sign(payload, process.env.JWT_SECRET, { expiresIn: '15m' });
+    const secret = process.env.JWT_ACCESS_SECRET!;
+    return sign(payload, secret, { expiresIn: '15m' });
   }
 
   private signRefreshToken(payload: any) {
-    return sign(payload, process.env.JWT_SECRET, { expiresIn: '30d' });
+    const secret = process.env.JWT_REFRESH_SECRET!;
+    return sign(payload, secret, { expiresIn: '30d' });
   }
 
   // -------------------------------------------------------
@@ -74,10 +76,10 @@ export class AuthService {
         hashedPassword: passwordHash,
         name: name || null,
         provider: 'local',
+        providerId: normalizedEmail,
       },
     });
 
-    // Create Email Verification Token
     const token = randomBytes(32).toString('hex');
     const tokenHash = await this.hash(token);
     const expires = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 ชั่วโมง
@@ -140,7 +142,8 @@ export class AuthService {
     let payload: any;
 
     try {
-      payload = verify(refreshToken, process.env.JWT_SECRET);
+      const secret = process.env.JWT_REFRESH_SECRET!;
+      payload = verify(refreshToken, secret);
     } catch {
       throw new UnauthorizedException('Invalid refresh token');
     }
@@ -397,7 +400,7 @@ export class AuthService {
 
     if (!user.firebaseUid) {
       try {
-        const firebaseUid = String(user.id);
+        const  firebaseUid = String(user.id);
 
         await this.prisma.user.update({
           where: { id: user.id },
@@ -407,7 +410,7 @@ export class AuthService {
         user.firebaseUid = firebaseUid;
       } catch (err) {
         this.logger.error('Failed to set firebaseUid for Google user');
-        throw new Error('Failed to set firebaseUid');
+        throw new Error('Failed to set firebase�uid');
       }
     }
 
