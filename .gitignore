@@ -121,8 +121,11 @@ prisma/dev.db
 *.sqlite
 *.sqlite-journal
 
-# Keep migrations for production
+# Keep migrations for production (root prisma)
 !prisma/migrations/
+
+# Keep migrations for backend prisma (IMPORTANT)
+!backend/prisma/migrations/
 
 # ============================================================
 # ============== Firebase / Secrets / Cloud Files =============
@@ -178,9 +181,9 @@ cert/
 secrets/
 certs/
 
-# ============================================================== 
-# ================= Production Secrets Protections ==============
-# ==============================================================
+# ============================================================ 
+# ================= Production Secrets Protections =============
+# ============================================================
 
 # Never track private SSH / deploy keys
 id_rsa
