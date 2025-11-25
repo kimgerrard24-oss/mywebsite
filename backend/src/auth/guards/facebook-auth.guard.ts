@@ -4,7 +4,12 @@ import { AuthGuard } from '@nestjs/passport';
 @Injectable()
 export class FacebookAuthGuard extends AuthGuard('facebook') {
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const result = (await super.canActivate(context)) as boolean;
-    return result;
+    const result = await super.canActivate(context);
+
+    // ensure request hooks (Passport) run
+    const request = context.switchToHttp().getRequest();
+    await super.logIn(request);
+
+    return result as boolean;
   }
 }

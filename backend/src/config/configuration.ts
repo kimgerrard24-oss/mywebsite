@@ -5,7 +5,7 @@
 export default () => {
   const nodeEnv = process.env.NODE_ENV || 'development';
 
-  const jwtSecret = process.env.JWT_SECRET || ''; // keep as string; production should provide this
+  const jwtSecret = process.env.JWT_SECRET || '';
   const jwtExpirySeconds = 60 * 60 * 24 * 7; // 7 days
 
   const sessionCookieName = process.env.SESSION_COOKIE_NAME || 'session';
@@ -15,22 +15,17 @@ export default () => {
       : 432000000,
   );
 
-  // Use a sensible default domain for production so cookies set by backend
-  // are valid across phlyphant.com and api.phlyphant.com when COOKIE_DOMAIN
-  // is not explicitly provided.
   const cookieDomain =
     (process.env.COOKIE_DOMAIN && String(process.env.COOKIE_DOMAIN).trim()) ||
     (process.env.NODE_ENV === 'production' ? '.phlyphant.com' : '');
 
-  // For redirect/callback we prefer explicit CALLBACK over REDIRECT env var if present,
-  // then fallback to the other var, then to empty string so downstream code sees a string.
   const googleCallbackUrl =
     process.env.GOOGLE_CALLBACK_URL ||
     process.env.GOOGLE_REDIRECT_URL ||
     process.env.GOOGLE_REDIRECT_URI ||
     '';
 
-  const googleRedirectUrl = googleCallbackUrl; // keep both fields present; they reference the same canonical value
+  const googleRedirectUrl = googleCallbackUrl;
 
   const facebookCallbackUrl =
     process.env.FACEBOOK_CALLBACK_URL ||
@@ -49,12 +44,11 @@ export default () => {
     google: {
       clientId: String(process.env.GOOGLE_CLIENT_ID || ''),
       clientSecret: String(process.env.GOOGLE_CLIENT_SECRET || ''),
-      // keep both fields present and as strings (downstream code can use either)
       redirectUrl: String(googleRedirectUrl),
       callbackUrl: String(googleCallbackUrl),
       providerRedirectAfterLogin: String(
         process.env.GOOGLE_PROVIDER_REDIRECT_AFTER_LOGIN ||
-          'https://phlyphant.com',
+          'https://www.phlyphant.com'
       ),
     },
     facebook: {
@@ -64,7 +58,7 @@ export default () => {
       callbackUrl: String(facebookCallbackUrl),
       providerRedirectAfterLogin: String(
         process.env.FACEBOOK_PROVIDER_REDIRECT_AFTER_LOGIN ||
-          'https://phlyphant.com',
+          'https://www.phlyphant.com'
       ),
     },
     firebaseBase64: String(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64 || ''),

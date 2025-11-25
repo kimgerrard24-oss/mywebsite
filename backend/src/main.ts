@@ -42,6 +42,31 @@ function createRedisClient(): IORedis {
   return new IORedis(redisUrl, { maxRetriesPerRequest: 5 });
 }
 
+/**
+ * Small helper: canonicalize a provider redirect origin.
+ * - If the value includes a path like '/auth/complete', strip path and keep origin.
+ * - If the value is empty, return ''.
+ *
+ * This is defensive logging/normalization only — we do not mutate env or secrets.
+ */
+function normalizeToOrigin(raw: string | undefined): string {
+  if (!raw) return '';
+  try {
+    const trimmed = raw.trim();
+    // If it's a plain origin (no path), URL constructor will still work.
+    const u = new URL(trimmed);
+    // return origin (protocol + host + port)
+    return u.origin;
+  } catch {
+    // If not a valid full URL, attempt simple heuristics:
+    // remove any trailing '/auth/complete' or trailing slash
+    let s = String(raw).trim();
+    s = s.replace(/\/auth\/?complete\/?$/i, '');
+    s = s.replace(/\/+$/g, '');
+    return s;
+  }
+}
+
 async function bootstrap(): Promise<void> {
   const nestApp = await NestFactory.create(AppModule, { cors: false });
   const expressApp = nestApp.getHttpAdapter().getInstance() as Express;
@@ -89,6 +114,38 @@ async function bootstrap(): Promise<void> {
       optionsSuccessStatus: 204,
     }),
   );
+
+  // Add a small startup log that outputs important env values (non-secret)
+  try {
+    const googleProviderRedirect = process.env.GOOGLE_PROVIDER_REDIRECT_AFTER_LOGIN || '';
+    const facebookProviderRedirect = process.env.FACEBOOK_PROVIDER_REDIRECT_AFTER_LOGIN || '';
+    const cookieDomain = process.env.COOKIE_DOMAIN || '';
+    const sessionCookieName = process.env.SESSION_COOKIE_NAME || 'session';
+
+    const normalizedGoogleOrigin = normalizeToOrigin(googleProviderRedirect);
+    const normalizedFacebookOrigin = normalizeToOrigin(facebookProviderRedirect);
+
+    logger.log(`Startup check: COOKIE_DOMAIN=${cookieDomain || '<not set>'}`);
+    logger.log(`Startup check: SESSION_COOKIE_NAME=${sessionCookieName}`);
+    logger.log(`Startup check: GOOGLE_PROVIDER_REDIRECT_AFTER_LOGIN (raw)=${googleProviderRedirect ? '<set>' : '<not set>'}`);
+    if (googleProviderRedirect) {
+      logger.log(`Startup check: GOOGLE_PROVIDER_REDIRECT_AFTER_LOGIN (origin)=${normalizedGoogleOrigin || '<invalid URL>'}`);
+    }
+    logger.log(`Startup check: FACEBOOK_PROVIDER_REDIRECT_AFTER_LOGIN (raw)=${facebookProviderRedirect ? '<set>' : '<not set>'}`);
+    if (facebookProviderRedirect) {
+      logger.log(`Startup check: FACEBOOK_PROVIDER_REDIRECT_AFTER_LOGIN (origin)=${normalizedFacebookOrigin || '<invalid URL>'}`);
+    }
+
+    // Warn if provider redirect contains '/auth/complete' — common cause of duplicate path
+    if (/(\/auth\/?complete)/i.test(googleProviderRedirect)) {
+      logger.warn('GOOGLE_PROVIDER_REDIRECT_AFTER_LOGIN contains path like /auth/complete — this may cause duplicated /auth/complete in redirects. Prefer an origin like https://www.phlyphant.com');
+    }
+    if (/(\/auth\/?complete)/i.test(facebookProviderRedirect)) {
+      logger.warn('FACEBOOK_PROVIDER_REDIRECT_AFTER_LOGIN contains path like /auth/complete — this may cause duplicated /auth/complete in redirects. Prefer an origin like https://www.phlyphant.com');
+    }
+  } catch (e) {
+    logger.warn('Startup env check failed: ' + String(e));
+  }
 
   nestApp.useGlobalPipes(
     new ValidationPipe({

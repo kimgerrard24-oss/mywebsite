@@ -29,6 +29,23 @@ function normalizeRedirectUri(raw: string): string {
   return s;
 }
 
+function buildFinalUrl(redirectBase: string | undefined, customToken: string) : string {
+  const targetPath = '/auth/complete';
+  let base = (redirectBase && redirectBase.trim()) || 'https://www.phlyphant.com';
+  // remove trailing slash(es)
+  base = base.replace(/\/+$/g, '');
+  // if base already ends with targetPath -> attach query only
+  if (base.endsWith(targetPath)) {
+    return `${base}?customToken=${encodeURIComponent(customToken)}`;
+  }
+  // if base already contains the targetPath anywhere -> attach query to that base
+  if (base.includes(targetPath)) {
+    return `${base}?customToken=${encodeURIComponent(customToken)}`;
+  }
+  // otherwise append targetPath
+  return `${base}${targetPath}?customToken=${encodeURIComponent(customToken)}`;
+}
+
 @Controller('auth')
 export class AuthController {
   private readonly logger = new Logger(AuthController.name);
@@ -163,10 +180,7 @@ export class AuthController {
         process.env.GOOGLE_PROVIDER_REDIRECT_AFTER_LOGIN ||
         'https://www.phlyphant.com';
 
-      const finalUrl =
-        `${redirectBase}/auth/complete?customToken=${encodeURIComponent(
-          customToken,
-        )}`;
+      const finalUrl = buildFinalUrl(redirectBase, customToken);
 
       this.logger.log(`[googleCallback] redirect=${finalUrl}`);
       return res.redirect(finalUrl);
@@ -303,10 +317,7 @@ export class AuthController {
         process.env.FACEBOOK_PROVIDER_REDIRECT_AFTER_LOGIN ||
         'https://www.phlyphant.com';
 
-      const finalUrl =
-        `${redirectBase}/auth/complete?customToken=${encodeURIComponent(
-          customToken,
-        )}`;
+      const finalUrl = buildFinalUrl(redirectBase, customToken);
 
       this.logger.log(`[facebookCallback] redirect=${finalUrl}`);
       return res.redirect(finalUrl);

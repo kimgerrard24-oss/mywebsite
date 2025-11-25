@@ -1,7 +1,12 @@
 // ==============================
 // file: src/lib/firebase.ts
 // ==============================
-import { initializeApp, getApps, getApp, type FirebaseApp } from "firebase/app";
+import {
+  initializeApp,
+  getApps,
+  getApp,
+  type FirebaseApp,
+} from "firebase/app";
 import { getAuth, type Auth } from "firebase/auth";
 
 type FirebaseConfig = {
@@ -22,13 +27,21 @@ const firebaseConfig: FirebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID ?? "",
 };
 
-// Warn missing keys only on client
+// warn on client only
 if (typeof window !== "undefined") {
-  const required: Array<keyof FirebaseConfig> = ["apiKey", "authDomain", "projectId", "appId"];
+  const required: Array<keyof FirebaseConfig> = [
+    "apiKey",
+    "authDomain",
+    "projectId",
+    "appId",
+  ];
+
   for (const k of required) {
     if (!firebaseConfig[k]) {
       console.error(
-        `Firebase client config missing: NEXT_PUBLIC_FIREBASE_${String(k).toUpperCase()}`
+        `Firebase client config missing: NEXT_PUBLIC_FIREBASE_${String(
+          k
+        ).toUpperCase()}`
       );
     }
   }
@@ -38,33 +51,40 @@ function createFirebaseApp(): FirebaseApp | null {
   if (typeof window === "undefined") return null;
 
   try {
-    // FIXED: safer initialization for Next.js 14–16
     if (getApps().length > 0) {
       return getApp();
-    } else {
-      if (!firebaseConfig.apiKey || !firebaseConfig.projectId || !firebaseConfig.appId) {
-        console.error(
-          "Firebase initialization aborted: missing required NEXT_PUBLIC_FIREBASE_* values"
-        );
-        return null;
-      }
-      return initializeApp(firebaseConfig as any);
     }
+
+    if (
+      !firebaseConfig.apiKey ||
+      !firebaseConfig.projectId ||
+      !firebaseConfig.appId
+    ) {
+      console.error(
+        "Firebase initialization aborted: missing required NEXT_PUBLIC_FIREBASE_* values"
+      );
+      return null;
+    }
+
+    return initializeApp(firebaseConfig as any);
   } catch (err) {
     console.error("Firebase initialization error:", err);
     return null;
   }
 }
 
-let _firebaseApp: FirebaseApp | null | undefined = undefined;
+// FIXED: clear initialization logic
+let firebaseApp: FirebaseApp | null = null;
 
 export function getFirebaseApp(): FirebaseApp | null {
   if (typeof window === "undefined") return null;
 
-  if (_firebaseApp === undefined) {
-    _firebaseApp = createFirebaseApp();
+  if (firebaseApp === null) {
+    const app = createFirebaseApp();
+    if (app) firebaseApp = app;
   }
-  return _firebaseApp ?? null;
+
+  return firebaseApp;
 }
 
 export function getFirebaseAuth(): Auth | null {
@@ -79,4 +99,5 @@ export function getFirebaseAuth(): Auth | null {
   }
 }
 
-export default getFirebaseApp();
+// IMPORTANT FIX – do NOT auto-export getFirebaseApp() result
+export default {};

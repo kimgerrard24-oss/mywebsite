@@ -1,11 +1,19 @@
-// src/db.ts
+// ==============================
+// file: src/db.ts
+// ==============================
+
 import { PrismaClient } from '@prisma/client';
 
+// Detect environment
 const isProduction = process.env.NODE_ENV === 'production';
 
-// In development mode, use global singleton to prevent multiple instances during hot reload.
-// In production (Docker), always create a fresh PrismaClient instance.
+// Use global singleton only in development
 const globalForPrisma = global as unknown as { prisma?: PrismaClient };
+
+// Safety: production must have DATABASE_URL
+if (!process.env.DATABASE_URL || process.env.DATABASE_URL.trim() === '') {
+  throw new Error('DATABASE_URL missing in environment variables');
+}
 
 export const prisma =
   isProduction
@@ -13,7 +21,6 @@ export const prisma =
         log: ['error', 'warn'],
         datasources: {
           db: {
-            // Must match backend/.env.production
             url: process.env.DATABASE_URL,
           },
         },

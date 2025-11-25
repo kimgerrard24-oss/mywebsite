@@ -1,7 +1,6 @@
 // frontend/pages/login.tsx
 import React from 'react';
 import { useRouter } from 'next/router';
-import Cookies from 'js-cookie';
 
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE ||
@@ -12,22 +11,9 @@ export default function LoginPage() {
   const router = useRouter();
 
   function startOAuth(provider: 'google' | 'facebook') {
-    const origin =
-      typeof window !== 'undefined' ? window.location.origin : '';
-
-    const state = window.crypto.randomUUID();
-
-    Cookies.set('oauth_state', state, {
-      secure: true,
-      sameSite: 'none',
-      path: '/',
-      domain: '.phlyphant.com',
-    });
-
-    const url = `${API_BASE}/auth/${provider}?origin=${encodeURIComponent(
-      origin,
-    )}&state=${encodeURIComponent(state)}`;
-
+    // frontend ไม่สร้าง state / ไม่สร้าง cookie อีกแล้ว
+    // ให้ backend จัดการทุกอย่างเพียงผู้เดียว
+    const url = `${API_BASE}/auth/${provider}`;
     window.location.href = url;
   }
 

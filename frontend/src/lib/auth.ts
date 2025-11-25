@@ -8,8 +8,11 @@ import { sessionCheckServerSide } from './api';
 
 export async function validateSessionOnServer(cookieHeader?: string) {
   try {
-    // FIX: ensure cookie header is correctly cased for all environments
-    const headerValue = cookieHeader || undefined;
+    // FIX #1 — normalize cookie header safely
+    const headerValue =
+      typeof cookieHeader === 'string' && cookieHeader.trim().length > 0
+        ? cookieHeader
+        : '';
 
     const result = await sessionCheckServerSide(headerValue);
 
@@ -19,14 +22,13 @@ export async function validateSessionOnServer(cookieHeader?: string) {
 
     const data = result as Record<string, any>;
 
-    // Normalize backend response correctly
-    const valid =
-      data.valid === true ||
-      data.sessionCookie === true ||
-      data.user != null ||
-      data.uid != null;
+    // ================================================
+    // FIX #2 — Use ONLY backend truth:
+    // valid = backend.valid === true
+    // ================================================
+    const valid = data.valid === true;
 
-    // Do NOT spread backend "valid" again
+    // Prevent leaking backend.valid field again
     const { valid: _ignored, ...rest } = data;
 
     return {

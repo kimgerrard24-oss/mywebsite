@@ -35,21 +35,25 @@ API.interceptors.request.use((cfg: InternalAxiosRequestConfig) => {
   cfg.headers["Pragma"] = "no-cache";
   cfg.headers["Expires"] = "0";
 
-  // -------------------------------------------------------
-  // FIX (only fix needed):
-  // Force cookies to be included for all axios requests
-  // -------------------------------------------------------
+  // FIX: force cookies for all requests
   cfg.withCredentials = true;
 
   return cfg;
 });
 
 // -------------------------------------------------------
-// Safe path normalization
+// Path Normalization (SAFE, preserves query strings)
 // -------------------------------------------------------
 function normalizePath(path: string): string {
   if (!path) return "/";
-  return `/${path.replace(/^\/+/, "")}`;
+
+  // Keep query string intact
+  const [pathname, query] = path.split("?", 2);
+
+  // Normalize only pathname
+  const clean = "/" + pathname.replace(/^\/+/, "");
+
+  return query ? `${clean}?${query}` : clean;
 }
 
 // -------------------------------------------------------

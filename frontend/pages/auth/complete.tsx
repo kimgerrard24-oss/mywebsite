@@ -38,9 +38,7 @@ export default function AuthCompletePage() {
           return;
         }
 
-        // ---------------------------------------------
         // STEP 1 — Sign in with Firebase
-        // ---------------------------------------------
         setStatus("FIREBASE_LOGIN");
         setMessage("กำลังเข้าสู่ระบบด้วย Firebase...");
 
@@ -55,23 +53,20 @@ export default function AuthCompletePage() {
           return;
         }
 
+        // ⇨ FIX: ต้องใช้ idToken ไม่ใช่ customToken
         const idToken = await user.getIdToken(true);
 
-        // ---------------------------------------------
-        // STEP 2 — Send customToken to backend → Create session cookie
-        // ---------------------------------------------
+        // STEP 2 — Send idToken to backend → Create session cookie
         setStatus("SETTING_SESSION");
         setMessage("กำลังสร้าง session cookie...");
 
         await axios.post(
           `${API_BASE}/auth/complete`,
-          { customToken },
+          { idToken },
           { withCredentials: true }
         );
 
-        // ---------------------------------------------
         // STEP 3 — Verify session cookie
-        // ---------------------------------------------
         const verify = await axios.get(`${API_BASE}/auth/session-check`, {
           withCredentials: true,
         });

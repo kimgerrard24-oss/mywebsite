@@ -16,6 +16,7 @@ export default function HomePage() {
     e.preventDefault();
 
     try {
+      // Backend ยังไม่มี route นี้ แต่คงไว้ตามเดิม
       await fetch(`${backend}/auth/login`, {
         method: "POST",
         credentials: "include",
@@ -30,17 +31,9 @@ export default function HomePage() {
     }
   };
 
-  // ==========================================
-  // FIXED: OAuth start (no manual state generation)
-  // ==========================================
+  // OAuth start (cleaned)
   const startOAuth = (provider: "google" | "facebook") => {
-    const origin =
-      typeof window !== "undefined" ? window.location.origin : "";
-
-    const url = `${backend}/auth/${provider}?origin=${encodeURIComponent(
-      origin
-    )}`;
-
+    const url = `${backend}/auth/${provider}`;
     window.location.href = url;
   };
 

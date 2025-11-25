@@ -1,7 +1,6 @@
 // frontend/lib/api.ts
 // Small API wrapper for auth endpoints. Uses credentials: 'include' to forward cookies.
 
-// Use only actual production ENV variables
 const API_BASE =
   process.env.NEXT_PUBLIC_BACKEND_URL ??
   process.env.NEXT_PUBLIC_API_BASE ??
@@ -42,10 +41,10 @@ async function jsonFetch<T>(
 }
 
 // ==================================================
-// FIX #1: correct backend session cookie endpoint
+// FIXED: correct backend endpoint (/auth/complete)
 // ==================================================
 export async function createSessionCookie(idToken: string) {
-  return jsonFetch<{ ok: true }>(`${API_BASE}/auth/create_session`, {
+  return jsonFetch<{ ok: true }>(`${API_BASE}/auth/complete`, {
     method: "POST",
     body: JSON.stringify({ idToken }),
   });
@@ -56,7 +55,7 @@ export async function logout(): Promise<{ ok: true } | void> {
 }
 
 // ==================================================
-// FIX #2: Correct + minimal session check logic
+// Session check — works correctly with backend shape
 // ==================================================
 export async function sessionCheckServerSide(
   cookieHeader?: string
@@ -78,8 +77,6 @@ export async function sessionCheckServerSide(
 
   try {
     const data = (await res.json()) as Record<string, any>;
-
-    // backend truth
     const valid = data.valid === true;
 
     return {
@@ -91,9 +88,6 @@ export async function sessionCheckServerSide(
   }
 }
 
-// ==================================================
-// FIX #3: Correct minimal client-side validator
-// ==================================================
 export async function sessionCheckClient(): Promise<{
   valid: boolean;
   user?: any;

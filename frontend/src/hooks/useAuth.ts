@@ -28,18 +28,13 @@ export function useAuth() {
         if (!mounted) return;
 
         const data = res.data || {};
-
-        // ======================================
-        // FIX #1 — ใช้ backend key ที่ถูกต้อง
-        // ======================================
         const valid = data.valid === true;
 
         if (valid) {
-          // ======================================
-          // FIX #2 — อ่านข้อมูลจาก backend โดยตรง
-          // ======================================
-          const email = data.email || null;
-          const uid = data.uid || null;
+          // FIXED: Read values from decoded (Firebase session cookie payload)
+          const decoded = data.decoded || {};
+          const email = decoded.email || null;
+          const uid = decoded.user_id || null;
 
           setUser({
             id: uid ? String(uid) : undefined,

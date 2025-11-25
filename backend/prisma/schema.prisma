@@ -12,14 +12,13 @@ model User {
   id          String   @id @default(uuid())
   email       String   @unique
   name        String?
-  provider    String // google, facebook
-  providerId  String // OAuth provider ID
-  firebaseUid String?  @unique
+  provider    String
+  providerId  String
+  firebaseUid String   @unique
   avatarUrl   String?
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
-  // Relations
   sessions      Session[]
   activities    UserActivity[]
   oauthAccounts OAuthAccount[]
@@ -41,7 +40,7 @@ model Session {
 model UserActivity {
   id        String   @id @default(uuid())
   userId    String
-  action    String // LOGIN, LOGOUT, UPDATE_PROFILE, CREATE_POST, etc.
+  action    String
   detail    String?
   ipAddress String?
   userAgent String?
@@ -53,7 +52,7 @@ model UserActivity {
 model OAuthAccount {
   id           String    @id @default(uuid())
   userId       String
-  provider     String // google, facebook
+  provider     String
   providerId   String
   accessToken  String?
   refreshToken String?

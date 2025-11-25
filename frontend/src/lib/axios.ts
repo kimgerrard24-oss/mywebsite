@@ -4,22 +4,22 @@
 
 import axios from "axios";
 
-// Production API base resolution
-// Priority (corrected):
-// 1) NEXT_PUBLIC_BACKEND_URL
-// 2) NEXT_PUBLIC_API_BASE
-// 3) Default: https://api.phlyphant.com
-const API_BASE =
+// Production API base resolution (correct priority)
+const rawBase =
   process.env.NEXT_PUBLIC_BACKEND_URL ||
   process.env.NEXT_PUBLIC_API_BASE ||
   "https://api.phlyphant.com";
 
-// Axios instance configured for Production
+// normalize: always ensure base URL has no trailing slash
+const API_BASE = rawBase.replace(/\/+$/, "");
+
+// Create axios instance
 const instance = axios.create({
   baseURL: API_BASE,
   withCredentials: true,
   headers: {
     "Content-Type": "application/json",
+    Accept: "application/json",
     "Cache-Control": "no-store",
     Pragma: "no-cache",
     Expires: "0",
@@ -27,11 +27,22 @@ const instance = axios.create({
   timeout: 10000,
 });
 
-// Enforce no-cache rule on all outbound requests
+// -----------------------------------------------------
+// FIX #1 — Enforce withCredentials = true on every call
+// -----------------------------------------------------
 instance.interceptors.request.use((config) => {
+  config.withCredentials = true; // critical fix
+
+  // no-cache enforced
   config.headers["Cache-Control"] = "no-store";
   config.headers["Pragma"] = "no-cache";
   config.headers["Expires"] = "0";
+
+  // enforce Accept header
+  if (!config.headers["Accept"]) {
+    config.headers["Accept"] = "application/json";
+  }
+
   return config;
 });
 

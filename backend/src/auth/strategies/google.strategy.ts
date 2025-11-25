@@ -43,13 +43,19 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       (req as any).resolvedOrigin = requestedOrigin;
     }
 
+    // ===============================================
+    // FIX: Google Profile ID mapping
+    // ===============================================
+    const providerId =
+      profile.id || (profile._json as any)?.sub;
+
     const email =
       profile.emails?.[0]?.value ||
-      `${profile.id}@google-oauth.phlyphant.local`;
+      `${providerId}@google-oauth.phlyphant.local`;
 
     const user = await this.authService.validateGoogleUser({
       provider: 'google',
-      providerId: profile.id,
+      providerId,
       email,
       profile,
       accessToken,
@@ -60,7 +66,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       id: user.id,
       firebaseUid: String(user.firebaseUid),
       provider: 'google',
-      providerId: profile.id,
+      providerId,
       email: user.email,
       name: user.name,
       profile,

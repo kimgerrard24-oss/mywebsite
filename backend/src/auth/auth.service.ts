@@ -28,22 +28,14 @@ export class AuthService {
     private readonly secretsService: SecretsService,
   ) {}
 
-  // ==========================================
-  // Normalize redirect URIs
-  // ==========================================
   private normalizeRedirectUri(raw: string): string {
     if (!raw) return raw;
     let v = raw.trim();
-
     v = v.replace(/\?{2,}/g, '');
     v = v.replace(/([^:]\/)\/+/g, '$1');
-
     return v;
   }
 
-  // ==========================================
-  // GOOGLE CONFIG
-  // ==========================================
   async getGoogleConfig(): Promise<GoogleOAuthConfig> {
     const raw = await this.secretsService.getOAuthSecrets();
 
@@ -83,9 +75,6 @@ export class AuthService {
     return { clientId, clientSecret, redirectUri };
   }
 
-  // ==========================================
-  // FACEBOOK CONFIG
-  // ==========================================
   async getFacebookConfig(): Promise<FacebookOAuthConfig> {
     const raw = await this.secretsService.getOAuthSecrets();
 
@@ -125,15 +114,17 @@ export class AuthService {
   }
 
   // ==========================================
-  // GOOGLE — find or create
+  // GOOGLE — find or create (แก้ providerId เป็น profile.sub)
   // ==========================================
   async findOrCreateUserFromGoogle(profile: any) {
     const email = profile.emails?.[0]?.value || null;
 
+    const providerId = profile.sub || profile.id;
+
     let user = await this.prisma.user.findFirst({
       where: {
         OR: [
-          { provider: 'google', providerId: profile.id },
+          { provider: 'google', providerId },
           { email },
         ],
       },
@@ -142,10 +133,10 @@ export class AuthService {
     if (!user) {
       user = await this.prisma.user.create({
         data: {
-          email: email ?? `no-email-google-${profile.id}@placeholder.local`,
+          email: email ?? `no-email-google-${providerId}@placeholder.local`,
           name: profile.displayName ?? null,
           provider: 'google',
-          providerId: profile.id,
+          providerId,
         },
       });
     }
@@ -169,9 +160,6 @@ export class AuthService {
     return user;
   }
 
-  // ==========================================
-  // FACEBOOK — find or create
-  // ==========================================
   async findOrCreateUserFromFacebook(profile: any) {
     const email =
       profile.emails?.[0]?.value ||
@@ -217,9 +205,6 @@ export class AuthService {
     return user;
   }
 
-  // ==========================================
-  // ✔️ ฟังก์ชันใหม่ที่แก้ error 'string | null'
-  // ==========================================
   async getOrCreateOAuthUser(
     provider: 'facebook' | 'google',
     providerId: string,
@@ -227,7 +212,6 @@ export class AuthService {
     name?: string,
     picture?: string,
   ): Promise<string> {
-    // ป้องกัน null → Prisma ต้องเป็น string
     const safeEmail =
       email && email.trim().length > 0
         ? email
@@ -262,33 +246,14 @@ export class AuthService {
     return firebaseUid;
   }
 
-  // Google bridge
-  async validateGoogleUser(data: {
-    provider: string;
-    providerId: string;
-    email: string;
-    profile: any;
-    accessToken: string;
-    refreshToken: string;
-  }) {
+  async validateGoogleUser(data: any) {
     return this.findOrCreateUserFromGoogle(data.profile);
   }
 
-  // Facebook bridge
-  async validateFacebookUser(data: {
-    provider: string;
-    providerId: string;
-    email: string;
-    profile: any;
-    accessToken: string;
-    refreshToken: string;
-  }) {
+  async validateFacebookUser(data: any) {
     return this.findOrCreateUserFromFacebook(data.profile);
   }
 
-  // ==========================================
-  // FIREBASE WRAPPERS
-  // ==========================================
   createFirebaseCustomToken(uid: string, user: any) {
     if (!uid || typeof uid !== 'string') {
       throw new Error(`Invalid UID for Firebase custom token: "${uid}"`);
