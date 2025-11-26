@@ -47,9 +47,10 @@ if (typeof window !== "undefined") {
   }
 }
 
-function createFirebaseApp(): FirebaseApp {
+function createFirebaseApp(): FirebaseApp | null {
+  // FIX: do not throw error during SSR. Just return null.
   if (typeof window === "undefined") {
-    throw new Error("Firebase cannot be initialized on server");
+    return null;
   }
 
   if (getApps().length > 0) {
@@ -69,7 +70,7 @@ function createFirebaseApp(): FirebaseApp {
   return initializeApp(firebaseConfig as any);
 }
 
-// Strict, guaranteed instance
+// Strict instance holder
 let firebaseApp: FirebaseApp | null = null;
 
 export function getFirebaseApp(): FirebaseApp {
@@ -79,7 +80,11 @@ export function getFirebaseApp(): FirebaseApp {
 
   if (!firebaseApp) {
     firebaseApp = createFirebaseApp();
+    if (!firebaseApp) {
+      throw new Error("Firebase app instance failed to initialize");
+    }
   }
+
   return firebaseApp;
 }
 

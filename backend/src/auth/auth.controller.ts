@@ -246,6 +246,9 @@ export class AuthController {
         this.logger.warn(`[googleAuth] redis set failed: ${String(rErr)}`);
       }
 
+      // ensure credentials allowed if called via XHR/fetch
+      res.setHeader('Access-Control-Allow-Credentials', 'true');
+
       // set cookie for cross-subdomain usage
       res.cookie('oauth_state', state, {
         httpOnly: true,
@@ -255,6 +258,8 @@ export class AuthController {
         path: '/',
         maxAge: 5 * 60 * 1000,
       });
+
+      this.logger.log(`[googleAuth] set cookie oauth_state (domain=${cookieDomain} prod=${isProd})`);
 
       const clientId = process.env.GOOGLE_CLIENT_ID || '';
       const redirectUri = normalizeRedirectUri(
@@ -393,6 +398,9 @@ export class AuthController {
         this.logger.warn(`[facebookAuth] redis set failed: ${String(rErr)}`);
       }
 
+      // ensure credentials allowed if called via XHR/fetch
+      res.setHeader('Access-Control-Allow-Credentials', 'true');
+
       res.cookie('oauth_state', state, {
         httpOnly: true,
         secure: isProd,
@@ -401,6 +409,8 @@ export class AuthController {
         path: '/',
         maxAge: 5 * 60 * 1000,
       });
+
+      this.logger.log(`[facebookAuth] set cookie oauth_state (domain=${cookieDomain} prod=${isProd})`);
 
       const clientId = process.env.FACEBOOK_CLIENT_ID || '';
 
@@ -584,7 +594,7 @@ export class AuthController {
       const cookieOptions: any = {
         httpOnly: true,
         secure: isProd,
-        sameSite: 'none',
+        sameSite: 'None',
         domain: cookieDomain,
         path: '/',
         maxAge: expiresIn,
