@@ -545,4 +545,31 @@ export class AuthService {
   revoke(uid: string) {
     return this.firebase.auth().revokeRefreshTokens(uid);
   }
+
+  // ==========================================
+  // NEW: Normalize / decode OAuth state helper
+  // - Facebook may encode/escape state in different ways.
+  // - Call this before comparing state with Redis or cookie.
+  // ==========================================
+  normalizeOAuthState(raw?: string | null): string {
+    if (!raw) return '';
+    // Try decodeURIComponent safely (may throw if malformed)
+    let s = String(raw).trim();
+
+    try {
+      s = decodeURIComponent(s);
+    } catch {
+      // if decodeURIComponent fails, fall back to replace common encodings
+      s = s.replace(/\+/g, ' ');
+      s = s.replace(/%2B/gi, '+');
+      s = s.replace(/%3D/gi, '=');
+      s = s.replace(/%2F/gi, '/');
+    }
+
+    // final normalization: remove surrounding quotes, trim, collapse multiple slashes
+    s = s.replace(/^["']|["']$/g, '').trim();
+    s = s.replace(/([^:]\/)\/+/g, '$1');
+
+    return s;
+  }
 }
