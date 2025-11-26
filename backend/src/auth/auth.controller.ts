@@ -82,11 +82,7 @@ export class AuthController {
   private readonly logger = new Logger(AuthController.name);
 
   constructor(private readonly auth: AuthService) {}
-
-  // =====================================================================
-  // 🚀🚀🚀 START: LOCAL AUTH SECTION (เพิ่มตามคำสั่งเท่านั้น) 🚀🚀🚀
-  // =====================================================================
-
+  
   // -----------------------------
   // Local Register
   // -----------------------------
@@ -100,7 +96,6 @@ export class AuthController {
 
     return this.auth.registerLocal(email, password, name);
   }
-
   // -----------------------------
   // Local Login
   // -----------------------------
@@ -142,7 +137,6 @@ export class AuthController {
 
     return res.json({ ok: true, user });
   }
-
   // -----------------------------
   // Local Refresh Token
   // -----------------------------
@@ -180,7 +174,6 @@ export class AuthController {
 
     return res.json({ ok: true, user });
   }
-
   // -----------------------------
   // Local Logout
   // -----------------------------
@@ -193,7 +186,6 @@ export class AuthController {
 
     return res.json({ ok: true });
   }
-
   // -----------------------------
   // Local Request Password Reset
   // -----------------------------
@@ -207,7 +199,6 @@ export class AuthController {
 
     return this.auth.requestPasswordResetLocal(email);
   }
-
   // -----------------------------
   // Local Reset Password
   // -----------------------------
@@ -221,7 +212,6 @@ export class AuthController {
 
     return this.auth.resetPasswordLocal(uid, token, newPassword);
   }
-
   // -----------------------------
   // Local Verify Email
   // -----------------------------
@@ -236,15 +226,6 @@ export class AuthController {
 
     return this.auth.verifyEmailLocal(uid, token);
   }
-
-  // =====================================================================
-  // 🚀🚀🚀 END: LOCAL AUTH SECTION 🚀🚀🚀
-  // =====================================================================
-
-  // ---------------------------------------------------------------------
-  // ❤ ทุกอย่างด้านล่างคือโค้ดเดิมของคุณ (ไม่แตะ, ไม่แก้ไข) - แต่มีการปรับเฉพาะส่วน state/cookie/logging/redirect fallbacks
-  // ---------------------------------------------------------------------
-
   // =======================================
   // GOOGLE OAuth Start
   // =======================================
