@@ -37,7 +37,7 @@ export default withSentryConfig(nextConfig, {
 
   widenClientFileUpload: true,
 
-  // ❌ ไม่ควรใช้บน Linode + Docker
+
   automaticVercelMonitors: false,
 
   disableLogger: true,

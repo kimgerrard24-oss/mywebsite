@@ -19,6 +19,7 @@ pnpm-debug.log*
 .env.production.local
 .env*.backup
 *.env.bak
+.env.production
 
 # Prisma env (allow define in repo)
 prisma/.env
@@ -112,6 +113,8 @@ docker-compose.override.yml
 Dockerfile.local
 **/.dockerignore-backup
 **/docker-cache/
+docker-compose.yml
+docker-compose.dev-db.yml
 
 # ============================================================
 # ================= Prisma / Database Files ===================
@@ -120,6 +123,8 @@ Dockerfile.local
 prisma/dev.db
 *.sqlite
 *.sqlite-journal
+prisma/schema.prisma
+prisma/migrations/**
 
 # Keep migrations for production (root prisma)
 !prisma/migrations/
@@ -171,7 +176,7 @@ monitoring/grafana/plugins/
 monitoring/grafana/log/
 monitoring/grafana/grafana.ini
 monitoring/grafana/grafana.db
-
+monitoring/docker-compose.yml
 # ============================================================
 # =================== SSL / Certificates ======================
 # ============================================================
@@ -213,3 +218,12 @@ uploads_tmp/
 # Temp build for CI/CD
 infra/tmp/
 infra/deploy-temp/
+
+google-oauth-client.json
+
+sentry.edge.config.ts
+sentry.server.config.ts
+
+!caddy/Caddyfile
+
+postgres-data

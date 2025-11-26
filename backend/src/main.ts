@@ -30,11 +30,11 @@ import cookieParser from 'cookie-parser';
 import { FirebaseAdminService } from './firebase/firebase.service';
 
 import type { Request, Response } from 'express';
-
-// ------------------------
-// rate limiter
-// ------------------------
 import rateLimit from 'express-rate-limit';
+import { FirebaseAuthGuard } from './auth/firebase-auth.guard';
+import { Reflector } from '@nestjs/core';
+import { APP_GUARD } from '@nestjs/core';
+
 
 const logger = new Logger('bootstrap');
 

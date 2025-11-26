@@ -49,3 +49,5 @@ firebase-service-account.json
 # Local cache
 .cache/
 .cache-loader/
+
+w
