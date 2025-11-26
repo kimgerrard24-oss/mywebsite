@@ -30,6 +30,32 @@ function normalizeRedirectUri(raw: string): string {
   return s;
 }
 
+function normalizeOAuthState(raw?: string | null): string {
+  if (!raw) return '';
+  let s = String(raw).trim();
+
+  // Try decoding once (safe)
+  try {
+    s = decodeURIComponent(s);
+  } catch {
+    // ignore decode errors
+  }
+
+  // Normalize common encodings and artifacts
+  s = s.replace(/\+/g, ' ');
+  s = s.replace(/%2B/gi, '+');
+  s = s.replace(/%3D/gi, '=');
+  s = s.replace(/%2F/gi, '/');
+
+  // Remove surrounding quotes if present
+  s = s.replace(/^["']|["']$/g, '').trim();
+
+  // Collapse duplicate slashes (keep protocol safe)
+  s = s.replace(/([^:]\/)\/+/g, '$1');
+
+  return s;
+}
+
 function buildFinalUrl(
   redirectBase: string | undefined,
   customToken: string,
@@ -200,7 +226,10 @@ export class AuthController {
   // Local Verify Email
   // -----------------------------
   @Get('local/verify-email')
-  async localVerifyEmail(@Query('uid') uid: string, @Query('token') token: string) {
+  async localVerifyEmail(
+    @Query('uid') uid: string,
+    @Query('token') token: string,
+  ) {
     if (!uid || !token) {
       return { error: 'Missing uid or token' };
     }
@@ -211,8 +240,6 @@ export class AuthController {
   // =====================================================================
   // 🚀🚀🚀 END: LOCAL AUTH SECTION 🚀🚀🚀
   // =====================================================================
-
-
 
   // ---------------------------------------------------------------------
   // ❤ ทุกอย่างด้านล่างคือโค้ดเดิมของคุณ (ไม่แตะ, ไม่แก้ไข) - แต่มีการปรับเฉพาะส่วน state/cookie/logging/redirect fallbacks
@@ -250,9 +277,7 @@ export class AuthController {
 
       const clientId = process.env.GOOGLE_CLIENT_ID || '';
       const redirectUri = normalizeRedirectUri(
-        process.env.GOOGLE_CALLBACK_URL ||
-          process.env.GOOGLE_REDIRECT_URL ||
-          '',
+        process.env.GOOGLE_CALLBACK_URL || process.env.GOOGLE_REDIRECT_URL || '',
       );
 
       const params = new URLSearchParams({
@@ -324,9 +349,7 @@ export class AuthController {
           client_id: process.env.GOOGLE_CLIENT_ID || '',
           client_secret: process.env.GOOGLE_CLIENT_SECRET || '',
           redirect_uri: normalizeRedirectUri(
-            process.env.GOOGLE_CALLBACK_URL ||
-              process.env.GOOGLE_REDIRECT_URL ||
-              '',
+            process.env.GOOGLE_CALLBACK_URL || process.env.GOOGLE_REDIRECT_URL || '',
           ),
           grant_type: 'authorization_code',
         }).toString(),
@@ -403,7 +426,7 @@ export class AuthController {
       // fallback redirectUri if env missing - ensure production callback default
       const redirectUri = normalizeRedirectUri(
         process.env.FACEBOOK_CALLBACK_URL ||
-        `https://api.phlyphant.com/auth/facebook/callback`,
+          `https://api.phlyphant.com/auth/facebook/callback`,
       );
 
       const params = new URLSearchParams({
@@ -426,24 +449,32 @@ export class AuthController {
   }
 
   // =======================================
-  // FACEBOOK Callback
+  // FACEBOOK Callback (fixed state normalization)
   // =======================================
   @Get('facebook/callback')
   async facebookCallback(@Req() req: Request, @Res() res: Response) {
     try {
       const code = req.query.code as string;
-      const returnedState = req.query.state as string;
+      const returnedStateRaw = req.query.state as string;
 
-      if (!code || !returnedState) {
+      if (!code || !returnedStateRaw) {
         return res.status(400).send('Missing code or state');
       }
 
-      const storedStateCookie = req.cookies?.oauth_state || null;
-      const redisKey = `oauth_state_${returnedState}`;
+      // Normalize forms
+      const returnedState = normalizeOAuthState(returnedStateRaw);
+      const storedStateCookieRaw = req.cookies?.oauth_state || null;
+      const storedStateCookie = normalizeOAuthState(storedStateCookieRaw);
+
+      // Try redis with both raw and normalized variants
+      const redisKeyRaw = `oauth_state_${returnedStateRaw}`;
+      const redisKeyNorm = `oauth_state_${returnedState}`;
+
       let redisState: string | null = null;
 
       try {
-        redisState = await redis.get(redisKey);
+        redisState = await redis.get(redisKeyRaw);
+        if (!redisState) redisState = await redis.get(redisKeyNorm);
       } catch (rErr) {
         this.logger.warn(`[facebookCallback] redis get failed: ${String(rErr)}`);
       }
@@ -452,23 +483,34 @@ export class AuthController {
 
       if (redisState === '1') {
         validState = true;
+        // Attempt cleanup for both keys
         try {
-          await redis.del(redisKey);
-        } catch (dErr) {
-          this.logger.warn(`[facebookCallback] redis del failed: ${String(dErr)}`);
+          await redis.del(redisKeyRaw);
+        } catch {}
+        try {
+          await redis.del(redisKeyNorm);
+        } catch {}
+      }
+
+      // Cookie comparisons in multiple possible encodings/forms
+      if (!validState) {
+        if (storedStateCookieRaw && storedStateCookieRaw === returnedStateRaw) {
+          validState = true;
+        } else if (storedStateCookieRaw && storedStateCookieRaw === returnedState) {
+          validState = true;
+        } else if (storedStateCookie && storedStateCookie === returnedState) {
+          validState = true;
         }
-      } else if (storedStateCookie && storedStateCookie === returnedState) {
-        validState = true;
       }
 
       if (!validState) {
         this.logger.warn(
-          `[facebookCallback] state mismatch returned=${returnedState} cookie=${storedStateCookie} redis=${redisState}`,
+          `[facebookCallback] state mismatch returnedRaw=${returnedStateRaw} returnedNorm=${returnedState} cookieRaw=${storedStateCookieRaw} cookieNorm=${storedStateCookie} redis=${redisState}`,
         );
         return res.status(400).send('Invalid or expired state');
       }
 
-      // clear cookie with same options as set
+      // Clear cookie (same options used when setting)
       res.clearCookie('oauth_state', {
         domain: process.env.COOKIE_DOMAIN || '.phlyphant.com',
         path: '/',
@@ -498,15 +540,12 @@ export class AuthController {
 
       const accessToken = tokenRes.data.access_token;
 
-      const profileRes = await axios.get(
-        'https://graph.facebook.com/me',
-        {
-          params: {
-            access_token: accessToken,
-            fields: 'id,name,email,picture',
-          },
+      const profileRes = await axios.get('https://graph.facebook.com/me', {
+        params: {
+          access_token: accessToken,
+          fields: 'id,name,email,picture',
         },
-      );
+      });
 
       const profile = profileRes.data;
 
@@ -571,9 +610,7 @@ export class AuthController {
         expires: new Date(Date.now() + Number(expiresIn)),
       };
 
-      this.logger.log(
-        `[complete] cookieOptions=${JSON.stringify(cookieOptions)}`,
-      );
+      this.logger.log(`[complete] cookieOptions=${JSON.stringify(cookieOptions)}`);
 
       res.cookie(cookieName, sessionCookie, cookieOptions);
 
@@ -600,9 +637,7 @@ export class AuthController {
     }
 
     try {
-      const decoded = await admin
-        .auth()
-        .verifySessionCookie(cookie, true);
+      const decoded = await admin.auth().verifySessionCookie(cookie, true);
       return res.json({ valid: true, decoded });
     } catch (e: any) {
       this.logger.warn('[session-check] invalid session: ' + String(e));
