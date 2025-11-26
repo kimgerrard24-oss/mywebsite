@@ -1,5 +1,5 @@
 # ============================================================
-# =============== Node.js / Package Managers ==================
+# =============== Node.js / Package Managers =================
 # ============================================================
 node_modules/
 npm-debug.log*
@@ -21,7 +21,7 @@ pnpm-debug.log*
 *.env.bak
 .env.production
 
-# Prisma env (allow define in repo)
+# Allow prisma environment
 prisma/.env
 
 # ============================================================
@@ -117,19 +117,20 @@ Dockerfile.local
 # ============================================================
 # ================= Prisma / Database Files ===================
 # ============================================================
-# Local DB for development only
+# Ignore development DB files only
 prisma/dev.db
+backend/prisma/dev.db
 *.sqlite
 *.sqlite-journal
-prisma/schema.prisma
-prisma/migrations/**
 
-# Keep migrations for production (root prisma)
+# DO NOT ignore Prisma schema or migrations
+!prisma/
+!prisma/schema.prisma
 !prisma/migrations/
 
-# Unignore backend prisma and migrations
 !backend/
 !backend/prisma/
+!backend/prisma/schema.prisma
 !backend/prisma/migrations/
 
 # ============================================================
@@ -175,6 +176,7 @@ monitoring/grafana/log/
 monitoring/grafana/grafana.ini
 monitoring/grafana/grafana.db
 monitoring/docker-compose.yml
+
 # ============================================================
 # =================== SSL / Certificates ======================
 # ============================================================
@@ -187,33 +189,24 @@ secrets/
 certs/
 
 # ============================================================ 
-# ================= Production Secrets Protections =============
+# ================= Production Secrets Protections ============
 # ============================================================
-
-# Never track private SSH / deploy keys
 id_rsa
 id_rsa.pub
 *.pem
 *.ppk
-
-# Never track GitHub Actions secrets
 .github/workflows/secrets.local
 
 # ============================================================
 # ====================== Misc Exceptions ======================
 # ============================================================
-
-# Prevent committing extremely large files
 *.tgz
 *.tar
 *.zip
 *.gz
 
-# Prevent accidental uploads
 uploads/
 uploads_tmp/
-
-# Temp build for CI/CD
 infra/tmp/
 infra/deploy-temp/
 

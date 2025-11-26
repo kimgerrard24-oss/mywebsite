@@ -76,8 +76,9 @@ services:
       - phlyphant_network
 
     # ---------- FIX UNHEALTHY ----------
+    # เปลี่ยน healthcheck endpoint → /system-check (ของจริง)
     healthcheck:
-      test: ["CMD-SHELL", "curl -fsS http://localhost:4001/health/info || exit 1"]
+      test: ["CMD-SHELL", "curl -fsS http://localhost:4001/system-check || exit 1"]
       interval: 10s
       timeout: 5s
       retries: 8
@@ -89,7 +90,8 @@ services:
       - no-new-privileges:true
     cap_drop:
       - ALL
-    read_only: true
+
+    # IMPORTANT: ต้องเขียนไฟล์ชั่วคราว (Prisma engine, Firebase Admin)
     tmpfs:
       - /tmp:size=64m
 
