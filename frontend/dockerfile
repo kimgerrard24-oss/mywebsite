@@ -5,17 +5,13 @@ WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 
-# Copy only package files first
 COPY package*.json ./
 
-# Install dependencies with cache
 RUN --mount=type=cache,target=/root/.npm \
     npm ci
 
-# Copy project sources
 COPY . .
 
-# Build Next.js (Turbopack)
 RUN --mount=type=cache,target=/root/.npm \
     npm run build
 
@@ -28,7 +24,10 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 
-RUN apt-get update -y && apt-get install -y openssl
+# ADD: install curl (fix healthcheck)
+RUN apt-get update -y \
+    && apt-get install -y openssl curl \
+    && rm -rf /var/lib/apt/lists/*
 
 COPY package*.json ./
 COPY --from=build /app/node_modules ./node_modules

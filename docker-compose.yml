@@ -1,0 +1,154 @@
+x-logging: &default-logging
+  driver: "json-file"
+  options:
+    max-size: "50m"
+    max-file: "5"
+
+services:
+  # ============================================================
+  # Caddy - Reverse Proxy + HTTPS
+  # ============================================================
+  caddy:
+    image: caddy:2-alpine
+    container_name: phlyphant-caddy
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - phlyphant_network
+    logging: *default-logging
+
+  # ============================================================
+  # Frontend (Next.js)
+  # ============================================================
+  frontend:
+    image: ghcr.io/kimgerrard24-oss/mywebsite-frontend:latest
+    container_name: phlyphant-frontend
+    restart: unless-stopped
+    env_file:
+      - ./frontend/.env.production
+    ports:
+      - "3000:3000"
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m
+    cap_drop:
+      - ALL
+    depends_on:
+      - backend
+    networks:
+      - phlyphant_network
+
+    # ---------- FIX UNHEALTHY ----------
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:3000/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    # -----------------------------------
+
+    logging: *default-logging
+
+  # ============================================================
+  # Backend (NestJS)
+  # ============================================================
+  backend:
+    image: ghcr.io/kimgerrard24-oss/mywebsite-backend:latest
+    container_name: phlyphant-backend
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env.production
+    ports:
+      - "4001:4001"
+    depends_on:
+      - postgres
+      - redis
+    networks:
+      - phlyphant_network
+
+    # ---------- FIX UNHEALTHY ----------
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://localhost:4001/health/info || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 8
+      start_period: 10s
+    # -----------------------------------
+
+    logging: *default-logging
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m
+
+  # ============================================================
+  # PostgreSQL 18
+  # ============================================================
+  postgres:
+    image: postgres:18
+    container_name: phlyphant-postgres
+    restart: unless-stopped
+    env_file:
+      - ./backend/.env.production
+    ports:
+      - "5433:5432"
+    volumes:
+      - ./postgres-data:/var/lib/postgresql:rw
+    networks:
+      - phlyphant_network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB -h localhost -p 5432 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    logging: *default-logging
+
+  # ============================================================
+  # Redis
+  # ============================================================
+  redis:
+    image: redis:7-alpine
+    container_name: phlyphant-redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - phlyphant_network
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m
+    healthcheck:
+      test: ["CMD-SHELL", "redis-cli ping || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+    logging: *default-logging
+
+# ============================================================
+# Networks
+# ============================================================
+networks:
+  phlyphant_network:
+    driver: bridge
+
+# ============================================================
+# Volumes
+# ============================================================
+volumes:
+  postgres-data:
+  caddy_data:
+  caddy_config:
