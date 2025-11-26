@@ -122,8 +122,10 @@ jobs:
             set -e
 
             cd /var/www/phlyphant/mywebsite
-            git reset --hard
-            git pull origin main
+
+            # FIXED: safe production sync
+            git fetch --all
+            git reset --hard origin/main
 
             docker compose down
 
