@@ -215,7 +215,7 @@ export class AuthController {
 
 
   // ---------------------------------------------------------------------
-  // ❤ ทุกอย่างด้านล่างคือโค้ดเดิมของคุณ (ไม่แตะ, ไม่แก้ไข)
+  // ❤ ทุกอย่างด้านล่างคือโค้ดเดิมของคุณ (ไม่แตะ, ไม่แก้ไข) - แต่มีการปรับเฉพาะส่วน state/cookie/logging/redirect fallbacks
   // ---------------------------------------------------------------------
 
   // =======================================
@@ -224,16 +224,26 @@ export class AuthController {
   @Get('google')
   async googleAuth(@Req() req: Request, @Res() res: Response) {
     try {
+      const isProd = process.env.NODE_ENV === 'production';
+      const cookieDomain = process.env.COOKIE_DOMAIN || '.phlyphant.com';
+
       const state = crypto.randomBytes(16).toString('hex');
       const stateKey = `oauth_state_${state}`;
 
-      await redis.setex(stateKey, 300, '1');
+      // store in redis and log result
+      try {
+        await redis.setex(stateKey, 300, '1');
+        this.logger.log(`[googleAuth] set redis key ${stateKey}`);
+      } catch (rErr) {
+        this.logger.warn(`[googleAuth] redis set failed: ${String(rErr)}`);
+      }
 
+      // set cookie for cross-subdomain usage
       res.cookie('oauth_state', state, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: isProd,
         sameSite: 'none',
-        domain: process.env.COOKIE_DOMAIN || '.phlyphant.com',
+        domain: cookieDomain,
         path: '/',
         maxAge: 5 * 60 * 1000,
       });
@@ -298,9 +308,13 @@ export class AuthController {
         return res.status(400).send('Invalid or expired state');
       }
 
+      // clear cookie with same options
       res.clearCookie('oauth_state', {
         domain: process.env.COOKIE_DOMAIN || '.phlyphant.com',
         path: '/',
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'none',
       });
 
       const tokenRes = await axios.post(
@@ -362,22 +376,34 @@ export class AuthController {
   @Get('facebook')
   async facebookAuth(@Req() req: Request, @Res() res: Response) {
     try {
+      const isProd = process.env.NODE_ENV === 'production';
+      const cookieDomain = process.env.COOKIE_DOMAIN || '.phlyphant.com';
+
       const state = crypto.randomBytes(16).toString('hex');
       const stateKey = `oauth_state_${state}`;
-      await redis.setex(stateKey, 300, '1');
+
+      try {
+        await redis.setex(stateKey, 300, '1');
+        this.logger.log(`[facebookAuth] set redis key ${stateKey}`);
+      } catch (rErr) {
+        this.logger.warn(`[facebookAuth] redis set failed: ${String(rErr)}`);
+      }
 
       res.cookie('oauth_state', state, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
+        secure: isProd,
         sameSite: 'none',
-        domain: process.env.COOKIE_DOMAIN || '.phlyphant.com',
+        domain: cookieDomain,
         path: '/',
         maxAge: 5 * 60 * 1000,
       });
 
       const clientId = process.env.FACEBOOK_CLIENT_ID || '';
+
+      // fallback redirectUri if env missing - ensure production callback default
       const redirectUri = normalizeRedirectUri(
-        process.env.FACEBOOK_CALLBACK_URL || '',
+        process.env.FACEBOOK_CALLBACK_URL ||
+        `https://api.phlyphant.com/auth/facebook/callback`,
       );
 
       const params = new URLSearchParams({
@@ -414,30 +440,48 @@ export class AuthController {
 
       const storedStateCookie = req.cookies?.oauth_state || null;
       const redisKey = `oauth_state_${returnedState}`;
-      const redisState = await redis.get(redisKey);
+      let redisState: string | null = null;
+
+      try {
+        redisState = await redis.get(redisKey);
+      } catch (rErr) {
+        this.logger.warn(`[facebookCallback] redis get failed: ${String(rErr)}`);
+      }
 
       let validState = false;
 
       if (redisState === '1') {
         validState = true;
-        await redis.del(redisKey).catch(() => {});
+        try {
+          await redis.del(redisKey);
+        } catch (dErr) {
+          this.logger.warn(`[facebookCallback] redis del failed: ${String(dErr)}`);
+        }
       } else if (storedStateCookie && storedStateCookie === returnedState) {
         validState = true;
       }
 
       if (!validState) {
+        this.logger.warn(
+          `[facebookCallback] state mismatch returned=${returnedState} cookie=${storedStateCookie} redis=${redisState}`,
+        );
         return res.status(400).send('Invalid or expired state');
       }
 
+      // clear cookie with same options as set
       res.clearCookie('oauth_state', {
         domain: process.env.COOKIE_DOMAIN || '.phlyphant.com',
         path: '/',
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'none',
       });
 
       const clientId = process.env.FACEBOOK_CLIENT_ID || '';
       const clientSecret = process.env.FACEBOOK_CLIENT_SECRET || '';
       const redirectUri = normalizeRedirectUri(
-        process.env.FACEBOOK_CALLBACK_URL || '',
+        process.env.FACEBOOK_CALLBACK_URL ||
+          `https://api.phlyphant.com/auth/facebook/callback`,
       );
 
       const tokenRes = await axios.get(
