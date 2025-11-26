@@ -4,6 +4,7 @@
 import { Controller, Get, Inject, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SystemCheckService } from './system-check.service';
+import { Public } from '../auth/decorators/public.decorator';
 
 @Controller('system-check')
 export class SystemCheckController {
@@ -22,6 +23,8 @@ export class SystemCheckController {
    *
    * NOTE: Do not include secrets or sensitive values in this response.
    */
+
+  @Public()
   @Get()
   async checkAll() {
     // Primary status (internal checks)
@@ -38,7 +41,7 @@ export class SystemCheckController {
         .split(',')
         .map((s) => s.trim())
         .filter(Boolean),
-      
+
       // UPDATED: Show R2 endpoint instead of AWS region
       r2Endpoint: this.configService.get<string>('R2_ENDPOINT') || null,
     };
