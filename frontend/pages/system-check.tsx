@@ -14,7 +14,7 @@ interface ResultMap {
   postgres: Status;
   redis: Status;
   secrets: Status;
-  s3: Status;
+  r2: Status;        // UPDATED
   queue: Status;
   socket: Status;
 }
@@ -26,7 +26,7 @@ export default function SystemCheckPage() {
     postgres: "LOADING",
     redis: "LOADING",
     secrets: "LOADING",
-    s3: "LOADING",
+    r2: "LOADING",        // UPDATED
     queue: "LOADING",
     socket: "LOADING",
   });
@@ -49,7 +49,10 @@ export default function SystemCheckPage() {
           postgres: data.status.postgres ? "OK" : "ERROR",
           redis: data.status.redis ? "OK" : "ERROR",
           secrets: data.status.secrets ? "OK" : "ERROR",
-          s3: data.status.s3 ? "OK" : "ERROR",
+
+          // UPDATED: r2
+          r2: data.status.r2 ? "OK" : "ERROR",
+
           queue: data.status.queue ? "OK" : "ERROR",
         }));
       } catch {
@@ -59,7 +62,7 @@ export default function SystemCheckPage() {
           postgres: "ERROR",
           redis: "ERROR",
           secrets: "ERROR",
-          s3: "ERROR",
+          r2: "ERROR",
           queue: "ERROR",
         }));
       }
@@ -134,7 +137,10 @@ export default function SystemCheckPage() {
         {renderStatus("PostgreSQL", results.postgres)}
         {renderStatus("Redis", results.redis)}
         {renderStatus("Secrets Manager", results.secrets)}
-        {renderStatus("S3", results.s3)}
+
+        {/* UPDATED: R2 */}
+        {renderStatus("R2 Bucket", results.r2)}
+
         {renderStatus("Queue", results.queue)}
         {renderStatus("WebSocket", results.socket)}
       </div>

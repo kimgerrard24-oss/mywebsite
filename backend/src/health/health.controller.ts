@@ -34,9 +34,12 @@ export class HealthController {
     return this.health.secretsCheck();
   }
 
-  @Get('s3')
-  s3() {
-    return this.health.s3Check();
+  // ==========================================
+  // UPDATED: Use R2 instead of S3
+  // ==========================================
+  @Get('r2')
+  r2() {
+    return this.health.r2Check();
   }
 
   @Get('queue')
@@ -50,7 +53,7 @@ export class HealthController {
   }
 
   // ============================================================
-  // Added: OAuth/Firebase Login Environment Health Check
+  // OAuth/Firebase Login Environment Health Check
   // ============================================================
   @Get('oauth')
   oauthEnv() {
@@ -61,16 +64,20 @@ export class HealthController {
           clientId: process.env.GOOGLE_CLIENT_ID || null,
           redirectUrl: process.env.GOOGLE_REDIRECT_URL || null,
           callbackUrl: process.env.GOOGLE_CALLBACK_URL || null,
-          providerRedirect: process.env.GOOGLE_PROVIDER_REDIRECT_AFTER_LOGIN || null,
+          providerRedirect:
+            process.env.GOOGLE_PROVIDER_REDIRECT_AFTER_LOGIN || null,
         },
         facebook: {
           clientId: process.env.FACEBOOK_CLIENT_ID || null,
           redirectUrl: process.env.FACEBOOK_REDIRECT_URL || null,
           callbackUrl: process.env.FACEBOOK_CALLBACK_URL || null,
-          providerRedirect: process.env.FACEBOOK_PROVIDER_REDIRECT_AFTER_LOGIN || null,
+          providerRedirect:
+            process.env.FACEBOOK_PROVIDER_REDIRECT_AFTER_LOGIN || null,
         },
         firebase: {
-          serviceAccountBase64: Boolean(process.env.FIREBASE_SERVICE_ACCOUNT_BASE64),
+          serviceAccountBase64: Boolean(
+            process.env.FIREBASE_SERVICE_ACCOUNT_BASE64,
+          ),
         },
         jwt: {
           jwtSecretLoaded: Boolean(process.env.JWT_SECRET),

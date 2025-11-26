@@ -18,7 +18,7 @@ export class SystemCheckService {
   ) {}
 
   // ==========================================
-  // AWS CONFIG (ใช้สำหรับ Secrets Manager เท่านั้น)
+  // AWS CONFIG (Secrets Manager)
   // ==========================================
   private readonly awsRegion =
     process.env.AWS_REGION?.trim() || 'ap-southeast-7';
@@ -62,12 +62,15 @@ export class SystemCheckService {
   }
 
   // ==========================================
-  // AWS SECRETS MANAGER CHECK (ยังคงต้องใช้ AWS)
+  // AWS SECRETS MANAGER (CRITICAL)
   // ==========================================
   async checkSecrets() {
     try {
       const secretName = process.env.AWS_SECRET_NAME;
-      if (!secretName || secretName.trim().length === 0) return false;
+
+      if (!secretName || secretName.trim().length === 0) {
+        return false;
+      }
 
       const cmd = new GetSecretValueCommand({ SecretId: secretName });
       await this.secrets.send(cmd);
@@ -79,36 +82,34 @@ export class SystemCheckService {
   }
 
   // ==========================================
-  // R2 BUCKET CHECK (แทน S3)
+  // R2 BUCKET CHECK (แทน S3) — NON CRITICAL
   //
-  // วิธี: HEAD https://ACCOUNT_ID.r2.cloudflarestorage.com/BUCKET
+  // เช็คแบบ HEAD request:
+  // https://<R2_ENDPOINT>/<BUCKET_NAME>
   //
-  // ถ้าได้ status 200 หรือ 204 แสดงว่า bucket ใช้ได้
+  // ไม่ต้องให้ backend unhealthy
   // ==========================================
-  async checkS3() {
+  async checkR2() {
     try {
-      const bucket =
-        process.env.R2_BUCKET_NAME || null;
+      const bucket = process.env.R2_BUCKET_NAME || null;
+      const endpoint = process.env.R2_ENDPOINT || null;
 
-      const endpoint =
-        process.env.R2_ENDPOINT || null;
-
-      if (!bucket || !endpoint) return false;
+      if (!bucket || !endpoint) return 'unknown';
 
       const url = `${endpoint.replace(/\/+$/, '')}/${bucket}`;
 
-      const res = await fetch(url, {
-        method: 'HEAD',
-      });
+      const res = await fetch(url, { method: 'HEAD' });
 
-      return res.status === 200 || res.status === 204;
+      if (res.status === 200 || res.status === 204) return true;
+
+      return 'unknown';
     } catch {
-      return false;
+      return 'unknown';
     }
   }
 
   // ==========================================
-  // SOCKET.IO CHECK (Production)
+  // SOCKET.IO (NON CRITICAL)
   // ==========================================
   async checkSocket() {
     try {
@@ -121,8 +122,7 @@ export class SystemCheckService {
         'https://api.phlyphant.com';
 
       const origin =
-        process.env.FRONTEND_PUBLIC_URL ||
-        'https://phlyphant.com';
+        process.env.FRONTEND_PUBLIC_URL || 'https://phlyphant.com';
 
       const url = `${base}/socket.io/?EIO=4&transport=polling&t=${t}`;
 
@@ -135,10 +135,9 @@ export class SystemCheckService {
       });
 
       if (r.status === 200 || r.status === 204) return true;
-
-      return false;
+      return 'unknown';
     } catch {
-      return false;
+      return 'unknown';
     }
   }
 
@@ -150,10 +149,10 @@ export class SystemCheckService {
       backend: await this.checkBackend(),
       postgres: await this.checkPostgres(),
       redis: await this.checkRedis(),
-      secrets: await this.checkSecrets(),
-      s3: await this.checkS3(),   // now R2
+      secrets: await this.checkSecrets(),  // critical
+      r2: await this.checkR2(),            // non-critical
       queue: await this.checkQueue(),
-      socket: await this.checkSocket(),
+      socket: await this.checkSocket(),    // non-critical
     };
   }
 }

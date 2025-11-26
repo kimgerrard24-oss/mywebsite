@@ -1,9 +1,9 @@
 // ==========================================
 // file: backend/src/health/health.service.ts
 // ==========================================
+
 import { Injectable, Inject } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { S3Client, HeadBucketCommand } from '@aws-sdk/client-s3';
 import Redis from 'ioredis';
 
 @Injectable()
@@ -13,10 +13,16 @@ export class HealthService {
     @Inject('REDIS_CLIENT') private readonly redis: Redis,
   ) {}
 
+  // ------------------------------------------------------------
+  // BASIC API CHECK
+  // ------------------------------------------------------------
   async apiCheck() {
     return { ok: true, timestamp: new Date().toISOString() };
   }
 
+  // ------------------------------------------------------------
+  // DATABASE CHECK
+  // ------------------------------------------------------------
   async dbCheck() {
     try {
       await this.prisma.$queryRaw`SELECT 1`;
@@ -26,6 +32,9 @@ export class HealthService {
     }
   }
 
+  // ------------------------------------------------------------
+  // REDIS CHECK
+  // ------------------------------------------------------------
   async redisCheck() {
     try {
       const pong = await this.redis.ping();
@@ -35,9 +44,9 @@ export class HealthService {
     }
   }
 
-  // ============================================================================  
-  // UPDATED: Remove AWS S3 credentials from required list
-  // ============================================================================  
+  // ------------------------------------------------------------
+  // REQUIRED SECRETS CHECK
+  // ------------------------------------------------------------
   async secretsCheck() {
     const required = [
       'DATABASE_URL',
@@ -47,14 +56,13 @@ export class HealthService {
       'SESSION_COOKIE_MAX_AGE_MS',
       'COOKIE_DOMAIN',
 
-      // Google OAuth
+      // OAuth
       'GOOGLE_CLIENT_ID',
       'GOOGLE_CLIENT_SECRET',
       'GOOGLE_REDIRECT_URL',
       'GOOGLE_CALLBACK_URL',
       'GOOGLE_PROVIDER_REDIRECT_AFTER_LOGIN',
 
-      // Facebook OAuth
       'FACEBOOK_CLIENT_ID',
       'FACEBOOK_CLIENT_SECRET',
       'FACEBOOK_REDIRECT_URL',
@@ -67,13 +75,13 @@ export class HealthService {
       // Redis
       'REDIS_URL',
 
-      // R2 (optional but recommended)
+      // R2
       'R2_ACCESS_KEY_ID',
       'R2_SECRET_ACCESS_KEY',
       'R2_BUCKET_NAME',
       'R2_ENDPOINT',
 
-      // Optional
+      // Misc
       'ALLOWED_ORIGINS',
     ];
 
@@ -85,38 +93,34 @@ export class HealthService {
     };
   }
 
-  // ============================================================================
-  // UPDATED: Use R2 instead of AWS S3
-  // ============================================================================
-  async s3Check() {
+  // ------------------------------------------------------------
+  // R2 CHECK — REPLACEMENT FOR S3
+  //
+  // ทำงานโดยการส่ง HEAD request ไปยัง R2 bucket URL
+  // เช่น: https://<ACCOUNT_ID>.r2.cloudflarestorage.com/<bucket>
+  // ------------------------------------------------------------
+  async r2Check() {
     try {
       const endpoint = process.env.R2_ENDPOINT || '';
       const bucket = process.env.R2_BUCKET_NAME || '';
-      const key = process.env.R2_ACCESS_KEY_ID || '';
-      const secret = process.env.R2_SECRET_ACCESS_KEY || '';
 
-      if (!endpoint || !bucket || !key || !secret) {
+      if (!endpoint || !bucket) {
         return { ok: false, error: 'R2 env vars missing' };
       }
 
-      const client = new S3Client({
-        region: 'auto',
-        endpoint,
-        forcePathStyle: true,
-        credentials: {
-          accessKeyId: key,
-          secretAccessKey: secret,
-        },
-      });
+      const url = `${endpoint.replace(/\/+$/, '')}/${bucket}`;
 
-      await client.send(new HeadBucketCommand({ Bucket: bucket }));
+      const res = await fetch(url, { method: 'HEAD' });
 
-      return { ok: true };
+      return { ok: res.status === 200 || res.status === 204 };
     } catch (err: unknown) {
       return { ok: false, error: err instanceof Error ? err.message : 'unknown error' };
     }
   }
 
+  // ------------------------------------------------------------
+  // QUEUE CHECK (Redis)
+  // ------------------------------------------------------------
   async queueCheck() {
     try {
       const pong = await this.redis.ping();
@@ -126,10 +130,12 @@ export class HealthService {
     }
   }
 
+  // ------------------------------------------------------------
+  // SOCKET.IO CHECK
+  // ------------------------------------------------------------
   async socketCheck() {
     try {
       const t = Date.now();
-
       const base =
         process.env.BACKEND_PUBLIC_URL ||
         'https://api.phlyphant.com';
@@ -144,14 +150,15 @@ export class HealthService {
         },
       });
 
-      const pollingOk = r.status === 200 || r.status === 204;
-
-      return { ok: pollingOk };
+      return { ok: r.status === 200 || r.status === 204 };
     } catch {
       return { ok: false };
     }
   }
 
+  // ------------------------------------------------------------
+  // SYSTEM INFO (SAFE)
+  // ------------------------------------------------------------
   async systemInfo() {
     return {
       ok: true,
@@ -162,13 +169,16 @@ export class HealthService {
     };
   }
 
+  // ------------------------------------------------------------
+  // COMBINED SYSTEM CHECK
+  // ------------------------------------------------------------
   async systemCheck() {
     return {
       backend: true,
       postgres: (await this.dbCheck()).ok,
       redis: (await this.redisCheck()).ok,
       secrets: (await this.secretsCheck()).ok,
-      s3: (await this.s3Check()).ok,  // now R2-only
+      r2: (await this.r2Check()).ok,        // <-- replaced S3
       queue: (await this.queueCheck()).ok,
       socket: (await this.socketCheck()).ok,
     };
