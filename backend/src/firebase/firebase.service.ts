@@ -16,16 +16,6 @@ export class FirebaseAdminService {
     this.admin = this.initializeFirebase();
   }
 
-  /**
-   * Initialize Firebase Admin SDK using (in order of preference):
-   * 1. FIREBASE_SERVICE_ACCOUNT_BASE64 (base64-encoded JSON)
-   * 2. FIREBASE_SERVICE_ACCOUNT_PATH (filesystem path)
-   * 3. If running on GCP/AWS with instance role, allow default SDK behavior
-   *
-   * Notes:
-   * - Do NOT log secrets or full credential content.
-   * - Normalize private_key newlines if present as escaped sequences.
-   */
   private initializeFirebase(): admin.app.App {
     const base64 = (process.env.FIREBASE_SERVICE_ACCOUNT_BASE64 || '').trim();
     const filePath = process.env.FIREBASE_SERVICE_ACCOUNT_PATH?.trim();

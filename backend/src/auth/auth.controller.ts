@@ -1,6 +1,4 @@
-// ==============================
 // file: src/auth/auth.controller.ts
-// ==============================
 import {
   Controller,
   Get,
@@ -10,6 +8,7 @@ import {
   Body,
   Logger,
   Query,
+  UseGuards,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { Response, Request } from 'express';
@@ -17,6 +16,8 @@ import crypto from 'crypto';
 import axios from 'axios';
 import IORedis from 'ioredis';
 import * as admin from 'firebase-admin';
+import { FirebaseAuthGuard } from './firebase-auth.guard';
+import { GetUser } from './get-user.decorator';
 
 const redis = new IORedis(process.env.REDIS_URL || 'redis://redis:6379', {
   maxRetriesPerRequest: 3,
@@ -95,6 +96,11 @@ export class AuthController {
     }
 
     return this.auth.registerLocal(email, password, name);
+  }
+    @Get('profile')
+  @UseGuards(FirebaseAuthGuard)
+  async profile(@GetUser() user: any) {
+    return { ok: true, user };
   }
   // -----------------------------
   // Local Login

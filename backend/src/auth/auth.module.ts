@@ -10,6 +10,11 @@ import { FirebaseAdminModule } from '../firebase/firebase.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { RedisModule } from '../redis/redis.module';
 
+// === เพิ่มตามคำขอ ===
+import { firebaseAdminProvider } from './firebase-admin.provider';
+import { FirebaseService } from './firebase.service';
+import { FirebaseAuthGuard } from './firebase-auth.guard';
+
 @Module({
   imports: [
     SecretsModule,
@@ -20,10 +25,21 @@ import { RedisModule } from '../redis/redis.module';
 
   providers: [
     AuthService,
+
+    // === เพิ่มตามคำขอ ===
+    firebaseAdminProvider,
+    FirebaseService,
+    FirebaseAuthGuard,
   ],
 
   controllers: [AuthController],
 
-  exports: [AuthService],
+  exports: [
+    AuthService,
+
+    // === เพิ่มตามคำขอ ===
+    FirebaseService,
+    FirebaseAuthGuard,
+  ],
 })
 export class AuthModule {}

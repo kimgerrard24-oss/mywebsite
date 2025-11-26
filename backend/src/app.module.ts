@@ -22,6 +22,10 @@ import { FirebaseAdminModule } from './firebase/firebase.module';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 
+// === เพิ่มตามคำสั่งของคุณ ===
+import { FirebaseAuthGuard } from './auth/firebase-auth.guard';
+// ==================================
+
 @Module({
   imports: [
     // =======================================================
@@ -84,6 +88,13 @@ import helmet from 'helmet';
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
     },
+
+    // === เพิ่มตามคำสั่งของคุณ ===
+    {
+      provide: APP_GUARD,
+      useClass: FirebaseAuthGuard,
+    },
+    // ==================================
   ],
 })
 export class AppModule implements NestModule {
