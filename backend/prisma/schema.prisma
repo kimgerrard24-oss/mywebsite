@@ -10,31 +10,26 @@ datasource db {
 }
 
 model User {
-  id          String   @id @default(uuid())
-  email       String   @unique
-  name        String?
-  provider    String
-  providerId  String
-  firebaseUid String?  @unique
-  avatarUrl   String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
+  id                        String         @id @default(uuid())
+  email                     String         @unique
+  name                      String?
+  provider                  String
+  providerId                String
+  firebaseUid               String?        @unique
+  avatarUrl                 String?
+  createdAt                 DateTime       @default(now())
+  updatedAt                 DateTime       @updatedAt
   hashedPassword            String?
   currentRefreshTokenHash   String?
-
   emailVerifyTokenHash      String?
   emailVerifyTokenExpires   DateTime?
-
   passwordResetTokenHash    String?
   passwordResetTokenExpires DateTime?
-
-  isEmailVerified           Boolean  @default(false)
-
-  sessions      Session[]
-  activities    UserActivity[]
-  oauthAccounts OAuthAccount[]
-  refreshTokens RefreshToken[]
+  isEmailVerified           Boolean        @default(false)
+  oauthAccounts             OAuthAccount[]
+  refreshTokens             RefreshToken[]
+  sessions                  Session[]
+  activities                UserActivity[]
 }
 
 model Session {
@@ -45,8 +40,7 @@ model Session {
   userAgent    String?
   expiresAt    DateTime
   createdAt    DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model UserActivity {
@@ -57,8 +51,7 @@ model UserActivity {
   ipAddress String?
   userAgent String?
   createdAt DateTime @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model OAuthAccount {
@@ -70,8 +63,7 @@ model OAuthAccount {
   refreshToken String?
   expiresAt    DateTime?
   createdAt    DateTime  @default(now())
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([provider, providerId])
 }
@@ -83,6 +75,5 @@ model RefreshToken {
   createdAt DateTime @default(now())
   expiresAt DateTime
   revoked   Boolean  @default(false)
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
