@@ -7,7 +7,7 @@ import Head from "next/head";
 import { GetServerSideProps } from "next";
 import { validateSessionOnServer } from "@/lib/auth";
 import LogoutButton from "@/components/auth/LogoutButton";
-import { useEffect } from "react"; // ⭐ เพิ่ม import ที่จำเป็น
+import { useEffect } from "react";
 
 type FeedProps = {
   valid: boolean;
@@ -17,28 +17,39 @@ type FeedProps = {
 export default function FeedPage({ valid, user }: FeedProps) {
   // ============================================
   // DEBUG ONLY — REMOVE AFTER TEST
-  // ใช้เพื่อ expose Firebase Auth ให้ console ใช้งานได้
+  // ใช้เพื่อ expose Firebase Auth และ provider ให้ console ใช้งานได้
   // ============================================
   useEffect(() => {
-    import("firebase/auth").then(({ getAuth, onAuthStateChanged }) => {
-      const auth = getAuth();
+    import("firebase/auth").then(
+      ({
+        getAuth,
+        onAuthStateChanged,
+        FacebookAuthProvider,
+        GoogleAuthProvider,
+        signInWithPopup,
+      }) => {
+        const auth = getAuth();
 
-      // expose to window → ใช้ใน DevTools Console
-      (window as any).auth = auth;
+        // expose to window → ใช้งานใน DevTools Console
+        (window as any).auth = auth;
+        (window as any).getAuth = getAuth;
+        (window as any).FacebookAuthProvider = FacebookAuthProvider;
+        (window as any).GoogleAuthProvider = GoogleAuthProvider;
+        (window as any).signInWithPopup = signInWithPopup;
 
-      onAuthStateChanged(auth, (user) => {
-        if (user) {
-          console.log("DEBUG: user loaded", user);
-        } else {
-          console.log("DEBUG: no user");
-        }
-      });
-    });
+        console.log("DEBUG: Firebase functions ready");
+
+        onAuthStateChanged(auth, (user) => {
+          if (user) {
+            console.log("DEBUG: user loaded", user);
+          } else {
+            console.log("DEBUG: no user");
+          }
+        });
+      }
+    );
   }, []);
   // ============================================
-
-  // ถ้าไม่ได้ล็อกอิน → redirect ที่ server-side แล้ว (SSR)
-  // มาถึงตรงนี้คือ "มี session แล้ว" เท่านั้น
 
   return (
     <>
@@ -95,7 +106,7 @@ export default function FeedPage({ valid, user }: FeedProps) {
           {/* Welcome Box */}
           <article className="bg-white p-6 rounded-2xl shadow border">
             <h2 className="text-xl font-semibold">
-              สวัสดี {user?.name || user?.email || "ผู้ใช้"} 👋
+              สวัสดี {user?.name || user?.email || "ผู้ใช้"}
             </h2>
             <p className="text-gray-600 mt-1">
               ดูโพสต์ล่าสุดจากชุมชนของคุณบน PhlyPhant
@@ -163,10 +174,10 @@ function PostCard({ post }: { post: Post }) {
       {/* Actions */}
       <footer className="flex items-center justify-between pt-2">
         <button className="text-gray-600 hover:text-blue-600 font-medium transition">
-          ❤️ ถูกใจ
+          ถูกใจ
         </button>
         <button className="text-gray-600 hover:text-blue-600 font-medium transition">
-          💬 แสดงความคิดเห็น
+          แสดงความคิดเห็น
         </button>
       </footer>
     </article>
@@ -184,7 +195,7 @@ const MOCK_POSTS: Post[] = [
       name: "Sophia Ch.",
       avatar: "/images/default-avatar.png",
     },
-    content: "เริ่มต้นวันใหม่กับโปรเจกต์ PhlyPhant 🚀✨",
+    content: "เริ่มต้นวันใหม่กับโปรเจกต์ PhlyPhant",
     image: "/images/social-hero.svg",
     timestamp: "1 ชั่วโมงที่ผ่านมา",
   },
@@ -194,7 +205,7 @@ const MOCK_POSTS: Post[] = [
       name: "Michael T.",
       avatar: "/images/default-avatar.png",
     },
-    content: "วันนี้อากาศดีมากครับ ☀️ ออกไปเดินเล่นกันไหม?",
+    content: "วันนี้อากาศดีมากครับ ออกไปเดินเล่นกันไหม",
     timestamp: "3 ชั่วโมงที่ผ่านมา",
   },
 ];
