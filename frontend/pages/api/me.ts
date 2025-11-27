@@ -26,26 +26,30 @@ import type { NextApiRequest, NextApiResponse } from "next";
 
 export default async function handler(req: NextApiRequest, res: NextApiResponse) {
   try {
-    // Prevent caching entirely (security)
+    // Security: disable caching
     res.setHeader("Cache-Control", "no-store");
 
-    // API Base for production
+    // Backend API base
     const API_BASE =
       process.env.NEXT_PUBLIC_API_BASE ||
       "https://api.phlyphant.com";
+
+    // FIX: Correct Production Origin for Hybrid OAuth callback
+    const SITE_ORIGIN =
+      process.env.NEXT_PUBLIC_SITE_URL ||
+      "https://www.phlyphant.com"; // correct domain
 
     return res.status(200).json({
       ok: true,
       note: "This Next.js API route is not connected to backend auth. Use backend route for real authentication.",
       recommendedAuthEndpoint: `${API_BASE}/auth/session-check`,
 
-      // Useful for debugging or showing how to call OAuth login endpoints
       hybridOAuth: {
         googleLogin: `${API_BASE}/auth/google?origin=${encodeURIComponent(
-          process.env.NEXT_PUBLIC_SITE_URL || "https://phlyphant.com"
+          SITE_ORIGIN
         )}`,
         facebookLogin: `${API_BASE}/auth/facebook?origin=${encodeURIComponent(
-          process.env.NEXT_PUBLIC_SITE_URL || "https://phlyphant.com"
+          SITE_ORIGIN
         )}`,
       },
     });

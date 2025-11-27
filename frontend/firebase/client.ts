@@ -14,11 +14,6 @@ import { getAuth, type Auth } from "firebase/auth";
 let firebaseApp: FirebaseApp | undefined;
 let firebaseAuth: Auth | undefined;
 
-// Helper — clean env (prevent empty string errors)
-function clean(value?: string) {
-  return value && value.trim().length > 0 ? value : undefined;
-}
-
 // Safe client-only initializer
 function createFirebase(): void {
   if (typeof window === "undefined") {
@@ -28,23 +23,20 @@ function createFirebase(): void {
   if (firebaseApp) return;
 
   try {
+    const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
+    const authDomain = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN;
+    const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
+    const storageBucket = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET;
+    const messagingSenderId =
+      process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID;
+    const appId = process.env.NEXT_PUBLIC_FIREBASE_APP_ID;
+
+    // FIX — throw when missing critical values
+    if (!apiKey || !authDomain || !projectId || !appId) {
+      throw new Error("Missing Firebase environment variables");
+    }
+
     if (getApps().length === 0) {
-      const apiKey = clean(process.env.NEXT_PUBLIC_FIREBASE_API_KEY);
-      const authDomain = clean(process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN);
-      const projectId = clean(process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID);
-      const storageBucket = clean(
-        process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET
-      );
-      const messagingSenderId = clean(
-        process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
-      );
-      const appId = clean(process.env.NEXT_PUBLIC_FIREBASE_APP_ID);
-
-      // FIX — do not throw, just fail silently (prevent hydration crash)
-      if (!apiKey || !authDomain || !projectId || !appId) {
-        return;
-      }
-
       firebaseApp = initializeApp({
         apiKey,
         authDomain,
@@ -59,9 +51,11 @@ function createFirebase(): void {
 
     firebaseAuth = getAuth(firebaseApp);
     firebaseAuth.useDeviceLanguage();
-  } catch {
+  } catch (err) {
+    console.error("Failed to initialize Firebase:", err);
     firebaseApp = undefined;
     firebaseAuth = undefined;
+    throw err; // FIX — do not silent fail
   }
 }
 

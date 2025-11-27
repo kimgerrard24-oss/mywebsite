@@ -10,6 +10,12 @@ const rawBase =
 
 const API_BASE = rawBase.replace(/\/+$/, "");
 
+// safe join for paths
+function apiPath(path: string): string {
+  if (!path.startsWith("/")) return `${API_BASE}/${path}`;
+  return `${API_BASE}${path}`;
+}
+
 // jsonFetch: default no credentials (caller decides)
 async function jsonFetch<T>(
   input: RequestInfo,
@@ -18,14 +24,12 @@ async function jsonFetch<T>(
   const hasBody = typeof init?.body !== "undefined";
 
   const res = await fetch(input, {
-    // FIX: do not always include cookies; callers must specify it
     credentials: init?.credentials ?? "same-origin",
 
     ...init,
     headers: {
       Accept: "application/json",
 
-      // FIX: only set Content-Type if body exists
       ...(hasBody ? { "Content-Type": "application/json" } : {}),
 
       ...(init?.headers ? (init.headers as Record<string, string>) : {}),
@@ -57,13 +61,14 @@ async function jsonFetch<T>(
 // ==================================================
 export const client = {
   post: <T = any>(path: string, data?: any) =>
-    jsonFetch<T>(`${API_BASE}${path}`, {
+    jsonFetch<T>(apiPath(path), {
       method: "POST",
       body: JSON.stringify(data ?? {}),
-      credentials: "include", // send cookie only where needed
+      credentials: "include",
     }),
+
   get: <T = any>(path: string) =>
-    jsonFetch<T>(`${API_BASE}${path}`, {
+    jsonFetch<T>(apiPath(path), {
       method: "GET",
       credentials: "include",
     }),
@@ -73,7 +78,7 @@ export const client = {
 // FIXED: correct backend endpoint (/auth/complete)
 // ==================================================
 export async function createSessionCookie(idToken: string) {
-  return jsonFetch<{ ok: true }>(`${API_BASE}/auth/complete`, {
+  return jsonFetch<{ ok: true }>(apiPath("/auth/complete"), {
     method: "POST",
     body: JSON.stringify({ idToken }),
     credentials: "include",
@@ -81,26 +86,34 @@ export async function createSessionCookie(idToken: string) {
 }
 
 export async function logout(): Promise<{ ok: true } | void> {
-  return jsonFetch(`${API_BASE}/auth/logout`, {
+  return jsonFetch(apiPath("/auth/logout"), {
     method: "POST",
     credentials: "include",
   });
 }
 
 // ==================================================
-// Session checks
+// Session checks (SSR & Client)
 // ==================================================
 export async function sessionCheckServerSide(
   cookieHeader?: string
 ): Promise<{ valid: boolean; user?: any } | null> {
-  const url = `${API_BASE}/auth/session-check`;
+  const url = apiPath("/auth/session-check");
 
   const res = await fetch(url, {
     method: "GET",
     credentials: "include",
+
     headers: {
       Accept: "application/json",
-      ...(cookieHeader ? { cookie: cookieHeader } : {}),
+
+      // FIX — support both cases for safety
+      ...(cookieHeader
+        ? {
+            cookie: cookieHeader,
+            Cookie: cookieHeader,
+          }
+        : {}),
     },
   });
 
@@ -110,10 +123,8 @@ export async function sessionCheckServerSide(
 
   try {
     const data = (await res.json()) as Record<string, any>;
-    const valid = data.valid === true;
-
     return {
-      valid,
+      valid: data.valid === true,
       ...data,
     };
   } catch {
@@ -125,23 +136,21 @@ export async function sessionCheckClient(): Promise<{
   valid: boolean;
   user?: any;
 }> {
-  const url = `${API_BASE}/auth/session-check`;
+  const url = apiPath("/auth/session-check");
   const data = (await jsonFetch(url, { credentials: "include" })) as Record<
     string,
     any
   >;
 
-  const valid = data.valid === true;
-
   return {
-    valid,
+    valid: data.valid === true,
     ...data,
   };
 }
 
 // ==================================================
 export async function verifyEmail(token: string, uid: string) {
-  return jsonFetch(`${API_BASE}/auth/verify-email?token=${token}&uid=${uid}`, {
+  return jsonFetch(apiPath(`/auth/verify-email?token=${token}&uid=${uid}`), {
     method: "GET",
     credentials: "include",
   });

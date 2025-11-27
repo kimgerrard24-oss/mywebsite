@@ -6,13 +6,13 @@ import { sessionCheckServerSide } from './api';
 
 export async function validateSessionOnServer(cookieHeader?: string) {
   try {
-    const headerValue =
+    const rawCookie =
       typeof cookieHeader === 'string' && cookieHeader.trim().length > 0
         ? cookieHeader
         : '';
 
-    // FIX: send raw cookie string (correct type)
-    const result = await sessionCheckServerSide(headerValue);
+    // FIX: pass cookieHeader directly (sessionCheckServerSide expects raw string)
+    const result = await sessionCheckServerSide(rawCookie);
 
     if (!result) {
       return { valid: false };

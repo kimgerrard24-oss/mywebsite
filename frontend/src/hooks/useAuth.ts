@@ -1,5 +1,6 @@
 // ==============================
 // src/hooks/useAuth.ts
+// Support: Hybrid OAuth + Firebase CustomToken + Backend Session Cookie
 // ==============================
 "use client";
 
@@ -7,7 +8,7 @@ import { useEffect, useState } from "react";
 import axios from "@/lib/axios";
 import type { User } from "@/types/index";
 
-// FIX: normalize API base URL
+// Normalize backend URL
 const rawBase =
   process.env.NEXT_PUBLIC_BACKEND_URL ||
   process.env.NEXT_PUBLIC_API_BASE ||
@@ -35,19 +36,45 @@ export function useAuth() {
 
         if (valid) {
           const decoded = data.decoded || {};
+          const backendUser = data.user || null;
 
-          const uid = decoded.user_id ? String(decoded.user_id) : undefined;
-          const email = decoded.email || undefined;
+          // Build dynamic user object
+          const builtUser = {
+            id:
+              backendUser?.id ||
+              decoded.user_id ||
+              decoded.uid ||
+              undefined,
 
-          setUser({
-            id: uid,
-            email: email,
-            username: email ? email.split("@")[0] : "unknown",
-          });
+            email:
+              backendUser?.email ||
+              decoded.email ||
+              undefined,
+
+            username: (backendUser?.email || decoded.email)
+              ? (backendUser?.email || decoded.email).split("@")[0]
+              : "unknown",
+
+            provider:
+              backendUser?.provider ||
+              decoded.firebase?.sign_in_provider ||
+              decoded.sign_in_provider ||
+              undefined,
+
+            avatar:
+              backendUser?.avatar ||
+              backendUser?.picture ||
+              backendUser?.picture_url ||
+              decoded.picture ||
+              "/images/default-avatar.png",
+          };
+
+          // FIX: allow dynamic fields via type cast
+          setUser(builtUser as Partial<User>);
         } else {
           setUser(null);
         }
-      } catch (err) {
+      } catch {
         if (mounted) setUser(null);
       } finally {
         if (mounted) setLoading(false);

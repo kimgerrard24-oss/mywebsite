@@ -3,10 +3,10 @@
 // ==============================
 import React, { useEffect } from 'react';
 import { useRouter } from 'next/router';
-import axios from 'axios'; // FIX: use direct axios instead of "@/lib/axios"
+import axios from 'axios';
 import Cookies from 'js-cookie';
 
-// FIX: normalize API base URL
+// Normalize API base URL
 const API_BASE = (
   process.env.NEXT_PUBLIC_API_BASE ||
   process.env.NEXT_PUBLIC_BACKEND_URL ||
@@ -28,9 +28,21 @@ export default function LoginPage() {
 
         if (res.data?.valid === true) {
           router.replace('/feed');
+          return;
+        }
+
+        // Retry once (Hybrid OAuth cookie propagate delay)
+        await new Promise((resolve) => setTimeout(resolve, 200));
+
+        const retry = await axios.get(`${API_BASE}/auth/session-check`, {
+          withCredentials: true,
+        });
+
+        if (retry.data?.valid === true) {
+          router.replace('/feed');
         }
       } catch {
-        // ignore error
+        // ignore
       }
     }
 

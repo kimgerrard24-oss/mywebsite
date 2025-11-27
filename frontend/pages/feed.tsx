@@ -1,13 +1,11 @@
 // ==============================
 // file: pages/feed.tsx
-// Social Feed Page (SEO + Responsive + TailwindCSS)
 // ==============================
 
 import Head from "next/head";
 import { GetServerSideProps } from "next";
 import { validateSessionOnServer } from "@/lib/auth";
 import LogoutButton from "@/components/auth/LogoutButton";
-import { useEffect } from "react";
 
 type FeedProps = {
   valid: boolean;
@@ -15,45 +13,8 @@ type FeedProps = {
 };
 
 export default function FeedPage({ valid, user }: FeedProps) {
-  // ============================================
-  // DEBUG ONLY — REMOVE AFTER TEST
-  // ใช้เพื่อ expose Firebase Auth และ provider ให้ console ใช้งานได้
-  // ============================================
-  useEffect(() => {
-    import("firebase/auth").then(
-      ({
-        getAuth,
-        onAuthStateChanged,
-        FacebookAuthProvider,
-        GoogleAuthProvider,
-        signInWithPopup,
-      }) => {
-        const auth = getAuth();
-
-        // expose to window → ใช้งานใน DevTools Console
-        (window as any).auth = auth;
-        (window as any).getAuth = getAuth;
-        (window as any).FacebookAuthProvider = FacebookAuthProvider;
-        (window as any).GoogleAuthProvider = GoogleAuthProvider;
-        (window as any).signInWithPopup = signInWithPopup;
-
-        console.log("DEBUG: Firebase functions ready");
-
-        onAuthStateChanged(auth, (user) => {
-          if (user) {
-            console.log("DEBUG: user loaded", user);
-          } else {
-            console.log("DEBUG: no user");
-          }
-        });
-      }
-    );
-  }, []);
-  // ============================================
-
   return (
     <>
-      {/* SEO */}
       <Head>
         <title>PhlyPhant Feed</title>
         <meta
@@ -67,9 +28,7 @@ export default function FeedPage({ valid, user }: FeedProps) {
         />
       </Head>
 
-      {/* Main Layout */}
       <main className="min-h-screen bg-gray-50 text-gray-900">
-        {/* Top Navigation */}
         <header className="w-full bg-white shadow-sm sticky top-0 z-20">
           <nav className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
             <a
@@ -98,12 +57,10 @@ export default function FeedPage({ valid, user }: FeedProps) {
           </nav>
         </header>
 
-        {/* Feed Wrapper */}
         <section
           className="max-w-3xl mx-auto px-4 py-8 flex flex-col gap-6"
           aria-label="User feed"
         >
-          {/* Welcome Box */}
           <article className="bg-white p-6 rounded-2xl shadow border">
             <h2 className="text-xl font-semibold">
               สวัสดี {user?.name || user?.email || "ผู้ใช้"}
@@ -113,7 +70,6 @@ export default function FeedPage({ valid, user }: FeedProps) {
             </p>
           </article>
 
-          {/* Mock posts */}
           {MOCK_POSTS.map((post) => (
             <PostCard key={post.id} post={post} />
           ))}
@@ -122,10 +78,6 @@ export default function FeedPage({ valid, user }: FeedProps) {
     </>
   );
 }
-
-// =============================
-// Semantic Post Card Component
-// =============================
 
 type Post = {
   id: number;
@@ -144,7 +96,6 @@ function PostCard({ post }: { post: Post }) {
       className="bg-white shadow-sm border rounded-2xl p-5 flex flex-col gap-4"
       aria-label="Post"
     >
-      {/* User Header */}
       <header className="flex items-center gap-4">
         <img
           src={post.user.avatar}
@@ -157,10 +108,8 @@ function PostCard({ post }: { post: Post }) {
         </div>
       </header>
 
-      {/* Content */}
       <p className="text-gray-800 leading-relaxed">{post.content}</p>
 
-      {/* Image (optional) */}
       {post.image && (
         <figure>
           <img
@@ -171,7 +120,6 @@ function PostCard({ post }: { post: Post }) {
         </figure>
       )}
 
-      {/* Actions */}
       <footer className="flex items-center justify-between pt-2">
         <button className="text-gray-600 hover:text-blue-600 font-medium transition">
           ถูกใจ
@@ -183,10 +131,6 @@ function PostCard({ post }: { post: Post }) {
     </article>
   );
 }
-
-// ===============================
-// Mock Data
-// ===============================
 
 const MOCK_POSTS: Post[] = [
   {
@@ -210,10 +154,6 @@ const MOCK_POSTS: Post[] = [
   },
 ];
 
-// =============================
-// Server-Side Session Protection
-// =============================
-
 export const getServerSideProps: GetServerSideProps = async (ctx) => {
   const cookieHeader = ctx.req.headers.cookie;
 
@@ -228,13 +168,14 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
     };
   }
 
+  // แก้เพียงจุดนี้ (รองรับ Hybrid OAuth)
   const data = result as Record<string, any>;
-  const user = data.user ?? null;
+  const decodedUser = data.decoded ?? null;
 
   return {
     props: {
       valid: true,
-      user,
+      user: decodedUser,
     },
   };
 };

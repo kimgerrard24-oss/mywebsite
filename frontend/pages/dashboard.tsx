@@ -28,9 +28,13 @@ export default function Dashboard({ valid, user }: DashboardProps) {
   }
 
   // ===========================
-  // Provider label formatting
+  // Provider label (FIXED)
   // ===========================
-  const provider = user?.firebase?.sign_in_provider || "unknown";
+  const provider =
+    user?.firebase?.sign_in_provider ||
+    user?.sign_in_provider ||
+    user?.provider ||
+    "unknown";
 
   const providerLabel =
     provider === "google.com"
@@ -43,9 +47,6 @@ export default function Dashboard({ valid, user }: DashboardProps) {
       ? "Custom Token"
       : provider;
 
-  // ===========================
-  // Avatar fallback
-  // ===========================
   const avatar =
     user?.picture ||
     user?.picture_url ||
@@ -61,9 +62,6 @@ export default function Dashboard({ valid, user }: DashboardProps) {
           <LogoutButton />
         </header>
 
-        {/* =============================
-            USER PROFILE SECTION
-        ============================== */}
         <section className="flex items-center gap-6 mb-10">
           <img
             src={avatar}
@@ -90,9 +88,6 @@ export default function Dashboard({ valid, user }: DashboardProps) {
           </div>
         </section>
 
-        {/* =============================
-            QUICK MENU
-        ============================== */}
         <section className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mb-10">
           <a
             href="/account"
@@ -119,9 +114,6 @@ export default function Dashboard({ valid, user }: DashboardProps) {
           </a>
         </section>
 
-        {/* =============================
-            DEBUG INFORMATION
-        ============================== */}
         <details className="bg-gray-100 p-4 rounded-xl border text-gray-800">
           <summary className="cursor-pointer font-medium mb-2">
             Debug: User Data
@@ -135,9 +127,6 @@ export default function Dashboard({ valid, user }: DashboardProps) {
   );
 }
 
-/* ================================
-   Server-side Session Protection
-================================ */
 export const getServerSideProps: GetServerSideProps = async (ctx) => {
   const cookieHeader = ctx.req.headers.cookie;
 

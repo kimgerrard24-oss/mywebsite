@@ -2,6 +2,8 @@
 import Head from "next/head";
 import { FormEvent, useEffect, useState } from "react";
 import Cookies from "js-cookie";
+import { initializeApp } from "firebase/app";
+import { getAuth, signInWithCustomToken } from "firebase/auth";
 
 export default function HomePage() {
   const [email, setEmail] = useState("");
@@ -12,9 +14,72 @@ export default function HomePage() {
     process.env.NEXT_PUBLIC_API_BASE ||
     "https://api.phlyphant.com";
 
-  // ================================================
-  // FIX 1: ห้ามให้ผู้ใช้ที่ login แล้วกลับมาหน้า login
-  // ================================================
+  // Firebase Config
+  const firebaseConfig = {
+    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
+    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
+    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+
+  // ==================================================
+  // FIX A: รองรับ customToken หลัง OAuth Callback
+  // ==================================================
+  useEffect(() => {
+    const run = async () => {
+      try {
+        const url = new URL(window.location.href);
+        const customToken = url.searchParams.get("customToken");
+
+        if (!customToken) return;
+
+        // Login ด้วย Custom Token จาก Backend
+        await signInWithCustomToken(auth, customToken);
+
+        // รอ user
+        const user = auth.currentUser;
+
+        if (!user) {
+          auth.onAuthStateChanged(async (u) => {
+            if (!u) return;
+            const idToken = await u.getIdToken(true);
+
+            await fetch(`${backend}/auth/complete`, {
+              method: "POST",
+              credentials: "include",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ idToken }),
+            });
+
+            window.location.href = "/feed";
+          });
+          return;
+        }
+
+        // ถ้า user มีแล้ว
+        const idToken = await user.getIdToken(true);
+
+        await fetch(`${backend}/auth/complete`, {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ idToken }),
+        });
+
+        window.location.href = "/feed";
+      } catch (err) {
+        console.error("Custom Token Login Error:", err);
+      }
+    };
+
+    run();
+  }, []);
+
+  // ==================================================
+  // FIX B: ผู้ใช้ login แล้ว ห้ามเข้า index.tsx อีก
+  // ==================================================
   useEffect(() => {
     const session = Cookies.get("__session");
     if (session) {
@@ -26,7 +91,6 @@ export default function HomePage() {
     e.preventDefault();
 
     try {
-      // Backend ยังไม่มี route นี้ แต่คงไว้ตามเดิม
       await fetch(`${backend}/auth/login`, {
         method: "POST",
         credentials: "include",
@@ -34,7 +98,6 @@ export default function HomePage() {
         body: JSON.stringify({ email, password }),
       });
 
-      // FIX 2: หลัง login สำเร็จ redirect ไปหน้า Home จริง
       window.location.href = "/home";
     } catch (err) {
       console.error("Login failed", err);
@@ -58,7 +121,6 @@ export default function HomePage() {
           content="PhlyPhant — แพลตฟอร์มโซเชียลมีเดียสำหรับการแชร์ เชื่อมต่อ และสร้างสรรค์อย่างไร้ขีดจำกัด."
         />
         <meta name="viewport" content="width=device-width, initial-scale=1" />
-
         <meta property="og:title" content="PhlyPhant Social Platform" />
         <meta
           property="og:description"

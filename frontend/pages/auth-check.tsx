@@ -2,7 +2,7 @@
 // file: pages/auth-check.tsx
 // ==============================
 import { useEffect, useState } from "react";
-import axios from "axios"; // FIX: use direct axios, avoid global instance
+import axios from "axios";
 import { CheckCircle, XCircle, Loader2, LogIn, LogOut } from "lucide-react";
 
 type Status = "OK" | "ERROR" | "LOADING";
@@ -15,7 +15,6 @@ export default function AuthCheckPage() {
     process.env.NEXT_PUBLIC_SITE_URL ||
     "https://phlyphant.com";
 
-  // FIX: normalize URL (remove trailing slash)
   const API_BASE = (
     process.env.NEXT_PUBLIC_API_BASE ||
     "https://api.phlyphant.com"
@@ -59,11 +58,16 @@ export default function AuthCheckPage() {
     window.location.href = `${API_BASE}/auth/facebook`;
   };
 
+  // ======================================
+  // FIXED: ใช้ endpoint ที่มีจริงใน Backend
+  // ======================================
   const logout = async () => {
     try {
-      await axios.post(`${API_BASE}/auth/logout`, {}, {
-        withCredentials: true,
-      });
+      await axios.post(
+        `${API_BASE}/auth/local/logout`,
+        {},
+        { withCredentials: true }
+      );
       checkSession();
     } catch {}
   };

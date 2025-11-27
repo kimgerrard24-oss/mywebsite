@@ -14,14 +14,14 @@ const API_BASE =
     "https://api.phlyphant.com").replace(/\/+$/, "");
 
 type AuthContextType = {
-  user: User | null;
+  user: any | null;     // FIX: must hold backend user, not Firebase User
   loading: boolean;
 };
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -33,7 +33,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     let auth: Auth;
 
     try {
-      auth = getFirebaseAuth() as Auth;
+      auth = getFirebaseAuth();
     } catch (err) {
       console.error("Firebase init error in AuthContext:", err);
       setUser(null);
@@ -41,8 +41,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // FIX — sync Firebase client auth with backend session-check
-    const unsubscribe = onAuthStateChanged(auth, async (u) => {
+    const unsubscribe = onAuthStateChanged(auth, async () => {
       try {
         const res = await fetch(`${API_BASE}/auth/session-check`, {
           method: "GET",
@@ -50,15 +49,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           headers: { Accept: "application/json" },
         });
 
-        const data = await res.json().catch(() => ({}));
+        const data = await res.json().catch(() => null);
         const valid = data?.valid === true;
 
         if (valid) {
-          setUser(u);
+          // FIX — use backend user instead of Firebase client user
+          setUser(data.user || null);
         } else {
           setUser(null);
         }
-      } catch {
+      } catch (err) {
+        console.error("session-check error in AuthContext:", err);
         setUser(null);
       } finally {
         setLoading(false);
@@ -66,9 +67,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     return () => {
-      try {
-        unsubscribe();
-      } catch {}
+      try { unsubscribe(); } catch {}
     };
   }, []);
 

@@ -1,6 +1,7 @@
 // ==============================
 // file: src/lib/firebase.ts
 // ==============================
+
 import {
   initializeApp,
   getApps,
@@ -27,7 +28,7 @@ const firebaseConfig: FirebaseConfig = {
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID ?? "",
 };
 
-// Warn only on client
+// Client-side warning
 if (typeof window !== "undefined") {
   const required: Array<keyof FirebaseConfig> = [
     "apiKey",
@@ -47,34 +48,43 @@ if (typeof window !== "undefined") {
   }
 }
 
+// Create Firebase app safely
 function createFirebaseApp(): FirebaseApp | null {
-  // FIX: SSR safe (never throw)
   if (typeof window === "undefined") {
     return null;
   }
 
-  // FIX: safe check (avoid race-condition)
+  // Handle race-condition in Next.js 16 hydration
   try {
-    if (getApps().length > 0) {
-      return getApp();
+    const existing = getApps();
+    if (existing.length > 0) {
+      try {
+        return getApp();
+      } catch {
+        // fallback: continue to initialize new app
+      }
     }
   } catch {
-    // swallow race-condition
+    // continue to initialize new app
   }
 
-  // FIX: do not throw if config missing (prevent hydration crash)
+  // Must have required config for Firebase Auth
   if (
     !firebaseConfig.apiKey ||
+    !firebaseConfig.authDomain ||
     !firebaseConfig.projectId ||
     !firebaseConfig.appId
   ) {
     return null;
   }
 
-  return initializeApp(firebaseConfig as any);
+  try {
+    return initializeApp(firebaseConfig as any);
+  } catch {
+    return null;
+  }
 }
 
-// Strict instance holder
 let firebaseApp: FirebaseApp | null = null;
 
 export function getFirebaseApp(): FirebaseApp {

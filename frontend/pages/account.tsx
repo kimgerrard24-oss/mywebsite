@@ -2,7 +2,6 @@
 import React from 'react';
 import { GetServerSideProps } from 'next';
 
-// path ถูกต้องตามโครงสร้างโปรเจกคุณ
 import { validateSessionOnServer } from '@/lib/auth';
 import LogoutButton from '@/components/auth/LogoutButton';
 
@@ -25,8 +24,12 @@ export default function AccountPage({ user, valid }: Props) {
   return (
     <div style={{ padding: 24 }}>
       <h1>บัญชีของคุณ</h1>
-      <p>ยินดีต้อนรับ, {user?.displayName ?? user?.email ?? 'ผู้ใช้'}</p>
+
+      {/* FIX: name / email ตาม Hybrid OAuth structure */}
+      <p>ยินดีต้อนรับ, {user?.name || user?.email || 'ผู้ใช้'}</p>
+
       <pre>{JSON.stringify(user, null, 2)}</pre>
+
       <LogoutButton />
     </div>
   );
@@ -39,7 +42,6 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
     const result = await validateSessionOnServer(cookieHeader);
 
     if (!result || !result.valid) {
-      // แก้ตรงนี้: redirect อัตโนมัติ (ไม่ render invalid state)
       return {
         redirect: {
           destination: '/login',

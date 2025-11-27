@@ -1,6 +1,5 @@
 // ==============================
 // file: pages/auth/complete.tsx
-// OAuth Callback → Create Firebase Session Cookie
 // ==============================
 
 import { useEffect, useState } from "react";
@@ -8,7 +7,7 @@ import Head from "next/head";
 import { useRouter } from "next/router";
 import axios from "@/lib/axios";
 import { getFirebaseAuth } from "@/lib/firebaseClient";
-import { signInWithCustomToken, Auth } from "firebase/auth";
+import { signInWithCustomToken, Auth, User } from "firebase/auth";
 import { Loader2, CheckCircle, XCircle } from "lucide-react";
 
 type Status = "LOADING" | "FIREBASE_LOGIN" | "SETTING_SESSION" | "DONE" | "ERROR";
@@ -25,7 +24,6 @@ export default function AuthCompletePage() {
   const SITE_URL =
     process.env.NEXT_PUBLIC_SITE_URL || "https://www.phlyphant.com";
 
-  // เปลี่ยนจาก /home → /dashboard ตามคำขอ
   const REDIRECT_AFTER_LOGIN = "/feed";
 
   useEffect(() => {
@@ -45,16 +43,28 @@ export default function AuthCompletePage() {
         setMessage("กำลังเข้าสู่ระบบด้วย Firebase...");
 
         const auth = getFirebaseAuth() as Auth;
+
         await signInWithCustomToken(auth, customToken);
 
-        const user = auth.currentUser;
+        // -------------------------------------------------------
+        // FIX:ให้ TypeScript ยืนยันว่า user เป็น User แน่นอน
+        // -------------------------------------------------------
+        let user: User | null = auth.currentUser;
+
         if (!user) {
-          setStatus("ERROR");
-          setMessage("ไม่สามารถเข้าสู่ระบบ Firebase ได้");
-          return;
+          await new Promise<void>((resolve) => {
+            auth.onAuthStateChanged((u) => {
+              if (!u) return;
+              user = u;
+              resolve();
+            });
+          });
         }
 
-        const idToken = await user.getIdToken(true);
+        // ตอนนี้ user เป็น User แน่นอน
+        const safeUser = user as User;
+
+        const idToken = await safeUser.getIdToken(true);
 
         setStatus("SETTING_SESSION");
         setMessage("กำลังสร้าง session cookie...");
@@ -75,7 +85,6 @@ export default function AuthCompletePage() {
           setStatus("DONE");
           setMessage("เข้าสู่ระบบสำเร็จ กำลังพาไปหน้าแรก...");
 
-          // ***** จุดแก้ไขตามคำสั่งของคุณ *****
           setTimeout(() => {
             router.replace(REDIRECT_AFTER_LOGIN);
           }, 1000);
