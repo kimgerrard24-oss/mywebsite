@@ -10,36 +10,22 @@ import { FirebaseAdminModule } from '../firebase/firebase.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { RedisModule } from '../redis/redis.module';
 
-// === เพิ่มตามคำขอ ===
-import { firebaseAdminProvider } from './firebase-admin.provider';
-import { FirebaseService } from './firebase.service';
-import { FirebaseAuthGuard } from './firebase-auth.guard';
-
 @Module({
   imports: [
     SecretsModule,
-    FirebaseAdminModule,
+    FirebaseAdminModule,   // ใช้อันนี้สำหรับ Firebase Admin SDK
     PrismaModule,
     RedisModule,
   ],
 
   providers: [
-    AuthService,
-
-    // === เพิ่มตามคำขอ ===
-    firebaseAdminProvider,
-    FirebaseService,
-    FirebaseAuthGuard,
+    AuthService,           // ปกติ — ไม่แก้
   ],
 
   controllers: [AuthController],
 
   exports: [
-    AuthService,
-
-    // === เพิ่มตามคำขอ ===
-    FirebaseService,
-    FirebaseAuthGuard,
+    AuthService,           // เฉพาะ AuthService ที่จำเป็นต้อง export
   ],
 })
 export class AuthModule {}

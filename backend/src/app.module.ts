@@ -21,15 +21,13 @@ import { FirebaseAdminModule } from './firebase/firebase.module';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 
-// เพิ่มตามคำสั่งของคุณ
 import { FirebaseAuthGuard } from './auth/firebase-auth.guard';
 
-// *** ADD THIS: R2 Module ***
+// R2 Module (ต้องมี)
 import { R2Module } from './r2/r2.module';
 
 @Module({
   imports: [
-    // Load ENV first
     ConfigModule.forRoot({
       envFilePath:
         process.env.NODE_ENV === 'production'
@@ -42,10 +40,7 @@ import { R2Module } from './r2/r2.module';
     SecretsModule,
     FirebaseAdminModule,
     AuthModule,
-
     AwsModule,
-
-    // *** MUST ADD R2 MODULE HERE ***
     R2Module,
 
     HealthModule,
@@ -69,14 +64,19 @@ import { R2Module } from './r2/r2.module';
   controllers: [AppController, UsersTestController],
 
   providers: [
+    // Global error filter
     {
       provide: APP_FILTER,
       useClass: SentryGlobalFilter,
     },
+
+    // Rate limit guard
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
     },
+
+    // Firebase session guard (รองรับ @Public แล้ว)
     {
       provide: APP_GUARD,
       useClass: FirebaseAuthGuard,

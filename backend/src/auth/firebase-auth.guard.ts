@@ -8,7 +8,9 @@ import {
   UnauthorizedException,
   Logger,
 } from '@nestjs/common';
+import { Reflector } from '@nestjs/core';
 import { FirebaseAdminService } from '../firebase/firebase.service';
+import { Public } from './decorators/public.decorator';
 import * as cookie from 'cookie';
 import type { Request } from 'express';
 
@@ -16,21 +18,44 @@ import type { Request } from 'express';
 export class FirebaseAuthGuard implements CanActivate {
   private readonly logger = new Logger(FirebaseAuthGuard.name);
 
-  constructor(private firebase: FirebaseAdminService) {}
+  constructor(
+    private readonly firebase: FirebaseAdminService,
+    private readonly reflector: Reflector,               // FIX: add reflector
+  ) {}
 
   async canActivate(ctx: ExecutionContext) {
     const req = ctx.switchToHttp().getRequest<Request & Record<string, any>>();
 
-    const cookieName = process.env.SESSION_COOKIE_NAME || 'session';
+    // ============================================
+    // 1) FIX — allow @Public() to bypass guard
+    // ============================================
+    const isPublic = this.reflector.getAllAndOverride<boolean>(Public, [
+      ctx.getHandler(),
+      ctx.getClass(),
+    ]);
 
-    let url: string = String(req.originalUrl || req.url || '');
-    url = url.toLowerCase();
+    if (isPublic) {
+      return true;
+    }
 
-    url = url.replace(/\/+/g, '/');
-    url = url.replace(/^\/api\/v\d+\//, '/');
-    url = url.replace(/^\/v\d+\//, '/');
+    // ============================================
+    // 2) FIX — allow health/system-check without login
+    // ============================================
+    const url = (req.originalUrl || req.url || '').toLowerCase();
 
     const publicPrefixes = [
+      '/system-check',
+      '/health',
+      '/health/',
+      '/health/db',
+      '/health/redis',
+      '/health/info',
+      '/health/secrets',
+      '/health/queue',
+      '/health/socket',
+      '/health/r2',
+
+      // เดิม
       '/auth/google',
       '/auth/google/callback',
       '/auth/google/redirect',
@@ -41,26 +66,25 @@ export class FirebaseAuthGuard implements CanActivate {
       '/auth/logout',
       '/auth/config',
       '/auth/complete',
+      '/auth/firebase',
 
+      // api prefix
       '/api/auth/google',
       '/api/auth/google/callback',
-      '/api/auth/google/redirect',
       '/api/auth/facebook',
       '/api/auth/facebook/callback',
-      '/api/auth/facebook/redirect',
-      '/api/auth/session',
-      '/api/auth/logout',
-      '/api/auth/config',
       '/api/auth/complete',
-
-      '/auth/firebase',
       '/api/auth/firebase',
     ];
 
-    if (publicPrefixes.some((path) => url.startsWith(path))) {
+    if (publicPrefixes.some((p) => url.startsWith(p))) {
       return true;
     }
 
+    // ============================================
+    // 3) Session cookie authentication (unchanged)
+    // ============================================
+    const cookieName = process.env.SESSION_COOKIE_NAME || '__session';
     let sessionCookieValue: string | null = null;
 
     try {
@@ -73,9 +97,7 @@ export class FirebaseAuthGuard implements CanActivate {
         sessionCookieValue = parsed[cookieName] || null;
       }
     } catch (error: unknown) {
-      const err =
-        error instanceof Error ? error.message : String(error);
-
+      const err = error instanceof Error ? error.message : String(error);
       this.logger.warn('Cookie parse failed: ' + err);
     }
 
@@ -83,6 +105,7 @@ export class FirebaseAuthGuard implements CanActivate {
       (req.headers && (req.headers.authorization as string)) || '';
 
     try {
+      // Firebase session cookie
       if (sessionCookieValue) {
         const decoded = await this.firebase
           .auth()
@@ -92,7 +115,8 @@ export class FirebaseAuthGuard implements CanActivate {
         return true;
       }
 
-      if (authHeader && authHeader.startsWith('Bearer ')) {
+      // Firebase bearer token
+      if (authHeader.startsWith('Bearer ')) {
         const token = authHeader.replace(/^Bearer\s+/i, '').trim();
 
         if (token) {
@@ -102,12 +126,13 @@ export class FirebaseAuthGuard implements CanActivate {
         }
       }
     } catch (error: unknown) {
-      const err =
-        error instanceof Error ? error.message : String(error);
-
+      const err = error instanceof Error ? error.message : String(error);
       this.logger.debug('Token verification failed: ' + err);
     }
 
+    // ============================================
+    // 4) Allow websocket upgrade traffic
+    // ============================================
     const upgradeHeader =
       req.headers['upgrade'] ||
       req.headers['Upgrade'] ||
@@ -116,13 +141,15 @@ export class FirebaseAuthGuard implements CanActivate {
     if (
       (typeof upgradeHeader === 'string' &&
         upgradeHeader.toLowerCase().includes('upgrade')) ||
-      req.headers['sec-websocket-key'] ||
-      req.headers['sec-websocket-version']
+      req.headers['sec-websocket-key']
     ) {
       delete req.user;
       return true;
     }
 
+    // ============================================
+    // 5) Default = Unauthorized
+    // ============================================
     throw new UnauthorizedException('Authentication required');
   }
 }

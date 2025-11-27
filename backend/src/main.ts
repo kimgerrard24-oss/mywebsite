@@ -213,6 +213,10 @@ async function bootstrap(): Promise<void> {
   expressApp.use(json({ limit: '10mb' }));
   expressApp.use(urlencoded({ extended: true }));
 
+  // Initialize Nest providers before creating server/socket that relies on them.
+  // This prevents race conditions where socket middleware uses nestApp.get(...) before providers are ready.
+  await nestApp.init();
+
   const httpServer = createServer(expressApp);
 
   // ============================
@@ -344,8 +348,6 @@ async function bootstrap(): Promise<void> {
       Sentry.captureException(err as any);
     } catch {}
   });
-
-  await nestApp.init();
 
   const port = parseInt(process.env.PORT || '4001', 10);
   httpServer.listen(port, '0.0.0.0', () => {
