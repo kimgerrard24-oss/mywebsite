@@ -14,7 +14,7 @@ interface ResultMap {
   postgres: Status;
   redis: Status;
   secrets: Status;
-  r2: Status;        // UPDATED
+  r2: Status;
   queue: Status;
   socket: Status;
 }
@@ -26,7 +26,7 @@ export default function SystemCheckPage() {
     postgres: "LOADING",
     redis: "LOADING",
     secrets: "LOADING",
-    r2: "LOADING",        // UPDATED
+    r2: "LOADING",
     queue: "LOADING",
     socket: "LOADING",
   });
@@ -40,8 +40,14 @@ export default function SystemCheckPage() {
     setResults((prev) => ({ ...prev, tailwind: "OK" }));
 
     const tests = async () => {
+      // Backend & Services
       try {
-        const { data } = await axios.get(`${api}/system-check`);
+        const { data } = await axios.get(`${api}/system-check`, {
+          withCredentials: false, // IMPORTANT FIX
+          headers: {
+            "Content-Type": "application/json", // prevent CORS/block
+          },
+        });
 
         setResults((p) => ({
           ...p,
@@ -49,10 +55,7 @@ export default function SystemCheckPage() {
           postgres: data.status.postgres ? "OK" : "ERROR",
           redis: data.status.redis ? "OK" : "ERROR",
           secrets: data.status.secrets ? "OK" : "ERROR",
-
-          // UPDATED: r2
           r2: data.status.r2 ? "OK" : "ERROR",
-
           queue: data.status.queue ? "OK" : "ERROR",
         }));
       } catch {
@@ -71,7 +74,11 @@ export default function SystemCheckPage() {
       try {
         await new Promise((res) => setTimeout(res, 300));
 
-        const socket: Socket = io(api.replace("https://", "wss://"), {
+        const wsUrl = api.startsWith("https://")
+          ? api.replace("https://", "wss://")
+          : api.replace("http://", "ws://");
+
+        const socket: Socket = io(wsUrl, {
           transports: ["websocket", "polling"],
           path: "/socket.io/",
           autoConnect: true,
@@ -137,10 +144,7 @@ export default function SystemCheckPage() {
         {renderStatus("PostgreSQL", results.postgres)}
         {renderStatus("Redis", results.redis)}
         {renderStatus("Secrets Manager", results.secrets)}
-
-        {/* UPDATED: R2 */}
         {renderStatus("R2 Bucket", results.r2)}
-
         {renderStatus("Queue", results.queue)}
         {renderStatus("WebSocket", results.socket)}
       </div>

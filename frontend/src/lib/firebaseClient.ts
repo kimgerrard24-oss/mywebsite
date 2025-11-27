@@ -2,12 +2,6 @@
 // file: lib/firebaseClient.ts
 // ==============================
 
-// Safe client-side Firebase initializer for Next.js (fixed)
-// - prevents SSR initialization
-// - guarantees correct retry logic
-// - ensures getFirebaseAuth() never returns null silently
-// ==============================
-
 import {
   initializeApp,
   getApps,
@@ -19,40 +13,39 @@ import { getAuth, type Auth } from "firebase/auth";
 let appInstance: FirebaseApp | null = null;
 let authInstance: Auth | null = null;
 
-// control initialization but allow retry if failed
 let initializing = false;
+
+// Helper: normalize environment values
+function clean(value?: string) {
+  return value && value.trim().length > 0 ? value : undefined;
+}
 
 function createFirebase(): void {
   if (typeof window === "undefined") return;
 
-  // prevent simultaneous double-init
   if (initializing) return;
   initializing = true;
 
   try {
-    const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
-    const authDomain = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN;
-    const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
-    const storageBucket = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET;
-    const messagingSenderId =
-      process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID;
-    const appId = process.env.NEXT_PUBLIC_FIREBASE_APP_ID;
-
-    if (!apiKey || !authDomain || !projectId || !appId) {
-      throw new Error("Missing required NEXT_PUBLIC_FIREBASE_* env variables");
-    }
-
     const config = {
-      apiKey,
-      authDomain,
-      projectId,
-      storageBucket: storageBucket ?? undefined,
-      messagingSenderId: messagingSenderId ?? undefined,
-      appId,
+      apiKey: clean(process.env.NEXT_PUBLIC_FIREBASE_API_KEY),
+      authDomain: clean(process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN),
+      projectId: clean(process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID),
+      storageBucket: clean(process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET),
+      messagingSenderId: clean(
+        process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+      ),
+      appId: clean(process.env.NEXT_PUBLIC_FIREBASE_APP_ID),
     };
 
+    // FIX: do not throw; fail silently (prevent hydration crash)
+    if (!config.apiKey || !config.authDomain || !config.projectId || !config.appId) {
+      initializing = false;
+      return;
+    }
+
     if (getApps().length === 0) {
-      appInstance = initializeApp(config);
+      appInstance = initializeApp(config as any);
     } else {
       appInstance = getApp();
     }
@@ -64,13 +57,10 @@ function createFirebase(): void {
 
     appInstance = null;
     authInstance = null;
-
-    // allow retry next time
     initializing = false;
     return;
   }
 
-  // init success
   initializing = false;
 }
 

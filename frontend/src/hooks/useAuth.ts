@@ -4,17 +4,20 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import axios from "@/lib/axios"; // FIX: ต้องใช้ axios instance ของระบบ
+import axios from "@/lib/axios";
 import type { User } from "@/types/index";
+
+// FIX: normalize API base URL
+const rawBase =
+  process.env.NEXT_PUBLIC_BACKEND_URL ||
+  process.env.NEXT_PUBLIC_API_BASE ||
+  "https://api.phlyphant.com";
+
+const API_BASE = rawBase.replace(/\/+$/, "");
 
 export function useAuth() {
   const [user, setUser] = useState<Partial<User> | null>(null);
   const [loading, setLoading] = useState(true);
-
-  const API_BASE =
-    process.env.NEXT_PUBLIC_BACKEND_URL ||
-    process.env.NEXT_PUBLIC_API_BASE ||
-    "https://api.phlyphant.com";
 
   useEffect(() => {
     let mounted = true;
@@ -33,7 +36,6 @@ export function useAuth() {
         if (valid) {
           const decoded = data.decoded || {};
 
-          // FIX: mapping ให้ปลอดภัย
           const uid = decoded.user_id ? String(decoded.user_id) : undefined;
           const email = decoded.email || undefined;
 

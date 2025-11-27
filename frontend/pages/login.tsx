@@ -1,20 +1,21 @@
-// frontend/pages/login.tsx
+// ==============================
+// file: frontend/pages/login.tsx
+// ==============================
 import React, { useEffect } from 'react';
 import { useRouter } from 'next/router';
-import axios from '@/lib/axios';
+import axios from 'axios'; // FIX: use direct axios instead of "@/lib/axios"
 import Cookies from 'js-cookie';
 
-const API_BASE =
+// FIX: normalize API base URL
+const API_BASE = (
   process.env.NEXT_PUBLIC_API_BASE ||
   process.env.NEXT_PUBLIC_BACKEND_URL ||
-  'https://api.phlyphant.com';
+  'https://api.phlyphant.com'
+).replace(/\/+$/, '');
 
 export default function LoginPage() {
   const router = useRouter();
 
-  // ================================
-  // FIX: ถ้ามี session แล้ว → ห้ามกลับหน้า login
-  // ================================
   useEffect(() => {
     const session = Cookies.get('__session');
     if (!session) return;
@@ -29,7 +30,7 @@ export default function LoginPage() {
           router.replace('/feed');
         }
       } catch {
-        // ignore error → user ยังไม่ login
+        // ignore error
       }
     }
 
@@ -37,8 +38,7 @@ export default function LoginPage() {
   }, [router]);
 
   function startOAuth(provider: 'google' | 'facebook') {
-    const url = `${API_BASE}/auth/${provider}`;
-    window.location.href = url;
+    window.location.href = `${API_BASE}/auth/${provider}`;
   }
 
   return (

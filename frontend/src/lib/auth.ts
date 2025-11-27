@@ -2,19 +2,16 @@
 // frontend/lib/auth.ts
 // ==============================
 
-// Helper utilities used during SSR to validate session cookie via backend
-
 import { sessionCheckServerSide } from './api';
 
 export async function validateSessionOnServer(cookieHeader?: string) {
   try {
-    // FIX #1 — normalize cookie header safely
     const headerValue =
       typeof cookieHeader === 'string' && cookieHeader.trim().length > 0
         ? cookieHeader
         : '';
 
-    // FIX #2 — ensure correct header name "Cookie" (capital C)
+    // FIX: send raw cookie string (correct type)
     const result = await sessionCheckServerSide(headerValue);
 
     if (!result) {
@@ -22,7 +19,6 @@ export async function validateSessionOnServer(cookieHeader?: string) {
     }
 
     const data = result as Record<string, any>;
-
     const valid = data.valid === true;
 
     const { valid: _ignored, ...rest } = data;

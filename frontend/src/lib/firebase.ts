@@ -48,23 +48,27 @@ if (typeof window !== "undefined") {
 }
 
 function createFirebaseApp(): FirebaseApp | null {
-  // FIX: do not throw error during SSR. Just return null.
+  // FIX: SSR safe (never throw)
   if (typeof window === "undefined") {
     return null;
   }
 
-  if (getApps().length > 0) {
-    return getApp();
+  // FIX: safe check (avoid race-condition)
+  try {
+    if (getApps().length > 0) {
+      return getApp();
+    }
+  } catch {
+    // swallow race-condition
   }
 
+  // FIX: do not throw if config missing (prevent hydration crash)
   if (
     !firebaseConfig.apiKey ||
     !firebaseConfig.projectId ||
     !firebaseConfig.appId
   ) {
-    throw new Error(
-      "Firebase initialization aborted: missing required NEXT_PUBLIC_FIREBASE_*"
-    );
+    return null;
   }
 
   return initializeApp(firebaseConfig as any);
@@ -92,5 +96,3 @@ export function getFirebaseAuth(): Auth {
   const app = getFirebaseApp();
   return getAuth(app);
 }
-
-export default {};

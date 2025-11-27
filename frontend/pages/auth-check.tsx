@@ -2,7 +2,7 @@
 // file: pages/auth-check.tsx
 // ==============================
 import { useEffect, useState } from "react";
-import axios from "@/lib/axios"; // FIX: correct import path
+import axios from "axios"; // FIX: use direct axios, avoid global instance
 import { CheckCircle, XCircle, Loader2, LogIn, LogOut } from "lucide-react";
 
 type Status = "OK" | "ERROR" | "LOADING";
@@ -15,12 +15,14 @@ export default function AuthCheckPage() {
     process.env.NEXT_PUBLIC_SITE_URL ||
     "https://phlyphant.com";
 
-  const API_BASE =
+  // FIX: normalize URL (remove trailing slash)
+  const API_BASE = (
     process.env.NEXT_PUBLIC_API_BASE ||
-    "https://api.phlyphant.com";
+    "https://api.phlyphant.com"
+  ).replace(/\/+$/, "");
 
   // ==============================================
-  // Session Check (Hybrid OAuth + Firebase Admin)
+  // Session Check
   // ==============================================
   const checkSession = async () => {
     try {
@@ -34,7 +36,6 @@ export default function AuthCheckPage() {
         return;
       }
 
-      // FIX: retry once due to cookie propagation delay
       const retry = await axios.get(`${API_BASE}/auth/session-check`, {
         withCredentials: true,
       });
@@ -50,23 +51,14 @@ export default function AuthCheckPage() {
     }
   };
 
-  // ==============================================
-  // Login with Google
-  // ==============================================
   const googleLogin = () => {
     window.location.href = `${API_BASE}/auth/google`;
   };
 
-  // ==============================================
-  // Login with Facebook
-  // ==============================================
   const facebookLogin = () => {
     window.location.href = `${API_BASE}/auth/facebook`;
   };
 
-  // ==============================================
-  // Logout
-  // ==============================================
   const logout = async () => {
     try {
       await axios.post(`${API_BASE}/auth/logout`, {}, {
@@ -93,8 +85,7 @@ export default function AuthCheckPage() {
     <div className="min-h-screen p-6 sm:p-10 bg-linear-to-br from-purple-100 via-white to-blue-100">
       <div className="max-w-3xl mx-auto bg-white/80 backdrop-blur-xl shadow-2xl border rounded-3xl p-6 sm:p-10">
 
-        <h1
-          className="text-3xl md:text-4xl font-extrabold text-center 
+        <h1 className="text-3xl md:text-4xl font-extrabold text-center 
           bg-linear-to-r from-purple-600 to-blue-600 bg-clip-text text-transparent drop-shadow-sm mb-10"
         >
           Hybrid OAuth + Firebase Admin Test

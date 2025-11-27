@@ -34,9 +34,6 @@ export class HealthController {
     return this.health.secretsCheck();
   }
 
-  // ==========================================
-  // UPDATED: Use R2 instead of S3
-  // ==========================================
   @Get('r2')
   r2() {
     return this.health.r2Check();
@@ -52,40 +49,31 @@ export class HealthController {
     return this.health.socketCheck();
   }
 
-  // ============================================================
-  // OAuth/Firebase Login Environment Health Check
-  // ============================================================
+  // ==========================================
+  // FIXED: OAuth/Firebase Health Check
+  // ไม่เปิดเผย environment จริง
+  // แสดงเฉพาะว่าถูกตั้งค่าหรือไม่ตาม production standard
+  // ==========================================
   @Get('oauth')
   oauthEnv() {
     return {
       ok: true,
       env: {
-        google: {
-          clientId: process.env.GOOGLE_CLIENT_ID || null,
-          redirectUrl: process.env.GOOGLE_REDIRECT_URL || null,
-          callbackUrl: process.env.GOOGLE_CALLBACK_URL || null,
-          providerRedirect:
-            process.env.GOOGLE_PROVIDER_REDIRECT_AFTER_LOGIN || null,
-        },
-        facebook: {
-          clientId: process.env.FACEBOOK_CLIENT_ID || null,
-          redirectUrl: process.env.FACEBOOK_REDIRECT_URL || null,
-          callbackUrl: process.env.FACEBOOK_CALLBACK_URL || null,
-          providerRedirect:
-            process.env.FACEBOOK_PROVIDER_REDIRECT_AFTER_LOGIN || null,
-        },
-        firebase: {
-          serviceAccountBase64: Boolean(
-            process.env.FIREBASE_SERVICE_ACCOUNT_BASE64,
-          ),
-        },
-        jwt: {
-          jwtSecretLoaded: Boolean(process.env.JWT_SECRET),
-          secretKeyLoaded: Boolean(process.env.SECRET_KEY),
-        },
-        cookie: {
-          cookieDomain: process.env.COOKIE_DOMAIN || null,
-        },
+        googleConfigured:
+          Boolean(process.env.GOOGLE_CLIENT_ID) &&
+          Boolean(process.env.GOOGLE_CLIENT_SECRET),
+
+        facebookConfigured:
+          Boolean(process.env.FACEBOOK_CLIENT_ID) &&
+          Boolean(process.env.FACEBOOK_CLIENT_SECRET),
+
+        firebaseConfigured: Boolean(
+          process.env.FIREBASE_SERVICE_ACCOUNT_BASE64,
+        ),
+
+        jwtConfigured: Boolean(process.env.JWT_SECRET),
+
+        cookieConfigured: Boolean(process.env.COOKIE_DOMAIN),
       },
     };
   }

@@ -1,21 +1,33 @@
-// frontend/lib/api.ts
-// Small API wrapper for auth endpoints. Uses credentials: 'include' to forward cookies.
+// ==============================
+// file: frontend/lib/api.ts
+// ==============================
 
-const API_BASE =
+// normalize API base
+const rawBase =
   process.env.NEXT_PUBLIC_BACKEND_URL ??
   process.env.NEXT_PUBLIC_API_BASE ??
   "https://api.phlyphant.com";
 
+const API_BASE = rawBase.replace(/\/+$/, "");
+
+// jsonFetch: default no credentials (caller decides)
 async function jsonFetch<T>(
   input: RequestInfo,
   init?: RequestInit
 ): Promise<T> {
+  const hasBody = typeof init?.body !== "undefined";
+
   const res = await fetch(input, {
-    credentials: "include",
+    // FIX: do not always include cookies; callers must specify it
+    credentials: init?.credentials ?? "same-origin",
+
     ...init,
     headers: {
-      "Content-Type": "application/json",
       Accept: "application/json",
+
+      // FIX: only set Content-Type if body exists
+      ...(hasBody ? { "Content-Type": "application/json" } : {}),
+
       ...(init?.headers ? (init.headers as Record<string, string>) : {}),
     },
   });
@@ -41,16 +53,20 @@ async function jsonFetch<T>(
 }
 
 // ==================================================
-// Added: Minimal axios-like client to support .post() calls
+// Minimal axios-like client
 // ==================================================
 export const client = {
   post: <T = any>(path: string, data?: any) =>
     jsonFetch<T>(`${API_BASE}${path}`, {
       method: "POST",
       body: JSON.stringify(data ?? {}),
+      credentials: "include", // send cookie only where needed
     }),
   get: <T = any>(path: string) =>
-    jsonFetch<T>(`${API_BASE}${path}`, { method: "GET" }),
+    jsonFetch<T>(`${API_BASE}${path}`, {
+      method: "GET",
+      credentials: "include",
+    }),
 };
 
 // ==================================================
@@ -60,15 +76,19 @@ export async function createSessionCookie(idToken: string) {
   return jsonFetch<{ ok: true }>(`${API_BASE}/auth/complete`, {
     method: "POST",
     body: JSON.stringify({ idToken }),
+    credentials: "include",
   });
 }
 
 export async function logout(): Promise<{ ok: true } | void> {
-  return jsonFetch(`${API_BASE}/auth/logout`, { method: "POST" });
+  return jsonFetch(`${API_BASE}/auth/logout`, {
+    method: "POST",
+    credentials: "include",
+  });
 }
 
 // ==================================================
-// Session check — works correctly with backend shape
+// Session checks
 // ==================================================
 export async function sessionCheckServerSide(
   cookieHeader?: string
@@ -106,7 +126,10 @@ export async function sessionCheckClient(): Promise<{
   user?: any;
 }> {
   const url = `${API_BASE}/auth/session-check`;
-  const data = (await jsonFetch(url)) as Record<string, any>;
+  const data = (await jsonFetch(url, { credentials: "include" })) as Record<
+    string,
+    any
+  >;
 
   const valid = data.valid === true;
 
@@ -117,10 +140,9 @@ export async function sessionCheckClient(): Promise<{
 }
 
 // ==================================================
-// Added: verifyEmail (for /pages/auth/verify-email.tsx)
-// ==================================================
 export async function verifyEmail(token: string, uid: string) {
   return jsonFetch(`${API_BASE}/auth/verify-email?token=${token}&uid=${uid}`, {
     method: "GET",
+    credentials: "include",
   });
 }

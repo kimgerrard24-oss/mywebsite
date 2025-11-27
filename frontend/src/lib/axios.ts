@@ -4,49 +4,47 @@
 
 import axios from "axios";
 
-// Production API base resolution (correct priority)
+// Production API base resolution
 const rawBase =
   process.env.NEXT_PUBLIC_BACKEND_URL ||
   process.env.NEXT_PUBLIC_API_BASE ||
   "https://api.phlyphant.com";
 
-// normalize: always ensure base URL has no trailing slash
+// normalize: remove trailing slash
 const API_BASE = rawBase.replace(/\/+$/, "");
 
 // Create axios instance
 const instance = axios.create({
   baseURL: API_BASE,
-  withCredentials: true,
+  // FIX: remove global withCredentials; set per-request explicitly
+  withCredentials: false,
+  timeout: 10000,
   headers: {
     "Content-Type": "application/json",
     Accept: "application/json",
-    "Cache-Control": "no-store",
-    Pragma: "no-cache",
-    Expires: "0",
   },
-  timeout: 10000,
 });
 
 // -----------------------------------------------------
-// FIX — ensure headers always exist & set safely
+// FIX — remove forced credentials + forced cache headers
 // -----------------------------------------------------
 instance.interceptors.request.use((config) => {
-  config.withCredentials = true;
+  // allow caller to choose withCredentials
+  if (typeof config.withCredentials === "undefined") {
+    config.withCredentials = false;
+  }
 
+  // ensure headers object exists
   const h: any = config.headers ?? {};
 
-  if (typeof h.set === "function") {
-    h.set("Cache-Control", "no-store");
-    h.set("Pragma", "no-cache");
-    h.set("Expires", "0");
-    if (!h.get("Accept")) {
+  // do not force Cache-Control, Pragma, Expires here
+  // let the caller decide (unhealthy to force)
+
+  // ensure Accept header exists
+  if (!h["Accept"] && !(h.get && h.get("Accept"))) {
+    if (typeof h.set === "function") {
       h.set("Accept", "application/json");
-    }
-  } else {
-    h["Cache-Control"] = "no-store";
-    h["Pragma"] = "no-cache";
-    h["Expires"] = "0";
-    if (!h["Accept"]) {
+    } else {
       h["Accept"] = "application/json";
     }
   }

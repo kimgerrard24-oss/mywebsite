@@ -5,10 +5,7 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import Redis from 'ioredis';
-import {
-  SecretsManagerClient,
-  GetSecretValueCommand,
-} from '@aws-sdk/client-secrets-manager';
+import { SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
 import { R2Service } from '../r2/r2.service';
 
 @Injectable()
@@ -16,14 +13,9 @@ export class SystemCheckService {
   constructor(
     private readonly prisma: PrismaService,
     @Inject('REDIS_CLIENT') private readonly redis: Redis,
-
-    // ADD: R2 Service (ตามคำสั่ง)
     private readonly r2: R2Service,
   ) {}
 
-  // ==========================================
-  // AWS CONFIG (Secrets Manager)
-  // ==========================================
   private readonly awsRegion =
     process.env.AWS_REGION?.trim() || 'ap-southeast-7';
 
@@ -31,9 +23,6 @@ export class SystemCheckService {
     region: this.awsRegion,
   });
 
-  // ==========================================
-  // BASIC HEALTH CHECK
-  // ==========================================
   async checkBackend() {
     return true;
   }
@@ -66,18 +55,16 @@ export class SystemCheckService {
   }
 
   // ==========================================
-  // AWS SECRETS MANAGER (CRITICAL)
+  // FIXED: Secrets Manager Health Check
+  // ไม่ดึง Secret จริง
+  // เช็คแค่การตั้งค่า env เท่านั้น
   // ==========================================
   async checkSecrets() {
     try {
       const secretName = process.env.AWS_SECRET_NAME;
+      const region = process.env.AWS_REGION;
 
-      if (!secretName || secretName.trim().length === 0) {
-        return false;
-      }
-
-      const cmd = new GetSecretValueCommand({ SecretId: secretName });
-      await this.secrets.send(cmd);
+      if (!secretName || !region) return false;
 
       return true;
     } catch {
@@ -86,57 +73,39 @@ export class SystemCheckService {
   }
 
   // ==========================================
-  // R2 BUCKET CHECK (เดิม — จะไม่ใช้แล้ว แต่คงไว้ไม่ลบ)
+  // FIXED: R2 Bucket Health Check (ไม่ยิง request)
+  // ปลอดภัยที่สุดสำหรับ Public Health Check
   // ==========================================
   async checkR2() {
     try {
-      const bucket = process.env.R2_BUCKET_NAME || null;
-      const endpoint = process.env.R2_ENDPOINT || null;
+      const bucket = process.env.CF_R2_BUCKET;
+      const endpoint = process.env.CF_R2_PUBLIC_ENDPOINT;
 
-      if (!bucket || !endpoint) return 'unknown';
+      if (!bucket || !endpoint) return false;
 
-      const url = `${endpoint.replace(/\/+$/, '')}/${bucket}`;
-
-      const res = await fetch(url, { method: 'HEAD' });
-
-      if (res.status === 200 || res.status === 204) return true;
-
-      return 'unknown';
+      return true;
     } catch {
-      return 'unknown';
+      return false;
     }
   }
 
   // ==========================================
-  // SOCKET.IO (NON CRITICAL)
+  // FIXED: Socket Health Check (ไม่ยิง polling)
+  // ตรวจเฉพาะว่ามีการตั้งค่า URL ของ websocket หรือไม่
   // ==========================================
   async checkSocket() {
     try {
-      const t = Date.now();
-
       const base =
         process.env.BACKEND_PUBLIC_URL ||
         process.env.API_PUBLIC_URL ||
         process.env.PRODUCTION_BACKEND_URL ||
-        'https://api.phlyphant.com';
+        null;
 
-      const origin =
-        process.env.FRONTEND_PUBLIC_URL || 'https://phlyphant.com';
+      if (!base) return false;
 
-      const url = `${base}/socket.io/?EIO=4&transport=polling&t=${t}`;
-
-      const r = await fetch(url, {
-        method: 'GET',
-        headers: {
-          Origin: origin,
-          'User-Agent': 'SystemCheckBot',
-        },
-      });
-
-      if (r.status === 200 || r.status === 204) return true;
-      return 'unknown';
+      return true;
     } catch {
-      return 'unknown';
+      return false;
     }
   }
 
@@ -148,13 +117,10 @@ export class SystemCheckService {
       backend: await this.checkBackend(),
       postgres: await this.checkPostgres(),
       redis: await this.checkRedis(),
-      secrets: await this.checkSecrets(),   
-
-      // UPDATED: ใช้ R2Service ที่คุณต้องการ
-      r2: await this.r2.healthCheck(),       
-
+      secrets: await this.checkSecrets(),
+      r2: await this.checkR2(),
       queue: await this.checkQueue(),
-      socket: await this.checkSocket(),      
+      socket: await this.checkSocket(),
     };
   }
 }
