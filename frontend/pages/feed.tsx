@@ -7,6 +7,7 @@ import Head from "next/head";
 import { GetServerSideProps } from "next";
 import { validateSessionOnServer } from "@/lib/auth";
 import LogoutButton from "@/components/auth/LogoutButton";
+import { useEffect } from "react"; // ⭐ เพิ่ม import ที่จำเป็น
 
 type FeedProps = {
   valid: boolean;
@@ -14,6 +15,28 @@ type FeedProps = {
 };
 
 export default function FeedPage({ valid, user }: FeedProps) {
+  // ============================================
+  // DEBUG ONLY — REMOVE AFTER TEST
+  // ใช้เพื่อ expose Firebase Auth ให้ console ใช้งานได้
+  // ============================================
+  useEffect(() => {
+    import("firebase/auth").then(({ getAuth, onAuthStateChanged }) => {
+      const auth = getAuth();
+
+      // expose to window → ใช้ใน DevTools Console
+      (window as any).auth = auth;
+
+      onAuthStateChanged(auth, (user) => {
+        if (user) {
+          console.log("DEBUG: user loaded", user);
+        } else {
+          console.log("DEBUG: no user");
+        }
+      });
+    });
+  }, []);
+  // ============================================
+
   // ถ้าไม่ได้ล็อกอิน → redirect ที่ server-side แล้ว (SSR)
   // มาถึงตรงนี้คือ "มี session แล้ว" เท่านั้น
 
@@ -79,9 +102,7 @@ export default function FeedPage({ valid, user }: FeedProps) {
             </p>
           </article>
 
-          {/* ======================================
-              MOCKED FEED ITEM (คุณโหลดจริงที่หลังได้)
-             ====================================== */}
+          {/* Mock posts */}
           {MOCK_POSTS.map((post) => (
             <PostCard key={post.id} post={post} />
           ))}
@@ -153,7 +174,7 @@ function PostCard({ post }: { post: Post }) {
 }
 
 // ===============================
-// Mock Data (ภายหลังเปลี่ยนเป็น real API)
+// Mock Data
 // ===============================
 
 const MOCK_POSTS: Post[] = [
@@ -187,7 +208,6 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
 
   const result = await validateSessionOnServer(cookieHeader);
 
-  // ไม่มี session → redirect
   if (!result || !result.valid) {
     return {
       redirect: {
