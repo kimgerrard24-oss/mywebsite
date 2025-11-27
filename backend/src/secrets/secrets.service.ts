@@ -17,19 +17,49 @@ export class SecretsService {
 
   // ---------------------------------------------------------
   // Fetch a secret from AWS Secrets Manager
+  // - Fault-tolerant: never throws to caller; returns empty object on failure.
+  // - This prevents a single missing/invalid secret from making the whole app unhealthy.
   // ---------------------------------------------------------
   async getSecret(secretName: string): Promise<Record<string, string>> {
     try {
+      if (!secretName || secretName.trim() === '') {
+        this.logger.warn('getSecret called with empty secretName');
+        return {};
+      }
+
       const command = new GetSecretValueCommand({ SecretId: secretName });
       const response = await this.client.send(command);
 
       if (!response.SecretString) {
-        throw new Error('SecretString not found');
+        this.logger.warn(`Secret "${secretName}" returned empty SecretString`);
+        return {};
       }
-      return JSON.parse(response.SecretString);
-    } catch (err) {
-      this.logger.error(`Failed to fetch secret: ${(err as Error).message}`);
-      throw err;
+
+      try {
+        const parsed = JSON.parse(response.SecretString);
+        if (parsed && typeof parsed === 'object') {
+          // Normalize to string-string map (best-effort)
+          const out: Record<string, string> = {};
+          for (const [k, v] of Object.entries(parsed)) {
+            out[k] = typeof v === 'string' ? v : String(v);
+          }
+          return out;
+        } else {
+          this.logger.warn(`Secret "${secretName}" parsed to non-object; ignoring`);
+          return {};
+        }
+      } catch (jsonErr) {
+        this.logger.error(
+          `Failed to parse secret "${secretName}" as JSON — ensure secret is stored as JSON.`,
+        );
+        return {};
+      }
+    } catch (err: any) {
+      // Log error without revealing secret contents
+      const msg = err?.message ? err.message : String(err);
+      this.logger.error(`Failed to fetch secret "${secretName}": ${msg}`);
+      // Do NOT throw — return empty object to keep system resilient
+      return {};
     }
   }
 
@@ -86,7 +116,7 @@ export class SecretsService {
     const FINAL_GOOGLE_CALLBACK =
       'https://api.phlyphant.com/auth/google/callback';
 
-    googleCallback = googleCallback.replace(/\/$/, '');
+    googleCallback = (googleCallback || '').replace(/\/$/, '');
     if (googleCallback !== FINAL_GOOGLE_CALLBACK) {
       googleCallback = FINAL_GOOGLE_CALLBACK;
     }
@@ -122,7 +152,7 @@ export class SecretsService {
     const FINAL_FACEBOOK_CALLBACK =
       'https://api.phlyphant.com/auth/facebook/callback';
 
-    facebookCallback = facebookCallback.replace(/\/$/, '');
+    facebookCallback = (facebookCallback || '').replace(/\/$/, '');
     if (facebookCallback !== FINAL_FACEBOOK_CALLBACK) {
       facebookCallback = FINAL_FACEBOOK_CALLBACK;
     }
@@ -155,7 +185,9 @@ export class SecretsService {
 
     // Inject normalized values into process.env
     for (const [k, v] of Object.entries(normalized)) {
-      process.env[k] = v;
+      if (v && v.length > 0) {
+        process.env[k] = v;
+      }
     }
 
     return normalized;

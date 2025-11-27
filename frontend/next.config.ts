@@ -8,12 +8,10 @@ const nextConfig: NextConfig = {
   output: "standalone",
 
   experimental: {
-    // แก้ error lightningcss
+    
     useLightningcss: false,
     optimizeCss: false,
 
-    // ❌ REMOVE: webpackBuildWorker (กิน RAM สูงขึ้นบน Docker)
-    // webpackBuildWorker: true,
   },
 
   async rewrites() {

@@ -14,14 +14,27 @@ function requireEnv(name: string): string {
   return value;
 }
 
+// Parse redis:// URL into host/port for Bull v3
+function parseRedisUrl(url: string) {
+  try {
+    const u = new URL(url); // native URL parser
+    return {
+      host: u.hostname,
+      port: Number(u.port) || 6379,
+    };
+  } catch {
+    throw new Error(`Invalid REDIS_URL format: ${url}`);
+  }
+}
+
 @Module({
   imports: [
-    // Use Redis URL from environment (production-safe)
+    // Correct Bull Redis config (Bull v3 requires host/port, not url)
     BullModule.forRoot({
-      redis: requireEnv('REDIS_URL'),
+      redis: parseRedisUrl(requireEnv('REDIS_URL')),
     }),
 
-    // Default queue (leave unchanged as requested)
+    // Default queue (unchanged)
     BullModule.registerQueue({
       name: 'default',
     }),

@@ -9,12 +9,16 @@ import {
   SecretsManagerClient,
   GetSecretValueCommand,
 } from '@aws-sdk/client-secrets-manager';
+import { R2Service } from '../r2/r2.service';
 
 @Injectable()
 export class SystemCheckService {
   constructor(
     private readonly prisma: PrismaService,
     @Inject('REDIS_CLIENT') private readonly redis: Redis,
+
+    // ADD: R2 Service (ตามคำสั่ง)
+    private readonly r2: R2Service,
   ) {}
 
   // ==========================================
@@ -82,12 +86,7 @@ export class SystemCheckService {
   }
 
   // ==========================================
-  // R2 BUCKET CHECK (แทน S3) — NON CRITICAL
-  //
-  // เช็คแบบ HEAD request:
-  // https://<R2_ENDPOINT>/<BUCKET_NAME>
-  //
-  // ไม่ต้องให้ backend unhealthy
+  // R2 BUCKET CHECK (เดิม — จะไม่ใช้แล้ว แต่คงไว้ไม่ลบ)
   // ==========================================
   async checkR2() {
     try {
@@ -149,10 +148,13 @@ export class SystemCheckService {
       backend: await this.checkBackend(),
       postgres: await this.checkPostgres(),
       redis: await this.checkRedis(),
-      secrets: await this.checkSecrets(),  // critical
-      r2: await this.checkR2(),            // non-critical
+      secrets: await this.checkSecrets(),   
+
+      // UPDATED: ใช้ R2Service ที่คุณต้องการ
+      r2: await this.r2.healthCheck(),       
+
       queue: await this.checkQueue(),
-      socket: await this.checkSocket(),    // non-critical
+      socket: await this.checkSocket(),      
     };
   }
 }

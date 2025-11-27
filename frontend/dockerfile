@@ -7,8 +7,16 @@ ENV NODE_OPTIONS="--max-old-space-size=4096"
 
 COPY package*.json ./
 
+# เพิ่ม registry fallback ป้องกัน npm ci ล้มเหลว
+RUN npm set registry https://registry.npmmirror.com \
+    && npm set fetch-retries 5 \
+    && npm set fetch-retry-factor 10
+
 RUN --mount=type=cache,target=/root/.npm \
     npm ci
+
+# ต้องเพิ่มตรงนี้! เพื่อให้ next build ทำงานได้
+RUN chmod +x node_modules/.bin/next
 
 COPY . .
 
@@ -24,7 +32,6 @@ ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 
-# ADD: install curl (fix healthcheck)
 RUN apt-get update -y \
     && apt-get install -y openssl curl \
     && rm -rf /var/lib/apt/lists/*

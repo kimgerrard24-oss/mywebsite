@@ -9,9 +9,11 @@ import { SystemCheckService } from './system-check.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { RedisModule } from '../redis/redis.module';
 
+// FIX: ต้อง import R2Module เพื่อให้ R2Service ถูก inject ได้
+import { R2Module } from '../r2/r2.module';
+
 @Module({
   imports: [
-    // Load environment variables for OAuth / Firebase / JWT / S3 / Redis
     ConfigModule.forRoot({
       isGlobal: true,
       ignoreEnvFile: false,
@@ -19,6 +21,9 @@ import { RedisModule } from '../redis/redis.module';
 
     PrismaModule,
     RedisModule,
+
+    // FIX: เพิ่ม R2Module
+    R2Module,
   ],
 
   controllers: [

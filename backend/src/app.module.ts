@@ -18,19 +18,18 @@ import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { UsersTestController } from './users/users.controller';
 import { PrismaModule } from './prisma/prisma.module';
 import { FirebaseAdminModule } from './firebase/firebase.module';
-
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 
-// === เพิ่มตามคำสั่งของคุณ ===
+// เพิ่มตามคำสั่งของคุณ
 import { FirebaseAuthGuard } from './auth/firebase-auth.guard';
-// ==================================
+
+// *** ADD THIS: R2 Module ***
+import { R2Module } from './r2/r2.module';
 
 @Module({
   imports: [
-    // =======================================================
-    // 1) MUST LOAD .env BEFORE ANY OTHER MODULE
-    // =======================================================
+    // Load ENV first
     ConfigModule.forRoot({
       envFilePath:
         process.env.NODE_ENV === 'production'
@@ -40,33 +39,23 @@ import { FirebaseAuthGuard } from './auth/firebase-auth.guard';
       cache: true,
     }),
 
-    // =======================================================
-    // 2) Secrets module (now ENV is loaded correctly)
-    // =======================================================
     SecretsModule,
-
-    // =======================================================
-    // 3) Firebase BEFORE AuthModule
-    // =======================================================
     FirebaseAdminModule,
-
-    // =======================================================
-    // 4) Auth Module Hybrid OAuth + Firebase
-    // =======================================================
     AuthModule,
 
-    // Other core modules
     AwsModule,
+
+    // *** MUST ADD R2 MODULE HERE ***
+    R2Module,
+
     HealthModule,
     PrismaModule,
     RedisModule,
     AppCacheModule,
     QueueModule,
 
-    // Sentry global monitoring
     SentryModule.forRoot(),
 
-    // Rate limiting
     ThrottlerModule.forRoot({
       throttlers: [
         {
@@ -88,13 +77,10 @@ import { FirebaseAuthGuard } from './auth/firebase-auth.guard';
       provide: APP_GUARD,
       useClass: ThrottlerGuard,
     },
-
-    // === เพิ่มตามคำสั่งของคุณ ===
     {
       provide: APP_GUARD,
       useClass: FirebaseAuthGuard,
     },
-    // ==================================
   ],
 })
 export class AppModule implements NestModule {

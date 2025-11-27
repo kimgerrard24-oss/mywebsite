@@ -12,28 +12,43 @@ import type RedisClientType from 'ioredis';
     NestCacheModule.registerAsync({
       inject: ['REDIS_CLIENT'],
       useFactory: async (redisClient: RedisClientType): Promise<CacheModuleOptions> => {
-        // If a Redis client instance is provided (from RedisModule), prefer reusing it.
-        // cache-manager-redis-store supports passing a ready-made client via the "client" option.
-        // Fallback: if no client is provided, use connection URL from env.
         const defaultTtl = Number(process.env.CACHE_TTL_SECONDS || '60');
 
+        // ------------------------------------------
+        // Case 1: ใช้ redis client จาก DI ตามปกติ
+        // ------------------------------------------
         if (redisClient && typeof (redisClient as any).options === 'object') {
           return {
             store: RedisStore as unknown as any,
             ttl: defaultTtl,
-            // the cache-manager redis store accepts "client" to reuse an existing ioredis instance
-            // we cast to any because type definitions for cache-manager-redis-store are not strongly typed here
             client: redisClient as unknown as any,
           };
         }
 
-        // Fallback to using connection URL from environment
+        // ------------------------------------------
+        // Case 2: ไม่มี client → fallback ใช้ REDIS_URL
+        // แต่ต้อง parse เป็น host/port เท่านั้น
+        // ------------------------------------------
         const redisUrl = process.env.REDIS_URL || 'redis://redis:6379';
+
+        let host = 'redis';
+        let port = 6379;
+
+        try {
+          const parsed = new URL(redisUrl);
+          host = parsed.hostname;
+          port = Number(parsed.port) || 6379;
+        } catch {
+          // ใช้ค่า default
+        }
 
         return {
           store: RedisStore as unknown as any,
           ttl: defaultTtl,
-          url: redisUrl,
+          socket: {
+            host,
+            port,
+          },
         };
       },
     }),

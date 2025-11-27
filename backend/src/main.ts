@@ -35,8 +35,13 @@ import { FirebaseAuthGuard } from './auth/firebase-auth.guard';
 import { Reflector } from '@nestjs/core';
 import { APP_GUARD } from '@nestjs/core';
 
-
 const logger = new Logger('bootstrap');
+
+// Use consistent Redis options for both pub/sub and client.
+// Setting maxRetriesPerRequest = null avoids "maxRetriesPerRequest exceeded" errors
+function redisOptions() {
+  return { maxRetriesPerRequest: null as any };
+}
 
 function createRedisClient(): IORedis {
   const redisUrl =
@@ -44,7 +49,7 @@ function createRedisClient(): IORedis {
       ? process.env.REDIS_URL || 'redis://redis:6379'
       : process.env.REDIS_URL || 'redis://localhost:6379';
 
-  return new IORedis(redisUrl, { maxRetriesPerRequest: 5 });
+  return new IORedis(redisUrl, redisOptions());
 }
 
 /**
@@ -58,13 +63,9 @@ function normalizeToOrigin(raw: string | undefined): string {
   if (!raw) return '';
   try {
     const trimmed = raw.trim();
-    // If it's a plain origin (no path), URL constructor will still work.
     const u = new URL(trimmed);
-    // return origin (protocol + host + port)
     return u.origin;
   } catch {
-    // If not a valid full URL, attempt simple heuristics:
-    // remove any trailing '/auth/complete' or trailing slash
     let s = String(raw).trim();
     s = s.replace(/\/auth\/?complete\/?$/i, '');
     s = s.replace(/\/+$/g, '');
@@ -77,7 +78,6 @@ async function bootstrap(): Promise<void> {
   const expressApp = nestApp.getHttpAdapter().getInstance() as Express;
 
   // trust proxy (for HTTPS cookies behind Caddy)
-  // set to true to ensure express understands X-Forwarded-* headers
   expressApp.set('trust proxy', true);
 
   expressApp.use(helmet());
@@ -127,11 +127,9 @@ async function bootstrap(): Promise<void> {
 
     const ok = corsRegex.some((r) => r.test(origin));
     if (ok) {
-      // echo the origin exactly (do not set wildcard) when allowed
       res.setHeader('Access-Control-Allow-Origin', origin);
       res.setHeader('Access-Control-Allow-Credentials', 'true');
       res.setHeader('Access-Control-Expose-Headers', 'Set-Cookie');
-      // Vary: Origin helps caches/proxies handle per-origin responses
       const prevVary = res.getHeader('Vary');
       if (!prevVary) {
         res.setHeader('Vary', 'Origin');
@@ -245,17 +243,41 @@ async function bootstrap(): Promise<void> {
       : process.env.REDIS_URL || 'redis://localhost:6379';
 
   try {
-    const opts = { maxRetriesPerRequest: null as any };
+    // Use same redis options for both pub/sub clients and connect them before adapter creation.
+    const opts = redisOptions();
     const pub = new IORedis(redisUrl, opts);
     const sub = new IORedis(redisUrl, opts);
+
+    // Ensure pub/sub are connected before creating adapter.
+    // This avoids binding adapter to non-ready clients which can cause errors during runtime.
+    await pub.connect().catch((err) => {
+      throw new Error('Redis pub connection failed: ' + String(err));
+    });
+    await sub.connect().catch((err) => {
+      // If sub fails, close pub to avoid dangling connection
+      try { pub.disconnect(); } catch {}
+      throw new Error('Redis sub connection failed: ' + String(err));
+    });
+
     io.adapter(createAdapter(pub, sub));
     logger.log('Redis adapter enabled for socket.io');
   } catch (e: unknown) {
     logger.error('Redis adapter failed: ' + String(e));
   }
 
+  // Create general redis client (used by app services)
   const redisClient = createRedisClient();
+
+  // Try to connect redis client proactively and log clearly if connection fails.
   redisClient.on('error', (err: unknown) => logger.error('Redis error', err));
+  try {
+    await redisClient.connect().catch((err) => {
+      logger.error('Redis client connect failed: ' + String(err));
+      // do not throw here — allow application to continue; health-check will report Redis down
+    });
+  } catch {
+    // ignore
+  }
 
   // ============================
   // WEBSOCKET COOKIE VALIDATION
@@ -307,6 +329,21 @@ async function bootstrap(): Promise<void> {
   // Allow AuthController to handle ALL /auth/* routing.
   // =====================================================
   // (No routes override in main.ts)
+
+  // Log and capture unexpected rejections so we can see why health-check may be failing.
+  process.on('unhandledRejection', (reason) => {
+    logger.error('Unhandled Rejection:', String(reason));
+    try {
+      Sentry.captureException(reason as any);
+    } catch {}
+  });
+
+  process.on('uncaughtException', (err) => {
+    logger.error('Uncaught Exception:', err instanceof Error ? err.stack || err.message : String(err));
+    try {
+      Sentry.captureException(err as any);
+    } catch {}
+  });
 
   await nestApp.init();
 
