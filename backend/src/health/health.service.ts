@@ -21,7 +21,7 @@ export class HealthService {
     try {
       await this.prisma.$queryRaw`SELECT 1`;
       return { ok: true };
-    } catch (err: unknown) {
+    } catch {
       return { ok: false };
     }
   }
@@ -35,30 +35,35 @@ export class HealthService {
     }
   }
 
-  // FIXED: ไม่เช็ค secret รายตัว ไม่เปิดเผย key ใด ๆ
+  // ==========================================
+  // FIXED: correct Secrets Manager health check
+  // ==========================================
   async secretsCheck() {
     try {
-      const required = [
-        'DATABASE_URL',
-        'REDIS_URL',
-        'FIREBASE_SERVICE_ACCOUNT_BASE64',
-      ];
+      const name = process.env.AWS_SECRET_NAME;
+      const region = process.env.AWS_REGION;
 
-      const missing = required.filter((k) => !process.env[k]);
+      if (!name || !region) {
+        return { ok: false };
+      }
 
-      return { ok: missing.length === 0 };
+      return { ok: true };
     } catch {
       return { ok: false };
     }
   }
 
-  // FIXED: ไม่ยิง HEAD request ออกไปยัง R2 จริง
+  // ==========================================
+  // FIXED: correct R2 environment validation
+  // ==========================================
   async r2Check() {
     try {
-      const endpoint = process.env.R2_ENDPOINT;
       const bucket = process.env.R2_BUCKET_NAME;
+      const endpoint = process.env.R2_ENDPOINT;
+      const key = process.env.R2_ACCESS_KEY_ID;
+      const secret = process.env.R2_SECRET_ACCESS_KEY;
 
-      if (!endpoint || !bucket) {
+      if (!bucket || !endpoint || !key || !secret) {
         return { ok: false };
       }
 
@@ -77,7 +82,6 @@ export class HealthService {
     }
   }
 
-  // FIXED: ไม่ยิง polling ไป socket.io
   async socketCheck() {
     try {
       const base =

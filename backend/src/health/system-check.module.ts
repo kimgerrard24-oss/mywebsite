@@ -2,7 +2,6 @@
 // file: src/system-check/system-check.module.ts
 // ==========================================
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
 import { SystemCheckController } from './system-check.controller';
 import { SystemCheckService } from './system-check.service';
 
@@ -14,10 +13,7 @@ import { R2Module } from '../r2/r2.module';
 
 @Module({
   imports: [
-    // FIX: ไม่ต้อง forRoot() ที่นี่
-    // ใช้ Global ConfigModule จาก AppModule แทน
-    ConfigModule,
-
+    
     PrismaModule,
     RedisModule,
     AwsModule,

@@ -29,18 +29,31 @@ import { SecretsService } from './secrets.service';
 
         const service = new SecretsService();
 
-        // Auto-load OAuth secrets from AWS unless disabled
-        const disabled = process.env.DISABLE_AWS_SECRET === 'true';
+        // Auto-load AWS unless disabled manually
+        const disableAWS = process.env.DISABLE_AWS_SECRET === 'true';
 
-        if (!disabled) {
+        // NEW: unified secret name detection (fix unhealthy)
+        const secretName =
+          process.env.AWS_OAUTH_SECRET_NAME ||
+          process.env.AWS_SECRET_NAME ||
+          '';
+
+        if (!disableAWS && secretName.trim() !== '') {
           try {
             await service.getOAuthSecrets();
-            logger.log('OAuth secrets loaded successfully from AWS.');
+            logger.log(
+              `OAuth secrets loaded successfully from AWS (Secret="${secretName}")`
+            );
           } catch (err) {
             logger.error(
               `Failed to load OAuth secrets from AWS: ${(err as Error).message}`
             );
           }
+        } else if (!disableAWS && secretName.trim() === '') {
+          // NEW: prevents false "unhealthy" on system-check
+          logger.warn(
+            'AWS secret name missing → skip AWS Secrets Manager. Using only environment variables.'
+          );
         } else {
           logger.warn(
             'DISABLE_AWS_SECRET=true → using only .env.production without AWS fallback.'

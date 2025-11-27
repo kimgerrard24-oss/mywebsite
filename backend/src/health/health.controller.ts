@@ -51,8 +51,7 @@ export class HealthController {
 
   // ==========================================
   // FIXED: OAuth/Firebase Health Check
-  // ไม่เปิดเผย environment จริง
-  // แสดงเฉพาะว่าถูกตั้งค่าหรือไม่ตาม production standard
+  // - remove jwtConfigured check (system uses Firebase, not JWT_SECRET)
   // ==========================================
   @Get('oauth')
   oauthEnv() {
@@ -71,8 +70,7 @@ export class HealthController {
           process.env.FIREBASE_SERVICE_ACCOUNT_BASE64,
         ),
 
-        jwtConfigured: Boolean(process.env.JWT_SECRET),
-
+        // removed jwt check (Firebase project does not use JWT_SECRET)
         cookieConfigured: Boolean(process.env.COOKIE_DOMAIN),
       },
     };

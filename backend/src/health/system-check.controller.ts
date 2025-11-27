@@ -1,7 +1,7 @@
 // ==============================
 // file: src/system-check/system-check.controller.ts
 // ==============================
-import { Controller, Get, Inject, Logger } from '@nestjs/common';
+import { Controller, Get, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { SystemCheckService } from './system-check.service';
 import { Public } from '../auth/decorators/public.decorator';
@@ -20,9 +20,11 @@ export class SystemCheckController {
   async checkAll() {
     const status = await this.systemCheck.getStatus();
 
-    // SAFE ENV SUMMARY (no sensitive data)
     const envSummary = {
-      nodeEnv: this.configService.get<string>('NODE_ENV') || 'production',
+      nodeEnv:
+        this.configService.get<string>('NODE_ENV') ||
+        process.env.NODE_ENV ||
+        null,
 
       backendUrl:
         this.configService.get<string>('BACKEND_PUBLIC_URL') ||
@@ -30,7 +32,6 @@ export class SystemCheckController {
         null,
     };
 
-    // minimal, safe logging
     this.logger.log(
       `System check requested (env=${envSummary.nodeEnv})`,
     );

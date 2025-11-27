@@ -4,8 +4,10 @@
 
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+
 import { HealthController } from './health.controller';
 import { HealthService } from './health.service';
+
 import { SystemCheckController } from './system-check.controller';
 import { SystemCheckService } from './system-check.service';
 
@@ -15,8 +17,7 @@ import { R2Module } from '../r2/r2.module';
 
 @Module({
   imports: [
-    // Fixed: ไม่ต้อง ConfigModule.forRoot ที่นี่
-    // ใช้ Global ConfigModule จาก AppModule แทน
+    // ใช้ Global Config จาก AppModule
     ConfigModule,
 
     PrismaModule,
@@ -30,6 +31,12 @@ import { R2Module } from '../r2/r2.module';
   ],
 
   providers: [
+    HealthService,
+    SystemCheckService,
+  ],
+
+  // FIX — ensure Nest resolves controller meta before AuthGuard runs
+  exports: [
     HealthService,
     SystemCheckService,
   ],

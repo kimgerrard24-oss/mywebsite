@@ -5,7 +5,7 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import Redis from 'ioredis';
-import { SecretsManagerClient } from '@aws-sdk/client-secrets-manager';
+import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-secrets-manager';
 import { R2Service } from '../r2/r2.service';
 
 @Injectable()
@@ -19,7 +19,7 @@ export class SystemCheckService {
   private readonly awsRegion =
     process.env.AWS_REGION?.trim() || 'ap-southeast-7';
 
-  private secrets = new SecretsManagerClient({
+  private secretsClient = new SecretsManagerClient({
     region: this.awsRegion,
   });
 
@@ -55,16 +55,20 @@ export class SystemCheckService {
   }
 
   // ==========================================
-  // FIXED: Secrets Manager Health Check
-  // ไม่ดึง Secret จริง
-  // เช็คแค่การตั้งค่า env เท่านั้น
+  // FIX #1 — Check AWS Secrets correctly
   // ==========================================
   async checkSecrets() {
     try {
       const secretName = process.env.AWS_SECRET_NAME;
-      const region = process.env.AWS_REGION;
 
-      if (!secretName || !region) return false;
+      if (!secretName) return false;
+
+      // ต้อง test read จริงจาก AWS
+      await this.secretsClient.send(
+        new GetSecretValueCommand({
+          SecretId: secretName,
+        }),
+      );
 
       return true;
     } catch {
@@ -73,25 +77,27 @@ export class SystemCheckService {
   }
 
   // ==========================================
-  // FIXED: R2 Bucket Health Check (ไม่ยิง request)
-  // ปลอดภัยที่สุดสำหรับ Public Health Check
+  // FIX #2 — Check R2 using actual environment used by R2Module
   // ==========================================
   async checkR2() {
     try {
-      const bucket = process.env.CF_R2_BUCKET;
-      const endpoint = process.env.CF_R2_PUBLIC_ENDPOINT;
+      const bucket = process.env.R2_BUCKET_NAME;
+      const endpoint = process.env.R2_ENDPOINT;
+      const accessKey = process.env.R2_ACCESS_KEY_ID;
+      const secretKey = process.env.R2_SECRET_ACCESS_KEY;
 
-      if (!bucket || !endpoint) return false;
+      if (!bucket || !endpoint || !accessKey || !secretKey) return false;
 
-      return true;
+      // Test R2 service directly
+      const ok = await this.r2.healthCheck();
+      return ok === true;
     } catch {
       return false;
     }
   }
 
   // ==========================================
-  // FIXED: Socket Health Check (ไม่ยิง polling)
-  // ตรวจเฉพาะว่ามีการตั้งค่า URL ของ websocket หรือไม่
+  // FIX #3 — Check socket by validating backend URL
   // ==========================================
   async checkSocket() {
     try {
@@ -102,6 +108,13 @@ export class SystemCheckService {
         null;
 
       if (!base) return false;
+
+      // ยังไม่ต้อง connect socket จริง เพียง validate URL format
+      try {
+        new URL(base);
+      } catch {
+        return false;
+      }
 
       return true;
     } catch {

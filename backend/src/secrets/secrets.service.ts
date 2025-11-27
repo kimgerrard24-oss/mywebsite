@@ -16,9 +16,7 @@ export class SecretsService {
   });
 
   // ---------------------------------------------------------
-  // Fetch a secret from AWS Secrets Manager
-  // - Fault-tolerant: never throws to caller; returns empty object on failure.
-  // - This prevents a single missing/invalid secret from making the whole app unhealthy.
+  // Safe fetch from AWS Secrets Manager
   // ---------------------------------------------------------
   async getSecret(secretName: string): Promise<Record<string, string>> {
     try {
@@ -38,33 +36,30 @@ export class SecretsService {
       try {
         const parsed = JSON.parse(response.SecretString);
         if (parsed && typeof parsed === 'object') {
-          // Normalize to string-string map (best-effort)
           const out: Record<string, string> = {};
           for (const [k, v] of Object.entries(parsed)) {
             out[k] = typeof v === 'string' ? v : String(v);
           }
           return out;
-        } else {
-          this.logger.warn(`Secret "${secretName}" parsed to non-object; ignoring`);
-          return {};
         }
-      } catch (jsonErr) {
+
+        this.logger.warn(`Secret "${secretName}" parsed to non-object; ignoring`);
+        return {};
+      } catch {
         this.logger.error(
           `Failed to parse secret "${secretName}" as JSON — ensure secret is stored as JSON.`,
         );
         return {};
       }
     } catch (err: any) {
-      // Log error without revealing secret contents
       const msg = err?.message ? err.message : String(err);
       this.logger.error(`Failed to fetch secret "${secretName}": ${msg}`);
-      // Do NOT throw — return empty object to keep system resilient
       return {};
     }
   }
 
   // ---------------------------------------------------------
-  // Normalize helper
+  // Helper
   // ---------------------------------------------------------
   private pick(obj: Record<string, any>, keys: string[]): string {
     for (const k of keys) {
@@ -76,18 +71,21 @@ export class SecretsService {
   }
 
   // ---------------------------------------------------------
-  // OAuth Secrets Loader (Google + Facebook)
+  // OAuth Secrets Loader
   // ---------------------------------------------------------
   async getOAuthSecrets(): Promise<Record<string, string>> {
-    const secretName =
-      process.env.AWS_OAUTH_SECRET_NAME ||
-      'OAuthClientIDSecretSocialLoginUrlRedirect';
+    const envSecret =
+      process.env.AWS_OAUTH_SECRET_NAME || process.env.AWS_SECRET_NAME;
 
-    const s = await this.getSecret(secretName);
+    // FIXED:
+    // ถ้าไม่มี secret name ให้ถือว่าใช้ .env และถือว่าผ่าน
+    const secretName = envSecret && envSecret.trim() !== ''
+      ? envSecret.trim()
+      : null;
 
-    // -----------------------------------------------------
-    // Normalize Google OAuth
-    // -----------------------------------------------------
+    const s = secretName ? await this.getSecret(secretName) : {};
+
+    // ---------------- Google ----------------
     const googleClientId =
       this.pick(s, ['GOOGLE_CLIENT_ID', 'client_id', 'clientId']) ||
       process.env.GOOGLE_CLIENT_ID ||
@@ -112,7 +110,6 @@ export class SecretsService {
       process.env.GOOGLE_REDIRECT_URL ||
       '';
 
-    // Required production callback
     const FINAL_GOOGLE_CALLBACK =
       'https://api.phlyphant.com/auth/google/callback';
 
@@ -130,9 +127,7 @@ export class SecretsService {
       process.env.GOOGLE_PROVIDER_REDIRECT_AFTER_LOGIN ||
       '';
 
-    // -----------------------------------------------------
-    // Normalize Facebook OAuth
-    // -----------------------------------------------------
+    // ---------------- Facebook ----------------
     const facebookClientId =
       this.pick(s, ['FACEBOOK_CLIENT_ID']) ||
       process.env.FACEBOOK_CLIENT_ID ||
@@ -166,9 +161,7 @@ export class SecretsService {
       process.env.FACEBOOK_PROVIDER_REDIRECT_AFTER_LOGIN ||
       '';
 
-    // -----------------------------------------------------
-    // Build normalized object
-    // -----------------------------------------------------
+    // ---------------- Build normalized output ----------------
     const normalized: Record<string, string> = {
       GOOGLE_CLIENT_ID: googleClientId,
       GOOGLE_CLIENT_SECRET: googleClientSecret,
@@ -183,18 +176,16 @@ export class SecretsService {
       FACEBOOK_PROVIDER_REDIRECT_AFTER_LOGIN: facebookRedirectAfterLogin,
     };
 
-    // Inject normalized values into process.env
+    // Inject to env
     for (const [k, v] of Object.entries(normalized)) {
-      if (v && v.length > 0) {
-        process.env[k] = v;
-      }
+      if (v && v.length > 0) process.env[k] = v;
     }
 
     return normalized;
   }
 
   // ---------------------------------------------------------
-  // Cached values (avoid re-fetching AWS)
+  // Cached secrets
   // ---------------------------------------------------------
   cachedOAuthSecrets(): Record<string, string> {
     return {

@@ -1,9 +1,15 @@
 // src/r2/r2.module.ts
 
 import { Module } from '@nestjs/common';
+import { ConfigModule } from '@nestjs/config';
 import { R2Service } from './r2.service';
 
 @Module({
+  imports: [
+    // FIXED: ให้ R2Service ใช้ ENV อย่างถูกต้อง
+    ConfigModule,
+  ],
+
   providers: [R2Service],
   exports: [R2Service],
 })
