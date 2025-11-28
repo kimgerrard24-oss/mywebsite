@@ -117,7 +117,7 @@ services:
       - ./backend/.env.production
     command:
       - redis-server
-      - --requirepass $$REDIS_PASSWORD
+      - --requirepass ${REDIS_PASSWORD}
       - --appendonly yes
       - --maxmemory 256mb
       - --maxmemory-policy allkeys-lru
@@ -140,7 +140,7 @@ services:
     tmpfs:
       - /tmp:size=64m
     healthcheck:
-      test: ["CMD-SHELL", "redis-cli -a $$REDIS_PASSWORD ping || exit 1"]
+      test: ["CMD-SHELL", "redis-cli -a ${REDIS_PASSWORD} ping || exit 1"]
       interval: 10s
       timeout: 3s
       retries: 5
