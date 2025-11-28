@@ -15,6 +15,15 @@ jobs:
         uses: actions/checkout@v4
 
       # -----------------------------------------------------------
+      # 0) Load AWS Secrets (NEW)
+      # -----------------------------------------------------------
+      - name: Load AWS Secrets
+        run: |
+          echo "${{ secrets.AWS_SECRETS }}" > .aws.env
+          export $(grep -v '^#' .aws.env | xargs)
+        shell: bash
+
+      # -----------------------------------------------------------
       # 1) Validate required secrets
       # -----------------------------------------------------------
       - name: Validate secrets
@@ -123,7 +132,6 @@ jobs:
 
             cd /var/www/phlyphant/mywebsite
 
-            # FIXED: safe production sync
             git fetch --all
             git reset --hard origin/main
 
