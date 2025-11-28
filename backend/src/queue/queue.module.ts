@@ -4,37 +4,35 @@
 
 import { Module } from '@nestjs/common';
 import { BullModule } from '@nestjs/bull';
+import type { Redis as RedisClient, RedisOptions } from 'ioredis';
 
-// Safe loader for production
-function requireEnv(name: string): string {
-  const value = process.env[name];
-  if (!value || value.trim() === '') {
-    throw new Error(`Missing required environment variable: ${name}`);
-  }
-  return value;
-}
-
-// Parse redis:// URL into host/port for Bull v3
-function parseRedisUrl(url: string) {
-  try {
-    const u = new URL(url); // native URL parser
-    return {
-      host: u.hostname,
-      port: Number(u.port) || 6379,
-    };
-  } catch {
-    throw new Error(`Invalid REDIS_URL format: ${url}`);
-  }
+// Re-use Redis options from global configuration
+function buildRedisOptions(): RedisOptions {
+  return {
+    enableReadyCheck: true,
+    lazyConnect: true,
+    maxRetriesPerRequest: null,
+    retryStrategy: (times: number) => {
+      return Math.min(times * 100, 2000);
+    },
+  };
 }
 
 @Module({
   imports: [
-    // Correct Bull Redis config (Bull v3 requires host/port, not url)
-    BullModule.forRoot({
-      redis: parseRedisUrl(requireEnv('REDIS_URL')),
+    BullModule.forRootAsync({
+      inject: ['REDIS_CLIENT'],
+      useFactory: async (redisClient: RedisClient) => {
+        const options = buildRedisOptions();
+
+        return {
+          createClient: (_type: string) => {
+            return redisClient.duplicate(options);
+          },
+        };
+      },
     }),
 
-    // Default queue (unchanged)
     BullModule.registerQueue({
       name: 'default',
     }),

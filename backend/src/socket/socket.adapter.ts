@@ -9,6 +9,17 @@ import {
   GetSecretValueCommand,
 } from '@aws-sdk/client-secrets-manager';
 
+function buildRedisOptions() {
+  return {
+    enableReadyCheck: true,
+    lazyConnect: true,
+    maxRetriesPerRequest: null,
+    retryStrategy: (times: number) => {
+      return Math.min(times * 100, 2000);
+    },
+  };
+}
+
 @Injectable()
 export class SocketAdapterCheckService {
   constructor(
@@ -19,6 +30,10 @@ export class SocketAdapterCheckService {
   private secrets = new SecretsManagerClient({
     region: process.env.AWS_REGION || 'ap-southeast-7',
   });
+
+  private duplicateRedis() {
+    return this.redis.duplicate(buildRedisOptions());
+  }
 
   async checkBackend() {
     return true;
@@ -34,11 +49,16 @@ export class SocketAdapterCheckService {
   }
 
   async checkRedis() {
+    const client = this.duplicateRedis();
     try {
-      const pong = await this.redis.ping();
+      const pong = await client.ping();
       return pong === 'PONG';
     } catch {
       return false;
+    } finally {
+      try {
+        await client.quit();
+      } catch {}
     }
   }
 
@@ -61,10 +81,6 @@ export class SocketAdapterCheckService {
     }
   }
 
-  // =====================================================
-  // R2 BUCKET CHECK (แทน AWS S3)
-  // Cloudflare R2 ไม่ใช้ AWS SDK, ต้องตรวจด้วย HTTP HEAD
-  // =====================================================
   async checkS3() {
     try {
       const bucket =
@@ -87,17 +103,19 @@ export class SocketAdapterCheckService {
   }
 
   async checkQueue() {
+    const client = this.duplicateRedis();
     try {
-      const pong = await this.redis.ping();
+      const pong = await client.ping();
       return pong === 'PONG';
     } catch {
       return false;
+    } finally {
+      try {
+        await client.quit();
+      } catch {}
     }
   }
 
-  // =====================================================
-  // Socket Health Check — Production Ready
-  // =====================================================
   async checkSocket() {
     try {
       const backend =
@@ -137,7 +155,7 @@ export class SocketAdapterCheckService {
       postgres: await this.checkPostgres(),
       redis: await this.checkRedis(),
       secrets: await this.checkSecrets(),
-      s3: await this.checkS3(), // now R2
+      s3: await this.checkS3(),
       queue: await this.checkQueue(),
       socket: await this.checkSocket(),
     };

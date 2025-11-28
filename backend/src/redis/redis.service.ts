@@ -3,9 +3,7 @@
 import { Injectable, Inject, Logger } from '@nestjs/common';
 import { Redis as RedisClient } from 'ioredis';
 
-// ---------------------------------------------------------
 // Safe ENV loader (non-throwing for production stability)
-// ---------------------------------------------------------
 function requireEnv(name: string): string | null {
   const value = process.env[name];
   if (!value || value.trim() === '') {
@@ -18,6 +16,10 @@ function requireEnv(name: string): string | null {
 export class RedisService {
   private readonly logger = new Logger(RedisService.name);
 
+  // Flags to avoid re-attaching listeners
+  private static errorHandlersAttached = false;
+  private static connectionHandlersAttached = false;
+
   constructor(
     @Inject('REDIS_CLIENT') private readonly client: RedisClient,
     @Inject('REDIS_PUB') private readonly pubClient: RedisClient,
@@ -28,98 +30,107 @@ export class RedisService {
     this.setupConnectionHandlers();
   }
 
-  // ---------------------------------------------------------
-  // Environment validation
-  // ---------------------------------------------------------
   private validateEnv() {
-    const redisUrl = requireEnv('REDIS_URL');
+    const url = requireEnv('REDIS_URL');
+    const host = requireEnv('REDIS_HOST');
+    const port = requireEnv('REDIS_PORT');
 
-    if (!redisUrl) {
-      this.logger.error('REDIS_URL is missing. Check backend/.env.production or DI for REDIS_CLIENT.');
-    } else {
+    if (url) {
       try {
-        const normalized = redisUrl.replace(/^redis:\/\//, '');
-        const hostPort = normalized.split('@').pop()?.split('/')[0] || normalized.split('/')[0];
-        this.logger.log(`Redis endpoint detected: ${hostPort}`);
+        const parsed = new URL(url);
+        this.logger.log(
+          `Redis endpoint detected: ${parsed.hostname}:${parsed.port || 6379}`
+        );
       } catch {
         this.logger.log('Redis endpoint detected');
       }
+      return;
     }
+
+    if (host && port) {
+      this.logger.log(`Redis endpoint detected: ${host}:${port}`);
+      return;
+    }
+
+    this.logger.error(
+      'Missing Redis configuration: expected REDIS_URL or REDIS_HOST/REDIS_PORT'
+    );
   }
 
-  // ---------------------------------------------------------
-  // Global Error Handling
-  // ---------------------------------------------------------
   private setupErrorHandling() {
+    if (RedisService.errorHandlersAttached) {
+      return;
+    }
+    RedisService.errorHandlersAttached = true;
+
     if (this.client) {
       this.client.on('error', (err: any) =>
-        this.logger.error(`Redis CLIENT error: ${err?.message ?? String(err)}`),
+        this.logger.error(`Redis CLIENT error: ${err?.message ?? String(err)}`)
       );
     }
 
     if (this.pubClient) {
       this.pubClient.on('error', (err: any) =>
-        this.logger.error(`Redis PUB error: ${err?.message ?? String(err)}`),
+        this.logger.error(`Redis PUB error: ${err?.message ?? String(err)}`)
       );
     }
 
     if (this.subClient) {
       this.subClient.on('error', (err: any) =>
-        this.logger.error(`Redis SUB error: ${err?.message ?? String(err)}`),
+        this.logger.error(`Redis SUB error: ${err?.message ?? String(err)}`)
       );
     }
   }
 
-  // ---------------------------------------------------------
-  // Connection Handlers
-  // ---------------------------------------------------------
   private setupConnectionHandlers() {
+    if (RedisService.connectionHandlersAttached) {
+      return;
+    }
+    RedisService.connectionHandlersAttached = true;
+
     const log = (type: string) => (msg?: any) =>
       this.logger.log(`Redis ${type}: ${msg ?? 'connected'}`);
 
     if (this.client) {
       this.client.on('connect', log('CLIENT'));
-      this.client.on('reconnecting', () => this.logger.warn('Redis CLIENT reconnecting'));
+      this.client.on('reconnecting', () =>
+        this.logger.warn('Redis CLIENT reconnecting')
+      );
     }
 
     if (this.pubClient) {
       this.pubClient.on('connect', log('PUB'));
-      this.pubClient.on('reconnecting', () => this.logger.warn('Redis PUB reconnecting'));
+      this.pubClient.on('reconnecting', () =>
+        this.logger.warn('Redis PUB reconnecting')
+      );
     }
 
     if (this.subClient) {
       this.subClient.on('connect', log('SUB'));
-      this.subClient.on('reconnecting', () => this.logger.warn('Redis SUB reconnecting'));
-    }
-  }
-
-  // ---------------------------------------------------------
-  // Basic SET / GET
-  // ---------------------------------------------------------
-  async set(key: string, value: any, ttlSeconds?: number): Promise<void> {
-  if (!this.client) {
-    this.logger.warn('Redis client not available - set ignored');
-    return;
-  }
-
-  const serialized = JSON.stringify(value);
-
-  try {
-    if (ttlSeconds && Number.isFinite(ttlSeconds)) {
-      await this.client.call(
-        'SET',
-        key,
-        serialized,
-        'EX',
-        String(ttlSeconds)
+      this.subClient.on('reconnecting', () =>
+        this.logger.warn('Redis SUB reconnecting')
       );
-    } else {
-      await this.client.set(key, serialized);
     }
-  } catch (err: any) {
-    this.logger.error(`Redis set error for key=${key}: ${err?.message ?? String(err)}`);
   }
-}
+
+  async set(key: string, value: any, ttlSeconds?: number): Promise<void> {
+    if (!this.client) {
+      this.logger.warn('Redis client not available - set ignored');
+      return;
+    }
+
+    const serialized = JSON.stringify(value);
+
+    try {
+      if (ttlSeconds && Number.isFinite(ttlSeconds)) {
+        await this.client.call('SET', key, serialized, 'EX', String(ttlSeconds));
+      } else {
+        await this.client.set(key, serialized);
+      }
+    } catch (err: any) {
+      this.logger.error(`Redis set error for key=${key}: ${err?.message ?? String(err)}`);
+    }
+  }
 
   async get<T = any>(key: string): Promise<T | null> {
     if (!this.client) {
@@ -150,7 +161,7 @@ export class RedisService {
     try {
       await this.client.del(key);
     } catch (err: any) {
-      this.logger.error(`Redis del error for key=${key}: ${err?.message ?? String(err)}`);
+      this.logger.error(`Redis del error: ${err?.message ?? String(err)}`);
     }
   }
 
@@ -163,14 +174,11 @@ export class RedisService {
       const res = await this.client.exists(key);
       return res === 1;
     } catch (err: any) {
-      this.logger.error(`Redis exists error for key=${key}: ${err?.message ?? String(err)}`);
+      this.logger.error(`Redis exists error: ${err?.message ?? String(err)}`);
       return false;
     }
   }
 
-  // ---------------------------------------------------------
-  // Hash
-  // ---------------------------------------------------------
   async hset(hash: string, key: string, value: string): Promise<void> {
     if (!this.client) return;
     try {
@@ -216,9 +224,6 @@ export class RedisService {
     }
   }
 
-  // ---------------------------------------------------------
-  // Pub/Sub
-  // ---------------------------------------------------------
   async publish(channel: string, message: any): Promise<void> {
     if (!this.pubClient) {
       this.logger.warn('Redis pub client not available - publish ignored');
@@ -259,14 +264,7 @@ export class RedisService {
     }
   }
 
-  // ---------------------------------------------------------
-  // Rate Limit
-  // ---------------------------------------------------------
-  async rateLimit(
-    key: string,
-    windowSec: number,
-    max: number,
-  ): Promise<boolean> {
+  async rateLimit(key: string, windowSec: number, max: number): Promise<boolean> {
     if (!this.client) {
       this.logger.warn('Redis client not available - rateLimit returns false');
       return false;
@@ -284,28 +282,17 @@ export class RedisService {
     }
   }
 
-  // ---------------------------------------------------------
-  // Distributed Lock (with sendCommand)
-  // ---------------------------------------------------------
   async acquireLock(key: string, ttlSec = 5): Promise<boolean> {
-  if (!this.client) return false;
+    if (!this.client) return false;
 
-  try {
-    const result = await this.client.call(
-      'SET',
-      key,
-      '1',
-      'NX',
-      'EX',
-      String(ttlSec)
-    );
-
-    return result === 'OK';
-  } catch (err: any) {
-    this.logger.error(`Redis acquireLock error for key=${key}: ${err?.message ?? String(err)}`);
-    return false;
+    try {
+      const result = await this.client.call('SET', key, '1', 'NX', 'EX', String(ttlSec));
+      return result === 'OK';
+    } catch (err: any) {
+      this.logger.error(`Redis acquireLock error for key=${key}: ${err?.message ?? String(err)}`);
+      return false;
+    }
   }
-}
 
   async releaseLock(key: string): Promise<void> {
     if (!this.client) return;
@@ -316,14 +303,7 @@ export class RedisService {
     }
   }
 
-  // ---------------------------------------------------------
-  // Cache
-  // ---------------------------------------------------------
-  async cache<T>(
-    key: string,
-    ttlSeconds: number,
-    resolver: () => Promise<T>,
-  ): Promise<T> {
+  async cache<T>(key: string, ttlSeconds: number, resolver: () => Promise<T>): Promise<T> {
     const cached = await this.get<T>(key);
     if (cached) return cached;
 
@@ -332,9 +312,6 @@ export class RedisService {
     return fresh;
   }
 
-  // ---------------------------------------------------------
-  // Health check
-  // ---------------------------------------------------------
   async healthCheck(): Promise<boolean> {
     if (!this.client) {
       this.logger.warn('Redis client not available - healthCheck returns false');

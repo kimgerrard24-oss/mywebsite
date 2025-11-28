@@ -1,3 +1,4 @@
+// files src/main.ts
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
@@ -10,9 +11,6 @@ import IORedis from 'ioredis';
 import { json, urlencoded } from 'express';
 import './instrument';
 
-// ===========================
-//   SENTRY
-// ===========================
 import * as Sentry from '@sentry/node';
 Sentry.init({
   dsn: process.env.SENTRY_DSN,
@@ -31,34 +29,38 @@ import { FirebaseAdminService } from './firebase/firebase.service';
 
 import type { Request, Response } from 'express';
 import rateLimit from 'express-rate-limit';
-import { FirebaseAuthGuard } from './auth/firebase-auth.guard';
-import { Reflector } from '@nestjs/core';
-import { APP_GUARD } from '@nestjs/core';
 
 const logger = new Logger('bootstrap');
 
-// Use consistent Redis options for both pub/sub and client.
-// Setting maxRetriesPerRequest = null avoids "maxRetriesPerRequest exceeded" errors
+/* =====================================================================
+   REDIS HELPERS — ใช้ REDIS_URL เดียวเพื่อรองรับ provider ทุกเจ้าในอนาคต
+   ===================================================================== */
+
+function getRedisUrl(): string {
+  const url = process.env.REDIS_URL;
+  if (!url || url.trim() === '') {
+    throw new Error('REDIS_URL is missing. Please check backend/.env.production');
+  }
+  return url;
+}
+
 function redisOptions() {
-  return { maxRetriesPerRequest: null as any };
+  return {
+    enableReadyCheck: true,
+    lazyConnect: true,
+    maxRetriesPerRequest: null,
+    retryStrategy: (times: number) => {
+      return Math.min(times * 100, 2000);
+    },
+  } as any;
 }
 
 function createRedisClient(): IORedis {
-  const redisUrl =
-    process.env.DOCKER_ENV === 'true'
-      ? process.env.REDIS_URL || 'redis://redis:6379'
-      : process.env.REDIS_URL || 'redis://localhost:6379';
-
-  return new IORedis(redisUrl, redisOptions());
+  return new IORedis(getRedisUrl(), redisOptions());
 }
 
-/**
- * Small helper: canonicalize a provider redirect origin.
- * - If the value includes a path like '/auth/complete', strip path and keep origin.
- * - If the value is empty, return ''.
- *
- * This is defensive logging/normalization only — we do not mutate env or secrets.
- */
+/* ===================================================================== */
+
 function normalizeToOrigin(raw: string | undefined): string {
   if (!raw) return '';
   try {
@@ -77,17 +79,10 @@ async function bootstrap(): Promise<void> {
   const nestApp = await NestFactory.create(AppModule, { cors: false });
   const expressApp = nestApp.getHttpAdapter().getInstance() as Express;
 
-  // trust proxy (for HTTPS cookies behind Caddy)
   expressApp.set('trust proxy', true);
-
   expressApp.use(helmet());
-
-  // cookie parsing
   expressApp.use(cookieParser());
 
-  // ============================
-  // CORS CONFIG
-  // ============================
   const corsRegex = [
     /^https?:\/\/localhost(:\d+)?$/,
     /^https?:\/\/127\.0\.0\.1(:\d+)?$/,
@@ -130,6 +125,7 @@ async function bootstrap(): Promise<void> {
       res.setHeader('Access-Control-Allow-Origin', origin);
       res.setHeader('Access-Control-Allow-Credentials', 'true');
       res.setHeader('Access-Control-Expose-Headers', 'Set-Cookie');
+
       const prevVary = res.getHeader('Vary');
       if (!prevVary) {
         res.setHeader('Vary', 'Origin');
@@ -140,9 +136,6 @@ async function bootstrap(): Promise<void> {
     return next();
   });
 
-  // -----------------------------
-  // Rate limiting for local auth endpoints
-  // -----------------------------
   expressApp.use(
     '/auth/local/login',
     rateLimit({
@@ -165,9 +158,6 @@ async function bootstrap(): Promise<void> {
     }),
   );
 
-  // ============================
-  // Startup logs (non-secret)
-  // ============================
   try {
     const googleProviderRedirect = process.env.GOOGLE_PROVIDER_REDIRECT_AFTER_LOGIN || '';
     const facebookProviderRedirect = process.env.FACEBOOK_PROVIDER_REDIRECT_AFTER_LOGIN || '';
@@ -213,15 +203,14 @@ async function bootstrap(): Promise<void> {
   expressApp.use(json({ limit: '10mb' }));
   expressApp.use(urlencoded({ extended: true }));
 
-  // Initialize Nest providers before creating server/socket that relies on them.
-  // This prevents race conditions where socket middleware uses nestApp.get(...) before providers are ready.
   await nestApp.init();
 
   const httpServer = createServer(expressApp);
 
-  // ============================
-  // SOCKET.IO
-  // ============================
+  /* =====================================================================
+     SOCKET.IO ADAPTER (using REDIS_URL only)
+     ===================================================================== */
+
   const io = new Server(httpServer, {
     cors: {
       origin: (origin, cb) => {
@@ -241,27 +230,33 @@ async function bootstrap(): Promise<void> {
     maxHttpBufferSize: 1e8,
   });
 
-  const redisUrl =
-    process.env.DOCKER_ENV === 'true'
-      ? process.env.REDIS_URL || 'redis://redis:6379'
-      : process.env.REDIS_URL || 'redis://localhost:6379';
-
   try {
-    // Use same redis options for both pub/sub clients and connect them before adapter creation.
+    const redisUrl = getRedisUrl();
     const opts = redisOptions();
+
     const pub = new IORedis(redisUrl, opts);
     const sub = new IORedis(redisUrl, opts);
 
-    // Ensure pub/sub are connected before creating adapter.
-    // This avoids binding adapter to non-ready clients which can cause errors during runtime.
-    await pub.connect().catch((err) => {
-      throw new Error('Redis pub connection failed: ' + String(err));
-    });
-    await sub.connect().catch((err) => {
-      // If sub fails, close pub to avoid dangling connection
-      try { pub.disconnect(); } catch {}
-      throw new Error('Redis sub connection failed: ' + String(err));
-    });
+    // only connect if not already connecting/ready to avoid race conditions
+    if (pub.status !== 'connecting' && pub.status !== 'ready') {
+      await pub.connect().catch((err) => {
+        throw new Error('Redis pub connection failed: ' + String(err));
+      });
+    }
+
+    if (sub.status !== 'connecting' && sub.status !== 'ready') {
+      try {
+        await sub.connect().catch((err) => {
+          throw new Error('Redis sub connection failed: ' + String(err));
+        });
+      } catch (e) {
+        try {
+          // ensure pub is disconnected if sub fails
+          await pub.disconnect();
+        } catch {}
+        throw e;
+      }
+    }
 
     io.adapter(createAdapter(pub, sub));
     logger.log('Redis adapter enabled for socket.io');
@@ -269,23 +264,25 @@ async function bootstrap(): Promise<void> {
     logger.error('Redis adapter failed: ' + String(e));
   }
 
-  // Create general redis client (used by app services)
+  /* =====================================================================
+     GENERAL REDIS CLIENT (using REDIS_URL only)
+     ===================================================================== */
+
   const redisClient = createRedisClient();
-
-  // Try to connect redis client proactively and log clearly if connection fails.
   redisClient.on('error', (err: unknown) => logger.error('Redis error', err));
-  try {
-    await redisClient.connect().catch((err) => {
-      logger.error('Redis client connect failed: ' + String(err));
-      // do not throw here — allow application to continue; health-check will report Redis down
-    });
-  } catch {
-    // ignore
-  }
 
-  // ============================
-  // WEBSOCKET COOKIE VALIDATION
-  // ============================
+  try {
+    if (redisClient.status !== 'connecting' && redisClient.status !== 'ready') {
+      await redisClient.connect().catch((err) => {
+        logger.error('Redis client connect failed: ' + String(err));
+      });
+    }
+  } catch {}
+
+  /* =====================================================================
+     WEBSOCKET COOKIE VALIDATION
+     ===================================================================== */
+
   io.use(async (socket, next) => {
     try {
       const headerCookie =
@@ -296,7 +293,6 @@ async function bootstrap(): Promise<void> {
       const raw = Array.isArray(headerCookie) ? headerCookie.join('; ') : headerCookie;
       const parsed = cookie.parse(raw || '');
 
-      // support both __session and session
       const sessionCookie =
         parsed['__session'] ||
         parsed[process.env.SESSION_COOKIE_NAME || 'session'];
@@ -327,14 +323,6 @@ async function bootstrap(): Promise<void> {
     });
   });
 
-  // =====================================================
-  // IMPORTANT FIX:
-  // Remove all hybrid OAuth routes here.
-  // Allow AuthController to handle ALL /auth/* routing.
-  // =====================================================
-  // (No routes override in main.ts)
-
-  // Log and capture unexpected rejections so we can see why health-check may be failing.
   process.on('unhandledRejection', (reason) => {
     logger.error('Unhandled Rejection:', String(reason));
     try {
