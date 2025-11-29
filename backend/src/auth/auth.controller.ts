@@ -19,8 +19,8 @@ import * as admin from 'firebase-admin';
 import { FirebaseAuthGuard } from './firebase-auth.guard';
 import { GetUser } from './get-user.decorator';
 
-import { RateLimitContext } from 'src/common/rate-limit/rate-limit.decorator';
-import { AuthRateLimitGuard } from 'src/common/rate-limit/auth-rate-limit.guard';
+import { RateLimitContext } from '../common/rate-limit/rate-limit.decorator';
+import { AuthRateLimitGuard } from '../common/rate-limit/auth-rate-limit.guard';
 import { Public } from './decorators/public.decorator';
 
 const redis = new IORedis(process.env.REDIS_URL || 'redis://redis:6379', {
