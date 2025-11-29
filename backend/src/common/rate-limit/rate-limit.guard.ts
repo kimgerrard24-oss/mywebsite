@@ -33,6 +33,7 @@ export class RateLimitGuard implements CanActivate {
     const res = context.switchToHttp().getResponse<Response>();
 
     const path = req.path;
+    const pathLower = path.toLowerCase();
 
     // ============================================================
     // 0) INTERNAL HEALTH TOKEN (ปลอดภัยที่สุด)
@@ -51,24 +52,35 @@ export class RateLimitGuard implements CanActivate {
     // 1) Skip health-check endpoints
     // ============================================================
     if (
-      path === '/system-check' ||
-      path === '/health' ||
-      path.startsWith('/health/')
+      pathLower === '/system-check' ||
+      pathLower === '/system-check/' ||
+      pathLower === '/health' ||
+      pathLower.startsWith('/health/') ||
+      pathLower.startsWith('/system-check/')
     ) {
       return true;
     }
 
     // ============================================================
-    // 2) Internal Docker network IP whitelist
+    // 2) Skip OAuth login paths (Google / Facebook)
     // ============================================================
-    const WHITELIST_IPS = [
-      '127.0.0.1',
-      '::1',
-      '172.17.0.1',
-      '172.18.0.1',
-      '172.19.0.1',
+    const oauthPaths = [
+      '/auth/google',
+      '/auth/google/callback',
+      '/auth/facebook',
+      '/auth/facebook/callback',
+      '/auth/complete',
     ];
 
+    for (const p of oauthPaths) {
+      if (path.startsWith(p)) {
+        return true;
+      }
+    }
+
+    // ============================================================
+    // 3) (REMOVED) Internal Docker network IP whitelist
+    // ============================================================
     const rawIp =
       (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
       req.socket.remoteAddress ||
@@ -77,12 +89,8 @@ export class RateLimitGuard implements CanActivate {
 
     const ip = rawIp.replace('::ffff:', '');
 
-    if (WHITELIST_IPS.includes(ip)) {
-      return true;
-    }
-
     // ============================================================
-    // 3) Select rate-limit action
+    // 4) Select rate-limit action
     // ============================================================
     const action =
       this.reflector.get<RateLimitAction>(
@@ -91,7 +99,7 @@ export class RateLimitGuard implements CanActivate {
       ) || 'ip';
 
     // ============================================================
-    // 4) Prepare rate-limit key (user or IP)
+    // 5) Prepare rate-limit key (user or IP)
     // ============================================================
     let userId: string | null = null;
 
@@ -108,7 +116,7 @@ export class RateLimitGuard implements CanActivate {
     const key = userId ? `user:${userId}` : `ip:${ip}`;
 
     // ============================================================
-    // 5) Execute rate-limit
+    // 6) Execute rate-limit
     // ============================================================
     try {
       const result: RateLimitConsumeResult = await this.rlService.consume(

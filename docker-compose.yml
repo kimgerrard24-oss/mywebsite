@@ -47,7 +47,7 @@ services:
 
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:3000/ || exit 1"]
-      interval: 10s
+      interval: 30s
       timeout: 5s
       retries: 5
       start_period: 10s
@@ -71,7 +71,7 @@ services:
 
     healthcheck:
       test: ["CMD-SHELL", "curl -fsS http://localhost:4001/system-check || exit 1"]
-      interval: 10s
+      interval: 30s
       timeout: 5s
       retries: 8
       start_period: 10s
@@ -100,10 +100,11 @@ services:
 
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB -h localhost -p 5432 || exit 1"]
-      interval: 10s
+      interval: 30s
       timeout: 5s
       retries: 5
       start_period: 10s
+
     logging: *default-logging
 
   # ============================================================
@@ -139,12 +140,14 @@ services:
       - redis-data:/data
     networks:
       - phlyphant_network
+
     healthcheck:
       test: ["CMD-SHELL", "redis-cli -h localhost -a \"$REDIS_PASSWORD\" ping || exit 1"]
-      interval: 10s
+      interval: 30s
       timeout: 3s
       retries: 5
       start_period: 10s
+
     logging: *default-logging
 
 # ============================================================
@@ -161,4 +164,4 @@ volumes:
   postgres-data:
   caddy_data:
   caddy_config:
-  redis-data:                    
+  redis-data:

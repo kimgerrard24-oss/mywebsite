@@ -38,19 +38,25 @@ export class AuthRateLimitGuard implements CanActivate {
     }
 
     // ---------------------------------------------------------
-    // 2) Skip by internal IP whitelist (Docker / localhost / loopback)
-    // - safe list only contains local/internal addresses
-    // - normalize IPv6-mapped IPv4 addresses "::ffff:1.2.3.4"
+    // 2) Skip OAuth login flow (Google / Facebook)
     // ---------------------------------------------------------
-    const WHITELIST_IPS = [
-      '127.0.0.1',
-      '::1',
-      // common docker bridge addresses (keep limited to those you actually use)
-      '172.17.0.1',
-      '172.18.0.1',
-      '172.19.0.1',
+    const oauthPaths = [
+      '/auth/google',
+      '/auth/google/callback',
+      '/auth/facebook',
+      '/auth/facebook/callback',
+      '/auth/complete',
     ];
 
+    for (const p of oauthPaths) {
+      if (req.path.startsWith(p)) {
+        return true;
+      }
+    }
+
+    // ---------------------------------------------------------
+    // 3) Remove whitelist IP logic (deleted)
+    // ---------------------------------------------------------
     const xff = Array.isArray(req.headers['x-forwarded-for'])
       ? (req.headers['x-forwarded-for'][0] as string)
       : (req.headers['x-forwarded-for'] as string | undefined);
@@ -63,13 +69,9 @@ export class AuthRateLimitGuard implements CanActivate {
 
     const ip = String(rawIp).replace(/^::ffff:/, '');
 
-    if (WHITELIST_IPS.includes(ip)) {
-      return true;
-    }
-
     // ---------------------------------------------------------
-    // 3) Read action metadata from decorator
-    // If no action metadata -> skip (this guard is for annotated actions)
+    // 4) Read action metadata from decorator
+    // If no action metadata -> skip
     // ---------------------------------------------------------
     const action =
       this.reflector.get<RateLimitAction>(
@@ -82,7 +84,7 @@ export class AuthRateLimitGuard implements CanActivate {
     }
 
     // ---------------------------------------------------------
-    // 4) Build key (prefer authenticated user id, fallback to ip)
+    // 5) Build key (prefer authenticated user id, fallback to ip)
     // ---------------------------------------------------------
     let userKey: string | null = null;
     try {
@@ -98,12 +100,11 @@ export class AuthRateLimitGuard implements CanActivate {
     const key = userKey || ip || 'unknown';
 
     // ---------------------------------------------------------
-    // 5) Perform rate-limit check via service
+    // 6) Perform rate-limit check via service
     // ---------------------------------------------------------
     try {
       const resLimit = await this.rlService.consume(action, key);
 
-      // RFC-style headers
       res.setHeader('X-RateLimit-Limit', String(resLimit.limit));
       res.setHeader('X-RateLimit-Remaining', String(resLimit.remaining));
       res.setHeader('X-RateLimit-Reset', String(resLimit.reset));
