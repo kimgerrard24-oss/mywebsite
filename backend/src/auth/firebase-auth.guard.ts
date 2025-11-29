@@ -143,9 +143,7 @@ export class FirebaseAuthGuard implements CanActivate {
       return true;
     }
 
-    // ============================================
-    // 5) Default: block request
-    // ============================================
+
     throw new UnauthorizedException('Authentication required');
   }
 }

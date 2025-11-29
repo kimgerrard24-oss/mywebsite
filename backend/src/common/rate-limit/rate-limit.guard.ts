@@ -12,14 +12,7 @@ import { RateLimitService } from './rate-limit.service';
 import { RATE_LIMIT_KEY } from './rate-limit.decorator';
 import { RateLimitAction } from './rate-limit.policy';
 
-/**
- * Global RateLimitGuard
- *
- * - Reads the action (RateLimitAction) from handler metadata via Reflector.
- * - Determines key priority: authenticated userId (if present) > IP > 'unknown'
- * - Uses RateLimitService.consume(action, key) to apply limits.
- * - Throws ForbiddenException when blocked.
- */
+
 @Injectable()
 export class RateLimitGuard implements CanActivate {
   private readonly logger = new Logger(RateLimitGuard.name);

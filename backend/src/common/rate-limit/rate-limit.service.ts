@@ -79,11 +79,7 @@ export class RateLimitService implements OnModuleDestroy {
    */
   async onModuleDestroy() {
     try {
-      // Do not close injected client here unless you know it's owned by this module.
-      // If you DO want to close it, uncomment the following lines:
-      //
-      // await this.redis.quit();
-      // this.logger.log('Redis client closed by RateLimitService');
+
     } catch (err) {
       this.logger.error('Error during RateLimitService shutdown', err as any);
     }

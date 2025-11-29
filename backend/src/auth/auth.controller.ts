@@ -81,9 +81,7 @@ export class AuthController {
 
   constructor(private readonly auth: AuthService) {}
 
-  // ----------------------------------------------------
   // Local Register
-  // ----------------------------------------------------
   @Public()
   @Post('local/register')
   @RateLimitContext('register')
@@ -103,9 +101,7 @@ export class AuthController {
     return { ok: true, user };
   }
 
-  // ----------------------------------------------------
   // Local Login
-  // ----------------------------------------------------
   @Public()
   @Post('local/login')
   @UseGuards(AuthRateLimitGuard)
@@ -146,9 +142,7 @@ export class AuthController {
     return res.json({ ok: true, user });
   }
 
-  // ----------------------------------------------------
   // Local Refresh Token
-  // ----------------------------------------------------
   @Post('local/refresh')
   async localRefresh(@Req() req: Request, @Res() res: Response) {
     const refreshToken = req.cookies?.local_refresh;
@@ -184,9 +178,7 @@ export class AuthController {
     return res.json({ ok: true, user });
   }
 
-  // ----------------------------------------------------
   // Local Logout
-  // ----------------------------------------------------
   @Post('local/logout')
   async localLogout(@Res() res: Response) {
     const cookieDomain = process.env.COOKIE_DOMAIN || '.phlyphant.com';
@@ -197,9 +189,7 @@ export class AuthController {
     return res.json({ ok: true });
   }
 
-  // ----------------------------------------------------
   // Local Request Password Reset
-  // ----------------------------------------------------
   @Public()
   @Post('local/request-password-reset')
   @RateLimitContext('resetPassword')
@@ -213,9 +203,7 @@ export class AuthController {
     return this.auth.requestPasswordResetLocal(email);
   }
 
-  // ----------------------------------------------------
   // Local Reset Password
-  // ----------------------------------------------------
   @Public()
   @Post('local/reset-password')
   @RateLimitContext('resetPassword')
@@ -229,9 +217,7 @@ export class AuthController {
     return this.auth.resetPasswordLocal(uid, token, newPassword);
   }
 
-  // ----------------------------------------------------
   // Verify Email
-  // ----------------------------------------------------
   @Get('local/verify-email')
   async localVerifyEmail(
     @Query('uid') uid: string,
@@ -244,9 +230,7 @@ export class AuthController {
     return this.auth.verifyEmailLocal(uid, token);
   }
 
-  // ----------------------------------------------------
   // GOOGLE OAuth Start
-  // ----------------------------------------------------
   @Get('google')
   async googleAuth(@Req() req: Request, @Res() res: Response) {
     try {
@@ -300,9 +284,7 @@ export class AuthController {
     }
   }
 
-  // ----------------------------------------------------
   // GOOGLE OAuth Callback
-  // ----------------------------------------------------
   @Get('google/callback')
   async googleCallback(@Req() req: Request, @Res() res: Response) {
     try {
@@ -390,9 +372,7 @@ export class AuthController {
     }
   }
 
-  // ----------------------------------------------------
   // FACEBOOK OAuth Start
-  // ----------------------------------------------------
   @Get('facebook')
   async facebookAuth(@Req() req: Request, @Res() res: Response) {
     try {
@@ -442,9 +422,7 @@ export class AuthController {
     }
   }
 
-  // ----------------------------------------------------
   // FACEBOOK OAuth Callback
-  // ----------------------------------------------------
   @Get('facebook/callback')
   async facebookCallback(@Req() req: Request, @Res() res: Response) {
     try {
@@ -565,9 +543,7 @@ export class AuthController {
     }
   }
 
-  // ----------------------------------------------------
   // CREATE SESSION COOKIE
-  // ----------------------------------------------------
   @Post('complete')
   async complete(@Body() body: any, @Res() res: Response) {
     const idToken = body?.idToken as string | undefined;
@@ -610,9 +586,7 @@ export class AuthController {
     }
   }
 
-  // ----------------------------------------------------
   // SESSION CHECK
-  // ----------------------------------------------------
   @Get('session-check')
   async sessionCheck(@Req() req: Request, @Res() res: Response) {
     const cookie =

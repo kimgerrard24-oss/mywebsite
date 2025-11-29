@@ -31,6 +31,6 @@ export const RateLimitPolicy: Record<
   followUser: { points: 20, duration: 3600 },
   unfollowUser: { points: 20, duration: 3600 },
 
-  // Messaging
+  
   messagingSend: { points: 30, duration: 60 },
 };

@@ -70,12 +70,6 @@ import { RateLimitModule } from './common/rate-limit/rate-limit.module';
       useClass: RedisRateLimitGuard,
     },
 
-    // Firebase session guard is NOT global; remove from global guards
-    // It will be applied only via @UseGuards(FirebaseAuthGuard)
-    // {
-    //   provide: APP_GUARD,
-    //   useClass: FirebaseAuthGuard,
-    // },
   ],
 })
 export class AppModule implements NestModule {

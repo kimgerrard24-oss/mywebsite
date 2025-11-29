@@ -23,7 +23,6 @@ export class AuthRateLimitGuard implements CanActivate {
     const key = `auth:${ip}`;
 
     try {
-      // ใช้นโยบาย login จาก RateLimitPolicy
       await this.rlService.consume('login', key);
       return true;
     } catch {

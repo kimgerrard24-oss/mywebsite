@@ -1,4 +1,4 @@
-// backend/src/auth/firebase.service.ts
+//  backend/src/auth/firebase.service.ts
 import { Inject, Injectable, Logger, OnModuleDestroy } from '@nestjs/common';
 import * as admin from 'firebase-admin';
 import { FIREBASE_ADMIN } from './firebase-admin.provider';

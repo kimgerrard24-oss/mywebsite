@@ -20,10 +20,8 @@ export class AuthGuard implements CanActivate {
 
     if (isPublic) return true;
 
-    // ---------------------------------------
     // 2) Normal authenticated routes:
     //    FirebaseAuthGuard จะใส่ req.user ให้อยู่แล้ว
-    // ---------------------------------------
     const req = context.switchToHttp().getRequest();
 
     if (req.user) return true;

@@ -566,7 +566,6 @@ export class AuthService {
       s = s.replace(/%2F/gi, '/');
     }
 
-    // final normalization: remove surrounding quotes, trim, collapse multiple slashes
     s = s.replace(/^["']|["']$/g, '').trim();
     s = s.replace(/([^:]\/)\/+/g, '$1');
 

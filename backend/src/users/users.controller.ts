@@ -1,6 +1,4 @@
-// ==========================================
-// file: backend/src/users/users.controller.ts
-// ==========================================
+//  file: backend/src/users/users.controller.ts
 import { Controller, Post, Body, Req, UnauthorizedException } from '@nestjs/common';
 import { Request } from 'express';
 import { CreateUserDto } from './dto/create-user.dto';

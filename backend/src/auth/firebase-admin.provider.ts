@@ -1,4 +1,4 @@
-// backend/src/auth/firebase-admin.provider.ts
+//  backend/src/auth/firebase-admin.provider.ts
 import { Provider } from '@nestjs/common';
 import * as admin from 'firebase-admin';
 import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-secrets-manager';
