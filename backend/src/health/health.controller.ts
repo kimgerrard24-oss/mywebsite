@@ -14,49 +14,55 @@ export class HealthController {
   constructor(private readonly health: HealthService) {}
 
   @Get('info')
+  @RateLimitIgnore()
   info() {
     return this.health.systemInfo();
   }
 
   @Get('backend')
+  @RateLimitIgnore()
   backend() {
     return this.health.apiCheck();
   }
 
   @Get('db')
+  @RateLimitIgnore()
   db() {
     return this.health.dbCheck();
   }
 
   @Get('redis')
+  @RateLimitIgnore()
   redis() {
     return this.health.redisCheck();
   }
 
   @Get('secrets')
+  @RateLimitIgnore()
   secrets() {
     return this.health.secretsCheck();
   }
 
   @Get('r2')
+  @RateLimitIgnore()
   r2() {
     return this.health.r2Check();
   }
 
   @Get('queue')
+  @RateLimitIgnore()
   queue() {
     return this.health.queueCheck();
   }
 
   @Get('socket')
+  @RateLimitIgnore()
   socket() {
     return this.health.socketCheck();
   }
 
-  // ==========================================
-  // FIXED: OAuth/Firebase Health Check
-  // ==========================================
   @Get('oauth')
+  @RateLimitIgnore()
   oauthEnv() {
     return {
       ok: true,

@@ -133,17 +133,10 @@ export class HealthService {
   }
 
   // ------------------------------------------
-  // Faster parallel system-wide health check
+  // Faster parallel system-wide health check (with global timeout)
   // ------------------------------------------
   async systemCheck() {
-    const [
-      db,
-      redis,
-      secrets,
-      r2,
-      queue,
-      socket,
-    ] = await Promise.all([
+    const checks = Promise.all([
       this.dbCheck(),
       this.redisCheck(),
       this.secretsCheck(),
@@ -152,14 +145,39 @@ export class HealthService {
       this.socketCheck(),
     ]);
 
-    return {
-      backend: true,
-      postgres: db.ok,
-      redis: redis.ok,
-      secrets: secrets.ok,
-      r2: r2.ok,
-      queue: queue.ok,
-      socket: socket.ok,
-    };
+    // Global timeout 2.5 sec for entire system-check
+    const globalTimeout = new Promise((resolve) =>
+      setTimeout(
+        () =>
+          resolve({
+            backend: true,
+            postgres: false,
+            redis: false,
+            secrets: false,
+            r2: false,
+            queue: false,
+            socket: false,
+          }),
+        2500,
+      ),
+    );
+
+    const result: any = await Promise.race([checks, globalTimeout]);
+
+    if (Array.isArray(result)) {
+      const [db, redis, secrets, r2, queue, socket] = result;
+
+      return {
+        backend: true,
+        postgres: db.ok,
+        redis: redis.ok,
+        secrets: secrets.ok,
+        r2: r2.ok,
+        queue: queue.ok,
+        socket: socket.ok,
+      };
+    }
+
+    return result;
   }
 }

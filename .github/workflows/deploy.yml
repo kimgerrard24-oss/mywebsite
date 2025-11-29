@@ -28,7 +28,7 @@ jobs:
       # -----------------------------------------------------------
       - name: Validate secrets
         run: |
-          REQUIRED=("LINODE_HOST" "LINODE_SSH_KEY" "GHCR_USERNAME" "GHCR_TOKEN" "SENTRY_AUTH_TOKEN")
+          REQUIRED=("LINODE_HOST" "LINODE_SSH_KEY" "GHCR_USERNAME" "GHCR_TOKEN" "SENTRY_AUTH_TOKEN" "INTERNAL_HEALTH_TOKEN")
           for KEY in "${REQUIRED[@]}"; do
             if [ -z "${!KEY}" ]; then
               echo "ERROR: Missing required secret: $KEY"
@@ -42,6 +42,7 @@ jobs:
           GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
           GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          INTERNAL_HEALTH_TOKEN: ${{ secrets.INTERNAL_HEALTH_TOKEN }}
 
       # -----------------------------------------------------------
       # 2) Create Sentry env for frontend
@@ -117,6 +118,7 @@ jobs:
         env:
           GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
           GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+          INTERNAL_HEALTH_TOKEN: ${{ secrets.INTERNAL_HEALTH_TOKEN }}
 
         with:
           host: ${{ secrets.LINODE_HOST }}
@@ -125,7 +127,7 @@ jobs:
           port: 22
           script_stop: false
           use_insecure_cipher: true
-          envs: GHCR_USERNAME,GHCR_TOKEN
+          envs: GHCR_USERNAME,GHCR_TOKEN,INTERNAL_HEALTH_TOKEN
 
           script: |
             set -e
@@ -145,7 +147,7 @@ jobs:
             sleep 5
 
             HEALTH_URL="http://localhost:4001/system-check"
-            if curl -s --fail "$HEALTH_URL" > /dev/null; then
+            if curl -s --fail -H "X-Internal-Health: $INTERNAL_HEALTH_TOKEN" "$HEALTH_URL" > /dev/null; then
               echo "Health check OK"
             else
               echo "Health check FAILED but container is running... (skip rollback)"

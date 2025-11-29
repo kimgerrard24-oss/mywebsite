@@ -32,11 +32,24 @@ export class RateLimitGuard implements CanActivate {
     const req = context.switchToHttp().getRequest<Request>();
     const res = context.switchToHttp().getResponse<Response>();
 
-    // ============================================================
-    // SKIP RATE LIMIT FOR HEALTH CHECK ENDPOINTS
-    // ============================================================
     const path = req.path;
 
+    // ============================================================
+    // 0) INTERNAL HEALTH TOKEN (ปลอดภัยที่สุด)
+    // ============================================================
+    const internalToken = req.headers['x-internal-health'];
+    if (
+      internalToken &&
+      typeof internalToken === 'string' &&
+      process.env.INTERNAL_HEALTH_TOKEN &&
+      internalToken === process.env.INTERNAL_HEALTH_TOKEN
+    ) {
+      return true;
+    }
+
+    // ============================================================
+    // 1) Skip health-check endpoints
+    // ============================================================
     if (
       path === '/system-check' ||
       path === '/health' ||
@@ -46,9 +59,8 @@ export class RateLimitGuard implements CanActivate {
     }
 
     // ============================================================
-    // SKIP RATE LIMIT FOR INTERNAL SERVER / DOCKER NETWORK IPs
+    // 2) Internal Docker network IP whitelist
     // ============================================================
-
     const WHITELIST_IPS = [
       '127.0.0.1',
       '::1',
@@ -63,7 +75,6 @@ export class RateLimitGuard implements CanActivate {
       req.ip ||
       '';
 
-    // Normalize IPv4-mapped IPv6 (ex: "::ffff:172.17.0.1")
     const ip = rawIp.replace('::ffff:', '');
 
     if (WHITELIST_IPS.includes(ip)) {
@@ -71,7 +82,7 @@ export class RateLimitGuard implements CanActivate {
     }
 
     // ============================================================
-    // NORMAL RATE LIMIT LOGIC
+    // 3) Select rate-limit action
     // ============================================================
     const action =
       this.reflector.get<RateLimitAction>(
@@ -79,6 +90,9 @@ export class RateLimitGuard implements CanActivate {
         context.getHandler(),
       ) || 'ip';
 
+    // ============================================================
+    // 4) Prepare rate-limit key (user or IP)
+    // ============================================================
     let userId: string | null = null;
 
     try {
@@ -91,19 +105,11 @@ export class RateLimitGuard implements CanActivate {
       userId = null;
     }
 
+    const key = userId ? `user:${userId}` : `ip:${ip}`;
+
     // ============================================================
-    // IF USER AUTHENTICATED → USE USER ID FOR RATE-LIMIT KEY
-    // (ปลอดภัยที่สุด และไม่บล็อกผู้ใช้จริง)
+    // 5) Execute rate-limit
     // ============================================================
-
-    let key: string;
-
-    if (userId) {
-      key = `user:${userId}`;
-    } else {
-      key = `ip:${ip}`;
-    }
-
     try {
       const result: RateLimitConsumeResult = await this.rlService.consume(
         action,

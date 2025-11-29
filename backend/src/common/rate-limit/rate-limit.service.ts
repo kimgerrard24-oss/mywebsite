@@ -1,4 +1,5 @@
 // src/common/rate-limit/rate-limit.service.ts
+
 import { Injectable, Logger, Inject, OnModuleDestroy } from '@nestjs/common';
 import { RateLimiterRedis } from 'rate-limiter-flexible';
 import { Redis } from 'ioredis';
@@ -63,26 +64,20 @@ export class RateLimitService implements OnModuleDestroy {
       };
     }
 
-    // ============================================================
-    // SAFETY: Skip rate limit for internal health-check keys
-    // (เพิ่ม logic ป้องกันกรณีมีการเรียก consume โดยตรงในอนาคต)
-    // ============================================================
-    if (
-      key === 'healthcheck' ||
-      key === 'system-check' ||
-      key === 'docker-health' ||
-      key.startsWith('health:')
-    ) {
-      return {
-        limit: limiter.points,
-        remaining: limiter.points,
-        retryAfterSec: 0,
-        reset: 0,
-      };
+    // ------------------------------------------------------------
+    // Normalize key: strip port → "1.2.3.4:56789" → "1.2.3.4"
+    // ------------------------------------------------------------
+    let sanitizedKey = key;
+
+    if (typeof sanitizedKey === 'string' && sanitizedKey.includes(':')) {
+      const parts = sanitizedKey.split(':');
+      if (parts.length === 2 && /^\d+$/.test(parts[1])) {
+        sanitizedKey = parts[0];
+      }
     }
 
     try {
-      const result = await limiter.consume(key);
+      const result = await limiter.consume(sanitizedKey);
 
       const resetSec = Math.ceil(result.msBeforeNext / 1000);
 
@@ -98,7 +93,7 @@ export class RateLimitService implements OnModuleDestroy {
         : 60;
 
       this.logger.warn(
-        `Rate limit exceeded for action="${action}", key="${key}", retryAfterSec=${retryAfterSec}`,
+        `Rate limit exceeded for action="${action}", key="${sanitizedKey}", retryAfterSec=${retryAfterSec}`,
       );
 
       return Promise.reject({

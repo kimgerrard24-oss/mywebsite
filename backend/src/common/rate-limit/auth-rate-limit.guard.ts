@@ -1,4 +1,4 @@
-// src/common/rate-limit/rate-limit.guard.ts
+// src/common/rate-limit/auth-rate-limit.guard.ts
 
 import {
   CanActivate,
@@ -24,16 +24,52 @@ export class AuthRateLimitGuard implements CanActivate {
     const res = context.switchToHttp().getResponse<Response>();
 
     // ---------------------------------------------------------
-    // 1) Skip health-check (สำคัญที่สุด)
+    // 1) Skip health-check (case-insensitive)
     // ---------------------------------------------------------
-    const pathLower = req.path.toLowerCase();
-    if (pathLower.startsWith('/health') || pathLower.startsWith('/system-check')) {
+    const pathLower = (req.path || '').toLowerCase();
+    if (
+      pathLower === '/system-check' ||
+      pathLower === '/system-check/' ||
+      pathLower === '/health' ||
+      pathLower.startsWith('/health/') ||
+      pathLower.startsWith('/system-check/')
+    ) {
       return true;
     }
 
     // ---------------------------------------------------------
-    // 2) อ่าน metadata action จาก decorator
-    // ถ้าไม่มี -> ไม่ทำ rate-limit
+    // 2) Skip by internal IP whitelist (Docker / localhost / loopback)
+    // - safe list only contains local/internal addresses
+    // - normalize IPv6-mapped IPv4 addresses "::ffff:1.2.3.4"
+    // ---------------------------------------------------------
+    const WHITELIST_IPS = [
+      '127.0.0.1',
+      '::1',
+      // common docker bridge addresses (keep limited to those you actually use)
+      '172.17.0.1',
+      '172.18.0.1',
+      '172.19.0.1',
+    ];
+
+    const xff = Array.isArray(req.headers['x-forwarded-for'])
+      ? (req.headers['x-forwarded-for'][0] as string)
+      : (req.headers['x-forwarded-for'] as string | undefined);
+
+    const rawIp =
+      (xff?.split(',')?.[0]?.trim()) ||
+      (req.socket && (req.socket.remoteAddress as string | undefined)) ||
+      (req.ip as string | undefined) ||
+      '';
+
+    const ip = String(rawIp).replace(/^::ffff:/, '');
+
+    if (WHITELIST_IPS.includes(ip)) {
+      return true;
+    }
+
+    // ---------------------------------------------------------
+    // 3) Read action metadata from decorator
+    // If no action metadata -> skip (this guard is for annotated actions)
     // ---------------------------------------------------------
     const action =
       this.reflector.get<RateLimitAction>(
@@ -46,13 +82,8 @@ export class AuthRateLimitGuard implements CanActivate {
     }
 
     // ---------------------------------------------------------
-    // 3) ดึง IP และ userKey
+    // 4) Build key (prefer authenticated user id, fallback to ip)
     // ---------------------------------------------------------
-    const ip =
-      req.ip ||
-      (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
-      'unknown';
-
     let userKey: string | null = null;
     try {
       userKey =
@@ -64,15 +95,15 @@ export class AuthRateLimitGuard implements CanActivate {
       userKey = null;
     }
 
-    const key = userKey || ip;
+    const key = userKey || ip || 'unknown';
 
     // ---------------------------------------------------------
-    // 4) ตรวจ rate-limit ผ่าน Service
+    // 5) Perform rate-limit check via service
     // ---------------------------------------------------------
     try {
       const resLimit = await this.rlService.consume(action, key);
 
-      // Header สำหรับมาตรฐาน Rate-Limit (RFC-compliant)
+      // RFC-style headers
       res.setHeader('X-RateLimit-Limit', String(resLimit.limit));
       res.setHeader('X-RateLimit-Remaining', String(resLimit.remaining));
       res.setHeader('X-RateLimit-Reset', String(resLimit.reset));
@@ -82,9 +113,6 @@ export class AuthRateLimitGuard implements CanActivate {
       const retryAfterSec =
         typeof err?.retryAfterSec === 'number' ? err.retryAfterSec : 60;
 
-      // -------------------------------------------------------
-      // 429 มาตรฐานของ Rate Limit
-      // -------------------------------------------------------
       res.setHeader('Retry-After', String(retryAfterSec));
       res.setHeader('X-RateLimit-Limit', String(err?.limit ?? 0));
       res.setHeader('X-RateLimit-Remaining', '0');
