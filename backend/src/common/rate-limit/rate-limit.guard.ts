@@ -46,18 +46,39 @@ export class RateLimitGuard implements CanActivate {
     }
 
     // ============================================================
-    // NORMAL RATE LIMIT LOGIC
+    // SKIP RATE LIMIT FOR INTERNAL SERVER / DOCKER NETWORK IPs
+    // (เพื่อให้ health-check ภายในไม่โดน rate-limit)
+    // ============================================================
+
+    const WHITELIST_IPS = [
+      '127.0.0.1',
+      '::1',
+      '172.17.0.1',
+      '172.18.0.1',
+      '172.19.0.1',
+    ];
+
+    const rawIp =
+      (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
+      req.socket.remoteAddress ||
+      req.ip ||
+      '';
+
+    // normalize IPv4-mapped IPv6: "::ffff:172.17.0.1"
+    const ip = rawIp.replace('::ffff:', '');
+
+    if (WHITELIST_IPS.includes(ip)) {
+      return true;
+    }
+
+    // ============================================================
+    // NORMAL RATE LIMIT LOGIC (ไม่แตะต้องส่วนนี้)
     // ============================================================
     const action =
       this.reflector.get<RateLimitAction>(
         RATE_LIMIT_CONTEXT_KEY,
         context.getHandler(),
       ) || 'ip';
-
-    const ip =
-      req.ip ||
-      (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
-      'unknown';
 
     let userId: string | null = null;
     try {
