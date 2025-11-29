@@ -1,5 +1,11 @@
 // src/common/rate-limit/rate-limit.policy.ts
 
+/**
+ * รายการ action ที่จะใช้ใน RateLimitGuard และ RateLimitService
+ * หมายเหตุ:
+ * - health-check endpoint ไม่ได้ใช้ action ใด ๆ ในนี้
+ * - การ skip health-check ทำใน RateLimitGuard เท่านั้น
+ */
 export type RateLimitAction =
   | 'login'
   | 'register'
@@ -11,13 +17,19 @@ export type RateLimitAction =
   | 'messagingSend'
   | 'ip';
 
+/**
+ * ค่า policy สำหรับแต่ละ action
+ * points = จำนวนครั้งที่อนุญาตภายใน duration
+ * duration = หน่วยเป็นวินาที
+ */
 export const RateLimitPolicy: Record<
   RateLimitAction,
   { points: number; duration: number }
 > = {
   /**
    * Global IP-level rate limit
-   * เพิ่มเป็น 1000 / นาที เพื่อป้องกันผู้ใช้ถูกบล็อกเวลาหน้าเว็บยิง request จำนวนมาก
+   * ค่า 1000/minute เหมาะสำหรับ production
+   * เพื่อไม่ให้ user ได้รับ 429 โดยไม่จำเป็น
    */
   ip: { points: 1000, duration: 60 },
 

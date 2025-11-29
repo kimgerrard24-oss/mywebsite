@@ -17,71 +17,95 @@ export class HealthService {
     return { ok: true, timestamp: new Date().toISOString() };
   }
 
+  // ------------------------------------------
+  // Database health check (with timeout)
+  // ------------------------------------------
   async dbCheck() {
     try {
-      await this.prisma.$queryRaw`SELECT 1`;
+      const timeout = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('DB timeout')), 2000),
+      );
+
+      await Promise.race([
+        this.prisma.$queryRaw`SELECT 1`,
+        timeout,
+      ]);
+
       return { ok: true };
     } catch {
       return { ok: false };
     }
   }
 
+  // ------------------------------------------
+  // Redis health check (with timeout)
+  // ------------------------------------------
   async redisCheck() {
     try {
-      const pong = await this.redis.ping();
+      const timeout = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Redis timeout')), 1500),
+      );
+
+      const pong = await Promise.race([this.redis.ping(), timeout]);
+
       return { ok: pong === 'PONG' };
     } catch {
       return { ok: false };
     }
   }
 
-  // ==========================================
-  // FIXED: correct Secrets Manager health check
-  // ==========================================
+  // ------------------------------------------
+  // Secrets Manager config check (safe)
+  // ------------------------------------------
   async secretsCheck() {
     try {
-      const name = process.env.AWS_SECRET_NAME;
-      const region = process.env.AWS_REGION;
+      const valid =
+        Boolean(process.env.AWS_SECRET_NAME) &&
+        Boolean(process.env.AWS_REGION);
 
-      if (!name || !region) {
-        return { ok: false };
-      }
-
-      return { ok: true };
+      return { ok: valid };
     } catch {
       return { ok: false };
     }
   }
 
-  // ==========================================
-  // FIXED: correct R2 environment validation
-  // ==========================================
+  // ------------------------------------------
+  // R2 config check (do NOT leak secrets)
+  // ------------------------------------------
   async r2Check() {
     try {
-      const bucket = process.env.R2_BUCKET_NAME;
-      const endpoint = process.env.R2_ENDPOINT;
-      const key = process.env.R2_ACCESS_KEY_ID;
-      const secret = process.env.R2_SECRET_ACCESS_KEY;
+      const valid =
+        Boolean(process.env.R2_BUCKET_NAME) &&
+        Boolean(process.env.R2_ENDPOINT) &&
+        Boolean(process.env.R2_ACCESS_KEY_ID) &&
+        Boolean(process.env.R2_SECRET_ACCESS_KEY);
 
-      if (!bucket || !endpoint || !key || !secret) {
-        return { ok: false };
-      }
-
-      return { ok: true };
+      return { ok: valid };
     } catch {
       return { ok: false };
     }
   }
 
+  // ------------------------------------------
+  // Queue check = reuse Redis check
+  // ------------------------------------------
   async queueCheck() {
     try {
-      const pong = await this.redis.ping();
+      const timeout = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Queue timeout')), 1500),
+      );
+
+      const pong = await Promise.race([this.redis.ping(), timeout]);
+
       return { ok: pong === 'PONG' };
     } catch {
       return { ok: false };
     }
   }
 
+  // ------------------------------------------
+  // Socket check → just validate config
+  // ------------------------------------------
   async socketCheck() {
     try {
       const base =
@@ -89,14 +113,15 @@ export class HealthService {
         process.env.API_PUBLIC_URL ||
         process.env.PRODUCTION_BACKEND_URL;
 
-      if (!base) return { ok: false };
-
-      return { ok: true };
+      return { ok: Boolean(base) };
     } catch {
       return { ok: false };
     }
   }
 
+  // ------------------------------------------
+  // Basic system info
+  // ------------------------------------------
   async systemInfo() {
     return {
       ok: true,
@@ -107,15 +132,34 @@ export class HealthService {
     };
   }
 
+  // ------------------------------------------
+  // Faster parallel system-wide health check
+  // ------------------------------------------
   async systemCheck() {
+    const [
+      db,
+      redis,
+      secrets,
+      r2,
+      queue,
+      socket,
+    ] = await Promise.all([
+      this.dbCheck(),
+      this.redisCheck(),
+      this.secretsCheck(),
+      this.r2Check(),
+      this.queueCheck(),
+      this.socketCheck(),
+    ]);
+
     return {
       backend: true,
-      postgres: (await this.dbCheck()).ok,
-      redis: (await this.redisCheck()).ok,
-      secrets: (await this.secretsCheck()).ok,
-      r2: (await this.r2Check()).ok,
-      queue: (await this.queueCheck()).ok,
-      socket: (await this.socketCheck()).ok,
+      postgres: db.ok,
+      redis: redis.ok,
+      secrets: secrets.ok,
+      r2: r2.ok,
+      queue: queue.ok,
+      socket: socket.ok,
     };
   }
 }

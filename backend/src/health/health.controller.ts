@@ -5,7 +5,11 @@
 import { Controller, Get } from '@nestjs/common';
 import { HealthService } from './health.service';
 
+// NEW: Skip rate-limit for all health endpoints
+import { RateLimitIgnore } from '../common/rate-limit/rate-limit.decorator';
+
 @Controller('health')
+@RateLimitIgnore() // Apply to the whole controller
 export class HealthController {
   constructor(private readonly health: HealthService) {}
 
@@ -51,7 +55,6 @@ export class HealthController {
 
   // ==========================================
   // FIXED: OAuth/Firebase Health Check
-  // - remove jwtConfigured check (system uses Firebase, not JWT_SECRET)
   // ==========================================
   @Get('oauth')
   oauthEnv() {
@@ -70,7 +73,6 @@ export class HealthController {
           process.env.FIREBASE_SERVICE_ACCOUNT_BASE64,
         ),
 
-        // removed jwt check (Firebase project does not use JWT_SECRET)
         cookieConfigured: Boolean(process.env.COOKIE_DOMAIN),
       },
     };

@@ -63,6 +63,24 @@ export class RateLimitService implements OnModuleDestroy {
       };
     }
 
+    // ============================================================
+    // SAFETY: Skip rate limit for internal health-check keys
+    // (เพิ่ม logic ป้องกันกรณีมีการเรียก consume โดยตรงในอนาคต)
+    // ============================================================
+    if (
+      key === 'healthcheck' ||
+      key === 'system-check' ||
+      key === 'docker-health' ||
+      key.startsWith('health:')
+    ) {
+      return {
+        limit: limiter.points,
+        remaining: limiter.points,
+        retryAfterSec: 0,
+        reset: 0,
+      };
+    }
+
     try {
       const result = await limiter.consume(key);
 

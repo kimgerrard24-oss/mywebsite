@@ -5,7 +5,6 @@
 import { Injectable, Inject } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import Redis from 'ioredis';
-import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-secrets-manager';
 import { R2Service } from '../r2/r2.service';
 
 @Injectable()
@@ -16,89 +15,93 @@ export class SystemCheckService {
     private readonly r2: R2Service,
   ) {}
 
-  private readonly awsRegion =
-    process.env.AWS_REGION?.trim() || 'ap-southeast-7';
-
-  private secretsClient = new SecretsManagerClient({
-    region: this.awsRegion,
-  });
-
+  // ------------------------------------------
+  // Backend is always ok if service is alive
+  // ------------------------------------------
   async checkBackend() {
     return true;
   }
 
+  // ------------------------------------------
+  // Postgres check (with timeout)
+  // ------------------------------------------
   async checkPostgres() {
     try {
-      await this.prisma.$queryRaw`SELECT 1`;
-      return true;
-    } catch {
-      return false;
-    }
-  }
-
-  async checkRedis() {
-    try {
-      const pong = await this.redis.ping();
-      return pong === 'PONG';
-    } catch {
-      return false;
-    }
-  }
-
-  async checkQueue() {
-    try {
-      const pong = await this.redis.ping();
-      return pong === 'PONG';
-    } catch {
-      return false;
-    }
-  }
-
-  // ==========================================
-  // FIX #1 — Check AWS Secrets correctly
-  // ==========================================
-  async checkSecrets() {
-    try {
-      const secretName = process.env.AWS_SECRET_NAME;
-
-      if (!secretName) return false;
-
-      // ต้อง test read จริงจาก AWS
-      await this.secretsClient.send(
-        new GetSecretValueCommand({
-          SecretId: secretName,
-        }),
+      const timeout = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('DB timeout')), 2000),
       );
 
+      await Promise.race([
+        this.prisma.$queryRaw`SELECT 1`,
+        timeout,
+      ]);
+
       return true;
     } catch {
       return false;
     }
   }
 
-  // ==========================================
-  // FIX #2 — Check R2 using actual environment used by R2Module
-  // ==========================================
-  async checkR2() {
+  // ------------------------------------------
+  // Redis check (with timeout)
+  // ------------------------------------------
+  async checkRedis() {
     try {
-      const bucket = process.env.R2_BUCKET_NAME;
-      const endpoint = process.env.R2_ENDPOINT;
-      const accessKey = process.env.R2_ACCESS_KEY_ID;
-      const secretKey = process.env.R2_SECRET_ACCESS_KEY;
+      const timeout = new Promise((_, reject) =>
+        setTimeout(() => reject(new Error('Redis timeout')), 1500),
+      );
 
-      if (!bucket || !endpoint || !accessKey || !secretKey) return false;
+      const pong = await Promise.race([this.redis.ping(), timeout]);
 
-      // Test R2 service directly
-      const ok = await this.r2.healthCheck();
-      return ok === true;
+      return pong === 'PONG';
     } catch {
       return false;
     }
   }
 
-  // ==========================================
-  // FIX #3 — Check socket by validating backend URL
-  // ==========================================
+  // Queue = Redis (same instance)
+  async checkQueue() {
+    return this.checkRedis();
+  }
+
+  // ------------------------------------------
+  // FIXED: Safe Secrets check (no AWS call)
+  // ------------------------------------------
+  async checkSecrets() {
+    try {
+      const ok =
+        Boolean(process.env.AWS_SECRET_NAME) &&
+        Boolean(process.env.AWS_REGION);
+
+      return ok;
+    } catch {
+      return false;
+    }
+  }
+
+  // ------------------------------------------
+  // FIXED: R2 config validation + r2.healthCheck()
+  // ------------------------------------------
+  async checkR2() {
+    try {
+      const ok =
+        Boolean(process.env.R2_BUCKET_NAME) &&
+        Boolean(process.env.R2_ENDPOINT) &&
+        Boolean(process.env.R2_ACCESS_KEY_ID) &&
+        Boolean(process.env.R2_SECRET_ACCESS_KEY);
+
+      if (!ok) return false;
+
+      const r2Ok = await this.r2.healthCheck();
+      return r2Ok === true;
+    } catch {
+      return false;
+    }
+  }
+
+  // ------------------------------------------
+  // Socket check — validate URL only
+  // ------------------------------------------
   async checkSocket() {
     try {
       const base =
@@ -109,7 +112,6 @@ export class SystemCheckService {
 
       if (!base) return false;
 
-      // ยังไม่ต้อง connect socket จริง เพียง validate URL format
       try {
         new URL(base);
       } catch {
@@ -122,18 +124,36 @@ export class SystemCheckService {
     }
   }
 
-  // ==========================================
-  // RETURN ALL STATUS
-  // ==========================================
+  // ------------------------------------------
+  // FAST PARALLEL HEALTH CHECK
+  // ------------------------------------------
   async getStatus() {
+    const [
+      backend,
+      postgres,
+      redis,
+      secrets,
+      r2,
+      queue,
+      socket,
+    ] = await Promise.all([
+      this.checkBackend(),
+      this.checkPostgres(),
+      this.checkRedis(),
+      this.checkSecrets(),
+      this.checkR2(),
+      this.checkQueue(),
+      this.checkSocket(),
+    ]);
+
     return {
-      backend: await this.checkBackend(),
-      postgres: await this.checkPostgres(),
-      redis: await this.checkRedis(),
-      secrets: await this.checkSecrets(),
-      r2: await this.checkR2(),
-      queue: await this.checkQueue(),
-      socket: await this.checkSocket(),
+      backend,
+      postgres,
+      redis,
+      secrets,
+      r2,
+      queue,
+      socket,
     };
   }
 }

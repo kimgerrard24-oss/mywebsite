@@ -29,14 +29,30 @@ export class RateLimitGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
+    const req = context.switchToHttp().getRequest<Request>();
+    const res = context.switchToHttp().getResponse<Response>();
+
+    // ============================================================
+    // SKIP RATE LIMIT FOR HEALTH CHECK ENDPOINTS
+    // ============================================================
+    const path = req.path;
+
+    if (
+      path === '/system-check' ||
+      path === '/health' ||
+      path.startsWith('/health/')
+    ) {
+      return true;
+    }
+
+    // ============================================================
+    // NORMAL RATE LIMIT LOGIC
+    // ============================================================
     const action =
       this.reflector.get<RateLimitAction>(
         RATE_LIMIT_CONTEXT_KEY,
         context.getHandler(),
       ) || 'ip';
-
-    const req = context.switchToHttp().getRequest<Request>();
-    const res = context.switchToHttp().getResponse<Response>();
 
     const ip =
       req.ip ||
@@ -69,9 +85,7 @@ export class RateLimitGuard implements CanActivate {
       return true;
     } catch (err: any) {
       const retryAfterSec =
-        typeof err?.retryAfterSec === 'number'
-          ? err.retryAfterSec
-          : 60;
+        typeof err?.retryAfterSec === 'number' ? err.retryAfterSec : 60;
 
       res.setHeader('Retry-After', String(retryAfterSec));
       res.setHeader('X-RateLimit-Reset', String(retryAfterSec));

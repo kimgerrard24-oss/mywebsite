@@ -1,11 +1,11 @@
 // src/common/rate-limit/rate-limit.guard.ts
+
 import {
   CanActivate,
   ExecutionContext,
   Injectable,
-  ForbiddenException,
 } from '@nestjs/common';
-import { Request } from 'express';
+import { Request, Response } from 'express';
 import { Reflector } from '@nestjs/core';
 
 import { RateLimitService } from './rate-limit.service';
@@ -20,10 +20,21 @@ export class AuthRateLimitGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    // -----------------------------------------
-    // 1) อ่าน metadata จาก decorator
-    // ถ้าไม่ได้กำหนด -> ไม่ทำ rate-limit ตรงนี้
-    // -----------------------------------------
+    const req = context.switchToHttp().getRequest<Request>();
+    const res = context.switchToHttp().getResponse<Response>();
+
+    // ---------------------------------------------------------
+    // 1) Skip health-check (สำคัญที่สุด)
+    // ---------------------------------------------------------
+    const pathLower = req.path.toLowerCase();
+    if (pathLower.startsWith('/health') || pathLower.startsWith('/system-check')) {
+      return true;
+    }
+
+    // ---------------------------------------------------------
+    // 2) อ่าน metadata action จาก decorator
+    // ถ้าไม่มี -> ไม่ทำ rate-limit
+    // ---------------------------------------------------------
     const action =
       this.reflector.get<RateLimitAction>(
         RATE_LIMIT_CONTEXT_KEY,
@@ -34,19 +45,14 @@ export class AuthRateLimitGuard implements CanActivate {
       return true;
     }
 
-    // -----------------------------------------
-    // 2) ดึงข้อมูล request + IP
-    // -----------------------------------------
-    const req = context.switchToHttp().getRequest<Request>();
-
+    // ---------------------------------------------------------
+    // 3) ดึง IP และ userKey
+    // ---------------------------------------------------------
     const ip =
       req.ip ||
       (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
       'unknown';
 
-    // -----------------------------------------
-    // 3) ถ้ามี user -> ใช้ user.id แทน IP (ปลอดภัยกว่า)
-    // -----------------------------------------
     let userKey: string | null = null;
     try {
       userKey =
@@ -60,16 +66,36 @@ export class AuthRateLimitGuard implements CanActivate {
 
     const key = userKey || ip;
 
-    // -----------------------------------------
-    // 4) ใช้ RateLimitService ตรวจนับ policy
-    // -----------------------------------------
+    // ---------------------------------------------------------
+    // 4) ตรวจ rate-limit ผ่าน Service
+    // ---------------------------------------------------------
     try {
-      await this.rlService.consume(action, key);
+      const resLimit = await this.rlService.consume(action, key);
+
+      // Header สำหรับมาตรฐาน Rate-Limit (RFC-compliant)
+      res.setHeader('X-RateLimit-Limit', String(resLimit.limit));
+      res.setHeader('X-RateLimit-Remaining', String(resLimit.remaining));
+      res.setHeader('X-RateLimit-Reset', String(resLimit.reset));
+
       return true;
-    } catch {
-      throw new ForbiddenException(
-        'Too many authentication attempts. Try again later.',
-      );
+    } catch (err: any) {
+      const retryAfterSec =
+        typeof err?.retryAfterSec === 'number' ? err.retryAfterSec : 60;
+
+      // -------------------------------------------------------
+      // 429 มาตรฐานของ Rate Limit
+      // -------------------------------------------------------
+      res.setHeader('Retry-After', String(retryAfterSec));
+      res.setHeader('X-RateLimit-Limit', String(err?.limit ?? 0));
+      res.setHeader('X-RateLimit-Remaining', '0');
+      res.setHeader('X-RateLimit-Reset', String(retryAfterSec));
+
+      res.status(429).json({
+        statusCode: 429,
+        message: 'Too many requests. Please slow down.',
+      });
+
+      return false;
     }
   }
 }

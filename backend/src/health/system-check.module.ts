@@ -7,18 +7,13 @@ import { SystemCheckService } from './system-check.service';
 
 import { PrismaModule } from '../prisma/prisma.module';
 import { RedisModule } from '../redis/redis.module';
-import { AwsModule } from '../aws/aws.module';
-import { FirebaseAdminModule } from '../firebase/firebase.module';
 import { R2Module } from '../r2/r2.module';
 
 @Module({
   imports: [
-    
     PrismaModule,
     RedisModule,
-    AwsModule,
-    FirebaseAdminModule,
-    R2Module,
+    R2Module,      // required for r2.healthCheck()
   ],
   controllers: [SystemCheckController],
   providers: [SystemCheckService],
