@@ -1,10 +1,10 @@
-//  src/post/post.controller.ts
+// src/post/post.controller.ts
 import {
   Controller,
   Post,
   Body,
 } from '@nestjs/common';
-import { RateLimitContext } from 'src/common/rate-limit/rate-limit.decorator';
+import { RateLimitContext } from '../common/rate-limit/rate-limit.decorator';
 
 @Controller('posts')
 export class PostController {
