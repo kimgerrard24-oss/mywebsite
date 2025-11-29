@@ -11,7 +11,7 @@ export class AuthGuard implements CanActivate {
 
   canActivate(context: ExecutionContext): boolean {
     // ---------------------------------------
-    // 1) FIX — allow @Public() properly
+    // 1) Allow @Public() properly
     // ---------------------------------------
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
@@ -21,22 +21,13 @@ export class AuthGuard implements CanActivate {
     if (isPublic) return true;
 
     // ---------------------------------------
-    // 2) FIX — normal authenticated routes
+    // 2) Normal authenticated routes:
+    //    FirebaseAuthGuard จะใส่ req.user ให้อยู่แล้ว
     // ---------------------------------------
     const req = context.switchToHttp().getRequest();
 
-    // dynamic session cookie name
-    const cookieName = process.env.SESSION_COOKIE_NAME || '__session';
+    if (req.user) return true;
 
-    const hasUser = Boolean(req.user);
-    const hasCookie =
-      Boolean(req.cookies?.[cookieName]) ||
-      Boolean(req.headers.cookie?.includes(`${cookieName}=`));
-
-    if (!hasUser && !hasCookie) {
-      return false; // will become 403 Forbidden
-    }
-
-    return true;
+    return false;
   }
 }

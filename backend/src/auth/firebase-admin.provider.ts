@@ -9,15 +9,23 @@ export interface FirebaseInitOptions {
   projectId?: string;
   clientEmail?: string;
   privateKey?: string;
-  secretArn?: string; // optional: AWS Secrets Manager ARN
+  secretArn?: string;
 }
 
 async function loadCredsFromAws(secretArn: string) {
-  const client = new SecretsManagerClient({});
-  const cmd = new GetSecretValueCommand({ SecretId: secretArn });
-  const res = await client.send(cmd);
-  if (!res.SecretString) throw new Error('Secret did not contain SecretString');
-  return JSON.parse(res.SecretString);
+  try {
+    const client = new SecretsManagerClient({});
+    const cmd = new GetSecretValueCommand({ SecretId: secretArn });
+    const res = await client.send(cmd);
+
+    if (!res.SecretString) {
+      throw new Error('Secret did not contain SecretString');
+    }
+
+    return JSON.parse(res.SecretString);
+  } catch (err) {
+    throw new Error('Failed to load Firebase credentials from AWS Secrets Manager');
+  }
 }
 
 export const firebaseAdminProvider: Provider = {
@@ -40,17 +48,31 @@ export const firebaseAdminProvider: Provider = {
       throw new Error('Missing Firebase credentials. Set FIREBASE_* env vars or FIREBASE_SECRET_ARN.');
     }
 
-    // Fix newline escaping (common when storing private key in env)
-    const privateKey = creds.private_key.replace(/\\n/g, '\n');
+    // Support base64 private key
+    let rawPrivateKey = creds.private_key;
+    if (rawPrivateKey.trim().startsWith('{') === false && rawPrivateKey.includes('\\n') === false) {
+      try {
+        rawPrivateKey = Buffer.from(rawPrivateKey, 'base64').toString('utf8');
+      } catch {}
+    }
 
-    const app = admin.initializeApp({
-      credential: admin.credential.cert({
-        projectId: creds.project_id,
-        clientEmail: creds.client_email,
-        privateKey,
-      } as admin.ServiceAccount),
-    }, `phlyphant-${Math.random().toString(36).slice(2, 8)}`);
+    const privateKey = rawPrivateKey.replace(/\\n/g, '\n');
 
-    return app;
+    // Use a singleton Firebase app
+    const existingApp = admin.apps?.find((a) => a?.name === 'phlyphant-main');
+    if (existingApp) {
+      return existingApp;
+    }
+
+    return admin.initializeApp(
+      {
+        credential: admin.credential.cert({
+          projectId: creds.project_id,
+          clientEmail: creds.client_email,
+          privateKey,
+        } as admin.ServiceAccount),
+      },
+      'phlyphant-main',
+    );
   },
 };

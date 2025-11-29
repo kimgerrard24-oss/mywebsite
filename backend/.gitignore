@@ -19,7 +19,8 @@ build/
 
 # Prisma
 prisma/generated/
-prisma/migrations/
+# allow migrations folder
+!prisma/migrations/
 *.db
 *.db-journal
 
@@ -49,5 +50,3 @@ firebase-service-account.json
 # Local cache
 .cache/
 .cache-loader/
-
-w

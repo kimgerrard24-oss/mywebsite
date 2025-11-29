@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { FirebaseAdminService } from '../firebase/firebase.service';
-import { Public } from './decorators/public.decorator';
+import { IS_PUBLIC_KEY } from './decorators/public.decorator';   // FIX: use key
 import * as cookie from 'cookie';
 import type { Request } from 'express';
 
@@ -20,7 +20,7 @@ export class FirebaseAuthGuard implements CanActivate {
 
   constructor(
     private readonly firebase: FirebaseAdminService,
-    private readonly reflector: Reflector,               // FIX: add reflector
+    private readonly reflector: Reflector, // OK
   ) {}
 
   async canActivate(ctx: ExecutionContext) {
@@ -29,7 +29,7 @@ export class FirebaseAuthGuard implements CanActivate {
     // ============================================
     // 1) FIX — allow @Public() to bypass guard
     // ============================================
-    const isPublic = this.reflector.getAllAndOverride<boolean>(Public, [
+    const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       ctx.getHandler(),
       ctx.getClass(),
     ]);
@@ -39,7 +39,7 @@ export class FirebaseAuthGuard implements CanActivate {
     }
 
     // ============================================
-    // 2) FIX — allow health/system-check without login
+    // 2) Allow health/system-check and OAuth routes
     // ============================================
     const url = (req.originalUrl || req.url || '').toLowerCase();
 
@@ -55,7 +55,6 @@ export class FirebaseAuthGuard implements CanActivate {
       '/health/socket',
       '/health/r2',
 
-      // เดิม
       '/auth/google',
       '/auth/google/callback',
       '/auth/google/redirect',
@@ -68,7 +67,6 @@ export class FirebaseAuthGuard implements CanActivate {
       '/auth/complete',
       '/auth/firebase',
 
-      // api prefix
       '/api/auth/google',
       '/api/auth/google/callback',
       '/api/auth/facebook',
@@ -82,7 +80,7 @@ export class FirebaseAuthGuard implements CanActivate {
     }
 
     // ============================================
-    // 3) Session cookie authentication (unchanged)
+    // 3) Session cookie auth (unchanged)
     // ============================================
     const cookieName = process.env.SESSION_COOKIE_NAME || '__session';
     let sessionCookieValue: string | null = null;
@@ -105,7 +103,6 @@ export class FirebaseAuthGuard implements CanActivate {
       (req.headers && (req.headers.authorization as string)) || '';
 
     try {
-      // Firebase session cookie
       if (sessionCookieValue) {
         const decoded = await this.firebase
           .auth()
@@ -115,7 +112,6 @@ export class FirebaseAuthGuard implements CanActivate {
         return true;
       }
 
-      // Firebase bearer token
       if (authHeader.startsWith('Bearer ')) {
         const token = authHeader.replace(/^Bearer\s+/i, '').trim();
 
@@ -131,7 +127,7 @@ export class FirebaseAuthGuard implements CanActivate {
     }
 
     // ============================================
-    // 4) Allow websocket upgrade traffic
+    // 4) Allow websocket upgrade
     // ============================================
     const upgradeHeader =
       req.headers['upgrade'] ||
@@ -148,7 +144,7 @@ export class FirebaseAuthGuard implements CanActivate {
     }
 
     // ============================================
-    // 5) Default = Unauthorized
+    // 5) Default: block request
     // ============================================
     throw new UnauthorizedException('Authentication required');
   }

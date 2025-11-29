@@ -1,4 +1,4 @@
-// files src/main.ts
+// src/main.ts
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
@@ -10,7 +10,6 @@ import { createAdapter } from '@socket.io/redis-adapter';
 import IORedis from 'ioredis';
 import { json, urlencoded } from 'express';
 import './instrument';
-
 import * as Sentry from '@sentry/node';
 Sentry.init({
   dsn: process.env.SENTRY_DSN,
@@ -18,23 +17,20 @@ Sentry.init({
   release: process.env.SENTRY_RELEASE,
   tracesSampleRate: parseFloat(process.env.SENTRY_TRACES_SAMPLE_RATE || '0'),
 });
-
 import { SentryInterceptor } from './sentry.interceptor';
 import helmet from 'helmet';
 import { ValidationPipe, Logger } from '@nestjs/common';
-
 import * as cookie from 'cookie';
 import cookieParser from 'cookie-parser';
 import { FirebaseAdminService } from './firebase/firebase.service';
-
 import type { Request, Response } from 'express';
 import rateLimit from 'express-rate-limit';
 
-const logger = new Logger('bootstrap');
+import { RateLimitGuard } from './common/rate-limit/rate-limit.guard';
+import { RateLimitService } from './common/rate-limit/rate-limit.service';
+import { Reflector } from '@nestjs/core';
 
-/* =====================================================================
-   REDIS HELPERS — ใช้ REDIS_URL เดียวเพื่อรองรับ provider ทุกเจ้าในอนาคต
-   ===================================================================== */
+const logger = new Logger('bootstrap');
 
 function getRedisUrl(): string {
   const url = process.env.REDIS_URL;
@@ -59,8 +55,6 @@ function createRedisClient(): IORedis {
   return new IORedis(getRedisUrl(), redisOptions());
 }
 
-/* ===================================================================== */
-
 function normalizeToOrigin(raw: string | undefined): string {
   if (!raw) return '';
   try {
@@ -78,6 +72,15 @@ function normalizeToOrigin(raw: string | undefined): string {
 async function bootstrap(): Promise<void> {
   const nestApp = await NestFactory.create(AppModule, { cors: false });
   const expressApp = nestApp.getHttpAdapter().getInstance() as Express;
+
+  // ============================================
+  // Added: Global RateLimit Guard (ตามที่คุณขอ)
+  // - Use the RateLimitService and the Reflector from the DI container
+  // ============================================
+  const rateLimitService = nestApp.get(RateLimitService);
+  const reflector = nestApp.get(Reflector);
+  nestApp.useGlobalGuards(new RateLimitGuard(rateLimitService, reflector));
+  // ============================================
 
   expressApp.set('trust proxy', true);
   expressApp.use(helmet());
@@ -207,10 +210,6 @@ async function bootstrap(): Promise<void> {
 
   const httpServer = createServer(expressApp);
 
-  /* =====================================================================
-     SOCKET.IO ADAPTER (using REDIS_URL only)
-     ===================================================================== */
-
   const io = new Server(httpServer, {
     cors: {
       origin: (origin, cb) => {
@@ -237,7 +236,6 @@ async function bootstrap(): Promise<void> {
     const pub = new IORedis(redisUrl, opts);
     const sub = new IORedis(redisUrl, opts);
 
-    // only connect if not already connecting/ready to avoid race conditions
     if (pub.status !== 'connecting' && pub.status !== 'ready') {
       await pub.connect().catch((err) => {
         throw new Error('Redis pub connection failed: ' + String(err));
@@ -251,7 +249,6 @@ async function bootstrap(): Promise<void> {
         });
       } catch (e) {
         try {
-          // ensure pub is disconnected if sub fails
           await pub.disconnect();
         } catch {}
         throw e;
@@ -264,10 +261,6 @@ async function bootstrap(): Promise<void> {
     logger.error('Redis adapter failed: ' + String(e));
   }
 
-  /* =====================================================================
-     GENERAL REDIS CLIENT (using REDIS_URL only)
-     ===================================================================== */
-
   const redisClient = createRedisClient();
   redisClient.on('error', (err: unknown) => logger.error('Redis error', err));
 
@@ -278,10 +271,6 @@ async function bootstrap(): Promise<void> {
       });
     }
   } catch {}
-
-  /* =====================================================================
-     WEBSOCKET COOKIE VALIDATION
-     ===================================================================== */
 
   io.use(async (socket, next) => {
     try {

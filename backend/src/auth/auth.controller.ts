@@ -1,4 +1,4 @@
-// file: src/auth/auth.controller.ts
+// src/auth/auth.controller.ts
 import {
   Controller,
   Get,
@@ -19,6 +19,10 @@ import * as admin from 'firebase-admin';
 import { FirebaseAuthGuard } from './firebase-auth.guard';
 import { GetUser } from './get-user.decorator';
 
+import { RateLimitContext } from 'src/common/rate-limit/rate-limit.decorator';
+import { AuthRateLimitGuard } from 'src/common/rate-limit/auth-rate-limit.guard';
+import { Public } from './decorators/public.decorator';
+
 const redis = new IORedis(process.env.REDIS_URL || 'redis://redis:6379', {
   maxRetriesPerRequest: 3,
 });
@@ -35,23 +39,16 @@ function normalizeOAuthState(raw?: string | null): string {
   if (!raw) return '';
   let s = String(raw).trim();
 
-  // Try decoding once (safe)
   try {
     s = decodeURIComponent(s);
-  } catch {
-    // ignore decode errors
-  }
+  } catch {}
 
-  // Normalize common encodings and artifacts
   s = s.replace(/\+/g, ' ');
   s = s.replace(/%2B/gi, '+');
   s = s.replace(/%3D/gi, '=');
   s = s.replace(/%2F/gi, '/');
 
-  // Remove surrounding quotes if present
   s = s.replace(/^["']|["']$/g, '').trim();
-
-  // Collapse duplicate slashes (keep protocol safe)
   s = s.replace(/([^:]\/)\/+/g, '$1');
 
   return s;
@@ -83,11 +80,13 @@ export class AuthController {
   private readonly logger = new Logger(AuthController.name);
 
   constructor(private readonly auth: AuthService) {}
-  
-  // -----------------------------
+
+  // ----------------------------------------------------
   // Local Register
-  // -----------------------------
+  // ----------------------------------------------------
+  @Public()
   @Post('local/register')
+  @RateLimitContext('register')
   async localRegister(@Body() body: any) {
     const { email, password, name } = body;
 
@@ -97,15 +96,20 @@ export class AuthController {
 
     return this.auth.registerLocal(email, password, name);
   }
-    @Get('profile')
+
+  @Get('profile')
   @UseGuards(FirebaseAuthGuard)
   async profile(@GetUser() user: any) {
     return { ok: true, user };
   }
-  // -----------------------------
+
+  // ----------------------------------------------------
   // Local Login
-  // -----------------------------
+  // ----------------------------------------------------
+  @Public()
   @Post('local/login')
+  @UseGuards(AuthRateLimitGuard)
+  @RateLimitContext('login')
   async localLogin(@Body() body: any, @Res() res: Response) {
     const { email, password } = body;
 
@@ -121,7 +125,6 @@ export class AuthController {
     const cookieDomain = process.env.COOKIE_DOMAIN || '.phlyphant.com';
     const isProd = process.env.NODE_ENV === 'production';
 
-    // Access JWT
     res.cookie('local_access', accessToken, {
       httpOnly: true,
       secure: isProd,
@@ -131,7 +134,6 @@ export class AuthController {
       maxAge: 1000 * 60 * 15,
     });
 
-    // Refresh JWT
     res.cookie('local_refresh', refreshToken, {
       httpOnly: true,
       secure: isProd,
@@ -143,9 +145,10 @@ export class AuthController {
 
     return res.json({ ok: true, user });
   }
-  // -----------------------------
+
+  // ----------------------------------------------------
   // Local Refresh Token
-  // -----------------------------
+  // ----------------------------------------------------
   @Post('local/refresh')
   async localRefresh(@Req() req: Request, @Res() res: Response) {
     const refreshToken = req.cookies?.local_refresh;
@@ -180,9 +183,10 @@ export class AuthController {
 
     return res.json({ ok: true, user });
   }
-  // -----------------------------
+
+  // ----------------------------------------------------
   // Local Logout
-  // -----------------------------
+  // ----------------------------------------------------
   @Post('local/logout')
   async localLogout(@Res() res: Response) {
     const cookieDomain = process.env.COOKIE_DOMAIN || '.phlyphant.com';
@@ -192,10 +196,13 @@ export class AuthController {
 
     return res.json({ ok: true });
   }
-  // -----------------------------
+
+  // ----------------------------------------------------
   // Local Request Password Reset
-  // -----------------------------
+  // ----------------------------------------------------
+  @Public()
   @Post('local/request-password-reset')
+  @RateLimitContext('resetPassword')
   async localRequestReset(@Body() body: any) {
     const { email } = body;
 
@@ -205,10 +212,13 @@ export class AuthController {
 
     return this.auth.requestPasswordResetLocal(email);
   }
-  // -----------------------------
+
+  // ----------------------------------------------------
   // Local Reset Password
-  // -----------------------------
+  // ----------------------------------------------------
+  @Public()
   @Post('local/reset-password')
+  @RateLimitContext('resetPassword')
   async localResetPassword(@Body() body: any) {
     const { uid, token, newPassword } = body;
 
@@ -218,9 +228,10 @@ export class AuthController {
 
     return this.auth.resetPasswordLocal(uid, token, newPassword);
   }
-  // -----------------------------
-  // Local Verify Email
-  // -----------------------------
+
+  // ----------------------------------------------------
+  // Verify Email
+  // ----------------------------------------------------
   @Get('local/verify-email')
   async localVerifyEmail(
     @Query('uid') uid: string,
@@ -232,9 +243,10 @@ export class AuthController {
 
     return this.auth.verifyEmailLocal(uid, token);
   }
-  // =======================================
+
+  // ----------------------------------------------------
   // GOOGLE OAuth Start
-  // =======================================
+  // ----------------------------------------------------
   @Get('google')
   async googleAuth(@Req() req: Request, @Res() res: Response) {
     try {
@@ -244,7 +256,6 @@ export class AuthController {
       const state = crypto.randomBytes(16).toString('hex');
       const stateKey = `oauth_state_${state}`;
 
-      // store in redis and log result
       try {
         await redis.setex(stateKey, 300, '1');
         this.logger.log(`[googleAuth] set redis key ${stateKey}`);
@@ -252,10 +263,8 @@ export class AuthController {
         this.logger.warn(`[googleAuth] redis set failed: ${String(rErr)}`);
       }
 
-      // ensure credentials allowed if called via XHR/fetch
       res.setHeader('Access-Control-Allow-Credentials', 'true');
 
-      // set cookie for cross-subdomain usage
       res.cookie('oauth_state', state, {
         httpOnly: true,
         secure: isProd,
@@ -265,11 +274,11 @@ export class AuthController {
         maxAge: 5 * 60 * 1000,
       });
 
-      this.logger.log(`[googleAuth] set cookie oauth_state (domain=${cookieDomain} prod=${isProd})`);
-
       const clientId = process.env.GOOGLE_CLIENT_ID || '';
       const redirectUri = normalizeRedirectUri(
-        process.env.GOOGLE_CALLBACK_URL || process.env.GOOGLE_REDIRECT_URL || '',
+        process.env.GOOGLE_CALLBACK_URL ||
+          process.env.GOOGLE_REDIRECT_URL ||
+          '',
       );
 
       const params = new URLSearchParams({
@@ -284,7 +293,6 @@ export class AuthController {
       const authUrl =
         `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
 
-      this.logger.log(`[googleAuth] redirect=${authUrl}`);
       return res.redirect(authUrl);
     } catch (e: any) {
       this.logger.error('[googleAuth] error: ' + e.message);
@@ -292,9 +300,9 @@ export class AuthController {
     }
   }
 
-  // =======================================
+  // ----------------------------------------------------
   // GOOGLE OAuth Callback
-  // =======================================
+  // ----------------------------------------------------
   @Get('google/callback')
   async googleCallback(@Req() req: Request, @Res() res: Response) {
     try {
@@ -319,13 +327,9 @@ export class AuthController {
       }
 
       if (!validState) {
-        this.logger.warn(
-          `[googleCallback] state mismatch returned=${returnedState} cookie=${storedStateCookie} redis=${redisState}`,
-        );
         return res.status(400).send('Invalid or expired state');
       }
 
-      // clear cookie with same options
       res.clearCookie('oauth_state', {
         domain: process.env.COOKIE_DOMAIN || '.phlyphant.com',
         path: '/',
@@ -341,7 +345,9 @@ export class AuthController {
           client_id: process.env.GOOGLE_CLIENT_ID || '',
           client_secret: process.env.GOOGLE_CLIENT_SECRET || '',
           redirect_uri: normalizeRedirectUri(
-            process.env.GOOGLE_CALLBACK_URL || process.env.GOOGLE_REDIRECT_URL || '',
+            process.env.GOOGLE_CALLBACK_URL ||
+              process.env.GOOGLE_REDIRECT_URL ||
+              '',
           ),
           grant_type: 'authorization_code',
         }).toString(),
@@ -377,7 +383,6 @@ export class AuthController {
 
       const finalUrl = buildFinalUrl(redirectBase, customToken);
 
-      this.logger.log(`[googleCallback] redirect=${finalUrl}`);
       return res.redirect(finalUrl);
     } catch (err: any) {
       this.logger.error('[googleCallback] error: ' + err.message);
@@ -385,9 +390,9 @@ export class AuthController {
     }
   }
 
-  // =======================================
+  // ----------------------------------------------------
   // FACEBOOK OAuth Start
-  // =======================================
+  // ----------------------------------------------------
   @Get('facebook')
   async facebookAuth(@Req() req: Request, @Res() res: Response) {
     try {
@@ -399,12 +404,8 @@ export class AuthController {
 
       try {
         await redis.setex(stateKey, 300, '1');
-        this.logger.log(`[facebookAuth] set redis key ${stateKey}`);
-      } catch (rErr) {
-        this.logger.warn(`[facebookAuth] redis set failed: ${String(rErr)}`);
-      }
+      } catch {}
 
-      // ensure credentials allowed if called via XHR/fetch
       res.setHeader('Access-Control-Allow-Credentials', 'true');
 
       res.cookie('oauth_state', state, {
@@ -416,11 +417,8 @@ export class AuthController {
         maxAge: 5 * 60 * 1000,
       });
 
-      this.logger.log(`[facebookAuth] set cookie oauth_state (domain=${cookieDomain} prod=${isProd})`);
-
       const clientId = process.env.FACEBOOK_CLIENT_ID || '';
 
-      // fallback redirectUri if env missing - ensure production callback default
       const redirectUri = normalizeRedirectUri(
         process.env.FACEBOOK_CALLBACK_URL ||
           `https://api.phlyphant.com/auth/facebook/callback`,
@@ -437,7 +435,6 @@ export class AuthController {
       const authUrl =
         `https://www.facebook.com/v12.0/dialog/oauth?${params.toString()}`;
 
-      this.logger.log(`[facebookAuth] redirect=${authUrl}`);
       return res.redirect(authUrl);
     } catch (e: any) {
       this.logger.error('[facebookAuth] error: ' + e.message);
@@ -445,9 +442,9 @@ export class AuthController {
     }
   }
 
-  // =======================================
-  // FACEBOOK Callback (fixed state normalization)
-  // =======================================
+  // ----------------------------------------------------
+  // FACEBOOK OAuth Callback
+  // ----------------------------------------------------
   @Get('facebook/callback')
   async facebookCallback(@Req() req: Request, @Res() res: Response) {
     try {
@@ -458,12 +455,10 @@ export class AuthController {
         return res.status(400).send('Missing code or state');
       }
 
-      // Normalize forms
       const returnedState = normalizeOAuthState(returnedStateRaw);
       const storedStateCookieRaw = req.cookies?.oauth_state || null;
       const storedStateCookie = normalizeOAuthState(storedStateCookieRaw);
 
-      // Try redis with both raw and normalized variants
       const redisKeyRaw = `oauth_state_${returnedStateRaw}`;
       const redisKeyNorm = `oauth_state_${returnedState}`;
 
@@ -472,15 +467,12 @@ export class AuthController {
       try {
         redisState = await redis.get(redisKeyRaw);
         if (!redisState) redisState = await redis.get(redisKeyNorm);
-      } catch (rErr) {
-        this.logger.warn(`[facebookCallback] redis get failed: ${String(rErr)}`);
-      }
+      } catch {}
 
       let validState = false;
 
       if (redisState === '1') {
         validState = true;
-        // Attempt cleanup for both keys
         try {
           await redis.del(redisKeyRaw);
         } catch {}
@@ -489,11 +481,16 @@ export class AuthController {
         } catch {}
       }
 
-      // Cookie comparisons in multiple possible encodings/forms
       if (!validState) {
-        if (storedStateCookieRaw && storedStateCookieRaw === returnedStateRaw) {
+        if (
+          storedStateCookieRaw &&
+          storedStateCookieRaw === returnedStateRaw
+        ) {
           validState = true;
-        } else if (storedStateCookieRaw && storedStateCookieRaw === returnedState) {
+        } else if (
+          storedStateCookieRaw &&
+          storedStateCookieRaw === returnedState
+        ) {
           validState = true;
         } else if (storedStateCookie && storedStateCookie === returnedState) {
           validState = true;
@@ -501,13 +498,9 @@ export class AuthController {
       }
 
       if (!validState) {
-        this.logger.warn(
-          `[facebookCallback] state mismatch returnedRaw=${returnedStateRaw} returnedNorm=${returnedState} cookieRaw=${storedStateCookieRaw} cookieNorm=${storedStateCookie} redis=${redisState}`,
-        );
         return res.status(400).send('Invalid or expired state');
       }
 
-      // Clear cookie (same options used when setting)
       res.clearCookie('oauth_state', {
         domain: process.env.COOKIE_DOMAIN || '.phlyphant.com',
         path: '/',
@@ -565,7 +558,6 @@ export class AuthController {
 
       const finalUrl = buildFinalUrl(redirectBase, customToken);
 
-      this.logger.log(`[facebookCallback] redirect=${finalUrl}`);
       return res.redirect(finalUrl);
     } catch (err: any) {
       this.logger.error('[facebookCallback] error: ' + err.message);
@@ -573,9 +565,9 @@ export class AuthController {
     }
   }
 
-  // =======================================
-  // CREATE SESSION COOKIE AFTER /auth/complete
-  // =======================================
+  // ----------------------------------------------------
+  // CREATE SESSION COOKIE
+  // ----------------------------------------------------
   @Post('complete')
   async complete(@Body() body: any, @Res() res: Response) {
     const idToken = body?.idToken as string | undefined;
@@ -607,8 +599,6 @@ export class AuthController {
         expires: new Date(Date.now() + Number(expiresIn)),
       };
 
-      this.logger.log(`[complete] cookieOptions=${JSON.stringify(cookieOptions)}`);
-
       res.cookie(cookieName, sessionCookie, cookieOptions);
 
       return res.json({ ok: true });
@@ -620,9 +610,9 @@ export class AuthController {
     }
   }
 
-  // =======================================
+  // ----------------------------------------------------
   // SESSION CHECK
-  // =======================================
+  // ----------------------------------------------------
   @Get('session-check')
   async sessionCheck(@Req() req: Request, @Res() res: Response) {
     const cookie =
@@ -637,7 +627,6 @@ export class AuthController {
       const decoded = await admin.auth().verifySessionCookie(cookie, true);
       return res.json({ valid: true, decoded });
     } catch (e: any) {
-      this.logger.warn('[session-check] invalid session: ' + String(e));
       return res.status(401).json({ valid: false });
     }
   }

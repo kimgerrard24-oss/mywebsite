@@ -1,7 +1,4 @@
-// ==========================================
 // file: backend/src/app.module.ts
-// ==========================================
-
 import { Module, MiddlewareConsumer, NestModule } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AwsModule } from './aws/aws.module';
@@ -14,17 +11,16 @@ import { QueueModule } from './queue/queue.module';
 import { SentryModule, SentryGlobalFilter } from '@sentry/nestjs/setup';
 import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { AppController } from './app.controller';
-import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { UsersTestController } from './users/users.controller';
 import { PrismaModule } from './prisma/prisma.module';
 import { FirebaseAdminModule } from './firebase/firebase.module';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
-
 import { FirebaseAuthGuard } from './auth/firebase-auth.guard';
-
-// R2 Module (ต้องมี)
 import { R2Module } from './r2/r2.module';
+import { RedisRateLimitGuard } from './rate-limit/redis-rate-limit.guard';
+import { RateLimitModule } from './common/rate-limit/rate-limit.module';
 
 @Module({
   imports: [
@@ -42,7 +38,7 @@ import { R2Module } from './r2/r2.module';
     AuthModule,
     AwsModule,
     R2Module,
-
+    RateLimitModule,
     HealthModule,
     PrismaModule,
     RedisModule,
@@ -64,23 +60,22 @@ import { R2Module } from './r2/r2.module';
   controllers: [AppController, UsersTestController],
 
   providers: [
-    // Global error filter
     {
       provide: APP_FILTER,
       useClass: SentryGlobalFilter,
     },
 
-    // Rate limit guard
     {
       provide: APP_GUARD,
-      useClass: ThrottlerGuard,
+      useClass: RedisRateLimitGuard,
     },
 
-    // Firebase session guard (รองรับ @Public แล้ว)
-    {
-      provide: APP_GUARD,
-      useClass: FirebaseAuthGuard,
-    },
+    // Firebase session guard is NOT global; remove from global guards
+    // It will be applied only via @UseGuards(FirebaseAuthGuard)
+    // {
+    //   provide: APP_GUARD,
+    //   useClass: FirebaseAuthGuard,
+    // },
   ],
 })
 export class AppModule implements NestModule {

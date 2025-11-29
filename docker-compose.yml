@@ -110,55 +110,41 @@ services:
   # Redis (Production Hardened)
   # ============================================================
   redis:
-    image: redis:7-alpine
+    image: redis:7.2.4-alpine
     container_name: phlyphant-redis
     restart: unless-stopped
-
-    env_file:
-      - ./backend/.env.production
-
     environment:
       REDIS_PASSWORD: ${REDIS_PASSWORD}
-
-    command: >
-      sh -c '
+    command:
+      - sh
+      - -c
+      - |
         redis-server \
-          --requirepass "$${REDIS_PASSWORD}" \
-          --appendonly yes \
+          --requirepass "${REDIS_PASSWORD}" \
+          --protected-mode yes \
+          --appendonly no \
+          --save "" \
           --maxmemory 256mb \
           --maxmemory-policy allkeys-lru \
-          --save 900 1 \
-          --save 300 10 \
-          --save 60 10000 \
           --rename-command FLUSHALL "" \
           --rename-command FLUSHDB "" \
           --rename-command CONFIG "" \
           --rename-command SHUTDOWN "" \
           --rename-command DEBUG "" \
-          --rename-command KEYS ""
-      '
-
+          --rename-command KEYS "" \
+          --rename-command SAVE "" \
+          --rename-command EVAL "" \
+          --rename-command SCRIPT ""
     volumes:
       - redis-data:/data
-
     networks:
       - phlyphant_network
-
-    security_opt:
-      - no-new-privileges:true
-
-    read_only: false
-
-    tmpfs:
-      - /tmp:size=64m
-
     healthcheck:
-      test: ["CMD-SHELL", "redis-cli -a \"$REDIS_PASSWORD\" ping || exit 1"]
+      test: ["CMD-SHELL", "redis-cli -h localhost -a \"$REDIS_PASSWORD\" ping || exit 1"]
       interval: 10s
       timeout: 3s
       retries: 5
       start_period: 10s
-
     logging: *default-logging
 
 # ============================================================
@@ -175,4 +161,4 @@ volumes:
   postgres-data:
   caddy_data:
   caddy_config:
-  redis-data:
+  redis-data:                    

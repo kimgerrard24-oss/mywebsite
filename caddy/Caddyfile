@@ -103,7 +103,6 @@ api.phlyphant.com {
             header_up X-Forwarded-For {remote}
             header_up X-Real-IP {remote}
             header_up X-Forwarded-Proto {scheme}
-
             header_up Upgrade {http.request.header.Upgrade}
             header_up Connection {http.request.header.Connection}
             header_up Cookie {http.request.header.Cookie}
@@ -113,7 +112,8 @@ api.phlyphant.com {
     handle {
         reverse_proxy phlyphant-backend:4001 {
             transport http {
-                versions 2
+                versions 1.1    # แก้เฉพาะตรงนี้ตามคำสั่งของคุณ
+
             }
 
             header_up Host {host}
