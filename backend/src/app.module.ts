@@ -9,7 +9,7 @@ import { RedisModule } from './redis/redis.module';
 import { AppCacheModule } from './cache/cache.module';
 import { QueueModule } from './queue/queue.module';
 import { SentryModule, SentryGlobalFilter } from '@sentry/nestjs/setup';
-import { APP_FILTER, APP_GUARD } from '@nestjs/core';
+import { APP_FILTER } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { UsersTestController } from './users/users.controller';
@@ -17,9 +17,7 @@ import { PrismaModule } from './prisma/prisma.module';
 import { FirebaseAdminModule } from './firebase/firebase.module';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
-import { FirebaseAuthGuard } from './auth/firebase-auth.guard';
 import { R2Module } from './r2/r2.module';
-import { RedisRateLimitGuard } from './rate-limit/redis-rate-limit.guard';
 import { RateLimitModule } from './common/rate-limit/rate-limit.module';
 
 @Module({
@@ -38,7 +36,7 @@ import { RateLimitModule } from './common/rate-limit/rate-limit.module';
     AuthModule,
     AwsModule,
     R2Module,
-    RateLimitModule,
+    RateLimitModule,      // <-- ใช้ระบบ rate-limit ใหม่ที่ถูกต้อง
     HealthModule,
     PrismaModule,
     RedisModule,
@@ -64,12 +62,6 @@ import { RateLimitModule } from './common/rate-limit/rate-limit.module';
       provide: APP_FILTER,
       useClass: SentryGlobalFilter,
     },
-
-    {
-      provide: APP_GUARD,
-      useClass: RedisRateLimitGuard,
-    },
-
   ],
 })
 export class AppModule implements NestModule {

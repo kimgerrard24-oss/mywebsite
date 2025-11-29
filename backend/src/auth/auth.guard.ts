@@ -1,7 +1,12 @@
 // ==============================
 // file: src/auth/auth.guard.ts
 // ==============================
-import { Injectable, CanActivate, ExecutionContext } from '@nestjs/common';
+import {
+  Injectable,
+  CanActivate,
+  ExecutionContext,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { IS_PUBLIC_KEY } from './decorators/public.decorator';
 
@@ -10,22 +15,41 @@ export class AuthGuard implements CanActivate {
   constructor(private readonly reflector: Reflector) {}
 
   canActivate(context: ExecutionContext): boolean {
-    // ---------------------------------------
-    // 1) Allow @Public() properly
-    // ---------------------------------------
+    // ========================================
+    // 1) Allow @Public() routes properly
+    // ========================================
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
       context.getClass(),
     ]);
 
-    if (isPublic) return true;
+    if (isPublic) {
+      return true;
+    }
 
-    // 2) Normal authenticated routes:
-    //    FirebaseAuthGuard จะใส่ req.user ให้อยู่แล้ว
-    const req = context.switchToHttp().getRequest();
+    // ========================================
+    // 2) Support HTTP + WebSocket safely
+    // ========================================
+    const httpReq = context.switchToHttp().getRequest();
+    const wsClient =
+      context.switchToWs &&
+      context.switchToWs().getClient &&
+      context.switchToWs().getClient();
 
-    if (req.user) return true;
+    const req: any = httpReq || wsClient || null;
 
-    return false;
+    if (!req) {
+      throw new UnauthorizedException('Authentication required');
+    }
+
+    // ========================================
+    // 3) FirebaseAuthGuard จะตั้ง req.user ให้เอง
+    // ========================================
+    if (req.user) {
+      return true;
+    }
+
+    // ไม่มี user แต่ route ไม่ใช่ public = block
+    throw new UnauthorizedException('Authentication required');
   }
 }

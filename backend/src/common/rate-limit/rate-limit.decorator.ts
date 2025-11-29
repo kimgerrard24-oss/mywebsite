@@ -2,12 +2,8 @@
 import { SetMetadata } from '@nestjs/common';
 import { RateLimitAction } from './rate-limit.policy';
 
-/**
- * Metadata key for attaching rate-limit policy
- * to specific controller methods.
- */
-export const RATE_LIMIT_KEY = 'rateLimitContext';
-
+// ใช้ KEY เดียวกับ guard
+export const RATE_LIMIT_CONTEXT_KEY = 'RATE_LIMIT_CONTEXT';
 
 export const RateLimitContext = (action: RateLimitAction) =>
-  SetMetadata(RATE_LIMIT_KEY, action);
+  SetMetadata(RATE_LIMIT_CONTEXT_KEY, action);

@@ -4,15 +4,13 @@ import { RateLimiterRedis } from 'rate-limiter-flexible';
 import { Redis } from 'ioredis';
 import { RateLimitAction, RateLimitPolicy } from './rate-limit.policy';
 
-/**
- * RateLimitService
- *
- * - สร้าง RateLimiterRedis สำหรับแต่ละ action จาก RateLimitPolicy
- * - ใช้ Redis client ที่ถูก inject มา (ชื่อ token: 'REDIS_CLIENT')
- * - ฟังก์ชัน consume จะโยน error ที่มาจาก rate-limiter-flexible เมื่อติด limit
- *
- * หมายเหตุ: ห้ามใส่ค่า secret/credential ลงในไฟล์นี้ — ใช้ env/GitHub Secrets/AWS Secrets Manager แทน
- */
+export interface RateLimitConsumeResult {
+  limit: number;
+  remaining: number;
+  retryAfterSec: number;
+  reset: number;
+}
+
 @Injectable()
 export class RateLimitService implements OnModuleDestroy {
   private readonly logger = new Logger(RateLimitService.name);
@@ -30,8 +28,11 @@ export class RateLimitService implements OnModuleDestroy {
           keyPrefix: `rl:${action}`,
           points: config.points,
           duration: config.duration,
-          // blockDuration: seconds to block after consuming all points (min 60s)
-          blockDuration: Math.max(config.duration, 60),
+          blockDuration: 0,
+          execEvenly: false,
+          inMemoryBlockOnConsumed: 0,
+          inMemoryBlockDuration: 0,
+          insuranceLimiter: undefined,
         });
 
         this.limiters.set(action as RateLimitAction, limiter);
@@ -42,44 +43,58 @@ export class RateLimitService implements OnModuleDestroy {
       );
     } catch (err) {
       this.logger.error('Failed to initialize rate limiters', err as any);
-      // Rethrow so the application fails fast if rate limiter cannot initialize
       throw err;
     }
   }
 
-  /**
-   * consume
-   * - action: name of the RateLimitAction
-   * - key: identifier (IP, userId, socketId, etc.)
-   *
-   * Throws the original error from rate-limiter-flexible when limit is exceeded.
-   */
-  async consume(action: RateLimitAction, key: string) {
+  async consume(
+    action: RateLimitAction,
+    key: string,
+  ): Promise<RateLimitConsumeResult> {
     const limiter = this.limiters.get(action);
 
     if (!limiter) {
       this.logger.warn(`RateLimitPolicy not found for action="${action}"`);
-      return;
+      return {
+        limit: 0,
+        remaining: 0,
+        retryAfterSec: 0,
+        reset: 0,
+      };
     }
 
     try {
-      await limiter.consume(key);
-    } catch (err) {
-      // Log information for monitoring/alerts
+      const result = await limiter.consume(key);
+
+      const resetSec = Math.ceil(result.msBeforeNext / 1000);
+
+      return {
+        limit: limiter.points,
+        remaining: result.remainingPoints,
+        retryAfterSec: 0,
+        reset: resetSec,
+      };
+    } catch (err: any) {
+      const retryAfterSec = err?.msBeforeNext
+        ? Math.ceil(err.msBeforeNext / 1000)
+        : 60;
+
       this.logger.warn(
-        `Rate limit exceeded for action="${action}", key="${key}"`,
+        `Rate limit exceeded for action="${action}", key="${key}", retryAfterSec=${retryAfterSec}`,
       );
-      // Re-throw to be handled by caller (guard/controller)
-      throw err;
+
+      return Promise.reject({
+        limit: limiter.points,
+        remaining: 0,
+        retryAfterSec,
+        reset: retryAfterSec,
+      });
     }
   }
 
-  /**
-   * Optional cleanup if the injected redis client needs explicit shutdown handling.
-   */
   async onModuleDestroy() {
     try {
-
+      // ไม่มี resource ให้ cleanup
     } catch (err) {
       this.logger.error('Error during RateLimitService shutdown', err as any);
     }

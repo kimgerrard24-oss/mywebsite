@@ -3,15 +3,21 @@ import {
   CanActivate,
   ExecutionContext,
   Injectable,
-  ForbiddenException,
   Logger,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { Request } from 'express';
+import { Request, Response } from 'express';
+
 import { RateLimitService } from './rate-limit.service';
-import { RATE_LIMIT_KEY } from './rate-limit.decorator';
+import { RATE_LIMIT_CONTEXT_KEY } from './rate-limit.decorator';
 import { RateLimitAction } from './rate-limit.policy';
 
+export type RateLimitConsumeResult = {
+  limit: number;
+  remaining: number;
+  retryAfterSec: number;
+  reset: number;
+};
 
 @Injectable()
 export class RateLimitGuard implements CanActivate {
@@ -24,21 +30,21 @@ export class RateLimitGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const action =
-      this.reflector.get<RateLimitAction>(RATE_LIMIT_KEY, context.getHandler()) ||
-      'ip';
+      this.reflector.get<RateLimitAction>(
+        RATE_LIMIT_CONTEXT_KEY,
+        context.getHandler(),
+      ) || 'ip';
 
     const req = context.switchToHttp().getRequest<Request>();
+    const res = context.switchToHttp().getResponse<Response>();
 
-    // Try common ways to get client IP (behind proxies)
     const ip =
       req.ip ||
       (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
       'unknown';
 
-    // Prefer an authenticated user's id if available (session, jwt, firebase user, etc.)
     let userId: string | null = null;
     try {
-      // Common placements: req.user, req.auth, or specific frameworks may attach uid
       userId =
         (req as any).user?.id ||
         (req as any).user?.uid ||
@@ -51,17 +57,43 @@ export class RateLimitGuard implements CanActivate {
     const key = userId || ip;
 
     try {
-      await this.rlService.consume(action, key);
-      return true;
-    } catch (err) {
-      // Log useful info for monitoring/alerts without leaking secrets
-      this.logger.warn(
-        `Rate limit blocked: action="${action}" key="${key}" ip="${ip}"`,
+      const result: RateLimitConsumeResult = await this.rlService.consume(
+        action,
+        key,
       );
 
-      throw new ForbiddenException(
-        'Too many requests — please try again later.',
+      res.setHeader('X-RateLimit-Limit', String(result.limit));
+      res.setHeader('X-RateLimit-Remaining', String(result.remaining));
+      res.setHeader('X-RateLimit-Reset', String(result.reset));
+
+      return true;
+    } catch (err: any) {
+      const retryAfterSec =
+        typeof err?.retryAfterSec === 'number'
+          ? err.retryAfterSec
+          : 60;
+
+      res.setHeader('Retry-After', String(retryAfterSec));
+      res.setHeader('X-RateLimit-Reset', String(retryAfterSec));
+
+      const limit =
+        typeof err?.limit === 'number' ? err.limit : undefined;
+
+      if (limit !== undefined) {
+        res.setHeader('X-RateLimit-Limit', String(limit));
+        res.setHeader('X-RateLimit-Remaining', '0');
+      }
+
+      this.logger.warn(
+        `Rate limit blocked: action="${action}" key="${key}" ip="${ip}" retryAfter=${retryAfterSec}`,
       );
+
+      res.status(429).json({
+        statusCode: 429,
+        message: 'Too many requests. Please slow down.',
+      });
+
+      return false;
     }
   }
 }

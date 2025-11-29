@@ -10,7 +10,7 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { FirebaseAdminService } from '../firebase/firebase.service';
-import { IS_PUBLIC_KEY } from './decorators/public.decorator';   // FIX: use key
+import { IS_PUBLIC_KEY } from './decorators/public.decorator';
 import * as cookie from 'cookie';
 import type { Request } from 'express';
 
@@ -20,14 +20,14 @@ export class FirebaseAuthGuard implements CanActivate {
 
   constructor(
     private readonly firebase: FirebaseAdminService,
-    private readonly reflector: Reflector, // OK
+    private readonly reflector: Reflector,
   ) {}
 
   async canActivate(ctx: ExecutionContext) {
     const req = ctx.switchToHttp().getRequest<Request & Record<string, any>>();
 
     // ============================================
-    // 1) FIX — allow @Public() to bypass guard
+    // 1) Public Decorator — allow bypass
     // ============================================
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       ctx.getHandler(),
@@ -39,9 +39,10 @@ export class FirebaseAuthGuard implements CanActivate {
     }
 
     // ============================================
-    // 2) Allow health/system-check and OAuth routes
+    // 2) Safe normalize URL (remove query)
     // ============================================
-    const url = (req.originalUrl || req.url || '').toLowerCase();
+    const rawUrl = req.originalUrl || req.url || '';
+    const url = rawUrl.split('?')[0].toLowerCase();
 
     const publicPrefixes = [
       '/system-check',
@@ -80,7 +81,7 @@ export class FirebaseAuthGuard implements CanActivate {
     }
 
     // ============================================
-    // 3) Session cookie auth (unchanged)
+    // 3) Authenticate: Session Cookie OR Bearer token
     // ============================================
     const cookieName = process.env.SESSION_COOKIE_NAME || '__session';
     let sessionCookieValue: string | null = null;
@@ -94,13 +95,11 @@ export class FirebaseAuthGuard implements CanActivate {
         const parsed = cookie.parse(req.headers.cookie);
         sessionCookieValue = parsed[cookieName] || null;
       }
-    } catch (error: unknown) {
-      const err = error instanceof Error ? error.message : String(error);
-      this.logger.warn('Cookie parse failed: ' + err);
+    } catch (error) {
+      this.logger.warn('Cookie parse failed: ' + String(error));
     }
 
-    const authHeader =
-      (req.headers && (req.headers.authorization as string)) || '';
+    const authHeader = (req.headers?.authorization as string) || '';
 
     try {
       if (sessionCookieValue) {
@@ -121,28 +120,23 @@ export class FirebaseAuthGuard implements CanActivate {
           return true;
         }
       }
-    } catch (error: unknown) {
-      const err = error instanceof Error ? error.message : String(error);
-      this.logger.debug('Token verification failed: ' + err);
+    } catch (error) {
+      this.logger.debug('Token verification failed: ' + String(error));
     }
 
     // ============================================
-    // 4) Allow websocket upgrade
+    // 4) Allow WebSocket Upgrade
     // ============================================
-    const upgradeHeader =
-      req.headers['upgrade'] ||
-      req.headers['Upgrade'] ||
-      req.headers['connection'];
+    const isWebsocketUpgrade =
+      (req.headers.upgrade &&
+        String(req.headers.upgrade).toLowerCase() === 'websocket') ||
+      (req.headers.connection &&
+        String(req.headers.connection).toLowerCase().includes('upgrade')) ||
+      req.headers['sec-websocket-key'];
 
-    if (
-      (typeof upgradeHeader === 'string' &&
-        upgradeHeader.toLowerCase().includes('upgrade')) ||
-      req.headers['sec-websocket-key']
-    ) {
-      delete req.user;
+    if (isWebsocketUpgrade) {
       return true;
     }
-
 
     throw new UnauthorizedException('Authentication required');
   }

@@ -1,4 +1,4 @@
-//  src/main.ts
+// file: src/main.ts
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
@@ -24,11 +24,6 @@ import * as cookie from 'cookie';
 import cookieParser from 'cookie-parser';
 import { FirebaseAdminService } from './firebase/firebase.service';
 import type { Request, Response } from 'express';
-import rateLimit from 'express-rate-limit';
-
-import { RateLimitGuard } from './common/rate-limit/rate-limit.guard';
-import { RateLimitService } from './common/rate-limit/rate-limit.service';
-import { Reflector } from '@nestjs/core';
 
 const logger = new Logger('bootstrap');
 
@@ -72,15 +67,6 @@ function normalizeToOrigin(raw: string | undefined): string {
 async function bootstrap(): Promise<void> {
   const nestApp = await NestFactory.create(AppModule, { cors: false });
   const expressApp = nestApp.getHttpAdapter().getInstance() as Express;
-
-  // ============================================
-  // Added: Global RateLimit Guard (ตามที่คุณขอ)
-  // - Use the RateLimitService and the Reflector from the DI container
-  // ============================================
-  const rateLimitService = nestApp.get(RateLimitService);
-  const reflector = nestApp.get(Reflector);
-  nestApp.useGlobalGuards(new RateLimitGuard(rateLimitService, reflector));
-  // ============================================
 
   expressApp.set('trust proxy', true);
   expressApp.use(helmet());
@@ -139,27 +125,6 @@ async function bootstrap(): Promise<void> {
     return next();
   });
 
-  expressApp.use(
-    '/auth/local/login',
-    rateLimit({
-      windowMs: 15 * 60 * 1000,
-      max: 10,
-      standardHeaders: true,
-      legacyHeaders: false,
-      message: 'Too many login attempts from this IP, please try again later',
-    }),
-  );
-
-  expressApp.use(
-    '/auth/local/request-password-reset',
-    rateLimit({
-      windowMs: 60 * 60 * 1000,
-      max: 5,
-      standardHeaders: true,
-      legacyHeaders: false,
-      message: 'Too many password reset requests from this IP, please try again later',
-    }),
-  );
 
   try {
     const googleProviderRedirect = process.env.GOOGLE_PROVIDER_REDIRECT_AFTER_LOGIN || '';

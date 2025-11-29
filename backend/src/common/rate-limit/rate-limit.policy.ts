@@ -15,8 +15,11 @@ export const RateLimitPolicy: Record<
   RateLimitAction,
   { points: number; duration: number }
 > = {
-  // Global / IP-level rate limit
-  ip: { points: 100, duration: 60 },
+  /**
+   * Global IP-level rate limit
+   * เพิ่มเป็น 1000 / นาที เพื่อป้องกันผู้ใช้ถูกบล็อกเวลาหน้าเว็บยิง request จำนวนมาก
+   */
+  ip: { points: 1000, duration: 60 },
 
   // Auth-related actions
   login: { points: 5, duration: 60 },
@@ -27,10 +30,10 @@ export const RateLimitPolicy: Record<
   postCreate: { points: 10, duration: 60 },
   commentCreate: { points: 15, duration: 60 },
 
-  // Social graph actions
+  // Social actions
   followUser: { points: 20, duration: 3600 },
   unfollowUser: { points: 20, duration: 3600 },
 
-  
+  // Messaging
   messagingSend: { points: 30, duration: 60 },
 };

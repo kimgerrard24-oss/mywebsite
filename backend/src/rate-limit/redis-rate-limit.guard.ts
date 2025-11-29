@@ -9,22 +9,24 @@ import {
   HttpException,
   HttpStatus,
 } from '@nestjs/common';
-
+import { Reflector } from '@nestjs/core';
 import { RateLimiterRedis } from 'rate-limiter-flexible';
 import { Redis } from 'ioredis';
+
+// ใช้ KEY จาก decorator (ไม่ประกาศใหม่)
+import { RATE_LIMIT_CONTEXT_KEY } from '../common/rate-limit/rate-limit.decorator';
 
 @Injectable()
 export class RedisRateLimitGuard implements CanActivate {
   private readonly limiter: RateLimiterRedis;
 
-  constructor() {
+  constructor(private readonly reflector: Reflector) {
     const redis = new Redis({
       host: process.env.REDIS_HOST || 'phlyphant-redis',
       port: Number(process.env.REDIS_PORT || 6379),
       password: process.env.REDIS_PASSWORD,
       enableOfflineQueue: false,
       maxRetriesPerRequest: 0,
-      tls: undefined,
     });
 
     this.limiter = new RateLimiterRedis({
@@ -34,8 +36,6 @@ export class RedisRateLimitGuard implements CanActivate {
       duration: 60,
       execEvenly: false,
       blockDuration: 0,
-
-      // FIX: ต้องเขียนแบบนี้
       inMemoryBlockOnConsumed: 0,
       inMemoryBlockDuration: 0,
     });
@@ -44,6 +44,38 @@ export class RedisRateLimitGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
 
+    // -------------------------------------------------
+    // 1) อ่าน metadata จาก @RateLimitContext()
+    // -------------------------------------------------
+    const rateLimitContext = this.reflector.get<string>(
+      RATE_LIMIT_CONTEXT_KEY,
+      context.getHandler(),
+    );
+
+    // ไม่มี decorator → ไม่ตรวจ rate limit
+    if (!rateLimitContext) {
+      return true;
+    }
+
+    // -------------------------------------------------
+    // 2) whitelist endpoint
+    // -------------------------------------------------
+    const url = request.url;
+    const skipPaths = [
+      '/health',
+      '/system-check',
+      '/auth/session-check',
+      '/auth/google/callback',
+      '/auth/facebook/callback',
+    ];
+
+    if (skipPaths.some((p) => url.startsWith(p))) {
+      return true;
+    }
+
+    // -------------------------------------------------
+    // 3) อ่าน IP (รองรับ Cloudflare)
+    // -------------------------------------------------
     const ip =
       request.headers['cf-connecting-ip'] ||
       request.headers['x-real-ip'] ||
@@ -52,8 +84,13 @@ export class RedisRateLimitGuard implements CanActivate {
       request.connection?.remoteAddress ||
       'unknown';
 
+    // -------------------------------------------------
+    // 4) ตรวจ Rate Limit
+    // key = context + IP
+    // -------------------------------------------------
     try {
-      await this.limiter.consume(ip);
+      const key = `${rateLimitContext}:${ip}`;
+      await this.limiter.consume(key);
       return true;
     } catch (error: any) {
       throw new HttpException(
