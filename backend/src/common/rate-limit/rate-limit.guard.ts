@@ -47,7 +47,6 @@ export class RateLimitGuard implements CanActivate {
 
     // ============================================================
     // SKIP RATE LIMIT FOR INTERNAL SERVER / DOCKER NETWORK IPs
-    // (เพื่อให้ health-check ภายในไม่โดน rate-limit)
     // ============================================================
 
     const WHITELIST_IPS = [
@@ -64,7 +63,7 @@ export class RateLimitGuard implements CanActivate {
       req.ip ||
       '';
 
-    // normalize IPv4-mapped IPv6: "::ffff:172.17.0.1"
+    // Normalize IPv4-mapped IPv6 (ex: "::ffff:172.17.0.1")
     const ip = rawIp.replace('::ffff:', '');
 
     if (WHITELIST_IPS.includes(ip)) {
@@ -72,7 +71,7 @@ export class RateLimitGuard implements CanActivate {
     }
 
     // ============================================================
-    // NORMAL RATE LIMIT LOGIC (ไม่แตะต้องส่วนนี้)
+    // NORMAL RATE LIMIT LOGIC
     // ============================================================
     const action =
       this.reflector.get<RateLimitAction>(
@@ -81,6 +80,7 @@ export class RateLimitGuard implements CanActivate {
       ) || 'ip';
 
     let userId: string | null = null;
+
     try {
       userId =
         (req as any).user?.id ||
@@ -91,7 +91,18 @@ export class RateLimitGuard implements CanActivate {
       userId = null;
     }
 
-    const key = userId || ip;
+    // ============================================================
+    // IF USER AUTHENTICATED → USE USER ID FOR RATE-LIMIT KEY
+    // (ปลอดภัยที่สุด และไม่บล็อกผู้ใช้จริง)
+    // ============================================================
+
+    let key: string;
+
+    if (userId) {
+      key = `user:${userId}`;
+    } else {
+      key = `ip:${ip}`;
+    }
 
     try {
       const result: RateLimitConsumeResult = await this.rlService.consume(
