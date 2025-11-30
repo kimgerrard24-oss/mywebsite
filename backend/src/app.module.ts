@@ -19,6 +19,7 @@ import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import { R2Module } from './r2/r2.module';
 import { RateLimitModule } from './common/rate-limit/rate-limit.module';
+import { TestRateModule } from './modules/test/test.module';
 
 @Module({
   imports: [
@@ -42,7 +43,7 @@ import { RateLimitModule } from './common/rate-limit/rate-limit.module';
     RedisModule,
     AppCacheModule,
     QueueModule,
-
+    TestRateModule,
     SentryModule.forRoot(),
 
     ThrottlerModule.forRoot({
