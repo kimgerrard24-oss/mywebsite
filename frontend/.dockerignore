@@ -2,7 +2,6 @@
 node_modules
 
 # Build output (Next.js)
-.next
 out
 
 # Environment files (we use GitHub Secrets instead)
@@ -10,7 +9,6 @@ out
 .env.local
 .env.development
 .env.test
-!*.env.production    # allow GitHub Actions to inject .env.production
 
 # Logs
 npm-debug.log*
