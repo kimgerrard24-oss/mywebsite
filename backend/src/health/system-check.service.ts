@@ -7,6 +7,9 @@ import { PrismaService } from '../prisma/prisma.service';
 import Redis from 'ioredis';
 import { R2Service } from '../r2/r2.service';
 
+// เพิ่ม: ใช้ AWS Secrets Manager แบบเดียวกับ SecretsModule
+import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-secrets-manager';
+
 @Injectable()
 export class SystemCheckService {
   constructor(
@@ -65,15 +68,28 @@ export class SystemCheckService {
   }
 
   // ------------------------------------------
-  // FIXED: Safe Secrets check (no AWS call)
+  // FIXED: Real AWS Secrets Manager check
   // ------------------------------------------
   async checkSecrets() {
     try {
-      const ok =
-        Boolean(process.env.AWS_SECRET_NAME) &&
-        Boolean(process.env.AWS_REGION);
+      const secretName =
+        process.env.OAUTH_CLIENT_ID_SECRET_SOCIAL_LOGIN_URL_REDIRECT ||
+        process.env.AWS_OAUTH_SECRET_NAME ||
+        null;
 
-      return ok;
+      if (!secretName) return false;
+
+      const client = new SecretsManagerClient({
+        region: process.env.AWS_REGION,
+      });
+
+      await client.send(
+        new GetSecretValueCommand({
+          SecretId: secretName,
+        }),
+      );
+
+      return true;
     } catch {
       return false;
     }

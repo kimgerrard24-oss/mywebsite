@@ -6,6 +6,9 @@ import { Injectable, Inject } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import Redis from 'ioredis';
 
+// เพิ่ม AWS Secrets Manager (ใช้ method เดียวกับ SecretsModule)
+import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-secrets-manager';
+
 @Injectable()
 export class HealthService {
   constructor(
@@ -17,29 +20,19 @@ export class HealthService {
     return { ok: true, timestamp: new Date().toISOString() };
   }
 
-  // ------------------------------------------
-  // Database health check (with timeout)
-  // ------------------------------------------
   async dbCheck() {
     try {
       const timeout = new Promise((_, reject) =>
         setTimeout(() => reject(new Error('DB timeout')), 2000),
       );
 
-      await Promise.race([
-        this.prisma.$queryRaw`SELECT 1`,
-        timeout,
-      ]);
-
+      await Promise.race([this.prisma.$queryRaw`SELECT 1`, timeout]);
       return { ok: true };
     } catch {
       return { ok: false };
     }
   }
 
-  // ------------------------------------------
-  // Redis health check (with timeout)
-  // ------------------------------------------
   async redisCheck() {
     try {
       const timeout = new Promise((_, reject) =>
@@ -47,31 +40,41 @@ export class HealthService {
       );
 
       const pong = await Promise.race([this.redis.ping(), timeout]);
-
       return { ok: pong === 'PONG' };
     } catch {
       return { ok: false };
     }
   }
 
-  // ------------------------------------------
-  // Secrets Manager config check (safe)
-  // ------------------------------------------
+  // ==========================================
+  // FIXED: REAL AWS SECRETS MANAGER CHECK
+  // ==========================================
   async secretsCheck() {
     try {
-      const valid =
-        Boolean(process.env.AWS_SECRET_NAME) &&
-        Boolean(process.env.AWS_REGION);
+      // ดึงชื่อ secret ที่ backend ใช้จริง
+      const secretName =
+        process.env.OAUTH_CLIENT_ID_SECRET_SOCIAL_LOGIN_URL_REDIRECT ||
+        process.env.AWS_OAUTH_SECRET_NAME ||
+        null;
 
-      return { ok: valid };
+      if (!secretName) return { ok: false };
+
+      const client = new SecretsManagerClient({
+        region: process.env.AWS_REGION,
+      });
+
+      await client.send(
+        new GetSecretValueCommand({
+          SecretId: secretName,
+        }),
+      );
+
+      return { ok: true };
     } catch {
       return { ok: false };
     }
   }
 
-  // ------------------------------------------
-  // R2 config check (do NOT leak secrets)
-  // ------------------------------------------
   async r2Check() {
     try {
       const valid =
@@ -86,9 +89,6 @@ export class HealthService {
     }
   }
 
-  // ------------------------------------------
-  // Queue check = reuse Redis check
-  // ------------------------------------------
   async queueCheck() {
     try {
       const timeout = new Promise((_, reject) =>
@@ -96,16 +96,12 @@ export class HealthService {
       );
 
       const pong = await Promise.race([this.redis.ping(), timeout]);
-
       return { ok: pong === 'PONG' };
     } catch {
       return { ok: false };
     }
   }
 
-  // ------------------------------------------
-  // Socket check → just validate config
-  // ------------------------------------------
   async socketCheck() {
     try {
       const base =
@@ -119,9 +115,6 @@ export class HealthService {
     }
   }
 
-  // ------------------------------------------
-  // Basic system info
-  // ------------------------------------------
   async systemInfo() {
     return {
       ok: true,
@@ -132,9 +125,6 @@ export class HealthService {
     };
   }
 
-  // ------------------------------------------
-  // Faster parallel system-wide health check (with global timeout)
-  // ------------------------------------------
   async systemCheck() {
     const checks = Promise.all([
       this.dbCheck(),
@@ -145,7 +135,6 @@ export class HealthService {
       this.socketCheck(),
     ]);
 
-    // Global timeout 2.5 sec for entire system-check
     const globalTimeout = new Promise((resolve) =>
       setTimeout(
         () =>

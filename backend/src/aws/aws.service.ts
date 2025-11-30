@@ -7,33 +7,31 @@ import {
   SecretsManagerClient,
   GetSecretValueCommand,
 } from '@aws-sdk/client-secrets-manager';
+import { fromEnv } from '@aws-sdk/credential-providers';
 
 @Injectable()
 export class AwsService {
   private readonly logger = new Logger(AwsService.name);
 
-  // AWS Secrets Manager Client
   private readonly secrets: SecretsManagerClient;
 
   constructor() {
-    // ---------------------------------------------------------
-    // AWS Region (safe default for your project)
-    // ---------------------------------------------------------
     const region =
       process.env.AWS_REGION?.trim() ||
       process.env.AWS_DEFAULT_REGION?.trim() ||
       'ap-southeast-7';
 
     // ---------------------------------------------------------
-    // Initialize AWS Secrets Manager
+    // FIXED: Load credentials from environment (safe & required)
     // ---------------------------------------------------------
     this.secrets = new SecretsManagerClient({
       region,
+      credentials: fromEnv(), // <---------- IMPORTANT
     });
   }
 
   // =========================================================
-  // GET SECRET (used by system-check)
+  // GET SECRET
   // =========================================================
   async getSecret(secretName: string): Promise<string | null> {
     try {

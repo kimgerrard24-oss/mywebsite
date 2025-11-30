@@ -7,12 +7,12 @@ import {
   SecretsManagerClient,
   GetSecretValueCommand,
 } from '@aws-sdk/client-secrets-manager';
+import { fromEnv } from '@aws-sdk/credential-providers';
 
 @Injectable()
 export class AwsService {
   private readonly logger = new Logger(AwsService.name);
 
-  // AWS Secrets Manager client
   private readonly secrets: SecretsManagerClient;
 
   constructor() {
@@ -25,10 +25,11 @@ export class AwsService {
       'ap-southeast-7';
 
     // ---------------------------------------------------------
-    // Initialize AWS Secrets Manager
+    // FIXED: Initialize AWS Secrets Manager WITH credentials
     // ---------------------------------------------------------
     this.secrets = new SecretsManagerClient({
       region,
+      credentials: fromEnv(), // <--- Critical fix
     });
   }
 
