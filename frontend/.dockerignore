@@ -2,7 +2,6 @@
 node_modules
 
 # Next.js build output (local dev)
-.next
 out
 
 # Env files (we use GitHub Secrets from Actions)
@@ -10,7 +9,6 @@ out
 .env.local
 .env.development
 .env.test
-.env.production
 .env.*.local
 
 # Logs
