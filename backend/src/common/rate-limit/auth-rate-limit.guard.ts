@@ -23,35 +23,45 @@ export class AuthRateLimitGuard implements CanActivate {
     const req = context.switchToHttp().getRequest<Request>();
     const res = context.switchToHttp().getResponse<Response>();
 
+    const rawPath = req.path || '';
+    const path = rawPath.toLowerCase();
+
     // ---------------------------------------------------------
     // 1) Skip health-check (case-insensitive)
     // ---------------------------------------------------------
-    const pathLower = (req.path || '').toLowerCase();
     if (
-      pathLower === '/system-check' ||
-      pathLower === '/system-check/' ||
-      pathLower === '/health' ||
-      pathLower.startsWith('/health/') ||
-      pathLower.startsWith('/system-check/')
+      path === '/system-check' ||
+      path === '/system-check/' ||
+      path === '/health' ||
+      path.startsWith('/health/') ||
+      path.startsWith('/system-check/')
     ) {
       return true;
     }
 
     // ---------------------------------------------------------
-    // 2) Skip OAuth login flow (Google / Facebook)
+    // 2) Whitelist OAuth login + callback routes
     // ---------------------------------------------------------
-    const oauthPaths = [
+    const oauthWhitelistExact = new Set([
       '/auth/google',
       '/auth/google/callback',
       '/auth/facebook',
       '/auth/facebook/callback',
       '/auth/complete',
-    ];
+    ]);
 
-    for (const p of oauthPaths) {
-      if (req.path.startsWith(p)) {
-        return true;
-      }
+    if (oauthWhitelistExact.has(path)) {
+      return true;
+    }
+
+    if (
+      path.startsWith('/auth/google/callback') ||
+      path.startsWith('/auth/facebook/callback') ||
+      path.startsWith('/auth/google') ||
+      path.startsWith('/auth/facebook') ||
+      path.startsWith('/auth/complete')
+    ) {
+      return true;
     }
 
     // ---------------------------------------------------------
@@ -70,8 +80,7 @@ export class AuthRateLimitGuard implements CanActivate {
     const ip = String(rawIp).replace(/^::ffff:/, '');
 
     // ---------------------------------------------------------
-    // 4) Read action metadata from decorator
-    // If no action metadata -> skip
+    // 4) Read action metadata
     // ---------------------------------------------------------
     const action =
       this.reflector.get<RateLimitAction>(
@@ -84,7 +93,7 @@ export class AuthRateLimitGuard implements CanActivate {
     }
 
     // ---------------------------------------------------------
-    // 5) Build key (prefer authenticated user id, fallback to ip)
+    // 5) Build key (user or ip)
     // ---------------------------------------------------------
     let userKey: string | null = null;
     try {
@@ -100,7 +109,7 @@ export class AuthRateLimitGuard implements CanActivate {
     const key = userKey || ip || 'unknown';
 
     // ---------------------------------------------------------
-    // 6) Perform rate-limit check via service
+    // 6) Perform rate-limit
     // ---------------------------------------------------------
     try {
       const resLimit = await this.rlService.consume(action, key);

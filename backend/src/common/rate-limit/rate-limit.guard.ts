@@ -32,12 +32,13 @@ export class RateLimitGuard implements CanActivate {
     const req = context.switchToHttp().getRequest<Request>();
     const res = context.switchToHttp().getResponse<Response>();
 
-    const path = req.path;
-    const pathLower = path.toLowerCase();
+    // Normalize path
+    const rawPath = req.path || '';
+    const path = rawPath.toLowerCase();
 
-    // ============================================================
-    // 0) INTERNAL HEALTH TOKEN (ปลอดภัยที่สุด)
-    // ============================================================
+    // ==============================================================  
+    // 0. INTERNAL HEALTH TOKEN  
+    // ==============================================================  
     const internalToken = req.headers['x-internal-health'];
     if (
       internalToken &&
@@ -48,59 +49,69 @@ export class RateLimitGuard implements CanActivate {
       return true;
     }
 
-    // ============================================================
-    // 1) Skip health-check endpoints
-    // ============================================================
+    // ==============================================================  
+    // 1. Skip health-check  
+    // ==============================================================  
     if (
-      pathLower === '/system-check' ||
-      pathLower === '/system-check/' ||
-      pathLower === '/health' ||
-      pathLower.startsWith('/health/') ||
-      pathLower.startsWith('/system-check/')
+      path === '/system-check' ||
+      path === '/system-check/' ||
+      path === '/health' ||
+      path.startsWith('/health/') ||
+      path.startsWith('/system-check/')
     ) {
       return true;
     }
 
-    // ============================================================
-    // 2) Skip OAuth login paths (Google / Facebook)
-    // ============================================================
-    const oauthPaths = [
+    // ==============================================================  
+    // 2. Whitelist OAuth Start + Callback (Google/Facebook)
+    // ==============================================================  
+
+    // Allow both strict and query-string variations.
+    const oauthWhitelistExact = new Set([
       '/auth/google',
       '/auth/google/callback',
       '/auth/facebook',
       '/auth/facebook/callback',
       '/auth/complete',
-    ];
+    ]);
 
-    for (const p of oauthPaths) {
-      if (path.startsWith(p)) {
-        return true;
-      }
+    if (oauthWhitelistExact.has(path)) {
+      return true;
     }
 
-    // ============================================================
-    // 3) (REMOVED) Internal Docker network IP whitelist
-    // ============================================================
+    // Allow cases with trailing slash or query string
+    if (
+      path.startsWith('/auth/google/callback') ||
+      path.startsWith('/auth/facebook/callback') ||
+      path.startsWith('/auth/google') ||
+      path.startsWith('/auth/facebook') ||
+      path.startsWith('/auth/complete')
+    ) {
+      return true;
+    }
+
+    // ==============================================================  
+    // 3. Extract IP  
+    // ==============================================================  
     const rawIp =
       (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
       req.socket.remoteAddress ||
       req.ip ||
       '';
-
     const ip = rawIp.replace('::ffff:', '');
 
-    // ============================================================
-    // 4) Select rate-limit action
-    // ============================================================
+    // ==============================================================  
+    // 4. Determine RateLimit action  
+    // ==============================================================  
     const action =
       this.reflector.get<RateLimitAction>(
         RATE_LIMIT_CONTEXT_KEY,
         context.getHandler(),
       ) || 'ip';
 
-    // ============================================================
-    // 5) Prepare rate-limit key (user or IP)
-    // ============================================================
+    // ==============================================================  
+    // 5. Build key (user or ip)  
+    // ==============================================================  
     let userId: string | null = null;
 
     try {
@@ -115,9 +126,9 @@ export class RateLimitGuard implements CanActivate {
 
     const key = userId ? `user:${userId}` : `ip:${ip}`;
 
-    // ============================================================
-    // 6) Execute rate-limit
-    // ============================================================
+    // ==============================================================  
+    // 6. Consume token  
+    // ==============================================================  
     try {
       const result: RateLimitConsumeResult = await this.rlService.consume(
         action,
