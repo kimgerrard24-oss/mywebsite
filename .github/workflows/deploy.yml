@@ -1,4 +1,3 @@
-# file: mywebsite/.github/workflows/deploy.yml
 name: CI/CD Pipeline
 
 on:
@@ -123,6 +122,25 @@ jobs:
         run: docker push ghcr.io/${{ secrets.GHCR_USERNAME }}/mywebsite-backend:latest
 
       # -----------------------------------------------------------
+      # 6.1) Capture pushed image digests (if available)
+      # -----------------------------------------------------------
+      - name: Capture image digests
+        run: |
+          # Try to get RepoDigest for each image; if missing, fall back to tag
+          FRONT_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' ghcr.io/${{ secrets.GHCR_USERNAME }}/mywebsite-frontend:latest 2>/dev/null || true)
+          BACK_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' ghcr.io/${{ secrets.GHCR_USERNAME }}/mywebsite-backend:latest 2>/dev/null || true)
+
+          if [ -z "$FRONT_DIGEST" ]; then
+            FRONT_DIGEST="ghcr.io/${{ secrets.GHCR_USERNAME }}/mywebsite-frontend:latest"
+          fi
+          if [ -z "$BACK_DIGEST" ]; then
+            BACK_DIGEST="ghcr.io/${{ secrets.GHCR_USERNAME }}/mywebsite-backend:latest"
+          fi
+
+          echo "FRONTEND_DIGEST=$FRONT_DIGEST" >> $GITHUB_ENV
+          echo "BACKEND_DIGEST=$BACK_DIGEST" >> $GITHUB_ENV
+
+      # -----------------------------------------------------------
       # 7) Deploy to Linode
       # -----------------------------------------------------------
       - name: Deploy to Linode
@@ -132,6 +150,8 @@ jobs:
           GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
           GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
           INTERNAL_HEALTH_TOKEN: ${{ secrets.INTERNAL_HEALTH_TOKEN }}
+          FRONTEND_DIGEST: ${{ env.FRONTEND_DIGEST }}
+          BACKEND_DIGEST: ${{ env.BACKEND_DIGEST }}
 
         with:
           host: ${{ secrets.LINODE_HOST }}
@@ -140,22 +160,45 @@ jobs:
           port: 22
           script_stop: false
           use_insecure_cipher: true
-          envs: GHCR_USERNAME,GHCR_TOKEN,INTERNAL_HEALTH_TOKEN
+          envs: GHCR_USERNAME,GHCR_TOKEN,INTERNAL_HEALTH_TOKEN,FRONTEND_DIGEST,BACKEND_DIGEST
 
           script: |
-            set -e
+            set -euo pipefail
 
             cd /var/www/phlyphant/mywebsite
 
+            # Ensure working tree matches remote
             git fetch --all
             git reset --hard origin/main
 
             docker compose down
 
+            # Login to GHCR on remote so we can docker pull by digest
             echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
 
-            docker compose pull
-            docker compose up -d --remove-orphans
+            # If we have a digest (format ghcr.io/...@sha256:...), pull that exact digest.
+            # Otherwise fall back to pulling :latest tag.
+            if [[ "${BACKEND_DIGEST:-}" == *"@"* ]]; then
+              echo "Pulling backend by digest: $BACKEND_DIGEST"
+              docker pull "$BACKEND_DIGEST"
+              # Tag pulled digest as latest so docker-compose that references :latest will use this image
+              docker tag "$BACKEND_DIGEST" "ghcr.io/$GHCR_USERNAME/mywebsite-backend:latest" || true
+            else
+              echo "Pulling backend by tag: ghcr.io/$GHCR_USERNAME/mywebsite-backend:latest"
+              docker pull "ghcr.io/$GHCR_USERNAME/mywebsite-backend:latest" || true
+            fi
+
+            if [[ "${FRONTEND_DIGEST:-}" == *"@"* ]]; then
+              echo "Pulling frontend by digest: $FRONTEND_DIGEST"
+              docker pull "$FRONTEND_DIGEST"
+              docker tag "$FRONTEND_DIGEST" "ghcr.io/$GHCR_USERNAME/mywebsite-frontend:latest" || true
+            else
+              echo "Pulling frontend by tag: ghcr.io/$GHCR_USERNAME/mywebsite-frontend:latest"
+              docker pull "ghcr.io/$GHCR_USERNAME/mywebsite-frontend:latest" || true
+            fi
+
+            # Force recreate containers to ensure new images are used
+            docker compose up -d --remove-orphans --force-recreate
 
             sleep 5
 
