@@ -1,14 +1,17 @@
-# Dependencies (never send to docker)
+# Node modules
 node_modules
 
-# Build output (Next.js)
+# Next.js build output (local dev)
+.next
 out
 
-# Environment files (we use GitHub Secrets instead)
+# Env files (we use GitHub Secrets from Actions)
 .env
 .env.local
 .env.development
 .env.test
+.env.production
+.env.*.local
 
 # Logs
 npm-debug.log*
@@ -20,8 +23,6 @@ pnpm-debug.log*
 .DS_Store
 *.swp
 *.swm
-*.swf
-*.swp
 Thumbs.db
 
 # Git
@@ -32,6 +33,6 @@ Thumbs.db
 .vscode
 .idea
 
-# Cache
+# Cache directories
 .cache
 turbo
