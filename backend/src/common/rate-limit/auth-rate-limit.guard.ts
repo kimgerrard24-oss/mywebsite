@@ -27,7 +27,7 @@ export class AuthRateLimitGuard implements CanActivate {
     const path = rawPath.toLowerCase();
 
     // ---------------------------------------------------------
-    // 1) Skip health-check (case-insensitive)
+    // 1) Skip health-check
     // ---------------------------------------------------------
     if (
       path === '/system-check' ||
@@ -40,9 +40,9 @@ export class AuthRateLimitGuard implements CanActivate {
     }
 
     // ---------------------------------------------------------
-    // 2) Whitelist OAuth login + callback routes
+    // 2) Whitelist OAuth login + callback + complete
     // ---------------------------------------------------------
-    const oauthWhitelistExact = new Set([
+    const oauthExact = new Set([
       '/auth/google',
       '/auth/google/callback',
       '/auth/facebook',
@@ -50,10 +50,11 @@ export class AuthRateLimitGuard implements CanActivate {
       '/auth/complete',
     ]);
 
-    if (oauthWhitelistExact.has(path)) {
+    if (oauthExact.has(path)) {
       return true;
     }
 
+    // รองรับกรณีมี query string (callback / complete)
     if (
       path.startsWith('/auth/google/callback') ||
       path.startsWith('/auth/facebook/callback') ||
@@ -65,7 +66,7 @@ export class AuthRateLimitGuard implements CanActivate {
     }
 
     // ---------------------------------------------------------
-    // 3) Remove whitelist IP logic (deleted)
+    // 3) IP extraction
     // ---------------------------------------------------------
     const xff = Array.isArray(req.headers['x-forwarded-for'])
       ? (req.headers['x-forwarded-for'][0] as string)
@@ -80,7 +81,7 @@ export class AuthRateLimitGuard implements CanActivate {
     const ip = String(rawIp).replace(/^::ffff:/, '');
 
     // ---------------------------------------------------------
-    // 4) Read action metadata
+    // 4) Read rate-limit action
     // ---------------------------------------------------------
     const action =
       this.reflector.get<RateLimitAction>(
@@ -93,7 +94,7 @@ export class AuthRateLimitGuard implements CanActivate {
     }
 
     // ---------------------------------------------------------
-    // 5) Build key (user or ip)
+    // 5) Build key (prefer userKey if exists)
     // ---------------------------------------------------------
     let userKey: string | null = null;
     try {
@@ -109,7 +110,7 @@ export class AuthRateLimitGuard implements CanActivate {
     const key = userKey || ip || 'unknown';
 
     // ---------------------------------------------------------
-    // 6) Perform rate-limit
+    // 6) Perform rate-limit check
     // ---------------------------------------------------------
     try {
       const resLimit = await this.rlService.consume(action, key);
