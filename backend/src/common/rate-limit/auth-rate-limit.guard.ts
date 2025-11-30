@@ -27,6 +27,19 @@ export class AuthRateLimitGuard implements CanActivate {
     const path = rawPath.toLowerCase();
 
     // ---------------------------------------------------------
+    // 0) Skip INTERNAL HEALTH CHECK (ถ้ามี token ตรง)
+    // ---------------------------------------------------------
+    const internalToken = req.headers['x-internal-health'];
+    if (
+      internalToken &&
+      typeof internalToken === 'string' &&
+      process.env.INTERNAL_HEALTH_TOKEN &&
+      internalToken === process.env.INTERNAL_HEALTH_TOKEN
+    ) {
+      return true;
+    }
+
+    // ---------------------------------------------------------
     // 1) Skip health-check
     // ---------------------------------------------------------
     if (
@@ -40,7 +53,14 @@ export class AuthRateLimitGuard implements CanActivate {
     }
 
     // ---------------------------------------------------------
-    // 2) Whitelist OAuth login + callback + complete
+    // 2) Skip session-check (สำคัญมากสำหรับ social login)
+    // ---------------------------------------------------------
+    if (path === '/auth/session-check' || path.startsWith('/auth/session-check')) {
+      return true;
+    }
+
+    // ---------------------------------------------------------
+    // 3) Whitelist OAuth login + callback + complete
     // ---------------------------------------------------------
     const oauthExact = new Set([
       '/auth/google',
@@ -54,7 +74,6 @@ export class AuthRateLimitGuard implements CanActivate {
       return true;
     }
 
-    // รองรับกรณีมี query string (callback / complete)
     if (
       path.startsWith('/auth/google/callback') ||
       path.startsWith('/auth/facebook/callback') ||
@@ -66,22 +85,22 @@ export class AuthRateLimitGuard implements CanActivate {
     }
 
     // ---------------------------------------------------------
-    // 3) IP extraction
+    // 4) Extract IP
     // ---------------------------------------------------------
     const xff = Array.isArray(req.headers['x-forwarded-for'])
-      ? (req.headers['x-forwarded-for'][0] as string)
-      : (req.headers['x-forwarded-for'] as string | undefined);
+      ? req.headers['x-forwarded-for'][0]
+      : req.headers['x-forwarded-for'];
 
     const rawIp =
       (xff?.split(',')?.[0]?.trim()) ||
-      (req.socket && (req.socket.remoteAddress as string | undefined)) ||
+      (req.socket?.remoteAddress as string | undefined) ||
       (req.ip as string | undefined) ||
       '';
 
     const ip = String(rawIp).replace(/^::ffff:/, '');
 
     // ---------------------------------------------------------
-    // 4) Read rate-limit action
+    // 5) Determine rate-limit action
     // ---------------------------------------------------------
     const action =
       this.reflector.get<RateLimitAction>(
@@ -94,7 +113,7 @@ export class AuthRateLimitGuard implements CanActivate {
     }
 
     // ---------------------------------------------------------
-    // 5) Build key (prefer userKey if exists)
+    // 6) Build key (prefer userId)
     // ---------------------------------------------------------
     let userKey: string | null = null;
     try {
@@ -110,14 +129,14 @@ export class AuthRateLimitGuard implements CanActivate {
     const key = userKey || ip || 'unknown';
 
     // ---------------------------------------------------------
-    // 6) Perform rate-limit check
+    // 7) Consume rate-limit
     // ---------------------------------------------------------
     try {
-      const resLimit = await this.rlService.consume(action, key);
+      const info = await this.rlService.consume(action, key);
 
-      res.setHeader('X-RateLimit-Limit', String(resLimit.limit));
-      res.setHeader('X-RateLimit-Remaining', String(resLimit.remaining));
-      res.setHeader('X-RateLimit-Reset', String(resLimit.reset));
+      res.setHeader('X-RateLimit-Limit', String(info.limit));
+      res.setHeader('X-RateLimit-Remaining', String(info.remaining));
+      res.setHeader('X-RateLimit-Reset', String(info.reset));
 
       return true;
     } catch (err: any) {

@@ -62,10 +62,8 @@ export class RateLimitGuard implements CanActivate {
     }
 
     // ==========================================================
-    // 2. Whitelist OAuth login + callback + /auth/complete
-    //    รองรับทั้งแบบ strict และแบบมี query string
+    // 2. Whitelist OAuth login, callback, complete
     // ==========================================================
-
     const oauthExact = new Set([
       '/auth/google',
       '/auth/google/callback',
@@ -78,10 +76,7 @@ export class RateLimitGuard implements CanActivate {
       return true;
     }
 
-    // รองรับ path แบบมี query เช่น /auth/google/callback?code=...&state=...
     if (
-      path.startsWith('/auth/google/callback') ||
-      path.startsWith('/auth/facebook/callback') ||
       path.startsWith('/auth/google') ||
       path.startsWith('/auth/facebook') ||
       path.startsWith('/auth/complete')
@@ -90,7 +85,14 @@ export class RateLimitGuard implements CanActivate {
     }
 
     // ==========================================================
-    // 3. Extract IP
+    // 3. Whitelist frontend session-check
+    // ==========================================================
+    if (path === '/auth/session-check' || path.startsWith('/auth/session-check')) {
+      return true;
+    }
+
+    // ==========================================================
+    // 4. Extract IP
     // ==========================================================
     const rawIp =
       (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
@@ -100,7 +102,7 @@ export class RateLimitGuard implements CanActivate {
     const ip = rawIp.replace('::ffff:', '');
 
     // ==========================================================
-    // 4. Determine rate-limit action (default = "ip")
+    // 5. Determine rate-limit action (default = "ip")
     // ==========================================================
     const action =
       this.reflector.get<RateLimitAction>(
@@ -109,7 +111,7 @@ export class RateLimitGuard implements CanActivate {
       ) || 'ip';
 
     // ==========================================================
-    // 5. Build key (prefer userId if exists)
+    // 6. Build rate-limit key
     // ==========================================================
     let userId: string | null = null;
 
@@ -126,7 +128,7 @@ export class RateLimitGuard implements CanActivate {
     const key = userId ? `user:${userId}` : `ip:${ip}`;
 
     // ==========================================================
-    // 6. Consume rate-limit
+    // 7. Apply rate-limit
     // ==========================================================
     try {
       const result: RateLimitConsumeResult = await this.rlService.consume(
