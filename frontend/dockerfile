@@ -5,9 +5,10 @@ WORKDIR /app
 ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 
+# Copy only package files first (better cache)
 COPY package*.json ./
 
-# เพิ่ม registry fallback ป้องกัน npm ci ล้มเหลว
+# Set registry fallback (faster in Asia)
 RUN npm set registry https://registry.npmmirror.com \
     && npm set fetch-retries 5 \
     && npm set fetch-retry-factor 10
@@ -15,11 +16,13 @@ RUN npm set registry https://registry.npmmirror.com \
 RUN --mount=type=cache,target=/root/.npm \
     npm ci
 
-# ต้องเพิ่มตรงนี้! เพื่อให้ next build ทำงานได้
-RUN chmod +x node_modules/.bin/next
-
+# Copy project files AFTER install (avoid invalid cache)
 COPY . .
 
+# Ensure next binary exists
+RUN chmod +x node_modules/.bin/next
+
+# Build Next.js
 RUN --mount=type=cache,target=/root/.npm \
     npm run build
 
@@ -37,9 +40,12 @@ RUN apt-get update -y \
     && rm -rf /var/lib/apt/lists/*
 
 COPY package*.json ./
+
+# Copy build artifacts
 COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/public ./public
 COPY --from=build /app/.next ./.next
+COPY --from=build /app/next.config.js ./next.config.js
 
 EXPOSE 3000
 

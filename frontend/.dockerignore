@@ -1,0 +1,39 @@
+# Dependencies (never send to docker)
+node_modules
+
+# Build output (Next.js)
+.next
+out
+
+# Environment files (we use GitHub Secrets instead)
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# OS / editor files
+.DS_Store
+*.swp
+*.swm
+*.swf
+*.swp
+Thumbs.db
+
+# Git
+.git
+.gitignore
+
+# IDE
+.vscode
+.idea
+
+# Cache
+.cache
+turbo

@@ -3,9 +3,10 @@ FROM node:22-slim AS build
 
 WORKDIR /app
 
-# ติดตั้ง openssl (จำเป็นมาก เพื่อให้ Prisma เลือก engine รันบน openssl-3.0.x)
+# ติดตั้ง openssl เพื่อให้ Prisma เลือก engine openssl-3.x
 RUN apt-get update -y && apt-get install -y openssl
 
+# ปรับ npm config
 RUN npm set registry https://registry.npmmirror.com \
     && npm set fetch-retries 5 \
     && npm set fetch-retry-factor 10 \
@@ -13,16 +14,26 @@ RUN npm set registry https://registry.npmmirror.com \
     && npm set fetch-retry-maxtimeout 120000 \
     && npm set strict-ssl false
 
+# -------------------------------------------------------
+# COPY package.json + lockfile ก่อนเพื่อลด cache ปัญหา
+# -------------------------------------------------------
 COPY package*.json ./
 
+# ติดตั้ง dependencies
 RUN --mount=type=cache,target=/root/.npm npm ci
 
-# copy full project including prisma/
-COPY . .
+# -------------------------------------------------------
+# COPY src + prisma + tsconfig ทำเป็น step แยกจาก package.json
+# เพื่อ ensure ว่า code เปลี่ยน = rebuild dist ใหม่เสมอ
+# -------------------------------------------------------
+COPY tsconfig*.json ./
+COPY prisma ./prisma
+COPY src ./src
 
-# Generate Prisma Client (บังคับให้ใช้ engine 3.0.x)
+# Generate Prisma Client (บังคับใช้ engine 3.x)
 RUN npx prisma generate --schema=prisma/schema.prisma
 
+# Build NestJS source
 RUN npm run build
 
 
@@ -42,19 +53,17 @@ ENV REDIS_URL=redis://redis:6379
 
 COPY package*.json ./
 
-
 # ===== COPY PRISMA ENGINES + CLIENT =====
 COPY --from=build /app/node_modules/.prisma /app/node_modules/.prisma
 COPY --from=build /app/node_modules/@prisma /app/node_modules/@prisma
-# ========================================
 
-# Copy node_modules หลังจาก copy .prisma แล้ว (ไม่ทับไฟล์ engine)
+# Copy node_modules (หลัง .prisma เพื่อไม่ทับ engine)
 COPY --from=build /app/node_modules /app/node_modules
 
-# Build output
+# Copy build output
 COPY --from=build /app/dist ./dist
 
-# Prisma schema folder
+# Copy prisma folder (migration/schema)
 COPY --from=build /app/prisma ./prisma
 
 EXPOSE 4001

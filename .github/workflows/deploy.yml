@@ -15,7 +15,7 @@ jobs:
         uses: actions/checkout@v4
 
       # -----------------------------------------------------------
-      # 0) Load AWS Secrets (NEW)
+      # 0) Load AWS Secrets
       # -----------------------------------------------------------
       - name: Load AWS Secrets
         run: |
@@ -55,7 +55,7 @@ jobs:
           echo "SENTRY_PROJECT=javascript-nextjs" >> .env.sentry-build-plugin
 
       # -----------------------------------------------------------
-      # (NEW) Create frontend .env.production
+      # Create frontend .env.production
       # -----------------------------------------------------------
       - name: Create frontend .env.production
         run: echo "${{ secrets.FRONTEND_ENV_PRODUCTION }}" > frontend/.env.production
@@ -80,10 +80,21 @@ jobs:
         run: echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" --password-stdin
 
       # -----------------------------------------------------------
-      # (FIXED) Create backend .env.production BEFORE building backend image
+      # Create backend .env.production BEFORE build
       # -----------------------------------------------------------
       - name: Create backend .env.production
         run: echo "${{ secrets.BACKEND_ENV_PRODUCTION }}" > backend/.env.production
+
+      # -----------------------------------------------------------
+      # (NEW) Install + Build Backend BEFORE Docker build
+      # -----------------------------------------------------------
+      - name: Install backend dependencies
+        working-directory: backend
+        run: npm ci
+
+      - name: Build backend (tsc)
+        working-directory: backend
+        run: npm run build
 
       # -----------------------------------------------------------
       # 5) Build + Push Frontend Docker image
@@ -91,6 +102,7 @@ jobs:
       - name: Build frontend Docker image
         run: |
           docker build \
+            --no-cache \
             -t ghcr.io/${{ secrets.GHCR_USERNAME }}/mywebsite-frontend:latest \
             frontend
 
@@ -103,6 +115,7 @@ jobs:
       - name: Build backend Docker image
         run: |
           docker build \
+            --no-cache \
             -t ghcr.io/${{ secrets.GHCR_USERNAME }}/mywebsite-backend:latest \
             backend
 
@@ -150,7 +163,7 @@ jobs:
             if curl -s --fail -H "X-Internal-Health: $INTERNAL_HEALTH_TOKEN" "$HEALTH_URL" > /dev/null; then
               echo "Health check OK"
             else
-              echo "Health check FAILED but container is running... (skip rollback)"
+              echo "Health check FAILED but container is running."
             fi
 
             docker image prune -af || true
