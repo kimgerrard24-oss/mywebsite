@@ -23,7 +23,6 @@ prisma/dev.db-journal
 # ===================================================
 .env
 .env*
-!*.env.production    # allow GitHub Actions to inject .env.production
 .aws.env
 
 # ===================================================
