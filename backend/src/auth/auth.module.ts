@@ -3,14 +3,16 @@
 import { Module } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
-
 import { SecretsModule } from '../secrets/secrets.module';
 import { FirebaseAdminModule } from '../firebase/firebase.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { RedisModule } from '../redis/redis.module';
-
 import { RateLimitModule } from '../common/rate-limit/rate-limit.module';
 import { AuthRateLimitGuard } from '../common/rate-limit/auth-rate-limit.guard';
+import { AuthLoggerService } from '../common/logging/auth-logger.service';
+import { JwtAuthGuard } from './jwt-auth.guard';
+import { AuditService } from './audit.service';
+import { JwtStrategy } from './jwt.strategy';
 
 @Module({
   imports: [
@@ -18,12 +20,17 @@ import { AuthRateLimitGuard } from '../common/rate-limit/auth-rate-limit.guard';
     FirebaseAdminModule,
     PrismaModule,
     RedisModule,
-    RateLimitModule,     // ต้องมี เพราะ AuthRateLimitGuard ต้องใช้ RateLimitService
+    RateLimitModule,
   ],
 
   providers: [
     AuthService,
-    AuthRateLimitGuard,  // ต้องมี เพราะใช้ @UseGuards(AuthRateLimitGuard)
+    AuthRateLimitGuard,
+
+    AuthLoggerService,
+    JwtAuthGuard,
+    JwtStrategy,
+    AuditService,
   ],
 
   controllers: [AuthController],

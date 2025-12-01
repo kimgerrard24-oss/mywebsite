@@ -11,12 +11,8 @@ import IORedis from 'ioredis';
 import { json, urlencoded } from 'express';
 import './instrument';
 import * as Sentry from '@sentry/node';
-Sentry.init({
-  dsn: process.env.SENTRY_DSN,
-  environment: process.env.SENTRY_ENV || 'development',
-  release: process.env.SENTRY_RELEASE,
-  tracesSampleRate: parseFloat(process.env.SENTRY_TRACES_SAMPLE_RATE || '0'),
-});
+import { SentryExceptionFilter } from './common/filters/sentry-exception.filter';
+import { LoggingInterceptor } from './common/interceptors/logging.interceptor';
 import { SentryInterceptor } from './sentry.interceptor';
 import helmet from 'helmet';
 import { ValidationPipe, Logger } from '@nestjs/common';
@@ -24,6 +20,7 @@ import * as cookie from 'cookie';
 import cookieParser from 'cookie-parser';
 import { FirebaseAdminService } from './firebase/firebase.service';
 import type { Request, Response } from 'express';
+import { initSentry } from './sentry';
 
 const logger = new Logger('bootstrap');
 
@@ -65,11 +62,30 @@ function normalizeToOrigin(raw: string | undefined): string {
 }
 
 async function bootstrap(): Promise<void> {
-  const nestApp = await NestFactory.create(AppModule, { cors: false });
+  // Initialize Sentry (server-side)
+  Sentry.init({
+    dsn: process.env.SENTRY_DSN || '',
+    environment: process.env.NODE_ENV || 'production',
+    release: process.env.SENTRY_RELEASE || undefined,
+    tracesSampleRate: parseFloat(process.env.SENTRY_TRACES_SAMPLE_RATE || '0.05'),
+    integrations: [Sentry.httpIntegration()],
+    // Do not capture PII by default here; we'll add user context explicitly in filters/interceptors
+    attachStacktrace: true,
+    serverName: process.env.SERVICE_NAME || 'backend-api',
+  });
+
+  initSentry();
+
+  const nestApp = await NestFactory.create(AppModule, {
+    cors: false,
+  });
+
   const expressApp = nestApp.getHttpAdapter().getInstance() as Express;
 
   expressApp.set('trust proxy', true);
+
   expressApp.use(helmet());
+
   expressApp.use(cookieParser());
 
   const corsRegex = [
@@ -108,13 +124,11 @@ async function bootstrap(): Promise<void> {
   expressApp.use((req: Request, res: Response, next) => {
     const origin = req.headers.origin as string | undefined;
     if (!origin) return next();
-
     const ok = corsRegex.some((r) => r.test(origin));
     if (ok) {
       res.setHeader('Access-Control-Allow-Origin', origin);
       res.setHeader('Access-Control-Allow-Credentials', 'true');
       res.setHeader('Access-Control-Expose-Headers', 'Set-Cookie');
-
       const prevVary = res.getHeader('Vary');
       if (!prevVary) {
         res.setHeader('Vary', 'Origin');
@@ -125,10 +139,11 @@ async function bootstrap(): Promise<void> {
     return next();
   });
 
-
   try {
-    const googleProviderRedirect = process.env.GOOGLE_PROVIDER_REDIRECT_AFTER_LOGIN || '';
-    const facebookProviderRedirect = process.env.FACEBOOK_PROVIDER_REDIRECT_AFTER_LOGIN || '';
+    const googleProviderRedirect =
+      process.env.GOOGLE_PROVIDER_REDIRECT_AFTER_LOGIN || '';
+    const facebookProviderRedirect =
+      process.env.FACEBOOK_PROVIDER_REDIRECT_AFTER_LOGIN || '';
     const cookieDomain = process.env.COOKIE_DOMAIN || '';
     const sessionCookieName = process.env.SESSION_COOKIE_NAME || 'session';
 
@@ -137,20 +152,40 @@ async function bootstrap(): Promise<void> {
 
     logger.log(`Startup check: COOKIE_DOMAIN=${cookieDomain || '<not set>'}`);
     logger.log(`Startup check: SESSION_COOKIE_NAME=${sessionCookieName}`);
-    logger.log(`Startup check: GOOGLE_PROVIDER_REDIRECT_AFTER_LOGIN (raw)=${googleProviderRedirect ? '<set>' : '<not set>'}`);
+    logger.log(
+      `Startup check: GOOGLE_PROVIDER_REDIRECT_AFTER_LOGIN (raw)=${
+        googleProviderRedirect ? '<set>' : '<not set>'
+      }`,
+    );
     if (googleProviderRedirect) {
-      logger.log(`Startup check: GOOGLE_PROVIDER_REDIRECT_AFTER_LOGIN (origin)=${normalizedGoogleOrigin || '<invalid URL>'}`);
+      logger.log(
+        `Startup check: GOOGLE_PROVIDER_REDIRECT_AFTER_LOGIN (origin)=${
+          normalizedGoogleOrigin || '<invalid URL>'
+        }`,
+      );
     }
-    logger.log(`Startup check: FACEBOOK_PROVIDER_REDIRECT_AFTER_LOGIN (raw)=${facebookProviderRedirect ? '<set>' : '<not set>'}`);
+    logger.log(
+      `Startup check: FACEBOOK_PROVIDER_REDIRECT_AFTER_LOGIN (raw)=${
+        facebookProviderRedirect ? '<set>' : '<not set>'
+      }`,
+    );
     if (facebookProviderRedirect) {
-      logger.log(`Startup check: FACEBOOK_PROVIDER_REDIRECT_AFTER_LOGIN (origin)=${normalizedFacebookOrigin || '<invalid URL>'}`);
+      logger.log(
+        `Startup check: FACEBOOK_PROVIDER_REDIRECT_AFTER_LOGIN (origin)=${
+          normalizedFacebookOrigin || '<invalid URL>'
+        }`,
+      );
     }
 
     if (/(\/auth\/?complete)/i.test(googleProviderRedirect)) {
-      logger.warn('GOOGLE_PROVIDER_REDIRECT_AFTER_LOGIN contains path like /auth/complete — this may cause duplicated redirects');
+      logger.warn(
+        'GOOGLE_PROVIDER_REDIRECT_AFTER_LOGIN contains path like /auth/complete — this may cause duplicated redirects',
+      );
     }
     if (/(\/auth\/?complete)/i.test(facebookProviderRedirect)) {
-      logger.warn('FACEBOOK_PROVIDER_REDIRECT_AFTER_LOGIN contains path like /auth/complete — this may cause duplicated redirects');
+      logger.warn(
+        'FACEBOOK_PROVIDER_REDIRECT_AFTER_LOGIN contains path like /auth/complete — this may cause duplicated redirects',
+      );
     }
   } catch (e) {
     logger.warn('Startup env check failed: ' + String(e));
@@ -161,12 +196,25 @@ async function bootstrap(): Promise<void> {
       whitelist: true,
       forbidNonWhitelisted: true,
       transform: true,
-      transformOptions: { enableImplicitConversion: true },
-      validationError: { target: false },
+      transformOptions: {
+        enableImplicitConversion: true,
+      },
+      validationError: {
+        target: false,
+      },
     }),
   );
 
+  // Attach global interceptor and exception filter
+  nestApp.useGlobalInterceptors(new LoggingInterceptor());
+  nestApp.useGlobalFilters(new SentryExceptionFilter());
+
   nestApp.useGlobalInterceptors(new SentryInterceptor());
+
+  // Optional: trust proxy if behind load balancer
+  if (process.env.TRUST_PROXY === '1') {
+    expressApp.set('trust proxy', true as any);
+  }
 
   expressApp.use(json({ limit: '10mb' }));
   expressApp.use(urlencoded({ extended: true }));
@@ -197,7 +245,6 @@ async function bootstrap(): Promise<void> {
   try {
     const redisUrl = getRedisUrl();
     const opts = redisOptions();
-
     const pub = new IORedis(redisUrl, opts);
     const sub = new IORedis(redisUrl, opts);
 
@@ -227,6 +274,7 @@ async function bootstrap(): Promise<void> {
   }
 
   const redisClient = createRedisClient();
+
   redisClient.on('error', (err: unknown) => logger.error('Redis error', err));
 
   try {
@@ -243,13 +291,10 @@ async function bootstrap(): Promise<void> {
         (socket.handshake.headers.cookie as string | undefined) ||
         (socket.handshake.headers.Cookie as string | undefined) ||
         '';
-
       const raw = Array.isArray(headerCookie) ? headerCookie.join('; ') : headerCookie;
       const parsed = cookie.parse(raw || '');
-
       const sessionCookie =
-        parsed['__session'] ||
-        parsed[process.env.SESSION_COOKIE_NAME || 'session'];
+        parsed['__session'] || parsed[process.env.SESSION_COOKIE_NAME || 'session'];
 
       if (!sessionCookie) {
         (socket as any).user = null;
@@ -257,7 +302,6 @@ async function bootstrap(): Promise<void> {
       }
 
       const firebase = nestApp.get(FirebaseAdminService);
-
       const decoded = await firebase
         .auth()
         .verifySessionCookie(sessionCookie, true)
@@ -285,13 +329,17 @@ async function bootstrap(): Promise<void> {
   });
 
   process.on('uncaughtException', (err) => {
-    logger.error('Uncaught Exception:', err instanceof Error ? err.stack || err.message : String(err));
+    logger.error(
+      'Uncaught Exception:',
+      err instanceof Error ? err.stack || err.message : String(err),
+    );
     try {
       Sentry.captureException(err as any);
     } catch {}
   });
 
   const port = parseInt(process.env.PORT || '4001', 10);
+
   httpServer.listen(port, '0.0.0.0', () => {
     logger.log(`Backend running inside Docker & listening on port ${port}`);
   });

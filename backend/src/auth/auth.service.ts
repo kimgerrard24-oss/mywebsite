@@ -11,10 +11,10 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { FirebaseAdminService } from '../firebase/firebase.service';
 import { SecretsService } from '../secrets/secrets.service';
-
 import * as bcrypt from 'bcrypt';
 import { randomBytes } from 'crypto';
 import { sign, verify } from 'jsonwebtoken';
+import { AuthLoggerService } from '../common/logging/auth-logger.service';
 
 interface GoogleOAuthConfig {
   clientId: string;
@@ -36,6 +36,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly firebase: FirebaseAdminService,
     private readonly secretsService: SecretsService,
+    private readonly authLogger: AuthLoggerService, // added as requested
   ) {}
 
   // -------------------------------------------------------
@@ -103,7 +104,7 @@ export class AuthService {
   // -------------------------------------------------------
   // Local Login
   // -------------------------------------------------------
-  async loginLocal(email: string, password: string) {
+  async loginLocal(email: string, password: string, req?: any) {
     const normalized = email.toLowerCase();
     const user = await this.prisma.user.findUnique({ where: { email: normalized } });
 
@@ -127,6 +128,8 @@ export class AuthService {
       where: { id: user.id },
       data: { currentRefreshTokenHash: refreshHash },
     });
+
+    this.authLogger.logLoginSuccess(user.id, req?.ip || 'unknown');
 
     return {
       user: { id: user.id, email: user.email },
@@ -155,7 +158,6 @@ export class AuthService {
 
     const ok = await this.compareHash(refreshToken, user.currentRefreshTokenHash);
     if (!ok) {
-      // token reuse attack — revoke user token
       await this.prisma.user.update({
         where: { id: user.id },
         data: { currentRefreshTokenHash: null },
@@ -192,12 +194,12 @@ export class AuthService {
       where: { email: email.toLowerCase() },
     });
 
-    if (!user) return { ok: true }; // ไม่บอกว่ามี user หรือไม่
+    if (!user) return { ok: true };
 
     const token = randomBytes(32).toString('hex');
     const tokenHash = await this.hash(token);
 
-    const expires = new Date(Date.now() + 60 * 60 * 1000); // 1 ชั่วโมง
+    const expires = new Date(Date.now() + 60 * 60 * 1000);
 
     await this.prisma.user.update({
       where: { id: user.id },
@@ -221,11 +223,7 @@ export class AuthService {
   async resetPasswordLocal(uid: string, token: string, newPassword: string) {
     const user = await this.prisma.user.findUnique({ where: { id: uid } });
 
-    if (
-      !user ||
-      !user.passwordResetTokenHash ||
-      !user.passwordResetTokenExpires
-    ) {
+    if (!user || !user.passwordResetTokenHash || !user.passwordResetTokenExpires) {
       throw new BadRequestException('Invalid token');
     }
 
@@ -247,7 +245,6 @@ export class AuthService {
       },
     });
 
-    // revoke refresh token
     await this.prisma.user.update({
       where: { id: user.id },
       data: { currentRefreshTokenHash: null },
@@ -285,9 +282,6 @@ export class AuthService {
     return { ok: true };
   }
 
-  // -------------------------------------------------------
-  // ส่วนเดิมของคุณ (ไม่แก้)
-  // -------------------------------------------------------
   private normalizeRedirectUri(raw: string): string {
     if (!raw) return raw;
     let v = raw.trim();
@@ -400,7 +394,7 @@ export class AuthService {
 
     if (!user.firebaseUid) {
       try {
-        const  firebaseUid = String(user.id);
+        const firebaseUid = String(user.id);
 
         await this.prisma.user.update({
           where: { id: user.id },
@@ -548,18 +542,14 @@ export class AuthService {
 
   // ==========================================
   // NEW: Normalize / decode OAuth state helper
-  // - Facebook may encode/escape state in different ways.
-  // - Call this before comparing state with Redis or cookie.
   // ==========================================
   normalizeOAuthState(raw?: string | null): string {
     if (!raw) return '';
-    // Try decodeURIComponent safely (may throw if malformed)
     let s = String(raw).trim();
 
     try {
       s = decodeURIComponent(s);
     } catch {
-      // if decodeURIComponent fails, fall back to replace common encodings
       s = s.replace(/\+/g, ' ');
       s = s.replace(/%2B/gi, '+');
       s = s.replace(/%3D/gi, '=');

@@ -77,3 +77,13 @@ model RefreshToken {
   revoked   Boolean  @default(false)
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
+
+model AuditLog {
+  id        String   @id @default(uuid())
+  userId    String
+  action    String
+  targetId  String?
+  ip        String?
+  metadata  Json?
+  createdAt DateTime @default(now())
+}

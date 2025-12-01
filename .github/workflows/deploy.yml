@@ -51,7 +51,18 @@ jobs:
         run: |
           echo "SENTRY_AUTH_TOKEN=${{ secrets.SENTRY_AUTH_TOKEN }}" > .env.sentry-build-plugin
           echo "SENTRY_ORG=phlyphant" >> .env.sentry-build-plugin
-          echo "SENTRY_PROJECT=javascript-nextjs" >> .env.sentry-build-plugin
+          echo "SENTRY_PROJECT=frontend" >> .env.sentry-build-plugin
+          echo "SENTRY_RELEASE=frontend-${{ github.sha }}" >> .env.sentry-build-plugin
+
+      # -----------------------------------------------------------
+      # Create sentry.properties (required for sourcemap upload)
+      # -----------------------------------------------------------
+      - name: Create sentry.properties
+        working-directory: frontend
+        run: |
+          echo "defaults.url=https://sentry.io/" > sentry.properties
+          echo "defaults.org=phlyphant" >> sentry.properties
+          echo "defaults.project=frontend" >> sentry.properties
 
       # -----------------------------------------------------------
       # Create frontend .env.production
@@ -71,6 +82,23 @@ jobs:
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
         run: npm run build
+
+      # -----------------------------------------------------------
+      # 3.1) Upload Sentry sourcemaps
+      # -----------------------------------------------------------
+      - name: Upload Sentry sourcemaps
+        working-directory: frontend
+        env:
+          SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
+          SENTRY_ORG: phlyphant
+          SENTRY_PROJECT: frontend
+          SENTRY_RELEASE: frontend-${{ github.sha }}
+        run: |
+          npx sentry-cli releases new "$SENTRY_RELEASE"
+          npx sentry-cli releases files "$SENTRY_RELEASE" upload-sourcemaps .next \
+            --ignore=.next/cache \
+            --rewrite
+          npx sentry-cli releases finalize "$SENTRY_RELEASE"
 
       # -----------------------------------------------------------
       # 4) Login to GHCR
@@ -126,7 +154,6 @@ jobs:
       # -----------------------------------------------------------
       - name: Capture image digests
         run: |
-          # Try to get RepoDigest for each image; if missing, fall back to tag
           FRONT_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' ghcr.io/${{ secrets.GHCR_USERNAME }}/mywebsite-frontend:latest 2>/dev/null || true)
           BACK_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' ghcr.io/${{ secrets.GHCR_USERNAME }}/mywebsite-backend:latest 2>/dev/null || true)
 
@@ -167,21 +194,16 @@ jobs:
 
             cd /var/www/phlyphant/mywebsite
 
-            # Ensure working tree matches remote
             git fetch --all
             git reset --hard origin/main
 
             docker compose down
 
-            # Login to GHCR on remote so we can docker pull by digest
             echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
 
-            # If we have a digest (format ghcr.io/...@sha256:...), pull that exact digest.
-            # Otherwise fall back to pulling :latest tag.
             if [[ "${BACKEND_DIGEST:-}" == *"@"* ]]; then
               echo "Pulling backend by digest: $BACKEND_DIGEST"
               docker pull "$BACKEND_DIGEST"
-              # Tag pulled digest as latest so docker-compose that references :latest will use this image
               docker tag "$BACKEND_DIGEST" "ghcr.io/$GHCR_USERNAME/mywebsite-backend:latest" || true
             else
               echo "Pulling backend by tag: ghcr.io/$GHCR_USERNAME/mywebsite-backend:latest"
@@ -197,7 +219,6 @@ jobs:
               docker pull "ghcr.io/$GHCR_USERNAME/mywebsite-frontend:latest" || true
             fi
 
-            # Force recreate containers to ensure new images are used
             docker compose up -d --remove-orphans --force-recreate
 
             sleep 5
