@@ -5,8 +5,8 @@
 
 import '../styles/globals.css';
 import type { AppProps } from 'next/app';
-import '../lib/sentry.client.config';
-import '../lib/sentry.server.config';
+import '../sentry.client.config';
+import '../sentry.server.config';
 
 
 import { useEffect, useRef } from 'react';
