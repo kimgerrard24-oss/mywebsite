@@ -1,8 +1,4 @@
-// ==============================
-// File: frontend/pages/_app.tsx
-// ==============================
-
-
+// files frontend/pages/_app.tsx
 import '../styles/globals.css';
 import type { AppProps } from 'next/app';
 import '../sentry.client.config';
