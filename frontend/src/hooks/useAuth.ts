@@ -93,7 +93,7 @@ export function useAuth() {
   const signOut = async () => {
     try {
       await axios.post(
-        `${API_BASE}/auth/logout`,
+        `${API_BASE}/auth/local/logout`,
         {},
         { withCredentials: true }
       );

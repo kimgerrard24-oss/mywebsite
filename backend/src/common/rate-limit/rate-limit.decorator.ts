@@ -13,13 +13,14 @@ export const RateLimitContext = (action: RateLimitAction) =>
   SetMetadata(RATE_LIMIT_CONTEXT_KEY, action);
 
 /**
+ * Alias ที่ใช้จริงใน Controller
+ * เช่น: @RateLimit('register')
+ */
+export const RateLimit = RateLimitContext;
+
+/**
  * RateLimitIgnore()
  * ใช้เพื่อบอก Guard ว่า endpoint นี้ "ไม่ต้องตรวจ rate-limit"
- *
- * ใช้กับ:
- * - health-check ทั้งหมด
- * - system-check
- * - endpoint ที่ frontend/infra ต้องเรียกบ่อย
  *
  * เช่น:
  *   @RateLimitIgnore()

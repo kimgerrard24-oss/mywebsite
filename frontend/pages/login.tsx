@@ -50,7 +50,7 @@ export default function LoginPage() {
   }, [router]);
 
   function startOAuth(provider: 'google' | 'facebook') {
-    window.location.href = `${API_BASE}/auth/${provider}`;
+    window.location.href = `${API_BASE}/auth/local/${provider}`;
   }
 
   return (

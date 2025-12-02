@@ -200,7 +200,7 @@ export class AuthService {
     });
 
     const resetLink =
-      `${process.env.NEXT_PUBLIC_SITE_URL}/auth/reset-password?token=${token}&uid=${user.id}`;
+      `${process.env.NEXT_PUBLIC_SITE_URL}/auth/local/reset-password?token=${token}&uid=${user.id}`;
 
     this.logger.debug(`Password reset link: ${resetLink}`);
 

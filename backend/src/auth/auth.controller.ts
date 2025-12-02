@@ -27,6 +27,8 @@ import { RateLimitContext } from '../common/rate-limit/rate-limit.decorator';
 import { AuthRateLimitGuard } from '../common/rate-limit/auth-rate-limit.guard';
 import { Public } from './decorators/public.decorator';
 import { RegisterDto } from './dto/register.dto';
+import { RateLimit } from '../common/rate-limit/rate-limit.decorator';
+
 
 const redis = new IORedis(process.env.REDIS_URL || 'redis://redis:6379', {
   maxRetriesPerRequest: 3,
@@ -87,6 +89,7 @@ export class AuthController {
   constructor(private readonly auth: AuthService) {}
     
   // Authentication / Auth System
+@RateLimit('register')
 @Post('register')
 @HttpCode(HttpStatus.CREATED)
 @UsePipes(
@@ -119,6 +122,7 @@ async register(@Body() dto: RegisterDto) {
 
 
   // Local Login
+  @RateLimit('login')
   @Public()
   @Post('login')
   @UseGuards(AuthRateLimitGuard)
@@ -418,7 +422,7 @@ async register(@Body() dto: RegisterDto) {
 
       const redirectUri = normalizeRedirectUri(
         process.env.FACEBOOK_CALLBACK_URL ||
-          `https://api.phlyphant.com/auth/facebook/callback`,
+          `https://api.phlyphant.com/auth/local/facebook/callback`,
       );
 
       const params = new URLSearchParams({
@@ -508,7 +512,7 @@ async register(@Body() dto: RegisterDto) {
       const clientSecret = process.env.FACEBOOK_CLIENT_SECRET || '';
       const redirectUri = normalizeRedirectUri(
         process.env.FACEBOOK_CALLBACK_URL ||
-          `https://api.phlyphant.com/auth/facebook/callback`,
+          `https://api.phlyphant.com/auth/local/facebook/callback`,
       );
 
       const tokenRes = await axios.get(

@@ -78,7 +78,7 @@ export const client = {
 // FIXED: correct backend endpoint (/auth/complete)
 // ==================================================
 export async function createSessionCookie(idToken: string) {
-  return jsonFetch<{ ok: true }>(apiPath("/auth/complete"), {
+  return jsonFetch<{ ok: true }>(apiPath("/auth/local/complete"), {
     method: "POST",
     body: JSON.stringify({ idToken }),
     credentials: "include",
@@ -86,7 +86,7 @@ export async function createSessionCookie(idToken: string) {
 }
 
 export async function logout(): Promise<{ ok: true } | void> {
-  return jsonFetch(apiPath("/auth/logout"), {
+  return jsonFetch(apiPath("/auth/local/logout"), {
     method: "POST",
     credentials: "include",
   });

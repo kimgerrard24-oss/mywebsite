@@ -91,7 +91,7 @@ export default function HomePage() {
     e.preventDefault();
 
     try {
-      await fetch(`${backend}/auth/login`, {
+      await fetch(`${backend}/auth/loacal/login`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
