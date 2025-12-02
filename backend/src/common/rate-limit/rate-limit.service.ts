@@ -65,15 +65,16 @@ export class RateLimitService implements OnModuleDestroy {
     }
 
     // ------------------------------------------------------------
-    // Normalize key: strip port → "1.2.3.4:56789" → "1.2.3.4"
+    // Normalize only IP:port formats, not user:* or ip:*
     // ------------------------------------------------------------
     let sanitizedKey = key;
 
-    if (typeof sanitizedKey === 'string' && sanitizedKey.includes(':')) {
-      const parts = sanitizedKey.split(':');
-      if (parts.length === 2 && /^\d+$/.test(parts[1])) {
-        sanitizedKey = parts[0];
-      }
+    if (
+      typeof sanitizedKey === 'string' &&
+      (/^\d{1,3}(\.\d{1,3}){3}:\d+$/.test(sanitizedKey) ||
+        /^::ffff:\d{1,3}(\.\d{1,3}){3}:\d+$/.test(sanitizedKey))
+    ) {
+      sanitizedKey = sanitizedKey.replace(/:\d+$/, '');
     }
 
     try {
@@ -107,7 +108,7 @@ export class RateLimitService implements OnModuleDestroy {
 
   async onModuleDestroy() {
     try {
-      // ไม่มี resource ให้ cleanup
+      // No resources to cleanup
     } catch (err) {
       this.logger.error('Error during RateLimitService shutdown', err as any);
     }

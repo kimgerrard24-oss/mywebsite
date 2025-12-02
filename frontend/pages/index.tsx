@@ -46,7 +46,7 @@ export default function HomePage() {
             if (!u) return;
             const idToken = await u.getIdToken(true);
 
-            await fetch(`${backend}/auth/complete`, {
+            await fetch(`${backend}/auth/local/complete`, {
               method: "POST",
               credentials: "include",
               headers: { "Content-Type": "application/json" },
@@ -61,7 +61,7 @@ export default function HomePage() {
         // ถ้า user มีแล้ว
         const idToken = await user.getIdToken(true);
 
-        await fetch(`${backend}/auth/complete`, {
+        await fetch(`${backend}/auth/local/complete`, {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },

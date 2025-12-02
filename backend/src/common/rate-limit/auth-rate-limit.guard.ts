@@ -26,9 +26,6 @@ export class AuthRateLimitGuard implements CanActivate {
     const rawPath = req.path || '';
     const path = rawPath.toLowerCase();
 
-    // ---------------------------------------------------------
-    // 0) Skip INTERNAL HEALTH CHECK (ถ้ามี token ตรง)
-    // ---------------------------------------------------------
     const internalToken = req.headers['x-internal-health'];
     if (
       internalToken &&
@@ -39,9 +36,6 @@ export class AuthRateLimitGuard implements CanActivate {
       return true;
     }
 
-    // ---------------------------------------------------------
-    // 1) Skip health-check
-    // ---------------------------------------------------------
     if (
       path === '/system-check' ||
       path === '/system-check/' ||
@@ -52,16 +46,10 @@ export class AuthRateLimitGuard implements CanActivate {
       return true;
     }
 
-    // ---------------------------------------------------------
-    // 2) Skip session-check (สำคัญมากสำหรับ social login)
-    // ---------------------------------------------------------
     if (path === '/auth/local/session-check' || path.startsWith('/auth/local/session-check')) {
       return true;
     }
 
-    // ---------------------------------------------------------
-    // 3) Whitelist OAuth login + callback + complete
-    // ---------------------------------------------------------
     const oauthExact = new Set([
       '/auth/local/google',
       '/auth/local/google/callback',
@@ -84,9 +72,6 @@ export class AuthRateLimitGuard implements CanActivate {
       return true;
     }
 
-    // ---------------------------------------------------------
-    // 4) Extract IP
-    // ---------------------------------------------------------
     const xff = Array.isArray(req.headers['x-forwarded-for'])
       ? req.headers['x-forwarded-for'][0]
       : req.headers['x-forwarded-for'];
@@ -99,9 +84,6 @@ export class AuthRateLimitGuard implements CanActivate {
 
     const ip = String(rawIp).replace(/^::ffff:/, '');
 
-    // ---------------------------------------------------------
-    // 5) Determine rate-limit action
-    // ---------------------------------------------------------
     const action =
       this.reflector.get<RateLimitAction>(
         RATE_LIMIT_CONTEXT_KEY,
@@ -112,9 +94,6 @@ export class AuthRateLimitGuard implements CanActivate {
       return true;
     }
 
-    // ---------------------------------------------------------
-    // 6) Build key (prefer userId)
-    // ---------------------------------------------------------
     let userKey: string | null = null;
     try {
       userKey =
@@ -126,11 +105,11 @@ export class AuthRateLimitGuard implements CanActivate {
       userKey = null;
     }
 
-    const key = userKey || ip || 'unknown';
+    // Fixed: Always prefix user or ip to avoid merging keys
+    const key = userKey
+      ? `user:${userKey}`
+      : `ip:${ip}`;
 
-    // ---------------------------------------------------------
-    // 7) Consume rate-limit
-    // ---------------------------------------------------------
     try {
       const info = await this.rlService.consume(action, key);
 
