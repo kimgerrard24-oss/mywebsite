@@ -55,7 +55,7 @@ export class AuthRateLimitGuard implements CanActivate {
     // ---------------------------------------------------------
     // 2) Skip session-check (สำคัญมากสำหรับ social login)
     // ---------------------------------------------------------
-    if (path === '/auth/session-check' || path.startsWith('/auth/session-check')) {
+    if (path === '/auth/local/session-check' || path.startsWith('/auth/local/session-check')) {
       return true;
     }
 

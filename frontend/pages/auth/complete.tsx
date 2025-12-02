@@ -31,9 +31,32 @@ export default function AuthCompletePage() {
 
     const run = async () => {
       try {
-        const { customToken } = router.query;
+        let customToken: string | null = null;
 
-        if (!customToken || typeof customToken !== "string") {
+        // 1. customToken จาก query ปกติ
+        if (typeof router.query.customToken === "string") {
+          customToken = router.query.customToken;
+        }
+
+        // 2. รองรับชื่ออื่น ๆ เช่น token, t
+        if (!customToken) {
+          if (typeof router.query.token === "string") {
+            customToken = router.query.token;
+          } else if (typeof router.query.t === "string") {
+            customToken = router.query.t;
+          }
+        }
+
+        // 3. รองรับ hash fragment เช่น #customToken=xxxx
+        if (!customToken && window.location.hash) {
+          const params = new URLSearchParams(window.location.hash.substring(1));
+          if (params.get("customToken")) {
+            customToken = params.get("customToken");
+          }
+        }
+
+        // ถ้าไม่มี token จริง → error
+        if (!customToken) {
           setStatus("ERROR");
           setMessage("ไม่พบ customToken จาก OAuth callback");
           return;
@@ -46,9 +69,6 @@ export default function AuthCompletePage() {
 
         await signInWithCustomToken(auth, customToken);
 
-        // -------------------------------------------------------
-        // FIX:ให้ TypeScript ยืนยันว่า user เป็น User แน่นอน
-        // -------------------------------------------------------
         let user: User | null = auth.currentUser;
 
         if (!user) {
@@ -61,9 +81,7 @@ export default function AuthCompletePage() {
           });
         }
 
-        // ตอนนี้ user เป็น User แน่นอน
         const safeUser = user as User;
-
         const idToken = await safeUser.getIdToken(true);
 
         setStatus("SETTING_SESSION");
@@ -84,11 +102,9 @@ export default function AuthCompletePage() {
         if (verify.data?.valid === true) {
           setStatus("DONE");
           setMessage("เข้าสู่ระบบสำเร็จ กำลังพาไปหน้าแรก...");
-
           setTimeout(() => {
             router.replace(REDIRECT_AFTER_LOGIN);
           }, 1000);
-
         } else {
           setStatus("ERROR");
           setMessage("Session cookie ไม่ถูกสร้าง");

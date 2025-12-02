@@ -1,4 +1,3 @@
-// src/common/rate-limit/rate-limit.guard.ts
 import {
   CanActivate,
   ExecutionContext,
@@ -82,17 +81,20 @@ export class RateLimitGuard implements CanActivate {
     }
 
     if (
-      path.startsWith('/auth/google') ||
-      path.startsWith('/auth/facebook') ||
-      path.startsWith('/auth/complete')
+      path.startsWith('/auth/local/google') ||
+      path.startsWith('/auth/local/facebook') ||
+      path.startsWith('/auth/local/complete')
     ) {
       return true;
     }
 
     // ==========================================================
-    // 3. Whitelist frontend session-check
+    // 3. Whitelist session-check
     // ==========================================================
-    if (path === '/auth/session-check' || path.startsWith('/auth/session-check')) {
+    if (
+      path === '/auth/local/session-check' ||
+      path.startsWith('/auth/local/session-check')
+    ) {
       return true;
     }
 
@@ -107,16 +109,23 @@ export class RateLimitGuard implements CanActivate {
     const ip = rawIp.replace('::ffff:', '');
 
     // ==========================================================
-    // 5. Determine rate-limit action (default = "ip")
+    // 5. Determine rate-limit action
     // ==========================================================
-    const action =
+    let action: RateLimitAction =
       this.reflector.get<RateLimitAction>(
         RATE_LIMIT_CONTEXT_KEY,
         context.getHandler(),
       ) || 'ip';
 
     // ==========================================================
-    // 6. Build rate-limit key
+    // Force /auth/local/register to use IP limit instead of "register" action
+    // ==========================================================
+    if (path === '/auth/local/register') {
+      action = 'ip';
+    }
+
+    // ==========================================================
+    // 6. Build key
     // ==========================================================
     let userId: string | null = null;
 
