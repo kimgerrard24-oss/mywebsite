@@ -25,7 +25,7 @@ export function useAuth() {
 
     async function load() {
       try {
-        const res = await axios.get(`${API_BASE}/auth/session-check`, {
+        const res = await axios.get(`${API_BASE}/auth/local/session-check`, {
           withCredentials: true,
         });
 

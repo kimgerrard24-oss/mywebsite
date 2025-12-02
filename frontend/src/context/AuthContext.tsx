@@ -43,7 +43,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const unsubscribe = onAuthStateChanged(auth, async () => {
       try {
-        const res = await fetch(`${API_BASE}/auth/session-check`, {
+        const res = await fetch(`${API_BASE}/auth/local/session-check`, {
           method: "GET",
           credentials: "include",
           headers: { Accept: "application/json" },
