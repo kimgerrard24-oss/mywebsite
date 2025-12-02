@@ -22,7 +22,7 @@ export default function LoginPage() {
 
     async function verify() {
       try {
-        const res = await axios.get(`${API_BASE}/auth/session-check`, {
+        const res = await axios.get(`${API_BASE}/auth/local/session-check`, {
           withCredentials: true,
         });
 
@@ -34,7 +34,7 @@ export default function LoginPage() {
         // Retry once (Hybrid OAuth cookie propagate delay)
         await new Promise((resolve) => setTimeout(resolve, 200));
 
-        const retry = await axios.get(`${API_BASE}/auth/session-check`, {
+        const retry = await axios.get(`${API_BASE}/auth/local/session-check`, {
           withCredentials: true,
         });
 
