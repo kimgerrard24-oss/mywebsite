@@ -13,6 +13,10 @@ import { AuthLoggerService } from '../common/logging/auth-logger.service';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { AuditService } from './audit.service';
 import { JwtStrategy } from './jwt.strategy';
+import { AuthRepository } from './auth.repository';
+import { PrismaService } from '../prisma/prisma.service';
+import { FirebaseAuthGuard } from './firebase-auth.guard'; // ← ต้อง import
+
 
 @Module({
   imports: [
@@ -26,15 +30,17 @@ import { JwtStrategy } from './jwt.strategy';
   providers: [
     AuthService,
     AuthRateLimitGuard,
-
+    AuthRepository,
     AuthLoggerService,
     JwtAuthGuard,
     JwtStrategy,
     AuditService,
+    PrismaService,
+    FirebaseAuthGuard,
   ],
 
   controllers: [AuthController],
 
-  exports: [AuthService],
+  exports: [FirebaseAuthGuard,AuthService],
 })
 export class AuthModule {}

@@ -13,10 +13,12 @@ model User {
   id                        String         @id @default(uuid())
   email                     String         @unique
   name                      String?
+  username                  String         @unique
   provider                  String
   providerId                String
   firebaseUid               String?        @unique
   avatarUrl                 String?
+  password                  String
   createdAt                 DateTime       @default(now())
   updatedAt                 DateTime       @updatedAt
   hashedPassword            String?

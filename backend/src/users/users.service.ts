@@ -1,6 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaClient } from "@prisma/client";
-import * as bcrypt from "bcrypt";
+import { randomUUID } from "crypto";
 
 @Injectable()
 export class UsersService {
@@ -11,13 +11,27 @@ export class UsersService {
   }
 
   async createUser(email: string, passwordHash: string, displayName?: string) {
+    // สร้าง username อัตโนมัติจากอีเมล (กันซ้ำ)
+    const baseUsername = email.split('@')[0].toLowerCase();
+    let username = baseUsername;
+    let counter = 1;
+
+    while (
+      await this.prisma.user.findUnique({
+        where: { username },
+      })
+    ) {
+      username = `${baseUsername}_${counter++}`;
+    }
+
     return this.prisma.user.create({
       data: {
         email,
-        hashedPassword: passwordHash,
+        username,
+        password: passwordHash,   // ใช้ฟิลด์ password ตาม schema
         provider: "local",
-        providerId: email, // แก้ตาม Prisma model (required)
-        name: displayName ?? null, // ใช้ field name ที่มีจริงใน schema
+        providerId: email,
+        name: displayName ?? null,
       },
     });
   }
@@ -56,6 +70,7 @@ export class UsersService {
         emailVerifyTokenExpires: { gt: new Date() },
       },
     });
+
     if (!user) return null;
 
     return this.prisma.user.update({
@@ -75,12 +90,13 @@ export class UsersService {
         passwordResetTokenExpires: { gt: new Date() },
       },
     });
+
     if (!user) return null;
 
     return this.prisma.user.update({
       where: { id: user.id },
       data: {
-        hashedPassword: newPasswordHash,
+        password: newPasswordHash,  // ใช้ฟิลด์ password ตาม schema
         passwordResetTokenHash: null,
         passwordResetTokenExpires: null,
       },

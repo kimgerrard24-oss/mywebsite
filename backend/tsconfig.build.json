@@ -4,15 +4,26 @@
     "incremental": false,
     "rootDir": "./src",
     "outDir": "./dist",
+
+    "module": "CommonJS",
+    "target": "ES2020",
+    "moduleResolution": "node",
+
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
+
+    "declaration": false,
     "sourceMap": true,
-    "declaration": false
+    "removeComments": true,
+
+    "resolveJsonModule": true
   },
+
   "include": [
     "src/**/*",
-    "src/types/**/*"   // ⭐ เพิ่มเข้ามาเพื่อแก้ TS7016 ของ cookie-parser
+    "src/types/**/*"
   ],
+
   "exclude": [
     "node_modules",
     "dist",

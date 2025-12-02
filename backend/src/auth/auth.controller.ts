@@ -4,11 +4,16 @@ import {
   Get,
   Post,
   Req,
+  HttpCode,
+  HttpStatus,
+  UsePipes,
+  ValidationPipe,
   Res,
   Body,
   Logger,
   Query,
   UseGuards,
+  BadRequestException,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { Response, Request } from 'express';
@@ -18,10 +23,10 @@ import IORedis from 'ioredis';
 import * as admin from 'firebase-admin';
 import { FirebaseAuthGuard } from './firebase-auth.guard';
 import { GetUser } from './get-user.decorator';
-
 import { RateLimitContext } from '../common/rate-limit/rate-limit.decorator';
 import { AuthRateLimitGuard } from '../common/rate-limit/auth-rate-limit.guard';
 import { Public } from './decorators/public.decorator';
+import { RegisterDto } from './dto/register.dto';
 
 const redis = new IORedis(process.env.REDIS_URL || 'redis://redis:6379', {
   maxRetriesPerRequest: 3,
@@ -75,35 +80,47 @@ function buildFinalUrl(
   return `${base}${targetPath}?customToken=${encodeURIComponent(customToken)}`;
 }
 
-@Controller('auth')
+@Controller('auth/local')
 export class AuthController {
   private readonly logger = new Logger(AuthController.name);
 
   constructor(private readonly auth: AuthService) {}
+    
+  // Authentication / Auth System
+@Post('register')
+@HttpCode(HttpStatus.CREATED)
+@UsePipes(
+  new ValidationPipe({
+    whitelist: true,
+    forbidNonWhitelisted: true,
+    transform: true,
+    exceptionFactory: (errors) => {
+      const messages = errors.flatMap(err =>
+        Object.values(err.constraints || {})
+      );
+      return new BadRequestException(messages);
+    },
+  }),
+)
+async register(@Body() dto: RegisterDto) {
+  const user = await this.auth.register(dto);
 
-  // Local Register
-  @Public()
-  @Post('local/register')
-  @RateLimitContext('register')
-  async localRegister(@Body() body: any) {
-    const { email, password, name } = body;
+  return {
+    success: true,
+    message: 'User registered successfully',
+    data: {
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      createdAt: user.createdAt,
+    },
+  };
+}
 
-    if (!email || !password) {
-      return { error: 'Email and password required' };
-    }
-
-    return this.auth.registerLocal(email, password, name);
-  }
-
-  @Get('profile')
-  @UseGuards(FirebaseAuthGuard)
-  async profile(@GetUser() user: any) {
-    return { ok: true, user };
-  }
 
   // Local Login
   @Public()
-  @Post('local/login')
+  @Post('login')
   @UseGuards(AuthRateLimitGuard)
   @RateLimitContext('login')
   async localLogin(@Body() body: any, @Res() res: Response) {
@@ -143,7 +160,7 @@ export class AuthController {
   }
 
   // Local Refresh Token
-  @Post('local/refresh')
+  @Post('refresh')
   async localRefresh(@Req() req: Request, @Res() res: Response) {
     const refreshToken = req.cookies?.local_refresh;
 
@@ -179,7 +196,7 @@ export class AuthController {
   }
 
   // Local Logout
-  @Post('local/logout')
+  @Post('logout')
   async localLogout(@Res() res: Response) {
     const cookieDomain = process.env.COOKIE_DOMAIN || '.phlyphant.com';
 
@@ -191,7 +208,7 @@ export class AuthController {
 
   // Local Request Password Reset
   @Public()
-  @Post('local/request-password-reset')
+  @Post('request-password-reset')
   @RateLimitContext('resetPassword')
   async localRequestReset(@Body() body: any) {
     const { email } = body;
@@ -205,7 +222,7 @@ export class AuthController {
 
   // Local Reset Password
   @Public()
-  @Post('local/reset-password')
+  @Post('reset-password')
   @RateLimitContext('resetPassword')
   async localResetPassword(@Body() body: any) {
     const { uid, token, newPassword } = body;
@@ -218,7 +235,7 @@ export class AuthController {
   }
 
   // Verify Email
-  @Get('local/verify-email')
+  @Get('verify-email')
   async localVerifyEmail(
     @Query('uid') uid: string,
     @Query('token') token: string,
