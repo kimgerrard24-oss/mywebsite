@@ -3,10 +3,8 @@ FROM node:22-slim AS build
 
 WORKDIR /app
 
-# ติดตั้ง openssl เพื่อให้ Prisma เลือก engine openssl-3.x
 RUN apt-get update -y && apt-get install -y openssl
 
-# ปรับ npm config
 RUN npm set registry https://registry.npmmirror.com \
     && npm set fetch-retries 5 \
     && npm set fetch-retry-factor 10 \
@@ -14,26 +12,21 @@ RUN npm set registry https://registry.npmmirror.com \
     && npm set fetch-retry-maxtimeout 120000 \
     && npm set strict-ssl false
 
-# -------------------------------------------------------
-# COPY package.json + lockfile ก่อนเพื่อลด cache ปัญหา
-# -------------------------------------------------------
+# Copy package files first (cache-friendly)
 COPY package*.json ./
 
-# ติดตั้ง dependencies
+# Install full dev dependencies for build & prisma
 RUN --mount=type=cache,target=/root/.npm npm ci
 
-# -------------------------------------------------------
-# COPY src + prisma + tsconfig ทำเป็น step แยกจาก package.json
-# เพื่อ ensure ว่า code เปลี่ยน = rebuild dist ใหม่เสมอ
-# -------------------------------------------------------
+# Copy source code
 COPY tsconfig*.json ./
 COPY prisma ./prisma
 COPY src ./src
 
-# Generate Prisma Client (บังคับใช้ engine 3.x)
+# Generate Prisma Client
 RUN npx prisma generate --schema=prisma/schema.prisma
 
-# Build NestJS source
+# Build NestJS 
 RUN npm run build
 
 
@@ -53,17 +46,17 @@ ENV REDIS_URL=redis://redis:6379
 
 COPY package*.json ./
 
-# ===== COPY PRISMA ENGINES + CLIENT =====
-COPY --from=build /app/node_modules/.prisma /app/node_modules/.prisma
-COPY --from=build /app/node_modules/@prisma /app/node_modules/@prisma
-
-# Copy node_modules (หลัง .prisma เพื่อไม่ทับ engine)
-COPY --from=build /app/node_modules /app/node_modules
+# Install only production deps
+RUN --mount=type=cache,target=/root/.npm npm ci --omit=dev
 
 # Copy build output
 COPY --from=build /app/dist ./dist
 
-# Copy prisma folder (migration/schema)
+# Copy Prisma client + engines
+COPY --from=build /app/node_modules/.prisma ./node_modules/.prisma
+COPY --from=build /app/node_modules/@prisma ./node_modules/@prisma
+
+# Copy prisma folder (schema, migrations)
 COPY --from=build /app/prisma ./prisma
 
 EXPOSE 4001
