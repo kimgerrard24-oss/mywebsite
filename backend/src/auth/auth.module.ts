@@ -1,6 +1,7 @@
 // file: src/auth/auth.module.ts
 
 import { Module } from '@nestjs/common';
+import { APP_GUARD } from '@nestjs/core';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { SecretsModule } from '../secrets/secrets.module';
@@ -15,8 +16,7 @@ import { AuditService } from './audit.service';
 import { JwtStrategy } from './jwt.strategy';
 import { AuthRepository } from './auth.repository';
 import { PrismaService } from '../prisma/prisma.service';
-import { FirebaseAuthGuard } from './firebase-auth.guard'; // ← ต้อง import
-
+import { FirebaseAuthGuard } from './firebase-auth.guard';
 
 @Module({
   imports: [
@@ -29,7 +29,6 @@ import { FirebaseAuthGuard } from './firebase-auth.guard'; // ← ต้อง i
 
   providers: [
     AuthService,
-    AuthRateLimitGuard,
     AuthRepository,
     AuthLoggerService,
     JwtAuthGuard,
@@ -37,10 +36,15 @@ import { FirebaseAuthGuard } from './firebase-auth.guard'; // ← ต้อง i
     AuditService,
     PrismaService,
     FirebaseAuthGuard,
+
+    {
+      provide: APP_GUARD,
+      useClass: AuthRateLimitGuard,
+    },
   ],
 
   controllers: [AuthController],
 
-  exports: [FirebaseAuthGuard,AuthService],
+  exports: [FirebaseAuthGuard, AuthService],
 })
 export class AuthModule {}
