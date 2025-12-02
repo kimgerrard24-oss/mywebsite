@@ -104,13 +104,16 @@ export default function HomePage() {
     }
   };
 
-  const startOAuth = (provider: "google" | "facebook") => {
-    const url = `${backend}/auth/${provider}`;
-    window.location.href = url;
+  // ==================================================
+  // FIX: เปลี่ยนเป็น route ที่ถูกต้อง
+  // ==================================================
+  const loginWithGoogle = () => {
+    window.location.href = `${backend}/auth/local/google`;
   };
 
-  const loginWithGoogle = () => startOAuth("google");
-  const loginWithFacebook = () => startOAuth("facebook");
+  const loginWithFacebook = () => {
+    window.location.href = `${backend}/auth/local/facebook`;
+  };
 
   return (
     <>

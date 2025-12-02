@@ -70,6 +70,11 @@ export class RateLimitGuard implements CanActivate {
       '/auth/facebook',
       '/auth/facebook/callback',
       '/auth/complete',
+      '/auth/local/google',
+      '/auth/local/google/callback',
+      '/auth/local/facebook',
+      '/auth/local/facebook/callback',
+      '/auth/local/complete',
     ]);
 
     if (oauthExact.has(path)) {

@@ -63,11 +63,11 @@ export class AuthRateLimitGuard implements CanActivate {
     // 3) Whitelist OAuth login + callback + complete
     // ---------------------------------------------------------
     const oauthExact = new Set([
-      '/auth/google',
-      '/auth/google/callback',
-      '/auth/facebook',
-      '/auth/facebook/callback',
-      '/auth/complete',
+      '/auth/local/google',
+      '/auth/local/google/callback',
+      '/auth/local/facebook',
+      '/auth/local/facebook/callback',
+      '/auth/local/complete',
     ]);
 
     if (oauthExact.has(path)) {
@@ -75,11 +75,11 @@ export class AuthRateLimitGuard implements CanActivate {
     }
 
     if (
-      path.startsWith('/auth/google/callback') ||
-      path.startsWith('/auth/facebook/callback') ||
-      path.startsWith('/auth/google') ||
-      path.startsWith('/auth/facebook') ||
-      path.startsWith('/auth/complete')
+      path.startsWith('/auth/local/google/callback') ||
+      path.startsWith('/auth/local/facebook/callback') ||
+      path.startsWith('/auth/local/google') ||
+      path.startsWith('/auth/local/facebook') ||
+      path.startsWith('/auth/local/complete')
     ) {
       return true;
     }

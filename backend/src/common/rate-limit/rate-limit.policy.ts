@@ -1,5 +1,3 @@
-// src/common/rate-limit/rate-limit.policy.ts
-
 /**
  * รายการ action ที่จะใช้ใน RateLimitGuard และ RateLimitService
  * หมายเหตุ:
@@ -40,13 +38,16 @@ export const RateLimitPolicy: Record<
   ip: { points: 1500, duration: 60 }, // 1500 requests / minute ต่อ 1 IP
 
   // Auth-related actions (security goal: protect against brute-force)
-  login: { points: 5, duration: 60 },          // 5 ครั้ง / นาที
-  register: { points: 3, duration: 3600 },     // 3 ครั้ง / ชั่วโมง
-  resetPassword: { points: 3, duration: 3600 }, // 3 ครั้ง / ชั่วโมง
+  login: { points: 5, duration: 60 },            // 5 ครั้ง / นาที
+
+  // ปรับ register ให้เหมาะสม ปลอดภัย และไม่ block ผู้ใช้ปกติ
+  register: { points: 10, duration: 600 },       // 10 ครั้ง / 10 นาที
+
+  resetPassword: { points: 3, duration: 3600 },  // 3 ครั้ง / ชั่วโมง
 
   // Posting actions (anti-spam)
-  postCreate: { points: 15, duration: 60 },     // 15 โพสต์ / นาที
-  commentCreate: { points: 30, duration: 60 },  // 30 คอมเมนต์ / นาที
+  postCreate: { points: 15, duration: 60 },      // 15 โพสต์ / นาที
+  commentCreate: { points: 30, duration: 60 },   // 30 คอมเมนต์ / นาที
 
   // Social actions
   followUser: { points: 50, duration: 3600 },    // 50 follows / ชั่วโมง
