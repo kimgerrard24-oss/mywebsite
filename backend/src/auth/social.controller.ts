@@ -56,11 +56,24 @@ function buildFinalUrl(base: string | undefined, customToken: string): string {
   const targetPath = '/auth/complete';
   let redirectBase = base?.trim() || 'https://www.phlyphant.com';
 
+  // Remove trailing slashes
   redirectBase = redirectBase.replace(/\/+$/g, '');
 
-  return `${redirectBase}${targetPath}?customToken=${encodeURIComponent(
-    customToken,
-  )}`;
+  // If redirectBase already ends with the targetPath, remove that part to avoid duplication.
+  // Compare in a case-insensitive way for robustness.
+  try {
+    const lowerBase = redirectBase.toLowerCase();
+    const lowerTarget = targetPath.toLowerCase();
+    if (lowerBase.endsWith(lowerTarget)) {
+      redirectBase = redirectBase.slice(0, redirectBase.length - targetPath.length);
+      redirectBase = redirectBase.replace(/\/+$/g, '');
+    }
+  } catch {
+    // if anything unexpected happens, fallback to original behavior
+    redirectBase = redirectBase.replace(/\/+$/g, '');
+  }
+
+  return `${redirectBase}${targetPath}?customToken=${encodeURIComponent(customToken)}`;
 }
 
 @Controller('auth')
