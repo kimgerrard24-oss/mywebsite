@@ -41,7 +41,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly firebase: FirebaseAdminService,
     private readonly secretsService: SecretsService,
-    private readonly authLogger: AuthLoggerService, 
+    private readonly authLogger: AuthLoggerService,
     private readonly repo: AuthRepository,
   ) {}
 
@@ -70,26 +70,26 @@ export class AuthService {
   // Local Register
   // -------------------------------------------------------
 
-   async register(dto: RegisterDto) {
-  const existing = await this.repo.findByEmailOrUsername(
-    dto.email,
-    dto.username,
-  );
+  async register(dto: RegisterDto) {
+    const existing = await this.repo.findByEmailOrUsername(
+      dto.email,
+      dto.username,
+    );
 
-  if (existing) {
-    throw new ConflictException('Email or username already exists');
+    if (existing) {
+      throw new ConflictException('Email or username already exists');
+    }
+
+    const hashed = await hashPassword(dto.password);
+
+    return this.repo.createUser({
+      email: dto.email,
+      username: dto.username,
+      password: hashed,
+      provider: 'local',
+      providerId: dto.email, // หรือ uuid
+    });
   }
-
-  const hashed = await hashPassword(dto.password);
-
-  return this.repo.createUser({
-    email: dto.email,
-    username: dto.username,
-    password: hashed,
-    provider: 'local',
-    providerId: dto.email,  // หรือ uuid
-  });
-}
 
   // -------------------------------------------------------
   // Local Login
@@ -283,18 +283,17 @@ export class AuthService {
   async getGoogleConfig(): Promise<GoogleOAuthConfig> {
     const raw = await this.secretsService.getOAuthSecrets();
 
-    const envRedirect =
+    // prefer explicit env var (GitHub secrets or ENV), then AWS secrets, then fallback to canonical callback
+    const explicit =
       process.env.GOOGLE_CALLBACK_URL ||
       process.env.GOOGLE_REDIRECT_URL ||
       process.env.GOOGLE_REDIRECT_URI ||
       '';
 
     const redirectUriRaw =
-      envRedirect ||
-      raw?.GOOGLE_CALLBACK_URL ||
-      raw?.GOOGLE_REDIRECT_URL ||
-      raw?.redirectUri ||
-      '';
+      this.normalizeRedirectUri(explicit) ||
+      this.normalizeRedirectUri(raw?.GOOGLE_CALLBACK_URL || raw?.GOOGLE_REDIRECT_URL || raw?.redirectUri || '') ||
+      'https://api.phlyphant.com/auth/google/callback';
 
     const clientId =
       process.env.GOOGLE_CLIENT_ID ||
@@ -322,17 +321,16 @@ export class AuthService {
   async getFacebookConfig(): Promise<FacebookOAuthConfig> {
     const raw = await this.secretsService.getOAuthSecrets();
 
-    const envRedirect =
+    // prefer explicit env var (GitHub secrets or ENV), then AWS secrets, then fallback to canonical callback
+    const explicit =
       process.env.FACEBOOK_CALLBACK_URL ||
       process.env.FACEBOOK_REDIRECT_URL ||
       '';
 
     const redirectUriRaw =
-      envRedirect ||
-      raw?.FACEBOOK_CALLBACK_URL ||
-      raw?.FACEBOOK_REDIRECT_URL ||
-      raw?.redirectUri ||
-      '';
+      this.normalizeRedirectUri(explicit) ||
+      this.normalizeRedirectUri(raw?.FACEBOOK_CALLBACK_URL || raw?.FACEBOOK_REDIRECT_URL || raw?.redirectUri || '') ||
+      'https://api.phlyphant.com/auth/facebook/callback';
 
     const clientId =
       process.env.FACEBOOK_CLIENT_ID ||
@@ -360,223 +358,219 @@ export class AuthService {
   // ==========================================
   // GOOGLE
   // ==========================================
-async findOrCreateUserFromGoogle(profile: any) {
-  const email = profile.emails?.[0]?.value || null;
-  const providerId = profile.sub || profile.id;
+  async findOrCreateUserFromGoogle(profile: any) {
+    const email = profile.emails?.[0]?.value || null;
+    const providerId = profile.sub || profile.id;
 
-  // สร้าง OR เฉพาะ field ที่มีจริง เพื่อกัน undefined
-  const orFilters: any[] = [
-    { provider: 'google', providerId }
-  ];
+    // สร้าง OR เฉพาะ field ที่มีจริง เพื่อกัน undefined
+    const orFilters: any[] = [{ provider: 'google', providerId }];
 
-  if (email) {
-    orFilters.push({ email });
-  }
-
-  let user = await this.prisma.user.findFirst({
-    where: {
-      OR: orFilters,
-    },
-  });
-
-  // ถ้าไม่พบ → สร้าง user ใหม่
-  if (!user) {
-    const baseUsername = `google_${providerId}`.toLowerCase();
-    let username = baseUsername;
-    let counter = 1;
-
-    // กัน username ซ้ำ
-    while (await this.prisma.user.findUnique({ where: { username } })) {
-      username = `${baseUsername}_${counter++}`;
+    if (email) {
+      orFilters.push({ email });
     }
 
-    // OAuth ไม่มี password → ใช้ placeholder hash
-    const placeholderPassword = await hashPassword(randomUUID());
-
-    user = await this.prisma.user.create({
-      data: {
-        email: email ?? `no-email-google-${providerId}@placeholder.local`,
-        name: profile.displayName ?? null,
-        username,
-        password: placeholderPassword,
-        provider: 'google',
-        providerId,
-        avatarUrl: profile.photos?.[0]?.value ?? null,
-        firebaseUid: null,
+    let user = await this.prisma.user.findFirst({
+      where: {
+        OR: orFilters,
       },
     });
-  }
 
-  // ตั้ง firebaseUid ครั้งแรก
-  if (!user.firebaseUid) {
-    try {
-      const firebaseUid = String(user.id);
+    // ถ้าไม่พบ → สร้าง user ใหม่
+    if (!user) {
+      const baseUsername = `google_${providerId}`.toLowerCase();
+      let username = baseUsername;
+      let counter = 1;
 
-      await this.prisma.user.update({
-        where: { id: user.id },
-        data: { firebaseUid },
+      // กัน username ซ้ำ
+      while (await this.prisma.user.findUnique({ where: { username } })) {
+        username = `${baseUsername}_${counter++}`;
+      }
+
+      // OAuth ไม่มี password → ใช้ placeholder hash
+      const placeholderPassword = await hashPassword(randomUUID());
+
+      user = await this.prisma.user.create({
+        data: {
+          email: email ?? `no-email-google-${providerId}@placeholder.local`,
+          name: profile.displayName ?? null,
+          username,
+          password: placeholderPassword,
+          provider: 'google',
+          providerId,
+          avatarUrl: profile.photos?.[0]?.value ?? null,
+          firebaseUid: null,
+        },
       });
-
-      user.firebaseUid = firebaseUid;
-    } catch (err) {
-      this.logger.error('Failed to set firebaseUid for Google user');
-      throw new Error('Failed to set firebaseUid');
     }
-  }
 
-  return user;
-}
+    // ตั้ง firebaseUid ครั้งแรก
+    if (!user.firebaseUid) {
+      try {
+        const firebaseUid = String(user.id);
+
+        await this.prisma.user.update({
+          where: { id: user.id },
+          data: { firebaseUid },
+        });
+
+        user.firebaseUid = firebaseUid;
+      } catch (err) {
+        this.logger.error('Failed to set firebaseUid for Google user');
+        throw new Error('Failed to set firebaseUid');
+      }
+    }
+
+    return user;
+  }
 
   // ==========================================
   // FACEBOOK
   // ==========================================
-async findOrCreateUserFromFacebook(profile: any) {
-  const email =
-    profile.emails?.[0]?.value ||
-    profile._json?.email ||
-    null;
+  async findOrCreateUserFromFacebook(profile: any) {
+    const email =
+      profile.emails?.[0]?.value ||
+      profile._json?.email ||
+      null;
 
-  const providerId = profile.id;
+    const providerId = profile.id;
 
-  // สร้าง OR เฉพาะ field ที่มีจริง เพื่อกัน undefined ใน array
-  const orFilters: any[] = [
-    { provider: 'facebook', providerId }
-  ];
+    // สร้าง OR เฉพาะ field ที่มีจริง เพื่อกัน undefined ใน array
+    const orFilters: any[] = [{ provider: 'facebook', providerId }];
 
-  if (email) {
-    orFilters.push({ email });
-  }
-
-  // ค้นหาผู้ใช้จาก providerId หรือ email
-  let user = await this.prisma.user.findFirst({
-    where: {
-      OR: orFilters,
-    },
-  });
-
-  // ถ้ายังไม่พบ → สร้าง User ใหม่แบบ OAuth
-  if (!user) {
-    // สร้าง username อัตโนมัติแบบไม่ซ้ำ
-    const baseUsername = `facebook_${providerId}`.toLowerCase();
-    let username = baseUsername;
-    let counter = 1;
-
-    while (
-      await this.prisma.user.findUnique({
-        where: { username },
-      })
-    ) {
-      username = `${baseUsername}_${counter++}`;
+    if (email) {
+      orFilters.push({ email });
     }
 
-    // Facebook ไม่มี password → ใช้ placeholder hash
-    const placeholderPassword = await hashPassword(randomUUID());
-
-    user = await this.prisma.user.create({
-      data: {
-        email: email ?? `no-email-facebook-${providerId}@placeholder.local`,
-        name: profile.displayName ?? null,
-        username,
-        password: placeholderPassword,
-        provider: 'facebook',
-        providerId,
-        avatarUrl: profile.photos?.[0]?.value ?? null,
-        firebaseUid: null,
+    // ค้นหาผู้ใช้จาก providerId หรือ email
+    let user = await this.prisma.user.findFirst({
+      where: {
+        OR: orFilters,
       },
     });
+
+    // ถ้ายังไม่พบ → สร้าง User ใหม่แบบ OAuth
+    if (!user) {
+      // สร้าง username อัตโนมัติแบบไม่ซ้ำ
+      const baseUsername = `facebook_${providerId}`.toLowerCase();
+      let username = baseUsername;
+      let counter = 1;
+
+      while (
+        await this.prisma.user.findUnique({
+          where: { username },
+        })
+      ) {
+        username = `${baseUsername}_${counter++}`;
+      }
+
+      // Facebook ไม่มี password → ใช้ placeholder hash
+      const placeholderPassword = await hashPassword(randomUUID());
+
+      user = await this.prisma.user.create({
+        data: {
+          email: email ?? `no-email-facebook-${providerId}@placeholder.local`,
+          name: profile.displayName ?? null,
+          username,
+          password: placeholderPassword,
+          provider: 'facebook',
+          providerId,
+          avatarUrl: profile.photos?.[0]?.value ?? null,
+          firebaseUid: null,
+        },
+      });
+    }
+
+    // ถ้ายังไม่มี firebaseUid → ให้สร้างและบันทึก
+    if (!user.firebaseUid) {
+      try {
+        const firebaseUid = String(user.id);
+
+        await this.prisma.user.update({
+          where: { id: user.id },
+          data: { firebaseUid },
+        });
+
+        user.firebaseUid = firebaseUid;
+      } catch (err) {
+        this.logger.error('Failed to set firebaseUid for Facebook user');
+        throw new Error('Failed to set firebaseUid');
+      }
+    }
+
+    return user;
   }
 
-  // ถ้ายังไม่มี firebaseUid → ให้สร้างและบันทึก
-  if (!user.firebaseUid) {
-    try {
-      const firebaseUid = String(user.id);
+  // ==========================================
+  // Hybrid OAuth
+  // ==========================================
+  async getOrCreateOAuthUser(
+    provider: 'facebook' | 'google',
+    providerId: string,
+    email?: string,
+    name?: string,
+    picture?: string,
+  ): Promise<string> {
+    // protect against empty email from OAuth provider
+    const safeEmail =
+      email && email.trim().length > 0
+        ? email
+        : `${provider}-${providerId}@placeholder.local`;
 
+    // Check if this OAuth account already exists
+    let user = await this.prisma.user.findFirst({
+      where: { provider, providerId },
+    });
+
+    // ================================
+    // Create new OAuth user (first login)
+    // ================================
+    if (!user) {
+      // Auto-generate unique username
+      let baseUsername = `${provider}_${providerId}`.toLowerCase();
+      let username = baseUsername;
+      let counter = 1;
+
+      // Prevent duplicate username
+      while (
+        await this.prisma.user.findUnique({
+          where: { username },
+        })
+      ) {
+        username = `${baseUsername}_${counter++}`;
+      }
+
+      // OAuth users don't use password → create placeholder hash
+      const placeholderPassword = await hashPassword(randomUUID());
+
+      user = await this.prisma.user.create({
+        data: {
+          email: safeEmail,
+          name: name || '',
+          username,
+          password: placeholderPassword,
+          provider,
+          providerId,
+          avatarUrl: picture || null,
+          firebaseUid: null,
+        },
+      });
+    }
+
+    // ====================================
+    // Generate firebaseUid on first OAuth login
+    // ====================================
+    const firebaseUid = user.firebaseUid || `oauth_${provider}_${user.id}`;
+
+    // Save firebaseUid only once
+    if (!user.firebaseUid) {
       await this.prisma.user.update({
         where: { id: user.id },
         data: { firebaseUid },
       });
-
-      user.firebaseUid = firebaseUid;
-    } catch (err) {
-      this.logger.error('Failed to set firebaseUid for Facebook user');
-      throw new Error('Failed to set firebaseUid');
-    }
-  }
-
-  return user;
-}
-  // ==========================================
-  // Hybrid OAuth
-  // ==========================================
-async getOrCreateOAuthUser(
-  provider: 'facebook' | 'google',
-  providerId: string,
-  email?: string,
-  name?: string,
-  picture?: string,
-): Promise<string> {
-  // protect against empty email from OAuth provider
-  const safeEmail =
-    email && email.trim().length > 0
-      ? email
-      : `${provider}-${providerId}@placeholder.local`;
-
-  // Check if this OAuth account already exists
-  let user = await this.prisma.user.findFirst({
-    where: { provider, providerId },
-  });
-
-  // ================================
-  // Create new OAuth user (first login)
-  // ================================
-  if (!user) {
-    // Auto-generate unique username
-    let baseUsername = `${provider}_${providerId}`.toLowerCase();
-    let username = baseUsername;
-    let counter = 1;
-
-    // Prevent duplicate username
-    while (
-      await this.prisma.user.findUnique({
-        where: { username },
-      })
-    ) {
-      username = `${baseUsername}_${counter++}`;
     }
 
-    // OAuth users don't use password → create placeholder hash
-    const placeholderPassword = await hashPassword(randomUUID());
-
-    user = await this.prisma.user.create({
-      data: {
-        email: safeEmail,
-        name: name || '',
-        username,
-        password: placeholderPassword,
-        provider,
-        providerId,
-        avatarUrl: picture || null,
-        firebaseUid: null,
-      },
-    });
+    return firebaseUid;
   }
-
-  // ====================================
-  // Generate firebaseUid on first OAuth login
-  // ====================================
-  const firebaseUid = user.firebaseUid || `oauth_${provider}_${user.id}`;
-
-  // Save firebaseUid only once
-  if (!user.firebaseUid) {
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: { firebaseUid },
-    });
-  }
-
-  return firebaseUid;
-}
-
 
   // ==========================================
   // ADDED FUNCTION (ตามคำขอ)
@@ -595,10 +589,28 @@ async getOrCreateOAuthUser(
       throw new Error(`Invalid UID for Firebase custom token: "${uid}"`);
     }
 
-    return this.firebase.auth().createCustomToken(uid, {
-      email: user.email,
-      provider: user.provider,
-    });
+    // Build custom claims safely: include email if present, include provider only if known.
+    const claims: Record<string, any> = {};
+
+    if (user && typeof user === 'object') {
+      if (user.email && typeof user.email === 'string') {
+        claims.email = user.email;
+      }
+      // prefer explicit provider field
+      if (user.provider && typeof user.provider === 'string') {
+        claims.provider = user.provider;
+      } else {
+        // try to infer provider from uid pattern if possible (non-invasive)
+        if (uid.startsWith('oauth_google') || uid.startsWith('google:')) {
+          claims.provider = 'google';
+        } else if (uid.startsWith('oauth_facebook') || uid.startsWith('facebook:')) {
+          claims.provider = 'facebook';
+        }
+      }
+    }
+
+    // createCustomToken accepts additional claims (safe to pass empty object)
+    return this.firebase.auth().createCustomToken(uid, claims);
   }
 
   verifyIdToken(idToken: string) {

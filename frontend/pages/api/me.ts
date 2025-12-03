@@ -42,13 +42,13 @@ export default async function handler(req: NextApiRequest, res: NextApiResponse)
     return res.status(200).json({
       ok: true,
       note: "This Next.js API route is not connected to backend auth. Use backend route for real authentication.",
-      recommendedAuthEndpoint: `${API_BASE}/auth/local/session-check`,
+      recommendedAuthEndpoint: `${API_BASE}/auth/session-check`,
 
       hybridOAuth: {
-        googleLogin: `${API_BASE}/auth/local/google?origin=${encodeURIComponent(
+        googleLogin: `${API_BASE}/auth/google?origin=${encodeURIComponent(
           SITE_ORIGIN
         )}`,
-        facebookLogin: `${API_BASE}/auth/local/facebook?origin=${encodeURIComponent(
+        facebookLogin: `${API_BASE}/auth/facebook?origin=${encodeURIComponent(
           SITE_ORIGIN
         )}`,
       },

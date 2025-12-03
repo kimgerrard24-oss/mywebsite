@@ -10,7 +10,8 @@ export type RateLimitAction =
   | 'followUser'
   | 'unfollowUser'
   | 'messagingSend'
-  | 'ip';
+  | 'ip'
+  | 'oauth';
 
 /**
  * ค่า policy สำหรับแต่ละ action
@@ -33,7 +34,7 @@ export const RateLimitPolicy: Record<
 
   // Auth-related actions (security goal: block brute-force)
   login: { points: 5, duration: 60 },       // 5 ครั้ง / นาที
-  
+
   // ปรับให้เหมาะสม (กัน brute-force + ไม่ block ผู้ใช้จริงง่ายเกินไป)
   register: { points: 10, duration: 600 },  // 10 ครั้ง / 10 นาที
 
@@ -49,4 +50,7 @@ export const RateLimitPolicy: Record<
 
   // Messaging (anti-bot spam)
   messagingSend: { points: 60, duration: 60 },
+
+  // NEW: Social Login (Google, Facebook, OAuth2 redirects)
+  oauth: { points: 20, duration: 60 }, // 20 ครั้ง / นาที
 };

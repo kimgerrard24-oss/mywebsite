@@ -46,16 +46,16 @@ export class AuthRateLimitGuard implements CanActivate {
       return true;
     }
 
-    if (path === '/auth/local/session-check' || path.startsWith('/auth/local/session-check')) {
+    if (path === '/auth/session-check' || path.startsWith('/auth/session-check')) {
       return true;
     }
 
     const oauthExact = new Set([
-      '/auth/local/google',
-      '/auth/local/google/callback',
-      '/auth/local/facebook',
-      '/auth/local/facebook/callback',
-      '/auth/local/complete',
+      '/auth/google',
+      '/auth/google/callback',
+      '/auth/facebook',
+      '/auth/facebook/callback',
+      '/auth/complete',
     ]);
 
     if (oauthExact.has(path)) {
@@ -63,11 +63,11 @@ export class AuthRateLimitGuard implements CanActivate {
     }
 
     if (
-      path.startsWith('/auth/local/google/callback') ||
-      path.startsWith('/auth/local/facebook/callback') ||
-      path.startsWith('/auth/local/google') ||
-      path.startsWith('/auth/local/facebook') ||
-      path.startsWith('/auth/local/complete')
+      path.startsWith('/auth/google/callback') ||
+      path.startsWith('/auth/facebook/callback') ||
+      path.startsWith('/auth/google') ||
+      path.startsWith('/auth/facebook') ||
+      path.startsWith('/auth/complete')
     ) {
       return true;
     }

@@ -78,7 +78,7 @@ export const client = {
 // FIXED: correct backend endpoint (/auth/complete)
 // ==================================================
 export async function createSessionCookie(idToken: string) {
-  return jsonFetch<{ ok: true }>(apiPath("/auth/local/complete"), {
+  return jsonFetch<{ ok: true }>(apiPath("/auth/complete"), {
     method: "POST",
     body: JSON.stringify({ idToken }),
     credentials: "include",
@@ -86,7 +86,7 @@ export async function createSessionCookie(idToken: string) {
 }
 
 export async function logout(): Promise<{ ok: true } | void> {
-  return jsonFetch(apiPath("/auth/local/logout"), {
+  return jsonFetch(apiPath("/auth/logout"), {
     method: "POST",
     credentials: "include",
   });
@@ -98,7 +98,7 @@ export async function logout(): Promise<{ ok: true } | void> {
 export async function sessionCheckServerSide(
   cookieHeader?: string
 ): Promise<{ valid: boolean; user?: any } | null> {
-  const url = apiPath("/auth/local/session-check");
+  const url = apiPath("/auth/session-check");
 
   const res = await fetch(url, {
     method: "GET",
@@ -136,7 +136,7 @@ export async function sessionCheckClient(): Promise<{
   valid: boolean;
   user?: any;
 }> {
-  const url = apiPath("/auth/local/session-check");
+  const url = apiPath("/auth/session-check");
   const data = (await jsonFetch(url, { credentials: "include" })) as Record<
     string,
     any
@@ -150,7 +150,7 @@ export async function sessionCheckClient(): Promise<{
 
 // ==================================================
 export async function verifyEmail(token: string, uid: string) {
-  return jsonFetch(apiPath(`/auth/local/verify-email?token=${token}&uid=${uid}`), {
+  return jsonFetch(apiPath(`/auth/verify-email?token=${token}&uid=${uid}`), {
     method: "GET",
     credentials: "include",
   });

@@ -25,7 +25,7 @@ export function useAuth() {
 
     async function load() {
       try {
-        const res = await axios.get(`${API_BASE}/auth/local/session-check`, {
+        const res = await axios.get(`${API_BASE}/auth/session-check`, {
           withCredentials: true,
         });
 
@@ -93,7 +93,7 @@ export function useAuth() {
   const signOut = async () => {
     try {
       await axios.post(
-        `${API_BASE}/auth/local/logout`,
+        `${API_BASE}/auth/logout`,
         {},
         { withCredentials: true }
       );

@@ -179,12 +179,12 @@ async function bootstrap(): Promise<void> {
 
     if (/(\/auth\/?complete)/i.test(googleProviderRedirect)) {
       logger.warn(
-        'GOOGLE_PROVIDER_REDIRECT_AFTER_LOGIN contains path like /auth/local/complete — this may cause duplicated redirects',
+        'GOOGLE_PROVIDER_REDIRECT_AFTER_LOGIN contains path like /auth/complete — this may cause duplicated redirects',
       );
     }
     if (/(\/auth\/?complete)/i.test(facebookProviderRedirect)) {
       logger.warn(
-        'FACEBOOK_PROVIDER_REDIRECT_AFTER_LOGIN contains path like /auth/local/complete — this may cause duplicated redirects',
+        'FACEBOOK_PROVIDER_REDIRECT_AFTER_LOGIN contains path like /auth/complete — this may cause duplicated redirects',
       );
     }
   } catch (e) {

@@ -44,6 +44,9 @@ export class FirebaseAuthGuard implements CanActivate {
     const rawUrl = req.originalUrl || req.url || '';
     const url = rawUrl.split('?')[0].toLowerCase();
 
+    // ============================================
+    // UPDATED: Public URL Prefixes (Social Login)
+    // ============================================
     const publicPrefixes = [
       '/system-check',
       '/health',
@@ -56,10 +59,11 @@ export class FirebaseAuthGuard implements CanActivate {
       '/health/socket',
       '/health/r2',
 
+      // local auth (unchanged)
       '/auth/local/google',
       '/auth/local/google/callback',
       '/auth/local/google/redirect',
-      '/auth/localfacebook',
+      '/auth/local/facebook',
       '/auth/local/facebook/callback',
       '/auth/local/facebook/redirect',
       '/auth/local/session',
@@ -68,12 +72,37 @@ export class FirebaseAuthGuard implements CanActivate {
       '/auth/local/complete',
       '/auth/local/firebase',
 
+      // API style local auth (unchanged)
       '/api/auth/local/google',
       '/api/auth/local/google/callback',
       '/api/auth/local/facebook',
       '/api/auth/local/facebook/callback',
       '/api/auth/local/complete',
-      '/api/auth/localfirebase',
+      '/api/auth/local/firebase',
+      'api/auth/local/session',
+
+      // ============================================
+      // NEW: Social Login (no /local) – required for new controller
+      // ============================================
+      '/auth/google',
+      '/auth/google/callback',
+      '/auth/google/redirect',
+      '/auth/facebook',
+      '/auth/facebook/callback',
+      '/auth/facebook/redirect',
+      '/auth/session',
+      '/auth/logout',
+      '/auth/config',
+      '/auth/complete',
+      '/auth/firebase',
+
+      '/api/auth/google',
+      '/api/auth/google/callback',
+      '/api/auth/facebook',
+      '/api/auth/facebook/callback',
+      '/api/auth/complete',
+      '/api/auth/firebase',
+      'api/auth/session',
     ];
 
     if (publicPrefixes.some((p) => url.startsWith(p))) {

@@ -46,7 +46,7 @@ export default function HomePage() {
             if (!u) return;
             const idToken = await u.getIdToken(true);
 
-            await fetch(`${backend}/auth/local/complete`, {
+            await fetch(`${backend}/auth/complete`, {
               method: "POST",
               credentials: "include",
               headers: { "Content-Type": "application/json" },
@@ -61,7 +61,7 @@ export default function HomePage() {
         // ถ้า user มีแล้ว
         const idToken = await user.getIdToken(true);
 
-        await fetch(`${backend}/auth/local/complete`, {
+        await fetch(`${backend}/auth/complete`, {
           method: "POST",
           credentials: "include",
           headers: { "Content-Type": "application/json" },
@@ -91,7 +91,7 @@ export default function HomePage() {
     e.preventDefault();
 
     try {
-      await fetch(`${backend}/auth/loacal/login`, {
+      await fetch(`${backend}/auth/login`, {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -108,11 +108,11 @@ export default function HomePage() {
   // FIX: เปลี่ยนเป็น route ที่ถูกต้อง
   // ==================================================
   const loginWithGoogle = () => {
-    window.location.href = `${backend}/auth/local/google`;
+    window.location.href = `${backend}/auth/google`;
   };
 
   const loginWithFacebook = () => {
-    window.location.href = `${backend}/auth/local/facebook`;
+    window.location.href = `${backend}/auth/facebook`;
   };
 
   return (

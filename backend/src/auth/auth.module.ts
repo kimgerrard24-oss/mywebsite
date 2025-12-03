@@ -4,6 +4,7 @@ import { Module } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
+import { SocialAuthController } from './social.controller';
 import { SecretsModule } from '../secrets/secrets.module';
 import { FirebaseAdminModule } from '../firebase/firebase.module';
 import { PrismaModule } from '../prisma/prisma.module';
@@ -43,7 +44,10 @@ import { FirebaseAuthGuard } from './firebase-auth.guard';
     },
   ],
 
-  controllers: [AuthController],
+  controllers: [
+    AuthController,
+    SocialAuthController
+  ],
 
   exports: [FirebaseAuthGuard, AuthService],
 })

@@ -25,7 +25,7 @@ export default function AuthCheckPage() {
   // ==============================================
   const checkSession = async () => {
     try {
-      const res = await axios.get(`${API_BASE}/auth/local/session-check`, {
+      const res = await axios.get(`${API_BASE}/auth/session-check`, {
         withCredentials: true,
       });
 
@@ -35,7 +35,7 @@ export default function AuthCheckPage() {
         return;
       }
 
-      const retry = await axios.get(`${API_BASE}/auth/local/session-check`, {
+      const retry = await axios.get(`${API_BASE}/auth/session-check`, {
         withCredentials: true,
       });
 
@@ -51,11 +51,11 @@ export default function AuthCheckPage() {
   };
 
   const googleLogin = () => {
-    window.location.href = `${API_BASE}/auth/local/google`;
+    window.location.href = `${API_BASE}/auth/google`;
   };
 
   const facebookLogin = () => {
-    window.location.href = `${API_BASE}/auth/local/facebook`;
+    window.location.href = `${API_BASE}/auth/facebook`;
   };
 
   // ======================================
@@ -64,7 +64,7 @@ export default function AuthCheckPage() {
   const logout = async () => {
     try {
       await axios.post(
-        `${API_BASE}/auth/local/logout`,
+        `${API_BASE}/auth/logout`,
         {},
         { withCredentials: true }
       );
