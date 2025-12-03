@@ -20,6 +20,7 @@ import { AuthRepository } from './auth.repository';
 import { RegisterDto } from './dto/register.dto';
 import { hashPassword } from './untils/password.util';
 import { randomUUID } from 'crypto';
+import { MailService } from '../mail/mail.service';
 
 interface GoogleOAuthConfig {
   clientId: string;
@@ -37,13 +38,15 @@ interface FacebookOAuthConfig {
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
 
-  constructor(
-    private readonly prisma: PrismaService,
-    private readonly firebase: FirebaseAdminService,
-    private readonly secretsService: SecretsService,
-    private readonly authLogger: AuthLoggerService, 
-    private readonly repo: AuthRepository,
-  ) {}
+constructor(
+  private readonly prisma: PrismaService,
+  private readonly firebase: FirebaseAdminService,
+  private readonly secretsService: SecretsService,
+  private readonly authLogger: AuthLoggerService, 
+  private readonly repo: AuthRepository,
+  private readonly _mailService: MailService,
+) {}
+
 
   // -------------------------------------------------------
   // Utility สำหรับ Local Auth
@@ -246,116 +249,31 @@ export class AuthService {
   // -------------------------------------------------------
   // Verify Email (Local)
   // -------------------------------------------------------
-  async verifyEmailLocal(uid: string, token: string) {
-    const user = await this.prisma.user.findUnique({ where: { id: uid } });
+async verifyEmailLocal(uid: string, token: string) {
+  const user = await this.prisma.user.findUnique({ where: { id: uid } });
 
-    if (!user || !user.emailVerifyTokenHash || !user.emailVerifyTokenExpires) {
-      throw new BadRequestException('Invalid token');
-    }
-
-    if (user.emailVerifyTokenExpires < new Date()) {
-      throw new BadRequestException('Token expired');
-    }
-
-    const ok = await this.compareHash(token, user.emailVerifyTokenHash);
-    if (!ok) throw new BadRequestException('Invalid token');
-
-    await this.prisma.user.update({
-      where: { id: uid },
-      data: {
-        isEmailVerified: true,
-        emailVerifyTokenHash: null,
-        emailVerifyTokenExpires: null,
-      },
-    });
-
-    return { ok: true };
+  if (!user || !user.emailVerifyTokenHash || !user.emailVerifyTokenExpires) {
+    throw new BadRequestException('Invalid token');
   }
 
-  private normalizeRedirectUri(raw: string): string {
-    if (!raw) return raw;
-    let v = raw.trim();
-    v = v.replace(/\?{2,}/g, '');
-    v = v.replace(/([^:]\/)\/+/g, '$1');
-    return v;
+  if (user.emailVerifyTokenExpires < new Date()) {
+    throw new BadRequestException('Token expired');
   }
 
-  async getGoogleConfig(): Promise<GoogleOAuthConfig> {
-    const raw = await this.secretsService.getOAuthSecrets();
+  const ok = await this.compareHash(token, user.emailVerifyTokenHash);
+  if (!ok) throw new BadRequestException('Invalid token');
 
-    const envRedirect =
-      process.env.GOOGLE_CALLBACK_URL ||
-      process.env.GOOGLE_REDIRECT_URL ||
-      process.env.GOOGLE_REDIRECT_URI ||
-      '';
+  await this.prisma.user.update({
+    where: { id: uid },
+    data: {
+      isEmailVerified: true,
+      emailVerifyTokenHash: null,
+      emailVerifyTokenExpires: null,
+    },
+  });
 
-    const redirectUriRaw =
-      envRedirect ||
-      raw?.GOOGLE_CALLBACK_URL ||
-      raw?.GOOGLE_REDIRECT_URL ||
-      raw?.redirectUri ||
-      '';
-
-    const clientId =
-      process.env.GOOGLE_CLIENT_ID ||
-      raw?.GOOGLE_CLIENT_ID ||
-      raw?.clientId ||
-      '';
-
-    const clientSecret =
-      process.env.GOOGLE_CLIENT_SECRET ||
-      raw?.GOOGLE_CLIENT_SECRET ||
-      raw?.clientSecret ||
-      '';
-
-    const redirectUri = this.normalizeRedirectUri(redirectUriRaw);
-
-    if (!clientId || !clientSecret || !redirectUri) {
-      throw new Error(
-        `Missing Google OAuth configuration. Check env or AWS secret "${process.env.AWS_OAUTH_SECRET_NAME}".`,
-      );
-    }
-
-    return { clientId, clientSecret, redirectUri };
-  }
-
-  async getFacebookConfig(): Promise<FacebookOAuthConfig> {
-    const raw = await this.secretsService.getOAuthSecrets();
-
-    const envRedirect =
-      process.env.FACEBOOK_CALLBACK_URL ||
-      process.env.FACEBOOK_REDIRECT_URL ||
-      '';
-
-    const redirectUriRaw =
-      envRedirect ||
-      raw?.FACEBOOK_CALLBACK_URL ||
-      raw?.FACEBOOK_REDIRECT_URL ||
-      raw?.redirectUri ||
-      '';
-
-    const clientId =
-      process.env.FACEBOOK_CLIENT_ID ||
-      raw?.FACEBOOK_CLIENT_ID ||
-      raw?.clientId ||
-      '';
-
-    const clientSecret =
-      process.env.FACEBOOK_CLIENT_SECRET ||
-      raw?.FACEBOOK_CLIENT_SECRET ||
-      raw?.clientSecret ||
-      '';
-
-    const redirectUri = this.normalizeRedirectUri(redirectUriRaw);
-
-    if (!clientId || !clientSecret || !redirectUri) {
-      throw new Error(
-        `Missing Facebook OAuth configuration. Check env or AWS secret "${process.env.AWS_OAUTH_SECRET_NAME}".`,
-      );
-    }
-
-    return { clientId, clientSecret, redirectUri };
-  }
+  return { ok: true };
+}
 
   // ==========================================
   // GOOGLE

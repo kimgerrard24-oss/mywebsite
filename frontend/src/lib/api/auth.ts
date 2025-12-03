@@ -20,3 +20,10 @@ export async function registerUser(body: {
 
   return res.data;
 }
+
+// Added verifyEmail function
+export const verifyEmail = async (token: string) => {
+  return axios.get(`${API}/auth/local/verify-email?token=${token}`, {
+    withCredentials: true,
+  });
+};

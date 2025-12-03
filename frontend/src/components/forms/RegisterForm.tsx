@@ -1,7 +1,7 @@
 // frontend/src/components/forms/RegisterForm.tsx
 
 import { useState, useEffect, useRef } from 'react';
-import { registerUser } from '@/lib/api/auth';
+import axios from 'axios';
 
 declare global {
   interface Window {
@@ -11,12 +11,6 @@ declare global {
 }
 
 export default function RegisterForm() {
-  const [form, setForm] = useState({
-    email: '',
-    username: '',
-    password: '',
-  });
-
   const [message, setMessage] = useState('');
   const turnstileRef = useRef<HTMLDivElement | null>(null);
   const widgetId = useRef<any>(null);
@@ -44,15 +38,16 @@ export default function RegisterForm() {
     return () => clearInterval(interval);
   }, []);
 
-  async function handleSubmit(e: React.FormEvent) {
+  // Handle Register Submission
+  const handleSubmit = async (e: any) => {
     e.preventDefault();
 
-    // Execute invisible widget to generate a token
+    // Execute Turnstile challenge
     if (window.turnstile && widgetId.current) {
       window.turnstile.execute(widgetId.current);
     }
 
-    // Wait a moment for token to be generated
+    // Wait for token generation
     await new Promise((resolve) => setTimeout(resolve, 300));
 
     const turnstileToken = window.turnstileToken;
@@ -61,31 +56,37 @@ export default function RegisterForm() {
       return;
     }
 
+    // Extract form fields
+    const form = new FormData(e.target);
+    const payload = {
+      email: form.get('email'),
+      username: form.get('username'),
+      password: form.get('password'),
+      turnstileToken, // required for backend verification
+    };
+
     try {
-      // *** STEP 3 — ส่ง turnstileToken ไป Backend ***
-      const res = await registerUser({
-        email: form.email,
-        username: form.username,
-        password: form.password,
-        turnstileToken,     // << ====== ส่ง token ตรงนี้ ======
-      });
-
-      setMessage(res.message || 'Registered successfully');
+      await axios.post(
+        `${process.env.NEXT_PUBLIC_BACKEND_URL}/auth/local/register`,
+        payload
+      );
+      setMessage('Registration successful. Please check your email to verify.');
     } catch (err: any) {
-      setMessage(err.response?.data?.message || 'Registration failed');
+      setMessage(
+        err?.response?.data?.message || 'Registration failed.'
+      );
     } finally {
-      // Reset Token
+      // Reset token
       window.turnstileToken = null;
-
       if (window.turnstile && widgetId.current) {
         window.turnstile.reset(widgetId.current);
       }
     }
-  }
+  };
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
-
+      
       {/* Invisible Turnstile Element */}
       <div ref={turnstileRef} />
 
@@ -93,9 +94,9 @@ export default function RegisterForm() {
         <span>Email</span>
         <input
           required
+          name="email"
           type="email"
           className="w-full p-2 border rounded"
-          onChange={(e) => setForm({ ...form, email: e.target.value })}
         />
       </label>
 
@@ -103,8 +104,8 @@ export default function RegisterForm() {
         <span>Username</span>
         <input
           required
+          name="username"
           className="w-full p-2 border rounded"
-          onChange={(e) => setForm({ ...form, username: e.target.value })}
         />
       </label>
 
@@ -112,9 +113,9 @@ export default function RegisterForm() {
         <span>Password</span>
         <input
           required
+          name="password"
           type="password"
           className="w-full p-2 border rounded"
-          onChange={(e) => setForm({ ...form, password: e.target.value })}
         />
       </label>
 

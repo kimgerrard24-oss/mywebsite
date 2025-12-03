@@ -18,6 +18,7 @@ import { JwtStrategy } from './jwt.strategy';
 import { AuthRepository } from './auth.repository';
 import { PrismaService } from '../prisma/prisma.service';
 import { FirebaseAuthGuard } from './firebase-auth.guard';
+import { MailModule } from '../mail/mail.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { FirebaseAuthGuard } from './firebase-auth.guard';
     PrismaModule,
     RedisModule,
     RateLimitModule,
+    MailModule,
   ],
 
   providers: [

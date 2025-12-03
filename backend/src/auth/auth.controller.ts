@@ -21,7 +21,6 @@ import { AuthService } from './auth.service';
 import { Response, Request } from 'express';
 import IORedis from 'ioredis';
 import axios from 'axios';
-
 import { RateLimitContext } from '../common/rate-limit/rate-limit.decorator';
 import { AuthRateLimitGuard } from '../common/rate-limit/auth-rate-limit.guard';
 import { Public } from './decorators/public.decorator';
@@ -113,7 +112,6 @@ export class AuthController {
       throw new BadRequestException('Server missing Turnstile secret key');
     }
 
-    // Verify with Cloudflare
     const verify = await axios.post(
       'https://challenges.cloudflare.com/turnstile/v0/siteverify',
       `secret=${encodeURIComponent(secret)}&response=${encodeURIComponent(
@@ -257,14 +255,16 @@ export class AuthController {
   }
 
   @Get('verify-email')
-  async localVerifyEmail(
-    @Query('uid') uid: string,
-    @Query('token') token: string,
-  ) {
+  async verifyEmail(@Query('uid') uid: string, @Query('token') token: string) {
     if (!uid || !token) {
-      return { error: 'Missing uid or token' };
+      throw new BadRequestException('Missing verification token or uid');
     }
 
-    return this.auth.verifyEmailLocal(uid, token);
+    const result = await this.auth.verifyEmailLocal(uid, token);
+
+    return {
+      message: 'Email verified successfully',
+      result,
+    };
   }
 }

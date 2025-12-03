@@ -15,6 +15,7 @@ CREATE TABLE "User" (
     "currentRefreshTokenHash" TEXT,
     "emailVerifyTokenHash" TEXT,
     "emailVerifyTokenExpires" TIMESTAMP(3),
+    "active" BOOLEAN NOT NULL DEFAULT true,
     "passwordResetTokenHash" TEXT,
     "passwordResetTokenExpires" TIMESTAMP(3),
     "isEmailVerified" BOOLEAN NOT NULL DEFAULT false,

@@ -25,6 +25,7 @@ model User {
   currentRefreshTokenHash   String?
   emailVerifyTokenHash      String?
   emailVerifyTokenExpires   DateTime?
+  active                    Boolean        @default(true)
   passwordResetTokenHash    String?
   passwordResetTokenExpires DateTime?
   isEmailVerified           Boolean        @default(false)
