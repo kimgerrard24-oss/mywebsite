@@ -19,11 +19,10 @@ export class RegisterDto {
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsString()
   @IsNotEmpty({ message: 'Username is required' })
-  @MinLength(3, { message: 'Username must be at least 3 characters' })
+  @MinLength(6, { message: 'Username must be at least 6 characters' })
   @MaxLength(30, { message: 'Username must not exceed 30 characters' })
-  @Matches(/^[a-zA-Z0-9._-]+$/, {
-    message:
-      'Username may contain only letters, numbers, dot, underscore, and hyphen',
+  @Matches(/^[a-z0-9]+$/, {
+    message: 'Username may contain only lowercase letters and numbers',
   })
   username!: string;
 
