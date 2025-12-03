@@ -36,7 +36,6 @@ export class AuthRateLimitGuard implements CanActivate {
     const res = context.switchToHttp().getResponse<Response>();
     const path = (req.path || '').toLowerCase();
 
-    // Internal health
     const internal = req.headers['x-internal-health'];
     if (
       internal &&
@@ -47,7 +46,6 @@ export class AuthRateLimitGuard implements CanActivate {
       return true;
     }
 
-    // Health bypass
     if (
       path === '/system-check' ||
       path === '/system-check/' ||
@@ -58,12 +56,10 @@ export class AuthRateLimitGuard implements CanActivate {
       return true;
     }
 
-    // Session-check bypass
     if (path.startsWith('/auth/session-check')) {
       return true;
     }
 
-    // OAuth bypass
     if (
       path.startsWith('/auth/google') ||
       path.startsWith('/auth/facebook') ||
@@ -72,12 +68,14 @@ export class AuthRateLimitGuard implements CanActivate {
       return true;
     }
 
-    // IMPORTANT:
-    // Local auth should be limited ONLY by action-level limit
+    // Bypass for actual endpoints
+    if (path.startsWith('/auth/register')) return true;
+    if (path.startsWith('/auth/login')) return true;
+
+    // Local auth bypass (OAuth flows)
     if (path.startsWith('/auth/local/login')) return true;
     if (path.startsWith('/auth/local/register')) return true;
 
-    // Determine action
     const action =
       this.reflector.get<RateLimitAction>(
         RATE_LIMIT_CONTEXT_KEY,
@@ -87,8 +85,6 @@ export class AuthRateLimitGuard implements CanActivate {
     if (!action) return true;
 
     const ip = this.extractRealIp(req);
-
-    // Local auth = custom key (prevent mixing with other traffic)
     const key = `${action}:${ip}`;
 
     try {

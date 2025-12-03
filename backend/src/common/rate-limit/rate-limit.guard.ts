@@ -46,7 +46,6 @@ export class RateLimitGuard implements CanActivate {
     const res = context.switchToHttp().getResponse<Response>();
     const path = (req.path || '').toLowerCase();
 
-    // Internal health
     const internal = req.headers['x-internal-health'];
     if (
       internal &&
@@ -57,7 +56,6 @@ export class RateLimitGuard implements CanActivate {
       return true;
     }
 
-    // Health bypass
     if (
       path === '/system-check' ||
       path === '/system-check/' ||
@@ -68,7 +66,6 @@ export class RateLimitGuard implements CanActivate {
       return true;
     }
 
-    // OAuth bypass
     if (
       path.startsWith('/auth/google') ||
       path.startsWith('/auth/facebook') ||
@@ -77,28 +74,26 @@ export class RateLimitGuard implements CanActivate {
       return true;
     }
 
-    // Session-check bypass
     if (path.startsWith('/auth/session-check')) {
       return true;
     }
 
-    // VERY IMPORTANT:
-    // Local auth must not pass through this global guard
+    // Bypass for real endpoints
+    if (path.startsWith('/auth/register')) return true;
+    if (path.startsWith('/auth/login')) return true;
+
+    // Local-only auth bypass
     if (path.startsWith('/auth/local/login')) return true;
     if (path.startsWith('/auth/local/register')) return true;
 
-    // Determine explicit action
     const action = this.reflector.get<RateLimitAction>(
       RATE_LIMIT_CONTEXT_KEY,
       context.getHandler(),
     );
 
-    // If no @RateLimitContext → bypass
     if (!action) return true;
 
     const ip = this.extractRealIp(req);
-
-    // Global usage = ip:key
     const key = `ip:${ip}`;
 
     try {

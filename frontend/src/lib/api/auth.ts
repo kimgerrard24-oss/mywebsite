@@ -13,7 +13,7 @@ export async function registerUser(body: {
   username: string;
   password: string;
 }) {
-  const res = await axios.post(`${API}/auth/local/register`, body, {
+  const res = await axios.post(`${API}/auth/register`, body, {
     withCredentials: true,
   });
 
