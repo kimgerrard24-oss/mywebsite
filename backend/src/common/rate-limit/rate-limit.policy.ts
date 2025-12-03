@@ -17,40 +17,50 @@ export type RateLimitAction =
  * ค่า policy สำหรับแต่ละ action
  * points = จำนวนครั้งที่อนุญาตภายใน duration
  * duration = หน่วยเป็นวินาที
- *
- * หมายเหตุ:
- * - ip-level limit ใช้กับ unauthenticated user
- * - login/register ต้องกัน brute-force
  */
 export const RateLimitPolicy: Record<
   RateLimitAction,
   { points: number; duration: number }
 > = {
   /**
-   * Global IP-level rate limit
-   * - ใช้กับ unauthenticated requests เช่น register/login ก่อนสร้าง session
+   * Global IP-level rate limit (unauthenticated)
    */
-  ip: { points: 1500, duration: 60 }, // 1500 requests / minute ต่อ 1 IP
+  ip: { points: 1500, duration: 60 },
 
-  // Auth-related actions (security goal: block brute-force)
-  login: { points: 5, duration: 60 },       // 5 ครั้ง / นาที
+  /**
+   * Auth brute-force protection
+   */
+  login: { points: 5, duration: 60 },
 
-  // ปรับให้เหมาะสม (กัน brute-force + ไม่ block ผู้ใช้จริงง่ายเกินไป)
-  register: { points: 10, duration: 600 },  // 10 ครั้ง / 10 นาที
+  /**
+   * แก้ไขตรงนี้ — register ต้องไม่หนักเกินไปจน block ผู้ใช้จริง
+   * เดิม 10 ครั้ง / 10 นาที ทำให้โดน block ง่ายเกินไป
+   * ใช้รูปแบบที่ปลอดภัยและใช้งานจริงทั่วโลก:
+   * 6 ครั้ง / 1 นาที
+   */
+  register: { points: 6, duration: 60 },
 
-  resetPassword: { points: 3, duration: 3600 }, // 3 ครั้ง / ชั่วโมง
+  resetPassword: { points: 3, duration: 3600 },
 
-  // Posting actions (anti-spam)
+  /**
+   * Posting limits
+   */
   postCreate: { points: 15, duration: 60 },
   commentCreate: { points: 30, duration: 60 },
 
-  // Social actions
+  /**
+   * Social actions
+   */
   followUser: { points: 50, duration: 3600 },
   unfollowUser: { points: 50, duration: 3600 },
 
-  // Messaging (anti-bot spam)
+  /**
+   * Messaging (anti bot)
+   */
   messagingSend: { points: 60, duration: 60 },
 
-  // NEW: Social Login (Google, Facebook, OAuth2 redirects)
-  oauth: { points: 20, duration: 60 }, // 20 ครั้ง / นาที
+  /**
+   * OAuth (Google/Facebook redirect)
+   */
+  oauth: { points: 20, duration: 60 },
 };

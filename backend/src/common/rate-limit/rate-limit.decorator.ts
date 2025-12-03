@@ -2,29 +2,32 @@
 import { SetMetadata } from '@nestjs/common';
 import { RateLimitAction } from './rate-limit.policy';
 
-// Metadata key ที่ guard ใช้อ่าน action
+// Metadata key used by RateLimitGuard / AuthRateLimitGuard
 export const RATE_LIMIT_CONTEXT_KEY = 'RATE_LIMIT_CONTEXT';
+
+// Explicit constant for ignoring rate-limit
+export const RATE_LIMIT_IGNORE = 'IGNORE_RATE_LIMIT';
 
 /**
  * RateLimitContext(action)
- * ใช้กำหนด action ให้ RateLimitGuard รู้ว่าต้องใช้ policy ใด
+ * Example:
+ *   @RateLimit('register')
  */
 export const RateLimitContext = (action: RateLimitAction) =>
   SetMetadata(RATE_LIMIT_CONTEXT_KEY, action);
 
 /**
- * Alias ที่ใช้จริงใน Controller
- * เช่น: @RateLimit('register')
+ * Alias: @RateLimit('register')
  */
 export const RateLimit = RateLimitContext;
 
 /**
  * RateLimitIgnore()
- * ใช้เพื่อบอก Guard ว่า endpoint นี้ "ไม่ต้องตรวจ rate-limit"
+ * Mark this endpoint to bypass all rate-limits
  *
- * เช่น:
+ * Example:
  *   @RateLimitIgnore()
  *   @Get('health')
  */
 export const RateLimitIgnore = () =>
-  SetMetadata(RATE_LIMIT_CONTEXT_KEY, null);
+  SetMetadata(RATE_LIMIT_CONTEXT_KEY, RATE_LIMIT_IGNORE);

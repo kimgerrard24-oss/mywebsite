@@ -1,51 +1,82 @@
 import { Injectable, Logger } from '@nestjs/common';
 import * as Sentry from '@sentry/node';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class AuthLoggerService {
   private readonly logger = new Logger('AuthEvent');
 
+  private getRealIp(ip: string): string {
+    if (!ip) return '';
+    if (ip.includes(',')) return ip.split(',')[0].trim();
+    return ip.replace('::ffff:', '').trim();
+  }
+
+  private hash(value: string): string {
+    return crypto.createHash('sha256').update(value).digest('hex');
+  }
+
   logLoginSuccess(userId: string, ip: string) {
-    this.logger.log(`LOGIN_SUCCESS user=${userId} ip=${ip}`);
+    const realIp = this.getRealIp(ip);
+
+    this.logger.log(`LOGIN_SUCCESS user=${userId} ip=${realIp}`);
+
     Sentry.addBreadcrumb({
       category: 'auth',
       message: 'LOGIN_SUCCESS',
       level: 'info',
-      data: { userId, ip },
+      data: { userId, ip: realIp },
     });
   }
 
   logLoginFail(email: string, ip: string) {
-    this.logger.warn(`LOGIN_FAIL email=${email} ip=${ip}`);
-    Sentry.captureMessage('LOGIN_FAIL', {
+    const realIp = this.getRealIp(ip);
+    const hashedEmail = this.hash(email);
+
+    this.logger.warn(`LOGIN_FAIL emailHash=${hashedEmail} ip=${realIp}`);
+
+    Sentry.captureEvent({
+      message: 'LOGIN_FAIL',
       level: 'warning',
-      extra: { email, ip },
+      extra: { emailHash: hashedEmail, ip: realIp },
     });
   }
 
   logSuspiciousLogin(userId: string, ip: string, reason: string) {
+    const realIp = this.getRealIp(ip);
+
     this.logger.warn(
-      `SUSPICIOUS_LOGIN user=${userId} ip=${ip} reason=${reason}`,
+      `SUSPICIOUS_LOGIN user=${userId} ip=${realIp} reason=${reason}`,
     );
-    Sentry.captureMessage('SUSPICIOUS_LOGIN', {
+
+    Sentry.captureEvent({
+      message: 'SUSPICIOUS_LOGIN',
       level: 'warning',
-      extra: { userId, ip, reason },
+      extra: { userId, ip: realIp, reason },
     });
   }
 
   logRateLimitHit(ip: string, path: string) {
-    this.logger.warn(`RATE_LIMIT_HIT ip=${ip} path=${path}`);
-    Sentry.captureMessage('RATE_LIMIT_HIT', {
+    const realIp = this.getRealIp(ip);
+
+    this.logger.warn(`RATE_LIMIT_HIT ip=${realIp} path=${path}`);
+
+    Sentry.captureEvent({
+      message: 'RATE_LIMIT_HIT',
       level: 'warning',
-      extra: { ip, path },
+      extra: { ip: realIp, path },
     });
   }
 
   logJwtInvalid(tokenId: string, reason: string) {
-    this.logger.error(`JWT_INVALID token=${tokenId} reason=${reason}`);
-    Sentry.captureMessage('JWT_INVALID_SIGNATURE', {
+    const hashedToken = this.hash(tokenId);
+
+    this.logger.error(`JWT_INVALID tokenHash=${hashedToken} reason=${reason}`);
+
+    Sentry.captureEvent({
+      message: 'JWT_INVALID_SIGNATURE',
       level: 'error',
-      extra: { tokenId, reason },
+      extra: { tokenHash: hashedToken, reason },
     });
   }
 }

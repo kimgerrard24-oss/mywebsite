@@ -12,20 +12,21 @@ import { AuthRateLimitGuard } from './auth-rate-limit.guard';
     RateLimitService,
     Reflector,
 
+    // AuthRateLimitGuard ต้องทำงานก่อน RateLimitGuard
+    {
+      provide: APP_GUARD,
+      useClass: AuthRateLimitGuard,
+    },
+
     // Global rate-limit guard สำหรับ @RateLimitContext
     {
       provide: APP_GUARD,
       useClass: RateLimitGuard,
     },
-
-    // AuthRateLimitGuard ใช้เฉพาะ login/register
-    // ไม่ทำเป็น Global Guard
-    AuthRateLimitGuard,
   ],
 
   exports: [
     RateLimitService,
-    AuthRateLimitGuard,   // ให้ AuthModule ใช้ได้
   ],
 })
 export class RateLimitModule {}

@@ -30,10 +30,6 @@ export class RateLimitService implements OnModuleDestroy {
           points: config.points,
           duration: config.duration,
           blockDuration: 0,
-          execEvenly: false,
-          inMemoryBlockOnConsumed: 0,
-          inMemoryBlockDuration: 0,
-          insuranceLimiter: undefined,
         });
 
         this.limiters.set(action as RateLimitAction, limiter);
@@ -64,17 +60,19 @@ export class RateLimitService implements OnModuleDestroy {
       };
     }
 
-    // ------------------------------------------------------------
-    // Normalize only IP:port formats, not user:* or ip:*
-    // ------------------------------------------------------------
-    let sanitizedKey = key;
+    /**
+     * NORMALIZE KEY — FIX
+     * Only allow:
+     *   user:<id>
+     *   ip:<ipv4>
+     * 
+     * Remove port, "::ffff:" prefix, etc.
+     */
+    let sanitizedKey = key.trim();
 
-    if (
-      typeof sanitizedKey === 'string' &&
-      (/^\d{1,3}(\.\d{1,3}){3}:\d+$/.test(sanitizedKey) ||
-        /^::ffff:\d{1,3}(\.\d{1,3}){3}:\d+$/.test(sanitizedKey))
-    ) {
-      sanitizedKey = sanitizedKey.replace(/:\d+$/, '');
+    if (sanitizedKey.startsWith('ip:')) {
+      const pureIp = sanitizedKey.replace('ip:', '').trim();
+      sanitizedKey = `ip:${pureIp.replace(/^::ffff:/, '').replace(/:\d+$/, '')}`;
     }
 
     try {
@@ -89,9 +87,8 @@ export class RateLimitService implements OnModuleDestroy {
         reset: resetSec,
       };
     } catch (err: any) {
-      const retryAfterSec = err?.msBeforeNext
-        ? Math.ceil(err.msBeforeNext / 1000)
-        : 60;
+      const retryAfterSec =
+        err?.msBeforeNext ? Math.ceil(err.msBeforeNext / 1000) : 60;
 
       this.logger.warn(
         `Rate limit exceeded for action="${action}", key="${sanitizedKey}", retryAfterSec=${retryAfterSec}`,
@@ -108,7 +105,7 @@ export class RateLimitService implements OnModuleDestroy {
 
   async onModuleDestroy() {
     try {
-      // No resources to cleanup
+      // nothing to clean
     } catch (err) {
       this.logger.error('Error during RateLimitService shutdown', err as any);
     }

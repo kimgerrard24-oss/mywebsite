@@ -19,23 +19,35 @@ export class AuthRateLimitGuard implements CanActivate {
     private readonly reflector: Reflector,
   ) {}
 
+  private extractRealIp(req: Request): string {
+    const xff = req.headers['x-forwarded-for'];
+    if (typeof xff === 'string') {
+      return xff.split(',')[0].trim().replace(/^::ffff:/, '');
+    }
+    const ip =
+      req.socket?.remoteAddress ||
+      req.ip ||
+      '';
+    return String(ip).replace(/^::ffff:/, '');
+  }
+
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const req = context.switchToHttp().getRequest<Request>();
     const res = context.switchToHttp().getResponse<Response>();
+    const path = (req.path || '').toLowerCase();
 
-    const rawPath = req.path || '';
-    const path = rawPath.toLowerCase();
-
-    const internalToken = req.headers['x-internal-health'];
+    // Internal health
+    const internal = req.headers['x-internal-health'];
     if (
-      internalToken &&
-      typeof internalToken === 'string' &&
+      internal &&
+      typeof internal === 'string' &&
       process.env.INTERNAL_HEALTH_TOKEN &&
-      internalToken === process.env.INTERNAL_HEALTH_TOKEN
+      internal === process.env.INTERNAL_HEALTH_TOKEN
     ) {
       return true;
     }
 
+    // Health bypass
     if (
       path === '/system-check' ||
       path === '/system-check/' ||
@@ -46,25 +58,13 @@ export class AuthRateLimitGuard implements CanActivate {
       return true;
     }
 
-    if (path === '/auth/session-check' || path.startsWith('/auth/session-check')) {
+    // Session-check bypass
+    if (path.startsWith('/auth/session-check')) {
       return true;
     }
 
-    const oauthExact = new Set([
-      '/auth/google',
-      '/auth/google/callback',
-      '/auth/facebook',
-      '/auth/facebook/callback',
-      '/auth/complete',
-    ]);
-
-    if (oauthExact.has(path)) {
-      return true;
-    }
-
+    // OAuth bypass
     if (
-      path.startsWith('/auth/google/callback') ||
-      path.startsWith('/auth/facebook/callback') ||
       path.startsWith('/auth/google') ||
       path.startsWith('/auth/facebook') ||
       path.startsWith('/auth/complete')
@@ -72,43 +72,24 @@ export class AuthRateLimitGuard implements CanActivate {
       return true;
     }
 
-    const xff = Array.isArray(req.headers['x-forwarded-for'])
-      ? req.headers['x-forwarded-for'][0]
-      : req.headers['x-forwarded-for'];
+    // IMPORTANT:
+    // Local auth should be limited ONLY by action-level limit
+    if (path.startsWith('/auth/local/login')) return true;
+    if (path.startsWith('/auth/local/register')) return true;
 
-    const rawIp =
-      (xff?.split(',')?.[0]?.trim()) ||
-      (req.socket?.remoteAddress as string | undefined) ||
-      (req.ip as string | undefined) ||
-      '';
-
-    const ip = String(rawIp).replace(/^::ffff:/, '');
-
+    // Determine action
     const action =
       this.reflector.get<RateLimitAction>(
         RATE_LIMIT_CONTEXT_KEY,
         context.getHandler(),
       ) || null;
 
-    if (!action) {
-      return true;
-    }
+    if (!action) return true;
 
-    let userKey: string | null = null;
-    try {
-      userKey =
-        (req as any).user?.id ||
-        (req as any).user?.uid ||
-        (req as any).auth?.uid ||
-        null;
-    } catch {
-      userKey = null;
-    }
+    const ip = this.extractRealIp(req);
 
-    // Fixed: Always prefix user or ip to avoid merging keys
-    const key = userKey
-      ? `user:${userKey}`
-      : `ip:${ip}`;
+    // Local auth = custom key (prevent mixing with other traffic)
+    const key = `${action}:${ip}`;
 
     try {
       const info = await this.rlService.consume(action, key);
@@ -119,19 +100,18 @@ export class AuthRateLimitGuard implements CanActivate {
 
       return true;
     } catch (err: any) {
-      const retryAfterSec =
+      const retry =
         typeof err?.retryAfterSec === 'number' ? err.retryAfterSec : 60;
 
-      res.setHeader('Retry-After', String(retryAfterSec));
-      res.setHeader('X-RateLimit-Limit', String(err?.limit ?? 0));
+      res.setHeader('Retry-After', retry);
+      res.setHeader('X-RateLimit-Limit', err?.limit ?? 0);
       res.setHeader('X-RateLimit-Remaining', '0');
-      res.setHeader('X-RateLimit-Reset', String(retryAfterSec));
+      res.setHeader('X-RateLimit-Reset', retry);
 
       res.status(429).json({
         statusCode: 429,
         message: 'Too many requests. Please slow down.',
       });
-
       return false;
     }
   }

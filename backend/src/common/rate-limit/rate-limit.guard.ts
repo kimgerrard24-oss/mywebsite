@@ -1,4 +1,5 @@
-// files src/common/rate-limit/rate-limit.guard.ts
+// src/common/rate-limit/rate-limit.guard.ts
+
 import {
   CanActivate,
   ExecutionContext,
@@ -28,23 +29,35 @@ export class RateLimitGuard implements CanActivate {
     private readonly reflector: Reflector,
   ) {}
 
+  private extractRealIp(req: Request): string {
+    const xff = req.headers['x-forwarded-for'];
+    if (typeof xff === 'string') {
+      return xff.split(',')[0].trim().replace(/^::ffff:/, '');
+    }
+    const ip =
+      req.socket?.remoteAddress ||
+      req.ip ||
+      '';
+    return String(ip).replace(/^::ffff:/, '');
+  }
+
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const req = context.switchToHttp().getRequest<Request>();
     const res = context.switchToHttp().getResponse<Response>();
+    const path = (req.path || '').toLowerCase();
 
-    const rawPath = req.path || '';
-    const path = rawPath.toLowerCase();
-
-    const internalToken = req.headers['x-internal-health'];
+    // Internal health
+    const internal = req.headers['x-internal-health'];
     if (
-      internalToken &&
-      typeof internalToken === 'string' &&
+      internal &&
+      typeof internal === 'string' &&
       process.env.INTERNAL_HEALTH_TOKEN &&
-      internalToken === process.env.INTERNAL_HEALTH_TOKEN
+      internal === process.env.INTERNAL_HEALTH_TOKEN
     ) {
       return true;
     }
 
+    // Health bypass
     if (
       path === '/system-check' ||
       path === '/system-check/' ||
@@ -55,18 +68,7 @@ export class RateLimitGuard implements CanActivate {
       return true;
     }
 
-    const oauthExact = new Set([
-      '/auth/google',
-      '/auth/google/callback',
-      '/auth/facebook',
-      '/auth/facebook/callback',
-      '/auth/complete',
-    ]);
-
-    if (oauthExact.has(path)) {
-      return true;
-    }
-
+    // OAuth bypass
     if (
       path.startsWith('/auth/google') ||
       path.startsWith('/auth/facebook') ||
@@ -75,69 +77,51 @@ export class RateLimitGuard implements CanActivate {
       return true;
     }
 
-    if (
-      path === '/auth/session-check' ||
-      path.startsWith('/auth/session-check')
-    ) {
+    // Session-check bypass
+    if (path.startsWith('/auth/session-check')) {
       return true;
     }
 
-    const rawIp =
-      (req.headers['x-forwarded-for'] as string)?.split(',')[0]?.trim() ||
-      req.socket.remoteAddress ||
-      req.ip ||
-      '';
-    const ip = rawIp.replace('::ffff:', '');
+    // VERY IMPORTANT:
+    // Local auth must not pass through this global guard
+    if (path.startsWith('/auth/local/login')) return true;
+    if (path.startsWith('/auth/local/register')) return true;
 
-    let action: RateLimitAction =
-      this.reflector.get<RateLimitAction>(
-        RATE_LIMIT_CONTEXT_KEY,
-        context.getHandler(),
-      ) || 'ip';
+    // Determine explicit action
+    const action = this.reflector.get<RateLimitAction>(
+      RATE_LIMIT_CONTEXT_KEY,
+      context.getHandler(),
+    );
 
+    // If no @RateLimitContext → bypass
+    if (!action) return true;
 
-    let userId: string | null = null;
+    const ip = this.extractRealIp(req);
 
-    try {
-      userId =
-        (req as any).user?.id ||
-        (req as any).user?.uid ||
-        (req as any).auth?.uid ||
-        null;
-    } catch {
-      userId = null;
-    }
-
-    const key = userId ? `user:${userId}` : `ip:${ip}`;
+    // Global usage = ip:key
+    const key = `ip:${ip}`;
 
     try {
-      const result: RateLimitConsumeResult = await this.rlService.consume(
+      const info: RateLimitConsumeResult = await this.rlService.consume(
         action,
         key,
       );
 
-      res.setHeader('X-RateLimit-Limit', String(result.limit));
-      res.setHeader('X-RateLimit-Remaining', String(result.remaining));
-      res.setHeader('X-RateLimit-Reset', String(result.reset));
-
+      res.setHeader('X-RateLimit-Limit', info.limit);
+      res.setHeader('X-RateLimit-Remaining', info.remaining);
+      res.setHeader('X-RateLimit-Reset', info.reset);
       return true;
     } catch (err: any) {
-      const retryAfterSec =
+      const retry =
         typeof err?.retryAfterSec === 'number' ? err.retryAfterSec : 60;
 
-      res.setHeader('Retry-After', String(retryAfterSec));
-      res.setHeader('X-RateLimit-Reset', String(retryAfterSec));
-
-      const limit =
-        typeof err?.limit === 'number' ? err.limit : undefined;
-
-      if (limit !== undefined) {
-        res.setHeader('X-RateLimit-Limit', String(limit));
-        res.setHeader('X-RateLimit-Remaining', '0');
-      }
+      res.setHeader('Retry-After', retry);
+      res.setHeader('X-RateLimit-Limit', err?.limit ?? 0);
+      res.setHeader('X-RateLimit-Remaining', '0');
+      res.setHeader('X-RateLimit-Reset', retry);
 
       this.logger.warn(
-        `Rate limit blocked: action="${action}" key="${key}" ip="${ip}" retryAfter=${retryAfterSec}`,
+        `Rate limit blocked: action="${action}" key="${key}" ip="${ip}" retryAfter=${retry}`,
       );
 
       res.status(429).json({
