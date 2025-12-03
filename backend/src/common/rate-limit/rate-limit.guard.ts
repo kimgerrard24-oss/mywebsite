@@ -56,11 +56,6 @@ export class RateLimitGuard implements CanActivate {
     }
 
     const oauthExact = new Set([
-      '/auth/google',
-      '/auth/google/callback',
-      '/auth/facebook',
-      '/auth/facebook/callback',
-      '/auth/complete',
       '/auth/local/google',
       '/auth/local/google/callback',
       '/auth/local/facebook',
