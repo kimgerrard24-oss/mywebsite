@@ -246,7 +246,7 @@ export class SocialAuthController {
 
       const redirectUri = normalizeRedirectUri(
         process.env.FACEBOOK_CALLBACK_URL ||
-          `https://api.phlyphant.com/auth/local/facebook/callback`,
+          `https://api.phlyphant.com/auth/facebook/callback`,
       );
 
       const params = new URLSearchParams({
@@ -336,7 +336,7 @@ export class SocialAuthController {
       const clientSecret = process.env.FACEBOOK_CLIENT_SECRET || '';
       const redirectUri = normalizeRedirectUri(
         process.env.FACEBOOK_CALLBACK_URL ||
-          `https://api.phlyphant.com/auth/local/facebook/callback`,
+          `https://api.phlyphant.com/auth/facebook/callback`,
       );
 
       const tokenRes = await axios.get(
