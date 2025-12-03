@@ -69,9 +69,7 @@ export class SocialAuthController {
 
   constructor(private readonly auth: AuthService) {}
 
-  // -------------------------
-  // GOOGLE AUTH START
-  // -------------------------
+  // GOOGLE OAuth Start
   @RateLimit('oauth')
   @RateLimitContext('oauth')
   @UseGuards(AuthRateLimitGuard)
@@ -83,7 +81,15 @@ export class SocialAuthController {
 
       const state = crypto.randomBytes(16).toString('hex');
       const stateKey = `oauth_state_${state}`;
-      await redis.setex(stateKey, 300, '1');
+
+      try {
+        await redis.setex(stateKey, 300, '1');
+        this.logger.log(`[googleAuth] set redis key ${stateKey}`);
+      } catch (rErr) {
+        this.logger.warn(`[googleAuth] redis set failed: ${String(rErr)}`);
+      }
+
+      res.setHeader('Access-Control-Allow-Credentials', 'true');
 
       res.cookie('oauth_state', state, {
         httpOnly: true,
@@ -97,7 +103,8 @@ export class SocialAuthController {
       const clientId = process.env.GOOGLE_CLIENT_ID || '';
       const redirectUri = normalizeRedirectUri(
         process.env.GOOGLE_CALLBACK_URL ||
-          'https://api.phlyphant.com/auth/google/callback',
+          process.env.GOOGLE_REDIRECT_URL ||
+          '',
       );
 
       const params = new URLSearchParams({
@@ -109,18 +116,17 @@ export class SocialAuthController {
         prompt: 'select_account',
       });
 
-      return res.redirect(
-        `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`,
-      );
+      const authUrl =
+        `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
+
+      return res.redirect(authUrl);
     } catch (e: any) {
       this.logger.error('[googleAuth] error: ' + e.message);
       return res.status(500).send('Google auth error');
     }
   }
 
-  // -------------------------
-  // GOOGLE CALLBACK
-  // -------------------------
+  // GOOGLE OAuth Callback
   @Get('google/callback')
   async googleCallback(@Req() req: Request, @Res() res: Response) {
     try {
@@ -131,11 +137,22 @@ export class SocialAuthController {
         return res.status(400).send('Missing code or state');
       }
 
+      const storedStateCookie = req.cookies?.oauth_state || null;
       const redisKey = `oauth_state_${returnedState}`;
       const redisState = await redis.get(redisKey);
 
-      if (!redisState) return res.status(400).send('Invalid state');
-      await redis.del(redisKey).catch(() => {});
+      let validState = false;
+
+      if (redisState === '1') {
+        validState = true;
+        await redis.del(redisKey).catch(() => {});
+      } else if (storedStateCookie && storedStateCookie === returnedState) {
+        validState = true;
+      }
+
+      if (!validState) {
+        return res.status(400).send('Invalid or expired state');
+      }
 
       res.clearCookie('oauth_state', {
         domain: process.env.COOKIE_DOMAIN || '.phlyphant.com',
@@ -151,15 +168,20 @@ export class SocialAuthController {
           code,
           client_id: process.env.GOOGLE_CLIENT_ID || '',
           client_secret: process.env.GOOGLE_CLIENT_SECRET || '',
-          redirect_uri:
+          redirect_uri: normalizeRedirectUri(
             process.env.GOOGLE_CALLBACK_URL ||
-            'https://api.phlyphant.com/auth/google/callback',
+              process.env.GOOGLE_REDIRECT_URL ||
+              '',
+          ),
           grant_type: 'authorization_code',
         }).toString(),
-        { headers: { 'Content-Type': 'application/x-www-form-urlencoded' } },
+        {
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        },
       );
 
       const accessToken = tokenRes.data.access_token;
+
       const infoRes = await axios.get(
         'https://www.googleapis.com/oauth2/v3/userinfo',
         {
@@ -170,17 +192,20 @@ export class SocialAuthController {
       const profile = infoRes.data;
 
       const firebaseUid =
-        profile.sub || profile.id || `google:${profile.email}`;
+        profile.sub ||
+        profile.id ||
+        `google:${profile.email || crypto.randomUUID()}`;
 
       const customToken = await this.auth.createFirebaseCustomToken(
         firebaseUid,
         profile,
       );
 
-      const finalUrl = buildFinalUrl(
-        process.env.GOOGLE_PROVIDER_REDIRECT_AFTER_LOGIN,
-        customToken,
-      );
+      const redirectBase =
+        process.env.GOOGLE_PROVIDER_REDIRECT_AFTER_LOGIN ||
+        'https://www.phlyphant.com';
+
+      const finalUrl = buildFinalUrl(redirectBase, customToken);
 
       return res.redirect(finalUrl);
     } catch (err: any) {
@@ -189,9 +214,7 @@ export class SocialAuthController {
     }
   }
 
-  // -------------------------
-  // FACEBOOK AUTH START
-  // -------------------------
+  // FACEBOOK OAuth Start
   @RateLimit('oauth')
   @RateLimitContext('oauth')
   @UseGuards(AuthRateLimitGuard)
@@ -203,7 +226,12 @@ export class SocialAuthController {
 
       const state = crypto.randomBytes(16).toString('hex');
       const stateKey = `oauth_state_${state}`;
-      await redis.setex(stateKey, 300, '1');
+
+      try {
+        await redis.setex(stateKey, 300, '1');
+      } catch {}
+
+      res.setHeader('Access-Control-Allow-Credentials', 'true');
 
       res.cookie('oauth_state', state, {
         httpOnly: true,
@@ -218,7 +246,7 @@ export class SocialAuthController {
 
       const redirectUri = normalizeRedirectUri(
         process.env.FACEBOOK_CALLBACK_URL ||
-          `https://api.phlyphant.com/auth/facebook/callback`,
+          `https://api.phlyphant.com/auth/local/facebook/callback`,
       );
 
       const params = new URLSearchParams({
@@ -229,18 +257,17 @@ export class SocialAuthController {
         state,
       });
 
-      return res.redirect(
-        `https://www.facebook.com/v12.0/dialog/oauth?${params.toString()}`,
-      );
+      const authUrl =
+        `https://www.facebook.com/v12.0/dialog/oauth?${params.toString()}`;
+
+      return res.redirect(authUrl);
     } catch (e: any) {
       this.logger.error('[facebookAuth] error: ' + e.message);
       return res.status(500).send('Facebook auth error');
     }
   }
 
-  // -------------------------
-  // FACEBOOK CALLBACK
-  // -------------------------
+  // FACEBOOK OAuth Callback
   @Get('facebook/callback')
   async facebookCallback(@Req() req: Request, @Res() res: Response) {
     try {
@@ -252,11 +279,50 @@ export class SocialAuthController {
       }
 
       const returnedState = normalizeOAuthState(returnedStateRaw);
-      const redisKey = `oauth_state_${returnedState}`;
-      const redisState = await redis.get(redisKey);
+      const storedStateCookieRaw = req.cookies?.oauth_state || null;
+      const storedStateCookie = normalizeOAuthState(storedStateCookieRaw);
 
-      if (!redisState) return res.status(400).send('Invalid state');
-      await redis.del(redisKey).catch(() => {});
+      const redisKeyRaw = `oauth_state_${returnedStateRaw}`;
+      const redisKeyNorm = `oauth_state_${returnedState}`;
+
+      let redisState: string | null = null;
+
+      try {
+        redisState = await redis.get(redisKeyRaw);
+        if (!redisState) redisState = await redis.get(redisKeyNorm);
+      } catch {}
+
+      let validState = false;
+
+      if (redisState === '1') {
+        validState = true;
+        try {
+          await redis.del(redisKeyRaw);
+        } catch {}
+        try {
+          await redis.del(redisKeyNorm);
+        } catch {}
+      }
+
+      if (!validState) {
+        if (
+          storedStateCookieRaw &&
+          storedStateCookieRaw === returnedStateRaw
+        ) {
+          validState = true;
+        } else if (
+          storedStateCookieRaw &&
+          storedStateCookieRaw === returnedState
+        ) {
+          validState = true;
+        } else if (storedStateCookie && storedStateCookie === returnedState) {
+          validState = true;
+        }
+      }
+
+      if (!validState) {
+        return res.status(400).send('Invalid or expired state');
+      }
 
       res.clearCookie('oauth_state', {
         domain: process.env.COOKIE_DOMAIN || '.phlyphant.com',
@@ -268,10 +334,10 @@ export class SocialAuthController {
 
       const clientId = process.env.FACEBOOK_CLIENT_ID || '';
       const clientSecret = process.env.FACEBOOK_CLIENT_SECRET || '';
-
-      const redirectUri =
+      const redirectUri = normalizeRedirectUri(
         process.env.FACEBOOK_CALLBACK_URL ||
-        `https://api.phlyphant.com/auth/facebook/callback`;
+          `https://api.phlyphant.com/auth/local/facebook/callback`,
+      );
 
       const tokenRes = await axios.get(
         'https://graph.facebook.com/v12.0/oauth/access_token',
@@ -309,10 +375,11 @@ export class SocialAuthController {
         profile,
       );
 
-      const finalUrl = buildFinalUrl(
-        process.env.FACEBOOK_PROVIDER_REDIRECT_AFTER_LOGIN,
-        customToken,
-      );
+      const redirectBase =
+        process.env.FACEBOOK_PROVIDER_REDIRECT_AFTER_LOGIN ||
+        'https://www.phlyphant.com';
+
+      const finalUrl = buildFinalUrl(redirectBase, customToken);
 
       return res.redirect(finalUrl);
     } catch (err: any) {
@@ -321,12 +388,10 @@ export class SocialAuthController {
     }
   }
 
-  // -------------------------
-  // SESSION COOKIE CREATOR
-  // -------------------------
+  // CREATE SESSION COOKIE
   @Post('complete')
   async complete(@Body() body: any, @Res() res: Response) {
-    const idToken = body?.idToken;
+    const idToken = body?.idToken as string | undefined;
 
     if (!idToken) {
       return res.status(400).json({ error: 'Missing idToken' });
@@ -337,23 +402,25 @@ export class SocialAuthController {
         process.env.SESSION_COOKIE_MAX_AGE_MS || 432000000,
       );
 
-      const sessionCookie = await admin
-        .auth()
-        .createSessionCookie(idToken, { expiresIn });
+      const sessionCookie = await admin.auth().createSessionCookie(idToken, {
+        expiresIn,
+      });
 
       const cookieName = process.env.SESSION_COOKIE_NAME || '__session';
       const cookieDomain = process.env.COOKIE_DOMAIN || '.phlyphant.com';
       const isProd = process.env.NODE_ENV === 'production';
 
-      res.cookie(cookieName, sessionCookie, {
+      const cookieOptions: any = {
         httpOnly: true,
         secure: isProd,
-        sameSite: 'none',
+        sameSite: 'None',
         domain: cookieDomain,
         path: '/',
         maxAge: expiresIn,
-        expires: new Date(Date.now() + expiresIn),
-      });
+        expires: new Date(Date.now() + Number(expiresIn)),
+      };
+
+      res.cookie(cookieName, sessionCookie, cookieOptions);
 
       return res.json({ ok: true });
     } catch (e: any) {
@@ -364,22 +431,22 @@ export class SocialAuthController {
     }
   }
 
-   // SESSION CHECK
-    @Get('session-check')
-    async sessionCheck(@Req() req: Request, @Res() res: Response) {
-      const cookie =
-        req.cookies?.__session ||
-        req.cookies?.[process.env.SESSION_COOKIE_NAME || '__session'];
-  
-      if (!cookie) {
-        return res.status(401).json({ valid: false });
-      }
-  
-      try {
-        const decoded = await admin.auth().verifySessionCookie(cookie, true);
-        return res.json({ valid: true, decoded });
-      } catch (e: any) {
-        return res.status(401).json({ valid: false });
-      }
+  // SESSION CHECK
+  @Get('session-check')
+  async sessionCheck(@Req() req: Request, @Res() res: Response) {
+    const cookie =
+      req.cookies?.__session ||
+      req.cookies?.[process.env.SESSION_COOKIE_NAME || '__session'];
+
+    if (!cookie) {
+      return res.status(401).json({ valid: false });
     }
+
+    try {
+      const decoded = await admin.auth().verifySessionCookie(cookie, true);
+      return res.json({ valid: true, decoded });
+    } catch (e: any) {
+      return res.status(401).json({ valid: false });
+    }
+  }
 }
