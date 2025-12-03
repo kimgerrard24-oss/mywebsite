@@ -1,5 +1,3 @@
-// src/common/rate-limit/auth-rate-limit.guard.ts
-
 import {
   CanActivate,
   ExecutionContext,
@@ -36,7 +34,6 @@ export class AuthRateLimitGuard implements CanActivate {
     const res = context.switchToHttp().getResponse<Response>();
     const path = (req.path || '').toLowerCase();
 
-    // Internal health bypass (trusted internal requests)
     const internal = req.headers['x-internal-health'];
     if (
       internal &&
@@ -47,7 +44,6 @@ export class AuthRateLimitGuard implements CanActivate {
       return true;
     }
 
-    // Health / system-check endpoints are always allowed
     if (
       path === '/system-check' ||
       path === '/system-check/' ||
@@ -58,12 +54,10 @@ export class AuthRateLimitGuard implements CanActivate {
       return true;
     }
 
-    // session-check is public endpoint
     if (path.startsWith('/auth/session-check')) {
       return true;
     }
 
-    // OAuth flows (external redirects) should be bypassed here
     if (
       path.startsWith('/auth/google') ||
       path.startsWith('/auth/facebook') ||
@@ -72,19 +66,17 @@ export class AuthRateLimitGuard implements CanActivate {
       return true;
     }
 
-    // NOTE:
-    // Do NOT bypass frontend routes like '/auth/register' or '/auth/login' here.
-    // Those paths belong to the frontend and should not create unintended bypasses
-    // for API rate-limiting if new API endpoints are added with the same prefix.
+    // IMPORTANT – real API must be bypassed
+    if (path.startsWith('/auth/local/login')) return true;
+    if (path.startsWith('/auth/local/register')) return true;
+    if (path.startsWith('/auth/local/refresh')) return true;
 
-    // Determine action from decorator (action-level rate limits)
     const action =
       this.reflector.get<RateLimitAction>(
         RATE_LIMIT_CONTEXT_KEY,
         context.getHandler(),
       ) || null;
 
-    // If no action declared → bypass (not every route needs rate limiting)
     if (!action) return true;
 
     const ip = this.extractRealIp(req);
