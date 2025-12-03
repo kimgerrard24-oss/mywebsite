@@ -7,6 +7,7 @@ import {
   MaxLength,
   Matches,
   IsNotEmpty,
+  IsOptional,
 } from 'class-validator';
 import { Transform } from 'class-transformer';
 
@@ -36,4 +37,8 @@ export class RegisterDto {
       'Password must contain at least one uppercase letter, one lowercase letter, and one number',
   })
   password!: string;
+
+  @IsOptional()
+  @IsString()
+  turnstileToken?: string;
 }

@@ -1,4 +1,5 @@
 // src/auth/auth.controller.ts
+
 import {
   Controller,
   Get,
@@ -15,9 +16,12 @@ import {
   UseGuards,
   BadRequestException,
 } from '@nestjs/common';
+
 import { AuthService } from './auth.service';
 import { Response, Request } from 'express';
 import IORedis from 'ioredis';
+import axios from 'axios';
+
 import { RateLimitContext } from '../common/rate-limit/rate-limit.decorator';
 import { AuthRateLimitGuard } from '../common/rate-limit/auth-rate-limit.guard';
 import { Public } from './decorators/public.decorator';
@@ -48,14 +52,12 @@ function normalizeOAuthState(raw?: string | null): string {
   s = s.replace(/%2B/gi, '+');
   s = s.replace(/%3D/gi, '=');
   s = s.replace(/%2F/gi, '/');
-
   s = s.replace(/^["']|["']$/g, '').trim();
   s = s.replace(/([^:]\/)\/+/g, '$1');
 
   return s;
 }
 
-// fixed: remove /auth/local/complete → now only used for local flows safely
 function buildFinalUrl(
   redirectBase: string | undefined,
   customToken: string,
@@ -92,14 +94,42 @@ export class AuthController {
       forbidNonWhitelisted: true,
       transform: true,
       exceptionFactory: (errors) => {
-        const messages = errors.flatMap(err =>
-          Object.values(err.constraints || {})
+        const messages = errors.flatMap((err) =>
+          Object.values(err.constraints || {}),
         );
         return new BadRequestException(messages);
       },
     }),
   )
-  async register(@Body() dto: RegisterDto) {
+  async register(@Body() dto: RegisterDto & { turnstileToken?: string }) {
+    const secret = process.env.TURNSTILE_SECRET_KEY;
+    const token = dto.turnstileToken;
+
+    if (!token) {
+      throw new BadRequestException('Missing Turnstile token');
+    }
+
+    if (!secret) {
+      throw new BadRequestException('Server missing Turnstile secret key');
+    }
+
+    // Verify with Cloudflare
+    const verify = await axios.post(
+      'https://challenges.cloudflare.com/turnstile/v0/siteverify',
+      `secret=${encodeURIComponent(secret)}&response=${encodeURIComponent(
+        token,
+      )}`,
+      {
+        headers: {
+          'content-type': 'application/x-www-form-urlencoded',
+        },
+      },
+    );
+
+    if (!verify.data.success) {
+      throw new BadRequestException('Turnstile verification failed');
+    }
+
     const user = await this.auth.register(dto);
 
     return {

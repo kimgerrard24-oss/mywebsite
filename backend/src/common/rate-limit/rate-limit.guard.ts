@@ -46,6 +46,7 @@ export class RateLimitGuard implements CanActivate {
     const res = context.switchToHttp().getResponse<Response>();
     const path = (req.path || '').toLowerCase();
 
+    // Internal health bypass (trusted internal requests)
     const internal = req.headers['x-internal-health'];
     if (
       internal &&
@@ -56,6 +57,7 @@ export class RateLimitGuard implements CanActivate {
       return true;
     }
 
+    // Health / system-check endpoints are always allowed
     if (
       path === '/system-check' ||
       path === '/system-check/' ||
@@ -66,6 +68,7 @@ export class RateLimitGuard implements CanActivate {
       return true;
     }
 
+    // OAuth flows should be bypassed by global guard
     if (
       path.startsWith('/auth/google') ||
       path.startsWith('/auth/facebook') ||
@@ -74,15 +77,18 @@ export class RateLimitGuard implements CanActivate {
       return true;
     }
 
+    // session-check is public endpoint
     if (path.startsWith('/auth/session-check')) {
       return true;
     }
 
-    // Bypass for real endpoints
-    if (path.startsWith('/auth/register')) return true;
-    if (path.startsWith('/auth/login')) return true;
+    // IMPORTANT:
+    // Do NOT bypass frontend routes like '/auth/register' or '/auth/login' here.
+    // Keep bypass for local auth endpoints only so that local auth is handled
+    // by action-level rate limits (AuthRateLimitGuard).
+    // This prevents accidental bypasses if new API endpoints are added under /auth/.
 
-    // Local-only auth bypass
+    // Local-only auth (handled by AuthRateLimitGuard / action-level limits)
     if (path.startsWith('/auth/local/login')) return true;
     if (path.startsWith('/auth/local/register')) return true;
 
@@ -91,6 +97,7 @@ export class RateLimitGuard implements CanActivate {
       context.getHandler(),
     );
 
+    // If no @RateLimit decorator => bypass global rate-limit
     if (!action) return true;
 
     const ip = this.extractRealIp(req);

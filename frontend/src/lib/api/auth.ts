@@ -12,6 +12,7 @@ export async function registerUser(body: {
   email: string;
   username: string;
   password: string;
+  turnstileToken: string;
 }) {
   const res = await axios.post(`${API}/auth/local/register`, body, {
     withCredentials: true,
