@@ -30,7 +30,7 @@ export function middleware(req: NextRequest) {
     const sessionCookie = req.cookies.get("session")?.value;
     if (!sessionCookie) {
       const url = req.nextUrl.clone();
-      url.pathname = "/auth/login";
+      url.pathname = "/auth/local/login";
       url.search = `?redirect=${encodeURIComponent(req.nextUrl.pathname)}`;
       return NextResponse.redirect(url);
     }

@@ -11,7 +11,7 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'https://api.phlyphant.
 export default function LoginButton({ provider, label }: Props) {
   const onClick = () => {
     const origin = typeof window !== 'undefined' ? window.location.origin : '';
-    const url = `${API_BASE}/auth/${provider}?origin=${encodeURIComponent(origin)}`;
+    const url = `${API_BASE}/auth/local/${provider}?origin=${encodeURIComponent(origin)}`;
     window.location.href = url;
   };
 
