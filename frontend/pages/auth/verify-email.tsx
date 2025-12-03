@@ -1,7 +1,7 @@
 // frontend/pages/auth/verify-email.tsx
 import { useRouter } from 'next/router';
 import { useEffect, useState } from 'react';
-import { verifyEmail } from '../../lib/api/auth';
+import { verifyEmail } from '@/lib/api/auth';
 
 export default function VerifyEmailPage() {
   const router = useRouter();
