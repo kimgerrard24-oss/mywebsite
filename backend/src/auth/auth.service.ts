@@ -12,7 +12,6 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { FirebaseAdminService } from '../firebase/firebase.service';
 import { SecretsService } from '../secrets/secrets.service';
-import * as bcrypt from 'bcrypt';
 import { randomBytes } from 'crypto';
 import { sign, verify } from 'jsonwebtoken';
 import { AuthLoggerService } from '../common/logging/auth-logger.service';
@@ -21,6 +20,10 @@ import { RegisterDto } from './dto/register.dto';
 import { hashPassword } from './untils/password.util';
 import { randomUUID } from 'crypto';
 import { MailService } from '../mail/mail.service';
+import { comparePassword } from './untils/password.util';
+import { AuditService } from './audit.service';
+import Redis from 'ioredis';
+
 
 interface GoogleOAuthConfig {
   clientId: string;
@@ -34,6 +37,20 @@ interface FacebookOAuthConfig {
   redirectUri: string;
 }
 
+if (!process.env.REDIS_URL) {
+  throw new Error('REDIS_URL is missing. Please set it in environment variables.');
+}
+
+const redis = new Redis(process.env.REDIS_URL, {
+  maxRetriesPerRequest: 3,
+  enableReadyCheck: true,
+  lazyConnect: false,
+});
+
+const ACCESS_TOKEN_TTL = Number(process.env.ACCESS_TOKEN_TTL_SECONDS) || 60 * 15;
+const REFRESH_TOKEN_TTL = Number(process.env.REFRESH_TOKEN_TTL_SECONDS) || 60 * 60 * 24 * 30;
+const ACCESS_TOKEN_COOKIE_NAME = process.env.ACCESS_TOKEN_COOKIE_NAME || 'phl_access';
+
 @Injectable()
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
@@ -45,29 +62,9 @@ constructor(
   private readonly authLogger: AuthLoggerService, 
   private readonly repo: AuthRepository,
   private readonly _mailService: MailService,
+  private readonly audit: AuditService,
 ) {}
 
-
-  // -------------------------------------------------------
-  // Utility สำหรับ Local Auth
-  // -------------------------------------------------------
-  private async hash(data: string) {
-    return bcrypt.hash(data, 12); // cost 12 สำหรับ production
-  }
-
-  private async compareHash(data: string, hash: string) {
-    return bcrypt.compare(data, hash);
-  }
-
-  private signAccessToken(payload: any) {
-    const secret = process.env.JWT_ACCESS_SECRET!;
-    return sign(payload, secret, { expiresIn: '15m' });
-  }
-
-  private signRefreshToken(payload: any) {
-    const secret = process.env.JWT_REFRESH_SECRET!;
-    return sign(payload, secret, { expiresIn: '30d' });
-  }
 
   // -------------------------------------------------------
   // Local Register
@@ -88,163 +85,91 @@ constructor(
   return this.repo.createUser({
     email: dto.email,
     username: dto.username,
-    password: hashed,
+    passwordHash: hashed,
     provider: 'local',
-    providerId: dto.email,  // หรือ uuid
+    providerId: dto.email,  
   });
 }
 
   // -------------------------------------------------------
   // Local Login
   // -------------------------------------------------------
-  async loginLocal(email: string, password: string, req?: any) {
-    const normalized = email.toLowerCase();
-    const user = await this.prisma.user.findUnique({ where: { email: normalized } });
-
-    if (!user || !user.hashedPassword) {
-      throw new UnauthorizedException('Invalid credentials');
+   async validateUser(email: string, password: string) {
+    const user = await this.repo.findUserByEmail(email);
+    if (!user) {
+      await this.audit.logLoginAttempt({ email, success: false, reason: 'user_not_found' });
+      return null;
     }
 
-    const valid = await this.compareHash(password, user.hashedPassword);
-    if (!valid) throw new UnauthorizedException('Invalid credentials');
+    if (user.isDisabled) {
+      await this.audit.logLoginAttempt({ userId: user.id, email, success: false, reason: 'account_disabled' });
+      throw new ForbiddenException('Account disabled');
+    }
 
-    const accessToken = this.signAccessToken({
-      sub: user.id,
-      email: user.email,
-      provider: 'local',
-    });
+    const ok = await comparePassword(password, user.passwordHash);
+    if (!ok) {
+      await this.audit.logLoginAttempt({ userId: user.id, email, success: false, reason: 'invalid_password' });
+      return null;
+    }
 
-    const refreshToken = this.signRefreshToken({ sub: user.id });
-    const refreshHash = await this.hash(refreshToken);
+    await this.repo.updateLastLogin(user.id);
+    await this.audit.logLoginAttempt({ userId: user.id, email, success: true });
 
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: { currentRefreshTokenHash: refreshHash },
-    });
+    const { passwordHash, ...safe } = user as any;
+    return safe;
+  }
 
-    this.authLogger.logLoginSuccess(user.id, req?.ip || 'unknown');
+  async createSessionToken(userId: string) {
+    const accessToken = randomBytes(32).toString('hex');
+    const key = `session:access:${accessToken}`;
+
+    const payload = { userId, createdAt: Date.now() };
+
+    await redis.set(key, JSON.stringify(payload), 'EX', ACCESS_TOKEN_TTL);
+
+    const refreshToken = randomBytes(48).toString('hex');
+    const refreshKey = `session:refresh:${refreshToken}`;
+
+    await redis.set(refreshKey, JSON.stringify({ userId }), 'EX', REFRESH_TOKEN_TTL);
 
     return {
-      user: { id: user.id, email: user.email },
       accessToken,
       refreshToken,
+      expiresIn: ACCESS_TOKEN_TTL,
     };
+  }
+
+  async validateAccessToken(token: string) {
+    const key = `session:access:${token}`;
+    const raw = await redis.get(key);
+    if (!raw) return null;
+
+    try {
+      return JSON.parse(raw);
+    } catch {
+      return null;
+    }
+  }
+
+  async revokeAccessToken(token: string) {
+    const key = `session:access:${token}`;
+    await redis.del(key);
   }
 
   // -------------------------------------------------------
   // Refresh Token (Local)
   // -------------------------------------------------------
-  async refreshLocalToken(refreshToken: string) {
-    let payload: any;
 
-    try {
-      const secret = process.env.JWT_REFRESH_SECRET!;
-      payload = verify(refreshToken, secret);
-    } catch {
-      throw new UnauthorizedException('Invalid refresh token');
-    }
-
-    const user = await this.prisma.user.findUnique({ where: { id: payload.sub } });
-    if (!user || !user.currentRefreshTokenHash) {
-      throw new UnauthorizedException('Invalid refresh token');
-    }
-
-    const ok = await this.compareHash(refreshToken, user.currentRefreshTokenHash);
-    if (!ok) {
-      await this.prisma.user.update({
-        where: { id: user.id },
-        data: { currentRefreshTokenHash: null },
-      });
-      throw new ForbiddenException('Refresh token reuse detected');
-    }
-
-    const newAccess = this.signAccessToken({
-      sub: user.id,
-      email: user.email,
-      provider: 'local',
-    });
-
-    const newRefresh = this.signRefreshToken({ sub: user.id });
-    const newRefreshHash = await this.hash(newRefresh);
-
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: { currentRefreshTokenHash: newRefreshHash },
-    });
-
-    return {
-      accessToken: newAccess,
-      refreshToken: newRefresh,
-      user: { id: user.id, email: user.email },
-    };
-  }
 
   // -------------------------------------------------------
   // Request Password Reset (Local)
   // -------------------------------------------------------
-  async requestPasswordResetLocal(email: string) {
-    const user = await this.prisma.user.findUnique({
-      where: { email: email.toLowerCase() },
-    });
 
-    if (!user) return { ok: true };
-
-    const token = randomBytes(32).toString('hex');
-    const tokenHash = await this.hash(token);
-
-    const expires = new Date(Date.now() + 60 * 60 * 1000);
-
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: {
-        passwordResetTokenHash: tokenHash,
-        passwordResetTokenExpires: expires,
-      },
-    });
-
-    const resetLink =
-      `${process.env.NEXT_PUBLIC_SITE_URL}/auth/local/reset-password?token=${token}&uid=${user.id}`;
-
-    this.logger.debug(`Password reset link: ${resetLink}`);
-
-    return { ok: true };
-  }
 
   // -------------------------------------------------------
   // Reset Password (Local)
   // -------------------------------------------------------
-  async resetPasswordLocal(uid: string, token: string, newPassword: string) {
-    const user = await this.prisma.user.findUnique({ where: { id: uid } });
-
-    if (!user || !user.passwordResetTokenHash || !user.passwordResetTokenExpires) {
-      throw new BadRequestException('Invalid token');
-    }
-
-    if (user.passwordResetTokenExpires < new Date()) {
-      throw new BadRequestException('Token expired');
-    }
-
-    const ok = await this.compareHash(token, user.passwordResetTokenHash);
-    if (!ok) throw new BadRequestException('Invalid token');
-
-    const newHash = await this.hash(newPassword);
-
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: {
-        hashedPassword: newHash,
-        passwordResetTokenHash: null,
-        passwordResetTokenExpires: null,
-      },
-    });
-
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: { currentRefreshTokenHash: null },
-    });
-
-    return { ok: true };
-  }
+ 
 
   // -------------------------------------------------------
   // Verify Email (Local)
@@ -260,7 +185,7 @@ async verifyEmailLocal(uid: string, token: string) {
     throw new BadRequestException('Token expired');
   }
 
-  const ok = await this.compareHash(token, user.emailVerifyTokenHash);
+  const ok = await comparePassword(token, user.emailVerifyTokenHash);
   if (!ok) throw new BadRequestException('Invalid token');
 
   await this.prisma.user.update({
@@ -274,6 +199,7 @@ async verifyEmailLocal(uid: string, token: string) {
 
   return { ok: true };
 }
+
 
   // ==========================================
   // GOOGLE
@@ -297,18 +223,18 @@ async findOrCreateUserFromGoogle(profile: any) {
     },
   });
 
-  // ถ้าไม่พบ → สร้าง user ใหม่
+  
   if (!user) {
     const baseUsername = `google_${providerId}`.toLowerCase();
     let username = baseUsername;
     let counter = 1;
 
-    // กัน username ซ้ำ
+   
     while (await this.prisma.user.findUnique({ where: { username } })) {
       username = `${baseUsername}_${counter++}`;
     }
 
-    // OAuth ไม่มี password → ใช้ placeholder hash
+    
     const placeholderPassword = await hashPassword(randomUUID());
 
     user = await this.prisma.user.create({
@@ -316,7 +242,7 @@ async findOrCreateUserFromGoogle(profile: any) {
         email: email ?? `no-email-google-${providerId}@placeholder.local`,
         name: profile.displayName ?? null,
         username,
-        password: placeholderPassword,
+        passwordHash: placeholderPassword,
         provider: 'google',
         providerId,
         avatarUrl: profile.photos?.[0]?.value ?? null,
@@ -325,7 +251,7 @@ async findOrCreateUserFromGoogle(profile: any) {
     });
   }
 
-  // ตั้ง firebaseUid ครั้งแรก
+  
   if (!user.firebaseUid) {
     try {
       const firebaseUid = String(user.id);
@@ -356,7 +282,6 @@ async findOrCreateUserFromFacebook(profile: any) {
 
   const providerId = profile.id;
 
-  // สร้าง OR เฉพาะ field ที่มีจริง เพื่อกัน undefined ใน array
   const orFilters: any[] = [
     { provider: 'facebook', providerId }
   ];
@@ -365,16 +290,13 @@ async findOrCreateUserFromFacebook(profile: any) {
     orFilters.push({ email });
   }
 
-  // ค้นหาผู้ใช้จาก providerId หรือ email
   let user = await this.prisma.user.findFirst({
     where: {
       OR: orFilters,
     },
   });
 
-  // ถ้ายังไม่พบ → สร้าง User ใหม่แบบ OAuth
   if (!user) {
-    // สร้าง username อัตโนมัติแบบไม่ซ้ำ
     const baseUsername = `facebook_${providerId}`.toLowerCase();
     let username = baseUsername;
     let counter = 1;
@@ -387,7 +309,6 @@ async findOrCreateUserFromFacebook(profile: any) {
       username = `${baseUsername}_${counter++}`;
     }
 
-    // Facebook ไม่มี password → ใช้ placeholder hash
     const placeholderPassword = await hashPassword(randomUUID());
 
     user = await this.prisma.user.create({
@@ -395,7 +316,7 @@ async findOrCreateUserFromFacebook(profile: any) {
         email: email ?? `no-email-facebook-${providerId}@placeholder.local`,
         name: profile.displayName ?? null,
         username,
-        password: placeholderPassword,
+        passwordHash: placeholderPassword,
         provider: 'facebook',
         providerId,
         avatarUrl: profile.photos?.[0]?.value ?? null,
@@ -404,7 +325,6 @@ async findOrCreateUserFromFacebook(profile: any) {
     });
   }
 
-  // ถ้ายังไม่มี firebaseUid → ให้สร้างและบันทึก
   if (!user.firebaseUid) {
     try {
       const firebaseUid = String(user.id);
@@ -433,13 +353,11 @@ async getOrCreateOAuthUser(
   name?: string,
   picture?: string,
 ): Promise<string> {
-  // protect against empty email from OAuth provider
   const safeEmail =
     email && email.trim().length > 0
       ? email
       : `${provider}-${providerId}@placeholder.local`;
 
-  // Check if this OAuth account already exists
   let user = await this.prisma.user.findFirst({
     where: { provider, providerId },
   });
@@ -448,12 +366,10 @@ async getOrCreateOAuthUser(
   // Create new OAuth user (first login)
   // ================================
   if (!user) {
-    // Auto-generate unique username
     let baseUsername = `${provider}_${providerId}`.toLowerCase();
     let username = baseUsername;
     let counter = 1;
 
-    // Prevent duplicate username
     while (
       await this.prisma.user.findUnique({
         where: { username },
@@ -462,7 +378,6 @@ async getOrCreateOAuthUser(
       username = `${baseUsername}_${counter++}`;
     }
 
-    // OAuth users don't use password → create placeholder hash
     const placeholderPassword = await hashPassword(randomUUID());
 
     user = await this.prisma.user.create({
@@ -470,7 +385,7 @@ async getOrCreateOAuthUser(
         email: safeEmail,
         name: name || '',
         username,
-        password: placeholderPassword,
+        passwordHash: placeholderPassword,
         provider,
         providerId,
         avatarUrl: picture || null,

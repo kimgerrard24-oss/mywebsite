@@ -3,6 +3,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import * as Sentry from '@sentry/node';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class AuditService {
@@ -11,35 +12,91 @@ export class AuditService {
   constructor(private prisma: PrismaService) {}
 
   /**
-   * Create audit log entry
+   * สร้าง audit log แบบทั่วไป (ใช้สำหรับ action อื่น ๆ)
    */
-  async createLog(
-    userId: string,
-    action: string,
-    targetId?: string | null,
-    ip?: string | null,
-    metadata?: any | null,
-  ) {
+  async createLog(params: {
+    userId: string | null;
+    action: string;
+    email: string;
+    success: boolean;
+    reason?: string | null;
+    targetId?: string | null;
+    ip?: string | null;
+    userAgent?: string | null;
+    metadata?: any | null;
+  }) {
+    const {
+      userId,
+      action,
+      email,
+      success,
+      reason = null,
+      targetId = null,
+      ip = null,
+      userAgent = null,
+      metadata = null,
+    } = params;
+
     try {
       await this.prisma.auditLog.create({
         data: {
           userId,
+          email,
           action,
+          success,
+          reason,
           targetId,
           ip,
+          userAgent,
           metadata,
         },
       });
     } catch (err: unknown) {
       const error = err as Error;
 
-      this.logger.error(
-        `Failed to create audit log: ${error.message ?? 'unknown error'}`
-      );
+      this.logger.error(`Failed to create audit log: ${error.message}`);
 
       Sentry.captureException(error, {
         tags: { module: 'audit' },
-        extra: { userId, action, targetId },
+        extra: params,
+      });
+    }
+  }
+
+  /**
+   * สำหรับ Login Attempt โดยเฉพาะ
+   * (AuthService เรียกใช้ โดยไม่ต้องส่งข้อมูลเยอะ)
+   */
+async logLoginAttempt(payload: {
+    userId?: string | null;
+    email: string;
+    ip?: string | null;
+    userAgent?: string | null;
+    success: boolean;
+    reason?: string | null;
+  }) {
+    try {
+      await this.prisma.auditLog.create({
+        data: {
+          userId: payload.userId ?? null,
+          email: payload.email,
+          action: 'login_attempt',
+          success: payload.success,
+          reason: payload.reason ?? null,
+          targetId: null,
+          ip: payload.ip ?? null,
+          userAgent: payload.userAgent ?? null,
+          metadata: Prisma.JsonNull, // ← แก้ตรงนี้
+        },
+      });
+    } catch (err) {
+      const error = err as Error;
+
+      this.logger.warn(`Audit login logging failed: ${error.message}`);
+
+      Sentry.captureException(error, {
+        tags: { module: 'audit-login' },
+        extra: payload,
       });
     }
   }

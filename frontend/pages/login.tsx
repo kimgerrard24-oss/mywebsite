@@ -5,6 +5,7 @@ import React, { useEffect } from 'react';
 import { useRouter } from 'next/router';
 import axios from 'axios';
 import Cookies from 'js-cookie';
+import LoginForm from '@/components/auth/LoginForm';
 
 // Normalize API base URL
 const API_BASE = (
@@ -56,8 +57,9 @@ export default function LoginPage() {
   return (
     <div style={{ maxWidth: 720, margin: '0 auto', padding: 24 }}>
       <h1>เข้าสู่ระบบ</h1>
+       <LoginForm />
       <p>เลือกวิธีการเข้าสู่ระบบด้วยบัญชีผู้ให้บริการ:</p>
-
+     
       <div style={{ display: 'flex', gap: 12 }}>
         <button
           onClick={() => startOAuth('google')}

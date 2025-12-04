@@ -4,21 +4,22 @@ CREATE TABLE "User" (
     "email" TEXT NOT NULL,
     "name" TEXT,
     "username" TEXT NOT NULL,
+    "passwordHash" TEXT NOT NULL,
+    "isEmailVerified" BOOLEAN NOT NULL DEFAULT false,
+    "emailVerifyTokenHash" TEXT,
+    "emailVerifyTokenExpires" TIMESTAMP(3),
+    "isDisabled" BOOLEAN NOT NULL DEFAULT false,
+    "active" BOOLEAN NOT NULL DEFAULT true,
+    "lastLoginAt" TIMESTAMP(3),
+    "passwordResetTokenHash" TEXT,
+    "passwordResetTokenExpires" TIMESTAMP(3),
     "provider" TEXT NOT NULL,
     "providerId" TEXT NOT NULL,
     "firebaseUid" TEXT,
     "avatarUrl" TEXT,
-    "password" TEXT NOT NULL,
+    "currentRefreshTokenHash" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "hashedPassword" TEXT,
-    "currentRefreshTokenHash" TEXT,
-    "emailVerifyTokenHash" TEXT,
-    "emailVerifyTokenExpires" TIMESTAMP(3),
-    "active" BOOLEAN NOT NULL DEFAULT true,
-    "passwordResetTokenHash" TEXT,
-    "passwordResetTokenExpires" TIMESTAMP(3),
-    "isEmailVerified" BOOLEAN NOT NULL DEFAULT false,
 
     CONSTRAINT "User_pkey" PRIMARY KEY ("id")
 );
@@ -78,12 +79,16 @@ CREATE TABLE "RefreshToken" (
 -- CreateTable
 CREATE TABLE "AuditLog" (
     "id" TEXT NOT NULL,
-    "userId" TEXT NOT NULL,
+    "userId" TEXT,
+    "email" TEXT NOT NULL,
     "action" TEXT NOT NULL,
+    "success" BOOLEAN NOT NULL,
+    "reason" TEXT,
     "targetId" TEXT,
     "ip" TEXT,
+    "userAgent" TEXT,
     "metadata" JSONB,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "occurredAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "AuditLog_pkey" PRIMARY KEY ("id")
 );
@@ -117,3 +122,6 @@ ALTER TABLE "OAuthAccount" ADD CONSTRAINT "OAuthAccount_userId_fkey" FOREIGN KEY
 
 -- AddForeignKey
 ALTER TABLE "RefreshToken" ADD CONSTRAINT "RefreshToken_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "AuditLog" ADD CONSTRAINT "AuditLog_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;

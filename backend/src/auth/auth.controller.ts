@@ -11,12 +11,13 @@ import {
   ValidationPipe,
   Res,
   Body,
+  Inject,
   Logger,
   Query,
   UseGuards,
   BadRequestException,
 } from '@nestjs/common';
-
+import { LoginDto } from './dto/login.dto';
 import { AuthService } from './auth.service';
 import { Response, Request } from 'express';
 import IORedis from 'ioredis';
@@ -26,6 +27,10 @@ import { AuthRateLimitGuard } from '../common/rate-limit/auth-rate-limit.guard';
 import { Public } from './decorators/public.decorator';
 import { RegisterDto } from './dto/register.dto';
 import { RateLimit } from '../common/rate-limit/rate-limit.decorator';
+import { AuthRepository } from './auth.repository';
+import { AuditService } from './audit.service';
+import { RateLimitGuard } from '../common/rate-limit/rate-limit.guard';
+
 
 const redis = new IORedis(process.env.REDIS_URL || 'redis://redis:6379', {
   maxRetriesPerRequest: 3,
@@ -82,7 +87,10 @@ function buildFinalUrl(
 export class AuthController {
   private readonly logger = new Logger(AuthController.name);
 
-  constructor(private readonly auth: AuthService) {}
+  constructor(private readonly authService: AuthService,
+              private readonly authRepo: AuthRepository,
+              private readonly audit: AuditService,
+  ) {}
 
   @RateLimit('register')
   @Post('register')
@@ -128,7 +136,7 @@ export class AuthController {
       throw new BadRequestException('Turnstile verification failed');
     }
 
-    const user = await this.auth.register(dto);
+    const user = await this.authService.register(dto);
 
     return {
       success: true,
@@ -145,122 +153,71 @@ export class AuthController {
   @RateLimit('login')
   @Public()
   @Post('login')
+  @HttpCode(HttpStatus.OK)
   @UseGuards(AuthRateLimitGuard)
   @RateLimitContext('login')
-  async localLogin(@Body() body: any, @Res() res: Response) {
-    const { email, password } = body;
+   async login(@Body() body: LoginDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
+    const ip = req.ip || (req.headers['x-forwarded-for'] as string) || null;
+    const ua = (req.headers['user-agent'] as string) || null;
 
-    if (!email || !password) {
-      return res.status(400).json({ error: 'Email and password required' });
+    const user = await this.authService.validateUser(body.email, body.password);
+    if (!user) {
+
+      this.logger.warn(`Failed login attempt for ${body.email} from ${ip}`);
+      await this.audit.logLoginAttempt({ email: body.email, ip, userAgent: ua, success: false, reason: 'invalid_credentials' });
+      return { success: false, message: 'Invalid email or password' };
     }
 
-    const { user, accessToken, refreshToken } = await this.auth.loginLocal(
-      email,
-      password,
-    );
+    const session = await this.authService.createSessionToken(user.id);
 
-    const cookieDomain = process.env.COOKIE_DOMAIN || '.phlyphant.com';
-    const isProd = process.env.NODE_ENV === 'production';
-
-    res.cookie('local_access', accessToken, {
+    const cookieOptions = {
       httpOnly: true,
-      secure: isProd,
-      sameSite: 'none',
-      domain: cookieDomain,
+      secure: process.env.COOKIE_SECURE !== 'false', // default true
+      sameSite: 'strict' as const,
+      domain: process.env.COOKIE_DOMAIN || undefined,
+      maxAge: (Number(process.env.ACCESS_TOKEN_TTL_SECONDS) || 60 * 15) * 1000,
       path: '/',
-      maxAge: 1000 * 60 * 15,
-    });
+    };
 
-    res.cookie('local_refresh', refreshToken, {
-      httpOnly: true,
-      secure: isProd,
-      sameSite: 'none',
-      domain: cookieDomain,
-      path: '/',
-      maxAge: 1000 * 60 * 60 * 24 * 30,
-    });
+    res.cookie(process.env.ACCESS_TOKEN_COOKIE_NAME || 'phl_access', session.accessToken, cookieOptions);
 
-    return res.json({ ok: true, user });
-  }
-
-  @Post('refresh')
-  async localRefresh(@Req() req: Request, @Res() res: Response) {
-    const refreshToken = req.cookies?.local_refresh;
-
-    if (!refreshToken) {
-      return res.status(401).json({ error: 'Missing refresh token' });
+    if (session.refreshToken) {
+      res.cookie(process.env.REFRESH_TOKEN_COOKIE_NAME || 'phl_refresh', session.refreshToken, {
+        httpOnly: true,
+        secure: process.env.COOKIE_SECURE !== 'false',
+        sameSite: 'strict' as const,
+        domain: process.env.COOKIE_DOMAIN || undefined,
+        maxAge: (Number(process.env.REFRESH_TOKEN_TTL_SECONDS) || 60 * 60 * 24 * 30) * 1000,
+        path: '/',
+      });
     }
 
-    const { user, accessToken, refreshToken: newRT } =
-      await this.auth.refreshLocalToken(refreshToken);
-
-    const cookieDomain = process.env.COOKIE_DOMAIN || '.phlyphant.com';
-    const isProd = process.env.NODE_ENV === 'production';
-
-    res.cookie('local_access', accessToken, {
-      httpOnly: true,
-      secure: isProd,
-      sameSite: 'none',
-      domain: cookieDomain,
-      path: '/',
-      maxAge: 1000 * 60 * 15,
-    });
-
-    res.cookie('local_refresh', newRT, {
-      httpOnly: true,
-      secure: isProd,
-      sameSite: 'none',
-      domain: cookieDomain,
-      path: '/',
-      maxAge: 1000 * 60 * 60 * 24 * 30,
-    });
-
-    return res.json({ ok: true, user });
-  }
-
-  @Post('logout')
-  async localLogout(@Res() res: Response) {
-    const cookieDomain = process.env.COOKIE_DOMAIN || '.phlyphant.com';
-
-    res.clearCookie('local_access', { domain: cookieDomain, path: '/' });
-    res.clearCookie('local_refresh', { domain: cookieDomain, path: '/' });
-
-    return res.json({ ok: true });
-  }
-
-  @Public()
-  @Post('request-password-reset')
-  @RateLimitContext('resetPassword')
-  async localRequestReset(@Body() body: any) {
-    const { email } = body;
-
-    if (!email) {
-      return { error: 'Email is required' };
+    try {
+      const ipKey = req.ip || (req.headers['x-forwarded-for'] as string) || '';
+      await RateLimitGuard.revokeIp(ipKey);
+    } catch (err) {
     }
 
-    return this.auth.requestPasswordResetLocal(email);
+    const safeUser = { ...user };
+    delete (safeUser as any).passwordHash;
+
+    return {
+      success: true,
+      data: {
+        user: safeUser,
+        expiresIn: session.expiresIn,
+      },
+    };
   }
 
-  @Public()
-  @Post('reset-password')
-  @RateLimitContext('resetPassword')
-  async localResetPassword(@Body() body: any) {
-    const { uid, token, newPassword } = body;
-
-    if (!uid || !token || !newPassword) {
-      return { error: 'Missing fields' };
-    }
-
-    return this.auth.resetPasswordLocal(uid, token, newPassword);
-  }
-
+ 
   @Get('verify-email')
   async verifyEmail(@Query('uid') uid: string, @Query('token') token: string) {
     if (!uid || !token) {
       throw new BadRequestException('Missing verification token or uid');
     }
 
-    const result = await this.auth.verifyEmailLocal(uid, token);
+    const result = await this.authService.verifyEmailLocal(uid, token);
 
     return {
       message: 'Email verified successfully',

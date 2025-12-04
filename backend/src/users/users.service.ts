@@ -11,7 +11,6 @@ export class UsersService {
   }
 
   async createUser(email: string, passwordHash: string, displayName?: string) {
-    // สร้าง username อัตโนมัติจากอีเมล (กันซ้ำ)
     const baseUsername = email.split('@')[0].toLowerCase();
     let username = baseUsername;
     let counter = 1;
@@ -28,7 +27,7 @@ export class UsersService {
       data: {
         email,
         username,
-        password: passwordHash,   // ใช้ฟิลด์ password ตาม schema
+        passwordHash: passwordHash,  
         provider: "local",
         providerId: email,
         name: displayName ?? null,
@@ -96,7 +95,7 @@ export class UsersService {
     return this.prisma.user.update({
       where: { id: user.id },
       data: {
-        password: newPasswordHash,  // ใช้ฟิลด์ password ตาม schema
+        passwordHash: newPasswordHash,  
         passwordResetTokenHash: null,
         passwordResetTokenExpires: null,
       },

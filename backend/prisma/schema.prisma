@@ -14,25 +14,27 @@ model User {
   email                     String         @unique
   name                      String?
   username                  String         @unique
+  passwordHash              String
+  isEmailVerified           Boolean        @default(false)
+  emailVerifyTokenHash      String?
+  emailVerifyTokenExpires   DateTime?
+  isDisabled                Boolean        @default(false)
+  active                    Boolean        @default(true)
+  lastLoginAt               DateTime?
+  passwordResetTokenHash    String?
+  passwordResetTokenExpires DateTime?
   provider                  String
   providerId                String
   firebaseUid               String?        @unique
   avatarUrl                 String?
-  password                  String
+  currentRefreshTokenHash   String?
   createdAt                 DateTime       @default(now())
   updatedAt                 DateTime       @updatedAt
-  hashedPassword            String?
-  currentRefreshTokenHash   String?
-  emailVerifyTokenHash      String?
-  emailVerifyTokenExpires   DateTime?
-  active                    Boolean        @default(true)
-  passwordResetTokenHash    String?
-  passwordResetTokenExpires DateTime?
-  isEmailVerified           Boolean        @default(false)
   oauthAccounts             OAuthAccount[]
   refreshTokens             RefreshToken[]
   sessions                  Session[]
   activities                UserActivity[]
+  auditLogs                 AuditLog[]
 }
 
 model Session {
@@ -82,11 +84,18 @@ model RefreshToken {
 }
 
 model AuditLog {
-  id        String   @id @default(uuid())
-  userId    String
-  action    String
-  targetId  String?
-  ip        String?
-  metadata  Json?
-  createdAt DateTime @default(now())
+  id         String   @id @default(uuid())
+  userId     String?                        
+  user       User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
+  
+  email      String                          
+  action     String                          
+  success    Boolean                         
+  reason     String?                         
+  targetId   String?                          
+  ip         String?
+  userAgent  String?
+  metadata   Json?                           
+
+  occurredAt DateTime @default(now())       
 }
