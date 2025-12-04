@@ -1,5 +1,9 @@
 /**
  * รายการ action ที่จะใช้ใน RateLimitGuard และ RateLimitService
+ *
+ * หมายเหตุ:
+ * - action "ip" ถูกลบออก เพราะไปซ้ำกับ keyPrefix "ip:" ใน RateLimitGuard
+ *   และทำให้เกิดการ block ผิดพลาด
  */
 export type RateLimitAction =
   | 'login'
@@ -10,7 +14,6 @@ export type RateLimitAction =
   | 'followUser'
   | 'unfollowUser'
   | 'messagingSend'
-  | 'ip'
   | 'oauth';
 
 /**
@@ -23,20 +26,13 @@ export const RateLimitPolicy: Record<
   { points: number; duration: number }
 > = {
   /**
-   * Global IP-level rate limit (unauthenticated)
+   * Auth brute-force rate-limit (action-level)
+   * (Brute-force limiter ตัวจริงอยู่ใน RateLimitGuard อีกชั้น)
    */
-  ip: { points: 1500, duration: 60 },
+  login: { points: 10, duration: 60 },
 
   /**
-   * Auth brute-force protection
-   */
-  login: { points: 5, duration: 60 },
-
-  /**
-   * แก้ไขตรงนี้ — register ต้องไม่หนักเกินไปจน block ผู้ใช้จริง
-   * เดิม 10 ครั้ง / 10 นาที ทำให้โดน block ง่ายเกินไป
-   * ใช้รูปแบบที่ปลอดภัยและใช้งานจริงทั่วโลก:
-   * 6 ครั้ง / 1 นาที
+   * Registration: ใช้ค่าตามมาตรฐาน production
    */
   register: { points: 6, duration: 60 },
 
@@ -60,7 +56,7 @@ export const RateLimitPolicy: Record<
   messagingSend: { points: 60, duration: 60 },
 
   /**
-   * OAuth (Google/Facebook redirect)
+   * OAuth redirects
    */
   oauth: { points: 20, duration: 60 },
 };

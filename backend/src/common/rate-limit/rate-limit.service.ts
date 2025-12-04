@@ -15,7 +15,6 @@ export interface RateLimitConsumeResult {
 @Injectable()
 export class RateLimitService implements OnModuleDestroy {
   private readonly logger = new Logger(RateLimitService.name);
-
   private limiters: Map<RateLimitAction, RateLimiterRedis> = new Map();
 
   constructor(
@@ -44,6 +43,42 @@ export class RateLimitService implements OnModuleDestroy {
     }
   }
 
+  /**
+   * Sanitize keys for ALL rate-limiting actions.
+   * Supports:
+   *  - ip:1.2.3.4
+   *  - ip_login_1_2_3_4
+   *  - login_1_2_3_4
+   *
+   * Removes:
+   *  - ports (:5000)
+   *  - "::ffff:"
+   *  - non-alphanumeric characters
+   */
+  private sanitizeKey(raw: string): string {
+    if (!raw) return 'unknown';
+
+    let key = raw.trim();
+
+    // Extract anything that looks like an IP
+    const ipMatch = key.match(
+      /(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/,
+    );
+
+    if (ipMatch) {
+      const cleanIp = ipMatch[1]
+        .replace(/^::ffff:/, '')
+        .replace(/:\d+$/, '');
+
+      return key
+        .replace(ipMatch[1], cleanIp)
+        .replace(/[^a-zA-Z0-9_]/g, '_');
+    }
+
+    // fallback — safe key
+    return key.replace(/[^a-zA-Z0-9_]/g, '_');
+  }
+
   async consume(
     action: RateLimitAction,
     key: string,
@@ -60,24 +95,10 @@ export class RateLimitService implements OnModuleDestroy {
       };
     }
 
-    /**
-     * NORMALIZE KEY — FIX
-     * Only allow:
-     *   user:<id>
-     *   ip:<ipv4>
-     * 
-     * Remove port, "::ffff:" prefix, etc.
-     */
-    let sanitizedKey = key.trim();
-
-    if (sanitizedKey.startsWith('ip:')) {
-      const pureIp = sanitizedKey.replace('ip:', '').trim();
-      sanitizedKey = `ip:${pureIp.replace(/^::ffff:/, '').replace(/:\d+$/, '')}`;
-    }
+    const sanitizedKey = this.sanitizeKey(key);
 
     try {
       const result = await limiter.consume(sanitizedKey);
-
       const resetSec = Math.ceil(result.msBeforeNext / 1000);
 
       return {

@@ -173,21 +173,28 @@ async login(
   @Req() req: Request,
   @Res({ passthrough: true }) res: Response
 ) {
-  const ip =
-    (typeof req.headers['x-forwarded-for'] === 'string'
-      ? req.headers['x-forwarded-for'].split(',')[0].trim()
-      : req.ip) || null;
+  let rawIp: string | null = null;
+
+  if (typeof req.headers['x-forwarded-for'] === 'string') {
+    rawIp = req.headers['x-forwarded-for'].split(',')[0].trim();
+  } else {
+    rawIp = req.ip || req.socket?.remoteAddress || null;
+  }
+
+  const normalizedIp = rawIp
+    ? rawIp.replace(/^::ffff:/, '').replace(/:\d+$/, '').trim()
+    : 'unknown';
 
   const ua = (req.headers['user-agent'] as string) || null;
 
   const user = await this.authService.validateUser(body.email, body.password);
 
   if (!user) {
-    this.logger.warn(`Failed login attempt for ${body.email} from ${ip}`);
+    this.logger.warn(`Failed login attempt for ${body.email} from ${normalizedIp}`);
 
     await this.audit.logLoginAttempt({
       email: body.email,
-      ip,
+      ip: normalizedIp,
       userAgent: ua,
       success: false,
       reason: 'invalid_credentials',
@@ -230,11 +237,11 @@ async login(
     );
   }
 
-  // Revoke brute-force lockout correctly
   try {
-    const normalizedIp = String(ip).replace(/^::ffff:/, '');
-    await RateLimitGuard.revokeIp(normalizedIp);
-  } catch (err) {}
+    const keyIp = normalizedIp; 
+    await RateLimitGuard.revokeIp(keyIp);
+  } catch (err) {
+  }
 
   const safeUser = { ...user };
   delete (safeUser as any).passwordHash;
@@ -247,8 +254,8 @@ async login(
     },
   };
 }
-
- 
+   
+// verify-email
   @Get('verify-email')
   async verifyEmail(@Query('uid') uid: string, @Query('token') token: string) {
     if (!uid || !token) {

@@ -29,6 +29,11 @@ export class AuthRateLimitGuard implements CanActivate {
     return String(ip).replace(/^::ffff:/, '');
   }
 
+  private normalizeIp(ip: string): string {
+    if (!ip) return 'unknown';
+    return ip.replace(/[^a-zA-Z0-9]/g, '_');
+  }
+
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const req = context.switchToHttp().getRequest<Request>();
     const res = context.switchToHttp().getResponse<Response>();
@@ -66,9 +71,8 @@ export class AuthRateLimitGuard implements CanActivate {
       return true;
     }
 
-    // Login SHOULD NOT be bypassed completely
-    // It must go through brute-force limiter in rate-limit.guard.ts
-    // only action-level rate limiting is skipped here.
+    // Login must bypass action-level rate limit,
+    // brute-force blocking is handled by rate-limit.guard.ts only
     if (path.startsWith('/auth/local/login')) {
       return true;
     }
@@ -84,8 +88,9 @@ export class AuthRateLimitGuard implements CanActivate {
 
     if (!action) return true;
 
-    const ip = this.extractRealIp(req);
-    const key = `${action}:${ip}`;
+    const rawIp = this.extractRealIp(req);
+    const normalizedIp = this.normalizeIp(rawIp);
+    const key = `${action}_${normalizedIp}`;
 
     try {
       const info = await this.rlService.consume(action, key);

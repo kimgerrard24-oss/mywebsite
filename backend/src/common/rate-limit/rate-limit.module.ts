@@ -2,7 +2,6 @@
 
 import { Module } from '@nestjs/common';
 import { APP_GUARD, Reflector } from '@nestjs/core';
-
 import { RateLimitService } from './rate-limit.service';
 import { RateLimitGuard } from './rate-limit.guard';
 import { AuthRateLimitGuard } from './auth-rate-limit.guard';
@@ -12,21 +11,27 @@ import { AuthRateLimitGuard } from './auth-rate-limit.guard';
     RateLimitService,
     Reflector,
 
-    // AuthRateLimitGuard ต้องทำงานก่อน RateLimitGuard
+    /**
+     * IMPORTANT ORDER FIX
+     *
+     * 1) AuthRateLimitGuard should run FIRST
+     *    - It bypasses login/register/refresh for action-level rate-limit
+     *    - Prevents false blocking during login
+     *
+     * 2) RateLimitGuard should run SECOND
+     *    - It contains brute-force protection for /auth/local/login
+     *    - It should not override AuthRateLimitGuard behavior
+     */
     {
       provide: APP_GUARD,
       useClass: AuthRateLimitGuard,
     },
-
-    // Global rate-limit guard สำหรับ @RateLimitContext
     {
       provide: APP_GUARD,
       useClass: RateLimitGuard,
     },
   ],
 
-  exports: [
-    RateLimitService,
-  ],
+  exports: [RateLimitService],
 })
 export class RateLimitModule {}
