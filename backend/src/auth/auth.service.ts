@@ -85,7 +85,7 @@ constructor(
   return this.repo.createUser({
     email: dto.email,
     username: dto.username,
-    passwordHash: hashed,
+    hashedPassword: hashed,
     provider: 'local',
     providerId: dto.email,  
   });
@@ -106,7 +106,7 @@ constructor(
       throw new ForbiddenException('Account disabled');
     }
 
-    const ok = await comparePassword(password, user.passwordHash);
+    const ok = await comparePassword(password, user.hashedPassword);
     if (!ok) {
       await this.audit.logLoginAttempt({ userId: user.id, email, success: false, reason: 'invalid_password' });
       return null;
@@ -242,7 +242,7 @@ async findOrCreateUserFromGoogle(profile: any) {
         email: email ?? `no-email-google-${providerId}@placeholder.local`,
         name: profile.displayName ?? null,
         username,
-        passwordHash: placeholderPassword,
+        hashedPassword: placeholderPassword,
         provider: 'google',
         providerId,
         avatarUrl: profile.photos?.[0]?.value ?? null,
@@ -316,7 +316,7 @@ async findOrCreateUserFromFacebook(profile: any) {
         email: email ?? `no-email-facebook-${providerId}@placeholder.local`,
         name: profile.displayName ?? null,
         username,
-        passwordHash: placeholderPassword,
+        hashedPassword: placeholderPassword,
         provider: 'facebook',
         providerId,
         avatarUrl: profile.photos?.[0]?.value ?? null,
@@ -385,7 +385,7 @@ async getOrCreateOAuthUser(
         email: safeEmail,
         name: name || '',
         username,
-        passwordHash: placeholderPassword,
+        hashedPassword: placeholderPassword,
         provider,
         providerId,
         avatarUrl: picture || null,

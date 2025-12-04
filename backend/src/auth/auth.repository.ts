@@ -11,7 +11,7 @@ export class AuthRepository {
     email: string;
     username: string;
     name: string | null;
-    passwordHash: string;
+    hashedPassword: string;
     isDisabled: boolean;
     isEmailVerified: boolean;
     createdAt: Date;
@@ -24,7 +24,7 @@ export class AuthRepository {
         email: true,
         username: true,
         name: true,             
-        passwordHash: true,
+        hashedPassword: true,
         isDisabled: true,
         isEmailVerified: true,
         createdAt: true,

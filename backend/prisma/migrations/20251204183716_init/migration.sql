@@ -4,7 +4,7 @@ CREATE TABLE "User" (
     "email" TEXT NOT NULL,
     "name" TEXT,
     "username" TEXT NOT NULL,
-    "passwordHash" TEXT NOT NULL,
+    "hashedPassword" TEXT NOT NULL,
     "isEmailVerified" BOOLEAN NOT NULL DEFAULT false,
     "emailVerifyTokenHash" TEXT,
     "emailVerifyTokenExpires" TIMESTAMP(3),

@@ -27,7 +27,7 @@ export class UsersService {
       data: {
         email,
         username,
-        passwordHash: passwordHash,  
+        hashedPassword: passwordHash,  
         provider: "local",
         providerId: email,
         name: displayName ?? null,
@@ -95,7 +95,7 @@ export class UsersService {
     return this.prisma.user.update({
       where: { id: user.id },
       data: {
-        passwordHash: newPasswordHash,  
+        hashedPassword: newPasswordHash,  
         passwordResetTokenHash: null,
         passwordResetTokenExpires: null,
       },
