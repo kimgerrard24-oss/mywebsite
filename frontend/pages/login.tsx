@@ -2,6 +2,7 @@
 // file: frontend/pages/login.tsx
 // ==============================
 import React, { useEffect } from 'react';
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/router';
 import axios from 'axios';
 import Cookies from 'js-cookie';
@@ -14,7 +15,7 @@ const API_BASE = (
   'https://api.phlyphant.com'
 ).replace(/\/+$/, '');
 
-export default function LoginPage() {
+function LoginPageInner() {
   const router = useRouter();
 
   useEffect(() => {
@@ -43,7 +44,7 @@ export default function LoginPage() {
           router.replace('/feed');
         }
       } catch {
-        // ignore
+        // ignore errors
       }
     }
 
@@ -57,9 +58,11 @@ export default function LoginPage() {
   return (
     <div style={{ maxWidth: 720, margin: '0 auto', padding: 24 }}>
       <h1>เข้าสู่ระบบ</h1>
-       <LoginForm />
+
+      <LoginForm />
+
       <p>เลือกวิธีการเข้าสู่ระบบด้วยบัญชีผู้ให้บริการ:</p>
-     
+
       <div style={{ display: 'flex', gap: 12 }}>
         <button
           onClick={() => startOAuth('google')}
@@ -78,3 +81,6 @@ export default function LoginPage() {
     </div>
   );
 }
+
+// Force client-only rendering (fixes prerender errors)
+export default dynamic(() => Promise.resolve(LoginPageInner), { ssr: false });

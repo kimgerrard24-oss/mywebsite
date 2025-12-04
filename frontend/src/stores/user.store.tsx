@@ -7,7 +7,6 @@ type User = {
   id: string;
   email?: string | null;
   username?: string | null;
-  // add other non-sensitive fields if needed
 };
 
 type UserContextValue = {
@@ -16,13 +15,6 @@ type UserContextValue = {
   isAuthenticated: boolean;
 };
 
-/**
- * Simple React Context store for user state.
- * - Stores only non-sensitive fields.
- * - Persists minimal state in localStorage for UX (optional).
- * - Do NOT store tokens or secrets here.
- */
-
 const STORAGE_KEY = 'phl_user_v1';
 
 const UserContext = createContext<UserContextValue | undefined>(undefined);
@@ -30,11 +22,13 @@ const UserContext = createContext<UserContextValue | undefined>(undefined);
 export function UserProvider({ children }: { children: React.ReactNode }) {
   const [user, setUserRaw] = useState<User | null>(() => {
     try {
-      const raw = typeof window !== 'undefined' ? localStorage.getItem(STORAGE_KEY) : null;
+      if (typeof window === 'undefined') return null;
+      const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return null;
+
       const parsed = JSON.parse(raw) as User;
-      // Basic sanity check
       if (parsed && parsed.id) return parsed;
+
       return null;
     } catch {
       return null;
@@ -43,11 +37,12 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     try {
-      if (user) localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
-      else localStorage.removeItem(STORAGE_KEY);
-    } catch {
-      // ignore storage errors
-    }
+      if (user) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(user));
+      } else {
+        localStorage.removeItem(STORAGE_KEY);
+      }
+    } catch {}
   }, [user]);
 
   const setUser = (u: User | null) => {
@@ -63,13 +58,20 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
 }
 
-/**
- * Hook for components to access user store.
- */
 export function useUserStore() {
   const ctx = useContext(UserContext);
+
+  // Prevent crashing during build or unexpected usage
   if (!ctx) {
-    throw new Error('useUserStore must be used within UserProvider');
+    if (typeof window !== 'undefined') {
+      console.warn('useUserStore called outside of UserProvider');
+    }
+    return {
+      user: null,
+      setUser: () => {},
+      isAuthenticated: false,
+    };
   }
+
   return ctx;
 }
