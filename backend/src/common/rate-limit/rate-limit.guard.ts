@@ -17,10 +17,25 @@ import Redis from 'ioredis';
 
 // -----------------------------------------------------------
 // Brute-force protection for login attempts
-// (Added as requested, without modifying existing logic)
 // -----------------------------------------------------------
 
-const redisClient = new Redis(process.env.REDIS_URL || 'redis://127.0.0.1:6379');
+// Secure Redis client (Production-grade)
+// --------------------------------------
+if (!process.env.REDIS_URL) {
+  throw new Error('REDIS_URL is not defined in environment variables');
+}
+
+const redisClient = new Redis(process.env.REDIS_URL, {
+  maxRetriesPerRequest: 2,
+  enableReadyCheck: true,
+  retryStrategy(times) {
+    return Math.min(times * 200, 30000);
+  },
+  reconnectOnError(err) {
+    const target = ['READONLY', 'ECONNRESET', 'ECONNREFUSED'];
+    return target.some((m) => err.message.includes(m));
+  },
+});
 
 const maxWrongAttemptsByIPperMinute =
   Number(process.env.RATE_LIMIT_MAX_ATTEMPTS) || 10;
@@ -32,7 +47,7 @@ const loginLimiter = new RateLimiterRedis({
   storeClient: redisClient,
   points: maxWrongAttemptsByIPperMinute,
   duration: 60, // 1 minute
-  blockDuration, // block time after limit exceeded
+  blockDuration,
   keyPrefix: 'rl_login',
 });
 
@@ -52,7 +67,6 @@ export class RateLimitGuard implements CanActivate {
     private readonly reflector: Reflector,
   ) {}
 
-  // Extract real IP
   private extractRealIp(req: Request): string {
     const xff = req.headers['x-forwarded-for'];
     if (typeof xff === 'string') {
@@ -65,12 +79,10 @@ export class RateLimitGuard implements CanActivate {
     return String(ip).replace(/^::ffff:/, '');
   }
 
-  // -----------------------------------------------------------
-  // NEW: revokeIp() helper, used after successful login
-  // -----------------------------------------------------------
+  // Revoke IP after successful login
   static async revokeIp(ip: string) {
     try {
-      await loginLimiter.delete(`ip:${ip}`);
+      await loginLimiter.delete(`ip_login_${ip}`);
     } catch (err) {
       // ignore
     }
@@ -81,7 +93,7 @@ export class RateLimitGuard implements CanActivate {
     const res = context.switchToHttp().getResponse<Response>();
     const path = (req.path || '').toLowerCase();
 
-    // Health checks bypass
+    // Health check bypass
     const internal = req.headers['x-internal-health'];
     if (
       internal &&
@@ -116,43 +128,47 @@ export class RateLimitGuard implements CanActivate {
     }
 
     // -----------------------------------------------------------
-    // NEW: apply brute-force limiter for /auth/local/login only
+    // Brute-force limiter for /auth/local/login
     // -----------------------------------------------------------
-    if (path.startsWith('/auth/local/login')) {
+    if (
+      path === '/auth/local/login' ||
+      path === '/auth/local/login/' ||
+      path.endsWith('/auth/local/login') ||
+      path.includes('/auth/local/login')
+    ) {
       const ip = this.extractRealIp(req);
-      const key = `ip:${ip}`;
+      const key = `ip_login_${ip}`;
+
       try {
         await loginLimiter.consume(key, 1);
-        // continue to main logic
+        return true;
       } catch (err: any) {
-      const retryAfter =
-    typeof err?.msBeforeNext === 'number'
-      ? Math.ceil(err.msBeforeNext / 1000)
-      : 60;
+        const retryAfter =
+          typeof err?.msBeforeNext === 'number'
+            ? Math.ceil(err.msBeforeNext / 1000)
+            : 60;
 
-  res.setHeader('Retry-After', retryAfter);
+        res.setHeader('Retry-After', retryAfter);
 
-  this.logger.warn(
-    `Login brute-force blocked: ip="${ip}" retryAfter=${retryAfter}`,
-  );
+        this.logger.warn(
+          `Login brute-force blocked: ip="${ip}" retryAfter=${retryAfter}`,
+        );
 
-  res.status(429).json({
-    statusCode: 429,
-    message: 'Too many login attempts. Try again later.',
-  });
+        res.status(429).json({
+          statusCode: 429,
+          message: 'Too many login attempts. Try again later.',
+        });
 
-  return false;
-}
-
-      return true; // allow login to authService.validateUser()
+        return false;
+      }
     }
 
-    // Allow registration / refresh token
+    // Registration and refresh are allowed
     if (path.startsWith('/auth/local/register')) return true;
     if (path.startsWith('/auth/local/refresh')) return true;
 
     // -----------------------------------------------------------
-    // Existing RateLimitService action-level rate limiting logic
+    // Global action rate-limiter (unchanged)
     // -----------------------------------------------------------
     const action = this.reflector.get<RateLimitAction>(
       RATE_LIMIT_CONTEXT_KEY,

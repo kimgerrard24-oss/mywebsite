@@ -32,8 +32,22 @@ import { AuditService } from './audit.service';
 import { RateLimitGuard } from '../common/rate-limit/rate-limit.guard';
 
 
-const redis = new IORedis(process.env.REDIS_URL || 'redis://redis:6379', {
-  maxRetriesPerRequest: 3,
+if (!process.env.REDIS_URL) {
+  throw new Error('REDIS_URL is not defined in environment variables');
+}
+
+const redis = new IORedis(process.env.REDIS_URL, {
+  maxRetriesPerRequest: 2,
+  enableReadyCheck: true,
+
+  retryStrategy(times) {
+    return Math.min(times * 200, 30000); 
+  },
+
+  reconnectOnError(err) {
+    const triggers = ['READONLY', 'ECONNRESET', 'ECONNREFUSED'];
+    return triggers.some((msg) => err.message.includes(msg));
+  },
 });
 
 function normalizeRedirectUri(raw: string): string {
@@ -150,65 +164,89 @@ export class AuthController {
     };
   }
 
-  @RateLimit('login')
-  @Public()
-  @Post('login')
-  @HttpCode(HttpStatus.OK)
-  @UseGuards(AuthRateLimitGuard)
-  @RateLimitContext('login')
-   async login(@Body() body: LoginDto, @Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    const ip = req.ip || (req.headers['x-forwarded-for'] as string) || null;
-    const ua = (req.headers['user-agent'] as string) || null;
+// Local login
+@Public()
+@Post('login')
+@HttpCode(HttpStatus.OK)
+async login(
+  @Body() body: LoginDto,
+  @Req() req: Request,
+  @Res({ passthrough: true }) res: Response
+) {
+  const ip =
+    (typeof req.headers['x-forwarded-for'] === 'string'
+      ? req.headers['x-forwarded-for'].split(',')[0].trim()
+      : req.ip) || null;
 
-    const user = await this.authService.validateUser(body.email, body.password);
-    if (!user) {
+  const ua = (req.headers['user-agent'] as string) || null;
 
-      this.logger.warn(`Failed login attempt for ${body.email} from ${ip}`);
-      await this.audit.logLoginAttempt({ email: body.email, ip, userAgent: ua, success: false, reason: 'invalid_credentials' });
-      return { success: false, message: 'Invalid email or password' };
-    }
+  const user = await this.authService.validateUser(body.email, body.password);
 
-    const session = await this.authService.createSessionToken(user.id);
+  if (!user) {
+    this.logger.warn(`Failed login attempt for ${body.email} from ${ip}`);
 
-    const cookieOptions = {
-      httpOnly: true,
-      secure: process.env.COOKIE_SECURE !== 'false', // default true
-      sameSite: 'strict' as const,
-      domain: process.env.COOKIE_DOMAIN || undefined,
-      maxAge: (Number(process.env.ACCESS_TOKEN_TTL_SECONDS) || 60 * 15) * 1000,
-      path: '/',
-    };
+    await this.audit.logLoginAttempt({
+      email: body.email,
+      ip,
+      userAgent: ua,
+      success: false,
+      reason: 'invalid_credentials',
+    });
 
-    res.cookie(process.env.ACCESS_TOKEN_COOKIE_NAME || 'phl_access', session.accessToken, cookieOptions);
+    return { success: false, message: 'Invalid email or password' };
+  }
 
-    if (session.refreshToken) {
-      res.cookie(process.env.REFRESH_TOKEN_COOKIE_NAME || 'phl_refresh', session.refreshToken, {
+  const session = await this.authService.createSessionToken(user.id);
+
+  const cookieOptions = {
+    httpOnly: true,
+    secure: process.env.COOKIE_SECURE !== 'false',
+    sameSite: 'strict' as const,
+    domain: process.env.COOKIE_DOMAIN || undefined,
+    maxAge: (Number(process.env.ACCESS_TOKEN_TTL_SECONDS) || 60 * 15) * 1000,
+    path: '/',
+  };
+
+  res.cookie(
+    process.env.ACCESS_TOKEN_COOKIE_NAME || 'phl_access',
+    session.accessToken,
+    cookieOptions
+  );
+
+  if (session.refreshToken) {
+    res.cookie(
+      process.env.REFRESH_TOKEN_COOKIE_NAME || 'phl_refresh',
+      session.refreshToken,
+      {
         httpOnly: true,
         secure: process.env.COOKIE_SECURE !== 'false',
         sameSite: 'strict' as const,
         domain: process.env.COOKIE_DOMAIN || undefined,
-        maxAge: (Number(process.env.REFRESH_TOKEN_TTL_SECONDS) || 60 * 60 * 24 * 30) * 1000,
+        maxAge:
+          (Number(process.env.REFRESH_TOKEN_TTL_SECONDS) ||
+            60 * 60 * 24 * 30) * 1000,
         path: '/',
-      });
-    }
-
-    try {
-      const ipKey = req.ip || (req.headers['x-forwarded-for'] as string) || '';
-      await RateLimitGuard.revokeIp(ipKey);
-    } catch (err) {
-    }
-
-    const safeUser = { ...user };
-    delete (safeUser as any).passwordHash;
-
-    return {
-      success: true,
-      data: {
-        user: safeUser,
-        expiresIn: session.expiresIn,
       },
-    };
+    );
   }
+
+  // Revoke brute-force lockout correctly
+  try {
+    const normalizedIp = String(ip).replace(/^::ffff:/, '');
+    await RateLimitGuard.revokeIp(normalizedIp);
+  } catch (err) {}
+
+  const safeUser = { ...user };
+  delete (safeUser as any).passwordHash;
+
+  return {
+    success: true,
+    data: {
+      user: safeUser,
+      expiresIn: session.expiresIn,
+    },
+  };
+}
 
  
   @Get('verify-email')

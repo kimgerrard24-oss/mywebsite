@@ -66,8 +66,13 @@ export class AuthRateLimitGuard implements CanActivate {
       return true;
     }
 
-    // IMPORTANT – real API must be bypassed
-    if (path.startsWith('/auth/local/login')) return true;
+    // Login SHOULD NOT be bypassed completely
+    // It must go through brute-force limiter in rate-limit.guard.ts
+    // only action-level rate limiting is skipped here.
+    if (path.startsWith('/auth/local/login')) {
+      return true;
+    }
+
     if (path.startsWith('/auth/local/register')) return true;
     if (path.startsWith('/auth/local/refresh')) return true;
 
