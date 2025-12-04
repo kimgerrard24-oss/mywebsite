@@ -1,3 +1,5 @@
+// src/common/rate-limit/auth-rate-limit-guard.ts
+
 import {
   CanActivate,
   ExecutionContext,
@@ -37,7 +39,13 @@ export class AuthRateLimitGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const req = context.switchToHttp().getRequest<Request>();
     const res = context.switchToHttp().getResponse<Response>();
-    const path = (req.path || '').toLowerCase();
+
+    let path = (req.path || '').toLowerCase();
+
+    // remove trailing slash
+    if (path.endsWith('/')) {
+      path = path.slice(0, -1);
+    }
 
     const internal = req.headers['x-internal-health'];
     if (
@@ -51,10 +59,9 @@ export class AuthRateLimitGuard implements CanActivate {
 
     if (
       path === '/system-check' ||
-      path === '/system-check/' ||
       path === '/health' ||
-      path.startsWith('/health/') ||
-      path.startsWith('/system-check/')
+      path.startsWith('/health') ||
+      path.startsWith('/system-check')
     ) {
       return true;
     }
@@ -72,13 +79,16 @@ export class AuthRateLimitGuard implements CanActivate {
     }
 
     // --------------------------------------------------------------------
-    // FIX: Allow all login endpoints to bypass this guard
+    // LOGIN bypass (FINAL SAFE VERSION)
+    // - allow POST only
+    // - allow both /login and /auth/local/login
+    // - ignore trailing slash
     // --------------------------------------------------------------------
-    if (
+    const isLoginPath =
       path === '/login' ||
-      path === '/login/' ||
-      path.startsWith('/auth/local/login')
-    ) {
+      path === '/auth/local/login';
+
+    if (isLoginPath && req.method.toUpperCase() === 'POST') {
       return true;
     }
     // --------------------------------------------------------------------

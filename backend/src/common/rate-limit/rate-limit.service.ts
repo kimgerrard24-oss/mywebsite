@@ -1,4 +1,4 @@
-// src/common/rate-limit/rate-limit.service.ts
+// src/common/rate-limit/rate-limit-service.ts
 
 import { Injectable, Logger, Inject, OnModuleDestroy } from '@nestjs/common';
 import { RateLimiterRedis } from 'rate-limiter-flexible';
@@ -38,29 +38,19 @@ export class RateLimitService implements OnModuleDestroy {
         `RateLimitService initialized (${this.limiters.size} policies loaded)`,
       );
     } catch (err) {
-      this.logger.error('Failed to initialize rate limiters', err as any);
+      this.logger.error(
+        'Failed to initialize rate limiters',
+        err instanceof Error ? err.message : err,
+      );
       throw err;
     }
   }
 
-  /**
-   * Sanitize keys for ALL rate-limiting actions.
-   * Supports:
-   *  - ip:1.2.3.4
-   *  - ip_login_1_2_3_4
-   *  - login_1_2_3_4
-   *
-   * Removes:
-   *  - ports (:5000)
-   *  - "::ffff:"
-   *  - non-alphanumeric characters
-   */
   private sanitizeKey(raw: string): string {
     if (!raw) return 'unknown';
 
     let key = raw.trim();
 
-    // Extract anything that looks like an IP
     const ipMatch = key.match(
       /(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/,
     );
@@ -72,11 +62,10 @@ export class RateLimitService implements OnModuleDestroy {
 
       return key
         .replace(ipMatch[1], cleanIp)
-        .replace(/[^a-zA-Z0-9_-]/g, '_'); // unified with login limiter
+        .replace(/[^a-zA-Z0-9_-]/g, '_');
     }
 
-    // fallback — safe key
-    return key.replace(/[^a-zA-Z0-9_-]/g, '_'); // unified with login limiter
+    return key.replace(/[^a-zA-Z0-9_-]/g, '_');
   }
 
   async consume(
@@ -96,6 +85,10 @@ export class RateLimitService implements OnModuleDestroy {
     }
 
     const sanitizedKey = this.sanitizeKey(key);
+
+    this.logger.debug(
+      `Consume: action="${action}", raw="${key}", sanitized="${sanitizedKey}"`,
+    );
 
     try {
       const result = await limiter.consume(sanitizedKey);

@@ -1,5 +1,4 @@
-// src/auth/guards/rate-limit.guard.ts
-
+// files src/common/rate-limit/rate-limit-guard.ts
 import {
   CanActivate,
   ExecutionContext,
@@ -14,7 +13,6 @@ import { RateLimitAction } from './rate-limit.policy';
 
 import { RateLimiterRedis } from 'rate-limiter-flexible';
 import Redis from 'ioredis';
-
 
 if (!process.env.REDIS_URL) {
   throw new Error('REDIS_URL is not defined in environment variables');
@@ -77,7 +75,13 @@ export class RateLimitGuard implements CanActivate {
   private normalizeKey(ip: string): string {
     if (!ip) return 'unknown';
     let s = String(ip).trim().replace(/^::ffff:/, '');
+
+    // remove port (e.g. :54129)
+    s = s.replace(/:\d+$/, '');
+
+    // remove unsafe chars
     s = s.replace(/[^a-zA-Z0-9_-]/g, '_');
+
     return s;
   }
 
@@ -86,16 +90,21 @@ export class RateLimitGuard implements CanActivate {
       const key = String(ip || '')
         .trim()
         .replace(/^::ffff:/, '')
+        .replace(/:\d+$/, '') // remove port
         .replace(/[^a-zA-Z0-9_-]/g, '_');
       await loginLimiter.delete(key);
-    } catch (err) {
-    }
+    } catch (err) {}
   }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const req = context.switchToHttp().getRequest<Request>();
     const res = context.switchToHttp().getResponse<Response>();
-    const path = (req.path || '').toLowerCase();
+
+    // Normalize path (remove trailing slash)
+    let path = (req.path || '').toLowerCase();
+    if (path.endsWith('/')) {
+      path = path.slice(0, -1);
+    }
 
     const internal = req.headers['x-internal-health'];
     if (
@@ -109,10 +118,9 @@ export class RateLimitGuard implements CanActivate {
 
     if (
       path === '/system-check' ||
-      path === '/system-check/' ||
       path === '/health' ||
-      path.startsWith('/health/') ||
-      path.startsWith('/system-check/')
+      path.startsWith('/health') ||
+      path.startsWith('/system-check')
     ) {
       return true;
     }
@@ -126,14 +134,10 @@ export class RateLimitGuard implements CanActivate {
       return true;
     }
 
-    // ------------------------------------------------------------------
-    // UPDATED: allow /login and /login/ as login endpoints
-    // ------------------------------------------------------------------
+    // LOGIN limiter (STRICT match)
     const isLoginPath =
-      path === '/auth/local/login' ||
-      path === '/auth/local/login/' ||
       path === '/login' ||
-      path === '/login/';
+      path === '/auth/local/login';
 
     if (isLoginPath && req.method && req.method.toUpperCase() === 'POST') {
       const rawIp = this.extractRealIp(req);
