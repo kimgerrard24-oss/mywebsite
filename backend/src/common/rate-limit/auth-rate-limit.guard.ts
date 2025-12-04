@@ -20,20 +20,50 @@ export class AuthRateLimitGuard implements CanActivate {
   ) {}
 
   private extractRealIp(req: Request): string {
-    const xff = req.headers['x-forwarded-for'];
-    if (typeof xff === 'string') {
-      return xff.split(',')[0].trim().replace(/^::ffff:/, '');
+    // Cloudflare
+    if (req.headers['cf-connecting-ip']) {
+      return String(req.headers['cf-connecting-ip']).split(',')[0].trim();
     }
+
+    // Reverse proxy
+    const xff = req.headers['x-forwarded-for'];
+    if (typeof xff === 'string' && xff.length > 0) {
+      return xff.split(',')[0].trim();
+    }
+
+    // Nginx / Traefik
+    if (req.headers['x-real-ip']) {
+      return String(req.headers['x-real-ip']).trim();
+    }
+
+    // Socket
     const ip =
-      req.socket?.remoteAddress ||
+      (req.socket && req.socket.remoteAddress) ||
       req.ip ||
       '';
-    return String(ip).replace(/^::ffff:/, '');
+
+    return String(ip).trim();
   }
 
   private normalizeIp(ip: string): string {
     if (!ip) return 'unknown';
-    return ip.replace(/[^a-zA-Z0-9]/g, '_');
+
+    let s = String(ip).trim();
+
+    // IPv6 mapped
+    s = s.replace(/^::ffff:/, '');
+
+    // remove port if present
+    s = s.replace(/:\d+$/, '');
+
+    // safe normalize
+    s = s.replace(/[^a-zA-Z0-9_-]/g, '_');
+
+    if (!s || s.length === 0) {
+      return 'unknown';
+    }
+
+    return s;
   }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -42,7 +72,6 @@ export class AuthRateLimitGuard implements CanActivate {
 
     let path = (req.path || '').toLowerCase();
 
-    // remove trailing slash
     if (path.endsWith('/')) {
       path = path.slice(0, -1);
     }
@@ -78,12 +107,6 @@ export class AuthRateLimitGuard implements CanActivate {
       return true;
     }
 
-    // --------------------------------------------------------------------
-    // LOGIN bypass (FINAL SAFE VERSION)
-    // - allow POST only
-    // - allow both /login and /auth/local/login
-    // - ignore trailing slash
-    // --------------------------------------------------------------------
     const isLoginPath =
       path === '/login' ||
       path === '/auth/local/login';
@@ -91,7 +114,6 @@ export class AuthRateLimitGuard implements CanActivate {
     if (isLoginPath && req.method.toUpperCase() === 'POST') {
       return true;
     }
-    // --------------------------------------------------------------------
 
     if (path.startsWith('/auth/local/register')) return true;
     if (path.startsWith('/auth/local/refresh')) return true;

@@ -49,23 +49,28 @@ export class RateLimitService implements OnModuleDestroy {
   private sanitizeKey(raw: string): string {
     if (!raw) return 'unknown';
 
-    let key = raw.trim();
+    let key = String(raw).trim();
 
-    const ipMatch = key.match(
-      /(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/,
-    );
+    // IPv6 mapped prefix
+    key = key.replace(/^::ffff:/, '');
 
-    if (ipMatch) {
-      const cleanIp = ipMatch[1]
-        .replace(/^::ffff:/, '')
-        .replace(/:\d+$/, '');
+    // remove port
+    key = key.replace(/:\d+$/, '');
 
-      return key
-        .replace(ipMatch[1], cleanIp)
-        .replace(/[^a-zA-Z0-9_-]/g, '_');
+    // extract IPv4 if present
+    const ipv4 = key.match(/\b\d{1,3}(?:\.\d{1,3}){3}\b/);
+    if (ipv4 && ipv4[0]) {
+      key = ipv4[0];
     }
 
-    return key.replace(/[^a-zA-Z0-9_-]/g, '_');
+    // normalize
+    key = key.replace(/[^a-zA-Z0-9_-]/g, '_');
+
+    if (!key.length) {
+      return 'unknown';
+    }
+
+    return key;
   }
 
   async consume(

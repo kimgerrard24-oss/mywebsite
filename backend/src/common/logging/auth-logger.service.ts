@@ -8,8 +8,22 @@ export class AuthLoggerService {
 
   private getRealIp(ip: string): string {
     if (!ip) return '';
-    if (ip.includes(',')) return ip.split(',')[0].trim();
-    return ip.replace('::ffff:', '').trim();
+
+    let value = String(ip).trim();
+
+    // Cloudflare forwarded list
+    if (value.includes(',')) {
+      value = value.split(',')[0].trim();
+    }
+
+    // remove IPv6 mapped prefix
+    value = value.replace(/^::ffff:/, '');
+
+    // remove port if present
+    value = value.replace(/:\d+$/, '');
+
+    // normalize final
+    return value.trim();
   }
 
   private hash(value: string): string {
