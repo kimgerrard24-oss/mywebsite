@@ -15,13 +15,7 @@ import { RateLimitAction } from './rate-limit.policy';
 import { RateLimiterRedis } from 'rate-limiter-flexible';
 import Redis from 'ioredis';
 
-// -----------------------------------------------------------
-// Brute-force protection for login attempts
-// -----------------------------------------------------------
 
-// Secure Redis client (Production-grade)
-// --------------------------------------
-// REDIS_URL must be provided in env (e.g. redis://:password@host:6379/0)
 if (!process.env.REDIS_URL) {
   throw new Error('REDIS_URL is not defined in environment variables');
 }
@@ -42,14 +36,14 @@ const maxWrongAttemptsByIPperMinute =
   Number(process.env.RATE_LIMIT_MAX_ATTEMPTS) || 10;
 
 const blockDuration =
-  Number(process.env.RATE_LIMIT_BLOCK_SECONDS) || 60 * 15; // default 15 min
+  Number(process.env.RATE_LIMIT_BLOCK_SECONDS) || 60 * 15;
 
 const loginLimiter = new RateLimiterRedis({
   storeClient: redisClient,
   points: maxWrongAttemptsByIPperMinute,
-  duration: 60, // 1 minute window
+  duration: 60,
   blockDuration,
-  keyPrefix: 'rl_login', // Redis keys will be rl_login:<key>
+  keyPrefix: 'rl_login',
 });
 
 export type RateLimitConsumeResult = {
@@ -80,24 +74,21 @@ export class RateLimitGuard implements CanActivate {
     return String(ip).replace(/^::ffff:/, '');
   }
 
-  // Normalize key-safe representation for IPs (remove unsafe chars)
   private normalizeKey(ip: string): string {
     if (!ip) return 'unknown';
-    // remove IPv6 zone id if any, remove leading ::ffff:, replace colons/dots with _
     let s = String(ip).trim().replace(/^::ffff:/, '');
-    // keep alnum and underscore only (replace others)
     s = s.replace(/[^a-zA-Z0-9_-]/g, '_');
     return s;
   }
 
-  // Revoke IP after successful login
   static async revokeIp(ip: string) {
     try {
-      // Normalize similarly to consume()
-      const key = String(ip || '').trim().replace(/^::ffff:/, '').replace(/[^a-zA-Z0-9_-]/g, '_');
+      const key = String(ip || '')
+        .trim()
+        .replace(/^::ffff:/, '')
+        .replace(/[^a-zA-Z0-9_-]/g, '_');
       await loginLimiter.delete(key);
     } catch (err) {
-      // ignore errors when revoking
     }
   }
 
@@ -106,7 +97,6 @@ export class RateLimitGuard implements CanActivate {
     const res = context.switchToHttp().getResponse<Response>();
     const path = (req.path || '').toLowerCase();
 
-    // Health check bypass (internal token)
     const internal = req.headers['x-internal-health'];
     if (
       internal &&
@@ -127,7 +117,6 @@ export class RateLimitGuard implements CanActivate {
       return true;
     }
 
-    // OAuth / session bypass
     if (
       path.startsWith('/auth/google') ||
       path.startsWith('/auth/facebook') ||
@@ -137,23 +126,24 @@ export class RateLimitGuard implements CanActivate {
       return true;
     }
 
-    // -----------------------------------------------------------
-    // Brute-force limiter for POST /auth/local/login ONLY
-    // -----------------------------------------------------------
+    // ------------------------------------------------------------------
+    // UPDATED: allow /login and /login/ as login endpoints
+    // ------------------------------------------------------------------
     const isLoginPath =
-      path === '/auth/local/login' || path === '/auth/local/login/';
+      path === '/auth/local/login' ||
+      path === '/auth/local/login/' ||
+      path === '/login' ||
+      path === '/login/';
 
     if (isLoginPath && req.method && req.method.toUpperCase() === 'POST') {
       const rawIp = this.extractRealIp(req);
       const normalizedIp = this.normalizeKey(rawIp);
-      const key = normalizedIp; // loginLimiter will prefix with keyPrefix
+      const key = normalizedIp;
 
       try {
         await loginLimiter.consume(key, 1);
-        // allow to proceed to validate credentials
         return true;
       } catch (err: any) {
-        // err contains msBeforeNext when blocked
         const retryAfter =
           typeof err?.msBeforeNext === 'number'
             ? Math.ceil(err.msBeforeNext / 1000)
@@ -161,7 +151,6 @@ export class RateLimitGuard implements CanActivate {
             ? Math.ceil(Number(err.msBeforeNext) / 1000)
             : Math.ceil((blockDuration || 60 * 15));
 
-        // set HTTP headers for clients
         res.setHeader('Retry-After', String(retryAfter));
         res.setHeader('X-RateLimit-Limit', String(maxWrongAttemptsByIPperMinute));
         res.setHeader('X-RateLimit-Remaining', '0');
@@ -180,13 +169,9 @@ export class RateLimitGuard implements CanActivate {
       }
     }
 
-    // Registration and refresh endpoints allowed through
     if (path.startsWith('/auth/local/register')) return true;
     if (path.startsWith('/auth/local/refresh')) return true;
 
-    // -----------------------------------------------------------
-    // Global action-level rate-limiter (unchanged behavior)
-    // -----------------------------------------------------------
     const action = this.reflector.get<RateLimitAction>(
       RATE_LIMIT_CONTEXT_KEY,
       context.getHandler(),

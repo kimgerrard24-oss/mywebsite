@@ -72,11 +72,11 @@ export class RateLimitService implements OnModuleDestroy {
 
       return key
         .replace(ipMatch[1], cleanIp)
-        .replace(/[^a-zA-Z0-9_]/g, '_');
+        .replace(/[^a-zA-Z0-9_-]/g, '_'); // unified with login limiter
     }
 
     // fallback — safe key
-    return key.replace(/[^a-zA-Z0-9_]/g, '_');
+    return key.replace(/[^a-zA-Z0-9_-]/g, '_'); // unified with login limiter
   }
 
   async consume(

@@ -237,11 +237,16 @@ async login(
     );
   }
 
+  // Correctly revoke rate limit on successful login
   try {
-    const keyIp = normalizedIp; 
+    // normalize key EXACTLY like RateLimitGuard keys
+    const keyIp = normalizedIp
+      .replace(/^::ffff:/, '')
+      .replace(/[^a-zA-Z0-9_-]/g, '_')
+      .trim();
+
     await RateLimitGuard.revokeIp(keyIp);
-  } catch (err) {
-  }
+  } catch (err) {}
 
   const safeUser = { ...user };
   delete (safeUser as any).passwordHash;

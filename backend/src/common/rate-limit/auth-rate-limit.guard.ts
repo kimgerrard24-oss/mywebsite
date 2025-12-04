@@ -71,11 +71,17 @@ export class AuthRateLimitGuard implements CanActivate {
       return true;
     }
 
-    // Login must bypass action-level rate limit,
-    // brute-force blocking is handled by rate-limit.guard.ts only
-    if (path.startsWith('/auth/local/login')) {
+    // --------------------------------------------------------------------
+    // FIX: Allow all login endpoints to bypass this guard
+    // --------------------------------------------------------------------
+    if (
+      path === '/login' ||
+      path === '/login/' ||
+      path.startsWith('/auth/local/login')
+    ) {
       return true;
     }
+    // --------------------------------------------------------------------
 
     if (path.startsWith('/auth/local/register')) return true;
     if (path.startsWith('/auth/local/refresh')) return true;
