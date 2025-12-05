@@ -33,7 +33,7 @@ export class AuthRateLimitGuard implements CanActivate {
 
   private normalizeIp(ip: string): string {
     if (!ip) return 'unknown';
-    return ip.replace(/[^a-zA-Z0-9]/g, '_');
+    return ip.replace(/[^a-zA-Z0-9_-]/g, '_').replace(/_+/g, '_') || 'unknown';
   }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -46,17 +46,14 @@ export class AuthRateLimitGuard implements CanActivate {
       path = path.slice(0, -1);
     }
 
-    // ignore OPTIONS/HEAD
     if (req.method === 'OPTIONS' || req.method === 'HEAD') {
       return true;
     }
 
-    // ignore favicon
     if (path === '/favicon.ico') {
       return true;
     }
 
-    // ignore static assets
     if (path.startsWith('/_next') || path.startsWith('/static')) {
       return true;
     }
@@ -117,8 +114,8 @@ export class AuthRateLimitGuard implements CanActivate {
     const rawIp = this.extractRealIp(req);
     const normalizedIp = this.normalizeIp(rawIp);
 
-    // FIX: do not prefix action again
-    const key = normalizedIp;
+    // FIX: include action prefix so each action has independent limit
+    const key = `${action}:${normalizedIp}`;
 
     try {
       const info = await this.rlService.consume(action, key);

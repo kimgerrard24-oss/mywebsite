@@ -45,7 +45,8 @@ export class RateLimitGuard implements CanActivate {
     let s = String(ip).trim().replace(/^::ffff:/, '');
     s = s.replace(/:\d+$/, '');
     s = s.replace(/[^a-zA-Z0-9_-]/g, '_');
-    return s;
+    s = s.replace(/_+/g, '_');
+    return s || 'unknown';
   }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -57,17 +58,14 @@ export class RateLimitGuard implements CanActivate {
       path = path.slice(0, -1);
     }
 
-    // OPTIONS & HEAD must bypass
     if (req.method === 'OPTIONS' || req.method === 'HEAD') {
       return true;
     }
 
-    // favicon bypass
     if (path === '/favicon.ico') {
       return true;
     }
 
-    // static bypass (Next.js)
     if (path.startsWith('/_next') || path.startsWith('/static')) {
       return true;
     }
@@ -100,7 +98,6 @@ export class RateLimitGuard implements CanActivate {
       return true;
     }
 
-    // LOGIN POST bypass
     if (
       req.method.toUpperCase() === 'POST' &&
       (
@@ -125,8 +122,8 @@ export class RateLimitGuard implements CanActivate {
     const rawIp = this.extractRealIp(req);
     const normalizedIp = this.normalizeKey(rawIp);
 
-    // FIX: do not prefix action twice
-    const key = normalizedIp;
+    // fix: prefix action to avoid collision
+    const key = `${action}:${normalizedIp}`;
 
     try {
       const info: RateLimitConsumeResult = await this.rlService.consume(

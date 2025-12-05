@@ -24,11 +24,12 @@ export class RateLimitService implements OnModuleDestroy {
       Object.entries(RateLimitPolicy).forEach(([action, config]) => {
         const limiter = new RateLimiterRedis({
           storeClient: this.redis,
-          keyPrefix: `rl:${action}`,
+
+          // FIX: use single prefix
+          keyPrefix: 'rl',
+
           points: config.points,
           duration: config.duration,
-
-          // FIX: allow block if policy defines
           blockDuration: (config as any).blockDuration || 0,
         });
 
@@ -50,23 +51,12 @@ export class RateLimitService implements OnModuleDestroy {
   private sanitizeKey(raw: string): string {
     if (!raw) return 'unknown';
 
-    let key = raw.trim();
+    let k = raw.trim()
+      .replace(/^::ffff:/, '')
+      .replace(/:\d+$/, '')
+      .replace(/[^a-zA-Z0-9_-]/g, '_');
 
-    const ipMatch = key.match(
-      /(\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3})/,
-    );
-
-    if (ipMatch) {
-      const cleanIp = ipMatch[1]
-        .replace(/^::ffff:/, '')
-        .replace(/:\d+$/, '');
-
-      return key
-        .replace(ipMatch[1], cleanIp)
-        .replace(/[^a-zA-Z0-9_-]/g, '_');
-    }
-
-    return key.replace(/[^a-zA-Z0-9_-]/g, '_');
+    return k || 'unknown';
   }
 
   async consume(
@@ -85,14 +75,17 @@ export class RateLimitService implements OnModuleDestroy {
       };
     }
 
-    const sanitizedKey = this.sanitizeKey(key);
+    const ipSanitized = this.sanitizeKey(key);
+
+    // FIX: consistent full key for Redis
+    const fullKey = `rl:${action}:${ipSanitized}`;
 
     this.logger.debug(
-      `Consume: action="${action}", raw="${key}", sanitized="${sanitizedKey}"`,
+      `Consume: action="${action}", raw="${key}", sanitized="${fullKey}"`,
     );
 
     try {
-      const result = await limiter.consume(sanitizedKey);
+      const result = await limiter.consume(fullKey);
       const resetSec = Math.ceil(result.msBeforeNext / 1000);
 
       return {
@@ -106,7 +99,7 @@ export class RateLimitService implements OnModuleDestroy {
         err?.msBeforeNext ? Math.ceil(err.msBeforeNext / 1000) : 60;
 
       this.logger.warn(
-        `Rate limit exceeded for action="${action}", key="${sanitizedKey}", retryAfterSec=${retryAfterSec}`,
+        `Rate limit exceeded for action="${action}", key="${fullKey}", retryAfterSec=${retryAfterSec}`,
       );
 
       return Promise.reject({
@@ -118,23 +111,21 @@ export class RateLimitService implements OnModuleDestroy {
     }
   }
 
-  // ==========================================================
-  // NEW: reset rate-limit key when login SUCCESS
-  // ==========================================================
   async reset(action: RateLimitAction, key: string): Promise<void> {
     const limiter = this.limiters.get(action);
     if (!limiter) return;
 
-    const sanitizedKey = this.sanitizeKey(key);
+    const ipSanitized = this.sanitizeKey(key);
+    const fullKey = `rl:${action}:${ipSanitized}`;
 
     try {
-      await limiter.delete(sanitizedKey);
+      await limiter.delete(fullKey);
       this.logger.debug(
-        `RateLimit reset: action="${action}", key="${sanitizedKey}"`,
+        `RateLimit reset: action="${action}", key="${fullKey}"`,
       );
-    } catch (err) {
+    } catch {
       this.logger.warn(
-        `Failed to reset limiter key="${sanitizedKey}" for action="${action}"`,
+        `Failed to reset limiter key="${fullKey}" for action="${action}"`,
       );
     }
   }
