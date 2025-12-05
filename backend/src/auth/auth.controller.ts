@@ -169,6 +169,7 @@ export class AuthController {
 
 // Local login
 @Public()
+@RateLimit('login')
 @Post('login')
 @HttpCode(HttpStatus.OK)
 async login(
@@ -243,44 +244,44 @@ async login(
     path: '/',
   };
 
+res.cookie(
+  process.env.ACCESS_TOKEN_COOKIE_NAME || 'phl_access',
+  session.accessToken,
+  cookieOptions
+);
+
+if (session.refreshToken) {
   res.cookie(
-    process.env.ACCESS_TOKEN_COOKIE_NAME || 'phl_access',
-    session.accessToken,
-    cookieOptions
-  );
-
-  if (session.refreshToken) {
-    res.cookie(
-      process.env.REFRESH_TOKEN_COOKIE_NAME || 'phl_refresh',
-      session.refreshToken,
-      {
-        httpOnly: true,
-        secure: process.env.COOKIE_SECURE !== 'false',
-        sameSite: 'strict' as const,
-        domain: process.env.COOKIE_DOMAIN || undefined,
-        maxAge:
-          (Number(process.env.REFRESH_TOKEN_TTL_SECONDS) ||
-            60 * 60 * 24 * 30) * 1000,
-        path: '/',
-      },
-    );
-  }
-
-  try {
-    await RateLimitGuard.revokeIp(keyIp);
-  } catch (err) {}
-
-  const safeUser = { ...user };
-  delete (safeUser as any).passwordHash;
-
-  return {
-    success: true,
-    data: {
-      user: safeUser,
-      expiresIn: session.expiresIn,
+    process.env.REFRESH_TOKEN_COOKIE_NAME || 'phl_refresh',
+    session.refreshToken,
+    {
+      httpOnly: true,
+      secure: process.env.COOKIE_SECURE !== 'false',
+      sameSite: 'strict' as const,
+      domain: process.env.COOKIE_DOMAIN || undefined,
+      maxAge:
+        (Number(process.env.REFRESH_TOKEN_TTL_SECONDS) ||
+          60 * 60 * 24 * 30) * 1000,
+      path: '/',
     },
-  };
+  );
 }
+
+// NEW: reset rate-limit after successful login
+await this.rateLimitService.reset('login', keyIp);
+
+const safeUser = { ...user };
+delete (safeUser as any).passwordHash;
+
+return {
+  success: true,
+  data: {
+    user: safeUser,
+    expiresIn: session.expiresIn,
+  },
+};
+}
+
 
    
 // verify-email

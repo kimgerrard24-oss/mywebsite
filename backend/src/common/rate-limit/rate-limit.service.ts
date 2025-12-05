@@ -1,5 +1,4 @@
 // src/common/rate-limit/rate-limit-service.ts
-
 import { Injectable, Logger, Inject, OnModuleDestroy } from '@nestjs/common';
 import { RateLimiterRedis } from 'rate-limiter-flexible';
 import { Redis } from 'ioredis';
@@ -29,8 +28,8 @@ export class RateLimitService implements OnModuleDestroy {
           points: config.points,
           duration: config.duration,
 
-          // FIX: use blockDuration from policy, not duration
-          blockDuration: config.blockDuration || 0,
+          // FIX: allow block if policy defines
+          blockDuration: (config as any).blockDuration || 0,
         });
 
         this.limiters.set(action as RateLimitAction, limiter);
@@ -119,8 +118,10 @@ export class RateLimitService implements OnModuleDestroy {
     }
   }
 
-  // NEW: allow login success to reset
-  async revoke(action: RateLimitAction, key: string): Promise<void> {
+  // ==========================================================
+  // NEW: reset rate-limit key when login SUCCESS
+  // ==========================================================
+  async reset(action: RateLimitAction, key: string): Promise<void> {
     const limiter = this.limiters.get(action);
     if (!limiter) return;
 
@@ -128,10 +129,12 @@ export class RateLimitService implements OnModuleDestroy {
 
     try {
       await limiter.delete(sanitizedKey);
-      this.logger.debug(`Revoked limiter key=${sanitizedKey} for action="${action}"`);
+      this.logger.debug(
+        `RateLimit reset: action="${action}", key="${sanitizedKey}"`,
+      );
     } catch (err) {
       this.logger.warn(
-        `Failed to revoke key="${sanitizedKey}" for action="${action}"`,
+        `Failed to reset limiter key="${sanitizedKey}" for action="${action}"`,
       );
     }
   }
