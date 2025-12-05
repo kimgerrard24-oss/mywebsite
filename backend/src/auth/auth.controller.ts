@@ -169,7 +169,6 @@ export class AuthController {
 
 // Local login
 @Public()
-@RateLimit('login')
 @Post('login')
 @HttpCode(HttpStatus.OK)
 async login(
@@ -197,9 +196,12 @@ async login(
 
   const ua = (req.headers['user-agent'] as string) || null;
 
+  // validate credentials
   const user = await this.authService.validateUser(body.email, body.password);
 
+  // invalid credentials
   if (!user) {
+    // consume COUNT ONLY HERE
     try {
       await this.rateLimitService.consume('login', keyIp);
     } catch (err: any) {
@@ -233,6 +235,7 @@ async login(
     return { success: false, message: 'Invalid email or password' };
   }
 
+  // success – generate session
   const session = await this.authService.createSessionToken(user.id);
 
   const cookieOptions = {
@@ -244,44 +247,43 @@ async login(
     path: '/',
   };
 
-res.cookie(
-  process.env.ACCESS_TOKEN_COOKIE_NAME || 'phl_access',
-  session.accessToken,
-  cookieOptions
-);
-
-if (session.refreshToken) {
   res.cookie(
-    process.env.REFRESH_TOKEN_COOKIE_NAME || 'phl_refresh',
-    session.refreshToken,
-    {
-      httpOnly: true,
-      secure: process.env.COOKIE_SECURE !== 'false',
-      sameSite: 'strict' as const,
-      domain: process.env.COOKIE_DOMAIN || undefined,
-      maxAge:
-        (Number(process.env.REFRESH_TOKEN_TTL_SECONDS) ||
-          60 * 60 * 24 * 30) * 1000,
-      path: '/',
-    },
+    process.env.ACCESS_TOKEN_COOKIE_NAME || 'phl_access',
+    session.accessToken,
+    cookieOptions
   );
+
+  if (session.refreshToken) {
+    res.cookie(
+      process.env.REFRESH_TOKEN_COOKIE_NAME || 'phl_refresh',
+      session.refreshToken,
+      {
+        httpOnly: true,
+        secure: process.env.COOKIE_SECURE !== 'false',
+        sameSite: 'strict' as const,
+        domain: process.env.COOKIE_DOMAIN || undefined,
+        maxAge:
+          (Number(process.env.REFRESH_TOKEN_TTL_SECONDS) ||
+            60 * 60 * 24 * 30) * 1000,
+        path: '/',
+      },
+    );
+  }
+
+  // reset after success
+  await this.rateLimitService.reset('login', keyIp);
+
+  const safeUser = { ...user };
+  delete (safeUser as any).passwordHash;
+
+  return {
+    success: true,
+    data: {
+      user: safeUser,
+      expiresIn: session.expiresIn,
+    },
+  };
 }
-
-// NEW: reset rate-limit after successful login
-await this.rateLimitService.reset('login', keyIp);
-
-const safeUser = { ...user };
-delete (safeUser as any).passwordHash;
-
-return {
-  success: true,
-  data: {
-    user: safeUser,
-    expiresIn: session.expiresIn,
-  },
-};
-}
-
 
    
 // verify-email

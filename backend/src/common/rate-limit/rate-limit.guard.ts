@@ -48,27 +48,6 @@ export class RateLimitGuard implements CanActivate {
     return s;
   }
 
-  static async revokeIp(ip: string) {
-    try {
-      const clean = String(ip || '')
-        .trim()
-        .replace(/^::ffff:/, '')
-        .replace(/:\d+$/, '')
-        .replace(/[^a-zA-Z0-9_-]/g, '_');
-
-      const redis = require('ioredis');
-      const client = new redis(process.env.REDIS_URL);
-
-      await client.del(`rl:login:${clean}`);
-      await client.del(`login:${clean}`);
-      await client.del(`rl_login:${clean}`);
-
-      client.disconnect();
-    } catch (err) {
-      // fail silently
-    }
-  }
-
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const req = context.switchToHttp().getRequest<Request>();
     const res = context.switchToHttp().getResponse<Response>();
@@ -76,6 +55,21 @@ export class RateLimitGuard implements CanActivate {
     let path = (req.path || '').toLowerCase();
     if (path.endsWith('/')) {
       path = path.slice(0, -1);
+    }
+
+    // OPTIONS & HEAD must bypass
+    if (req.method === 'OPTIONS' || req.method === 'HEAD') {
+      return true;
+    }
+
+    // favicon bypass
+    if (path === '/favicon.ico') {
+      return true;
+    }
+
+    // static bypass (Next.js)
+    if (path.startsWith('/_next') || path.startsWith('/static')) {
+      return true;
     }
 
     const internal = req.headers['x-internal-health'];
@@ -106,29 +100,18 @@ export class RateLimitGuard implements CanActivate {
       return true;
     }
 
-    // ------------------------------------------------------
-    // LOGIN BYPASS (ADDED)
-    // ------------------------------------------------------
-    const isLoginPath =
-      path === '/login' ||
-      path === '/auth/login' || // ADDED
-      path === '/auth/local/login' ||
-      path === '/api/auth/local/login' || // ADDED
-      path === '/login/'; // ADDED
-
-    if (isLoginPath && req.method && req.method.toUpperCase() === 'POST') {
-      return true;
-    }
-
-    // ADDED: prefix match
+    // LOGIN POST bypass
     if (
-      path.startsWith('/login') ||
-      path.startsWith('/auth/login') ||
-      path.startsWith('/api/auth/local/login')
+      req.method.toUpperCase() === 'POST' &&
+      (
+        path === '/login' ||
+        path === '/auth/login' ||
+        path === '/auth/local/login' ||
+        path === '/api/auth/local/login'
+      )
     ) {
       return true;
     }
-    // ------------------------------------------------------
 
     if (path.startsWith('/auth/local/register')) return true;
     if (path.startsWith('/auth/local/refresh')) return true;
@@ -137,17 +120,18 @@ export class RateLimitGuard implements CanActivate {
       RATE_LIMIT_CONTEXT_KEY,
       context.getHandler(),
     );
-
     if (!action) return true;
 
     const rawIp = this.extractRealIp(req);
     const normalizedIp = this.normalizeKey(rawIp);
-    const actionKey = `${action}:${normalizedIp}`;
+
+    // FIX: do not prefix action twice
+    const key = normalizedIp;
 
     try {
       const info: RateLimitConsumeResult = await this.rlService.consume(
         action,
-        actionKey,
+        key,
       );
 
       res.setHeader('X-RateLimit-Limit', String(info.limit));
@@ -164,7 +148,7 @@ export class RateLimitGuard implements CanActivate {
       res.setHeader('X-RateLimit-Reset', String(retry));
 
       this.logger.warn(
-        `Rate limit blocked: action="${action}" key="${actionKey}" ip="${rawIp}" retryAfter=${retry}`,
+        `Rate limit blocked: action="${action}" key="${key}" ip="${rawIp}" retryAfter=${retry}`,
       );
 
       res.status(429).json({

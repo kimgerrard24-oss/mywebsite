@@ -46,6 +46,21 @@ export class AuthRateLimitGuard implements CanActivate {
       path = path.slice(0, -1);
     }
 
+    // ignore OPTIONS/HEAD
+    if (req.method === 'OPTIONS' || req.method === 'HEAD') {
+      return true;
+    }
+
+    // ignore favicon
+    if (path === '/favicon.ico') {
+      return true;
+    }
+
+    // ignore static assets
+    if (path.startsWith('/_next') || path.startsWith('/static')) {
+      return true;
+    }
+
     const internal = req.headers['x-internal-health'];
     if (
       internal &&
@@ -76,12 +91,10 @@ export class AuthRateLimitGuard implements CanActivate {
       return true;
     }
 
-    // allow POST /auth/complete only
     if (path === '/auth/complete' && req.method.toUpperCase() === 'POST') {
       return true;
     }
 
-    // allow POST only for login
     const isLoginPath =
       path === '/login' ||
       path === '/auth/local/login';
@@ -104,8 +117,8 @@ export class AuthRateLimitGuard implements CanActivate {
     const rawIp = this.extractRealIp(req);
     const normalizedIp = this.normalizeIp(rawIp);
 
-    // FIX: correct redis key format
-    const key = `${action}:${normalizedIp}`;
+    // FIX: do not prefix action again
+    const key = normalizedIp;
 
     try {
       const info = await this.rlService.consume(action, key);
