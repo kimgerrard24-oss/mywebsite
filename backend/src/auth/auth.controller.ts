@@ -23,13 +23,13 @@ import { Response, Request } from 'express';
 import IORedis from 'ioredis';
 import axios from 'axios';
 import { RateLimitContext } from '../common/rate-limit/rate-limit.decorator';
-import { AuthRateLimitGuard } from '../common/rate-limit/auth-rate-limit.guard';
 import { Public } from './decorators/public.decorator';
 import { RegisterDto } from './dto/register.dto';
 import { RateLimit } from '../common/rate-limit/rate-limit.decorator';
 import { AuthRepository } from './auth.repository';
 import { AuditService } from './audit.service';
 import { RateLimitGuard } from '../common/rate-limit/rate-limit.guard';
+import { RateLimitService } from '../common/rate-limit/rate-limit.service';
 
 
 if (!process.env.REDIS_URL) {
@@ -104,8 +104,11 @@ export class AuthController {
   constructor(private readonly authService: AuthService,
               private readonly authRepo: AuthRepository,
               private readonly audit: AuditService,
+              private readonly rateLimitService: RateLimitService,
+
   ) {}
 
+  // Local register
   @RateLimit('register')
   @Post('register')
   @HttpCode(HttpStatus.CREATED)
@@ -185,12 +188,38 @@ async login(
     ? rawIp.replace(/^::ffff:/, '').replace(/:\d+$/, '').trim()
     : 'unknown';
 
+  const keyIp = normalizedIp
+    .replace(/^::ffff:/, '')
+    .replace(/:\d+$/, '')
+    .replace(/[^a-zA-Z0-9_-]/g, '_')
+    .trim();
+
   const ua = (req.headers['user-agent'] as string) || null;
 
   const user = await this.authService.validateUser(body.email, body.password);
 
   if (!user) {
-    this.logger.warn(`Failed login attempt for ${body.email} from ${normalizedIp}`);
+    try {
+      await this.rateLimitService.consume('login', keyIp);
+    } catch (err: any) {
+      const retry =
+        typeof err?.retryAfterSec === 'number' ? err.retryAfterSec : 900;
+
+      res.setHeader('Retry-After', String(retry));
+
+      await this.audit.logLoginAttempt({
+        email: body.email,
+        ip: normalizedIp,
+        userAgent: ua,
+        success: false,
+        reason: 'rate_limited',
+      });
+
+      return {
+        success: false,
+        message: 'Too many login attempts. Try again later.',
+      };
+    }
 
     await this.audit.logLoginAttempt({
       email: body.email,
@@ -237,14 +266,7 @@ async login(
     );
   }
 
-  // Correctly revoke rate limit on successful login
   try {
-    // normalize key EXACTLY like RateLimitGuard keys
-    const keyIp = normalizedIp
-      .replace(/^::ffff:/, '')
-      .replace(/[^a-zA-Z0-9_-]/g, '_')
-      .trim();
-
     await RateLimitGuard.revokeIp(keyIp);
   } catch (err) {}
 
@@ -259,6 +281,7 @@ async login(
     },
   };
 }
+
    
 // verify-email
   @Get('verify-email')
