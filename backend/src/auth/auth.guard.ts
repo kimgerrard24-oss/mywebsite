@@ -43,9 +43,9 @@ export class AuthGuard implements CanActivate {
     }
 
     // ========================================
-    // 3) FirebaseAuthGuard จะตั้ง req.user ให้เอง
+    // 3) Accept both Firebase + Session cookie
     // ========================================
-    if (req.user) {
+    if (req.user || (req.session && req.session.user)) {
       return true;
     }
 

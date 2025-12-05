@@ -12,5 +12,5 @@ export class LoginDto {
 
   @IsOptional()
   @IsBoolean()
-  remember?: boolean;
+  remember: boolean = false;
 }
