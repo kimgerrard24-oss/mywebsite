@@ -91,70 +91,81 @@ constructor(
   });
 }
 
-  // -------------------------------------------------------
-  // Local Login
-  // -------------------------------------------------------
-   async validateUser(email: string, password: string) {
-    const user = await this.repo.findUserByEmail(email);
-    if (!user) {
-      await this.audit.logLoginAttempt({ email, success: false, reason: 'user_not_found' });
-      return null;
-    }
-
-    if (user.isDisabled) {
-      await this.audit.logLoginAttempt({ userId: user.id, email, success: false, reason: 'account_disabled' });
-      throw new ForbiddenException('Account disabled');
-    }
-
-    const ok = await comparePassword(password, user.hashedPassword);
-    if (!ok) {
-      await this.audit.logLoginAttempt({ userId: user.id, email, success: false, reason: 'invalid_password' });
-      return null;
-    }
-
-    await this.repo.updateLastLogin(user.id);
-    await this.audit.logLoginAttempt({ userId: user.id, email, success: true });
-
-    const { passwordHash, ...safe } = user as any;
-    return safe;
+// -------------------------------------------------------
+// Local Login
+// -------------------------------------------------------
+async validateUser(email: string, password: string) {
+  const user = await this.repo.findUserByEmail(email);
+  if (!user) {
+    await this.audit.logLoginAttempt({ email, success: false, reason: 'user_not_found' });
+    return null;
   }
 
-  async createSessionToken(userId: string) {
-    const accessToken = randomBytes(32).toString('hex');
-    const key = `session:access:${accessToken}`;
-
-    const payload = { userId, createdAt: Date.now() };
-
-    await redis.set(key, JSON.stringify(payload), 'EX', ACCESS_TOKEN_TTL);
-
-    const refreshToken = randomBytes(48).toString('hex');
-    const refreshKey = `session:refresh:${refreshToken}`;
-
-    await redis.set(refreshKey, JSON.stringify({ userId }), 'EX', REFRESH_TOKEN_TTL);
-
-    return {
-      accessToken,
-      refreshToken,
-      expiresIn: ACCESS_TOKEN_TTL,
-    };
+  if (user.isDisabled) {
+    await this.audit.logLoginAttempt({ userId: user.id, email, success: false, reason: 'account_disabled' });
+    throw new ForbiddenException('Account disabled');
   }
 
-  async validateAccessToken(token: string) {
-    const key = `session:access:${token}`;
-    const raw = await redis.get(key);
-    if (!raw) return null;
-
-    try {
-      return JSON.parse(raw);
-    } catch {
-      return null;
-    }
+  // FIX: use correct column name
+  const ok = await comparePassword(password, user.hashedPassword);
+  if (!ok) {
+    await this.audit.logLoginAttempt({ userId: user.id, email, success: false, reason: 'invalid_password' });
+    return null;
   }
 
-  async revokeAccessToken(token: string) {
-    const key = `session:access:${token}`;
-    await redis.del(key);
+  await this.repo.updateLastLogin(user.id);
+  await this.audit.logLoginAttempt({ userId: user.id, email, success: true });
+
+  // FIX: remove hashedPassword from safe object
+  const safe: any = { ...user };
+  delete safe.hashedPassword;
+
+  return safe;
+}
+
+// -------------------------------------------------------
+// Session Token Creation
+// -------------------------------------------------------
+async createSessionToken(userId: string) {
+  const accessToken = randomBytes(32).toString('hex');
+  const key = `session:access:${accessToken}`;
+
+  const payload = { userId, createdAt: Date.now() };
+
+  await redis.set(key, JSON.stringify(payload), 'EX', ACCESS_TOKEN_TTL);
+
+  const refreshToken = randomBytes(48).toString('hex');
+  const refreshKey = `session:refresh:${refreshToken}`;
+
+  await redis.set(refreshKey, JSON.stringify({ userId }), 'EX', REFRESH_TOKEN_TTL);
+
+  return {
+    accessToken,
+    refreshToken,
+    expiresIn: ACCESS_TOKEN_TTL,
+  };
+}
+
+// -------------------------------------------------------
+// Token Validation
+// -------------------------------------------------------
+async validateAccessToken(token: string) {
+  const key = `session:access:${token}`;
+  const raw = await redis.get(key);
+  if (!raw) return null;
+
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
   }
+}
+
+async revokeAccessToken(token: string) {
+  const key = `session:access:${token}`;
+  await redis.del(key);
+}
+
 
   // -------------------------------------------------------
   // Refresh Token (Local)
