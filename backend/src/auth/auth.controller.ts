@@ -198,12 +198,10 @@ async login(
   const ua = (req.headers['user-agent'] as string) || null;
 
   // ======================================================
-  // FIX: CHECK RATE-LIMIT FIRST BEFORE VALIDATE CREDENTIALS
+  // FIX: CHECK RATE-LIMIT FIRST (key = raw IP only)
   // ======================================================
-  const fullKey = `rl:login:${keyIp}`;
-
   try {
-    await this.rateLimitService.consume('login', fullKey);
+    await this.rateLimitService.consume('login', keyIp);
   } catch (err: any) {
     const retry = typeof err?.retryAfterSec === 'number'
       ? err.retryAfterSec
@@ -226,7 +224,7 @@ async login(
   }
 
   // ======================================================
-  // VALIDATE CREDENTIALS AFTER PASSING RATE LIMIT
+  // VALIDATE CREDENTIALS
   // ======================================================
   const user = await this.authService.validateUser(body.email, body.password);
 
@@ -278,9 +276,9 @@ async login(
   }
 
   // ======================================================
-  // FIX: RESET RATE LIMIT AFTER SUCCESS
+  // FIX: reset same key used in consume()
   // ======================================================
-  await this.rateLimitService.reset('login', fullKey);
+  await this.rateLimitService.reset('login', keyIp);
 
   const safeUser = { ...user };
   delete (safeUser as any).passwordHash;
@@ -293,7 +291,6 @@ async login(
     },
   };
 }
-
 
    
 // verify-email

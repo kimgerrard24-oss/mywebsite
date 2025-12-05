@@ -5,6 +5,7 @@ import {
   BadRequestException,
   Injectable,
   Logger,
+  Inject,
   UnauthorizedException,
   ConflictException,
   ForbiddenException,
@@ -22,7 +23,7 @@ import { randomUUID } from 'crypto';
 import { MailService } from '../mail/mail.service';
 import { comparePassword } from './untils/password.util';
 import { AuditService } from './audit.service';
-import Redis from 'ioredis';
+import { Redis } from 'ioredis';
 
 
 interface GoogleOAuthConfig {
@@ -63,6 +64,9 @@ constructor(
   private readonly repo: AuthRepository,
   private readonly _mailService: MailService,
   private readonly audit: AuditService,
+
+    @Inject('REDIS_CLIENT')
+    private readonly redis: Redis,
 ) {}
 
 
@@ -102,21 +106,35 @@ async validateUser(email: string, password: string) {
   }
 
   if (user.isDisabled) {
-    await this.audit.logLoginAttempt({ userId: user.id, email, success: false, reason: 'account_disabled' });
+    await this.audit.logLoginAttempt({
+      userId: user.id,
+      email,
+      success: false,
+      reason: 'account_disabled',
+    });
     throw new ForbiddenException('Account disabled');
   }
 
-  // FIX: use correct column name
+  // Correct column name
   const ok = await comparePassword(password, user.hashedPassword);
   if (!ok) {
-    await this.audit.logLoginAttempt({ userId: user.id, email, success: false, reason: 'invalid_password' });
+    await this.audit.logLoginAttempt({
+      userId: user.id,
+      email,
+      success: false,
+      reason: 'invalid_password',
+    });
     return null;
   }
 
   await this.repo.updateLastLogin(user.id);
-  await this.audit.logLoginAttempt({ userId: user.id, email, success: true });
+  await this.audit.logLoginAttempt({
+    userId: user.id,
+    email,
+    success: true,
+  });
 
-  // FIX: remove hashedPassword from safe object
+  // Remove hash from return object
   const safe: any = { ...user };
   delete safe.hashedPassword;
 
@@ -127,17 +145,32 @@ async validateUser(email: string, password: string) {
 // Session Token Creation
 // -------------------------------------------------------
 async createSessionToken(userId: string) {
+  // Access token
   const accessToken = randomBytes(32).toString('hex');
-  const key = `session:access:${accessToken}`;
+  const accessKey = `session:access:${accessToken}`;
 
-  const payload = { userId, createdAt: Date.now() };
+  const payload = {
+    userId,
+    createdAt: Date.now(),
+  };
 
-  await redis.set(key, JSON.stringify(payload), 'EX', ACCESS_TOKEN_TTL);
+  await this.redis.set(
+    accessKey,
+    JSON.stringify(payload),
+    'EX',
+    ACCESS_TOKEN_TTL, // seconds
+  );
 
+  // Refresh token
   const refreshToken = randomBytes(48).toString('hex');
   const refreshKey = `session:refresh:${refreshToken}`;
 
-  await redis.set(refreshKey, JSON.stringify({ userId }), 'EX', REFRESH_TOKEN_TTL);
+  await this.redis.set(
+    refreshKey,
+    JSON.stringify({ userId }),
+    'EX',
+    REFRESH_TOKEN_TTL, // seconds
+  );
 
   return {
     accessToken,
@@ -151,7 +184,7 @@ async createSessionToken(userId: string) {
 // -------------------------------------------------------
 async validateAccessToken(token: string) {
   const key = `session:access:${token}`;
-  const raw = await redis.get(key);
+  const raw = await this.redis.get(key);
   if (!raw) return null;
 
   try {
@@ -161,9 +194,12 @@ async validateAccessToken(token: string) {
   }
 }
 
+// -------------------------------------------------------
+// Revoke Access Token
+// -------------------------------------------------------
 async revokeAccessToken(token: string) {
   const key = `session:access:${token}`;
-  await redis.del(key);
+  await this.redis.del(key);
 }
 
 
