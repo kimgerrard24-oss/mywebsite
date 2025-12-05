@@ -16,24 +16,44 @@ function getRedisConfig() {
   if (url && url.trim() !== '') {
     const parsed = new URL(url);
 
-    if (password && !parsed.password) {
-      parsed.password = password;
+    const host = parsed.hostname;
+    const rawPort = parsed.port;
+    const port = rawPort ? parseInt(rawPort, 10) : 6379;
+
+    if (!Number.isInteger(port) || port <= 0 || port > 65535) {
+      throw new Error(`Invalid Redis port: ${rawPort}`);
     }
 
-    return { type: 'url' as const, url: parsed.toString() };
+    const finalPassword =
+      parsed.password && parsed.password.trim() !== ''
+        ? parsed.password
+        : password || undefined;
+
+    return {
+      type: 'host' as const,
+      host,
+      port,
+      password: finalPassword,
+    };
   }
 
   const host = process.env.REDIS_HOST;
-  const port = process.env.REDIS_PORT;
+  const rawPort = process.env.REDIS_PORT;
 
-  if (!host || !port) {
+  if (!host || !rawPort) {
     throw new Error('Missing required REDIS_HOST or REDIS_PORT');
+  }
+
+  const port = parseInt(rawPort, 10);
+
+  if (!Number.isInteger(port) || port <= 0 || port > 65535) {
+    throw new Error(`Invalid Redis port: ${rawPort}`);
   }
 
   return {
     type: 'host' as const,
     host,
-    port: Number(port),
+    port,
     password: password || undefined,
   };
 }
@@ -44,7 +64,7 @@ function getRedisConfig() {
 function buildRedisOptions(): RedisOptions {
   return {
     enableReadyCheck: true,
-    lazyConnect: true, // changed from false to prevent premature connections
+    lazyConnect: true,
     maxRetriesPerRequest: null,
     retryStrategy: (times: number) => {
       return Math.min(times * 100, 2000);
@@ -55,9 +75,6 @@ function buildRedisOptions(): RedisOptions {
 @Global()
 @Module({
   providers: [
-    // -----------------------------------------------------
-    // Main Redis Client
-    // -----------------------------------------------------
     {
       provide: 'REDIS_CLIENT',
       useFactory: (): RedisClient => {
@@ -65,44 +82,38 @@ function buildRedisOptions(): RedisOptions {
         const cfg = getRedisConfig();
         const options = buildRedisOptions();
 
-        if (cfg.type === 'url') {
-          const u = new URL(cfg.url);
-          logger.log(`REDIS_CLIENT connecting to: ${u.hostname}:${u.port || 6379}`);
-          return new Redis(cfg.url, options);
-        }
-
         logger.log(`REDIS_CLIENT connecting to: ${cfg.host}:${cfg.port}`);
 
-        return new Redis(
-          {
-            host: cfg.host,
-            port: cfg.port,
-            password: cfg.password,
-            ...options,
-          }
-        );
+        return new Redis({
+          host: cfg.host,
+          port: cfg.port,
+          password: cfg.password,
+          ...options,
+        });
       },
     },
 
-    // -----------------------------------------------------
-    // Redis Publisher
-    // -----------------------------------------------------
     {
       provide: 'REDIS_PUB',
       inject: ['REDIS_CLIENT'],
       useFactory: (client: RedisClient): RedisClient => {
-        return client.duplicate(buildRedisOptions());
+        const options = buildRedisOptions();
+        return client.duplicate({
+          ...options,
+          password: process.env.REDIS_PASSWORD || undefined,
+        });
       },
     },
 
-    // -----------------------------------------------------
-    // Redis Subscriber
-    // -----------------------------------------------------
     {
       provide: 'REDIS_SUB',
       inject: ['REDIS_CLIENT'],
       useFactory: (client: RedisClient): RedisClient => {
-        return client.duplicate(buildRedisOptions());
+        const options = buildRedisOptions();
+        return client.duplicate({
+          ...options,
+          password: process.env.REDIS_PASSWORD || undefined,
+        });
       },
     },
   ],
