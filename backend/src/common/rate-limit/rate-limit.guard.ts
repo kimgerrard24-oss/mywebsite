@@ -40,13 +40,14 @@ export class RateLimitGuard implements CanActivate {
     return String(ip).replace(/^::ffff:/, '');
   }
 
-  private normalizeKey(ip: string): string {
+  private normalizeIp(ip: string): string {
     if (!ip) return 'unknown';
-    let s = String(ip).trim().replace(/^::ffff:/, '');
-    s = s.replace(/:\d+$/, '');
-    s = s.replace(/[^a-zA-Z0-9_-]/g, '_');
-    s = s.replace(/_+/g, '_');
-    return s || 'unknown';
+    return ip
+      .trim()
+      .replace(/^::ffff:/, '')
+      .replace(/:\d+$/, '')
+      .replace(/[^a-zA-Z0-9_-]/g, '_')
+      .replace(/_+/g, '_') || 'unknown';
   }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -58,17 +59,10 @@ export class RateLimitGuard implements CanActivate {
       path = path.slice(0, -1);
     }
 
-    if (req.method === 'OPTIONS' || req.method === 'HEAD') {
-      return true;
-    }
-
-    if (path === '/favicon.ico') {
-      return true;
-    }
-
-    if (path.startsWith('/_next') || path.startsWith('/static')) {
-      return true;
-    }
+    // bypasses (unchanged)
+    if (req.method === 'OPTIONS' || req.method === 'HEAD') return true;
+    if (path === '/favicon.ico') return true;
+    if (path.startsWith('/_next') || path.startsWith('/static')) return true;
 
     const internal = req.headers['x-internal-health'];
     if (
@@ -119,20 +113,14 @@ export class RateLimitGuard implements CanActivate {
     );
     if (!action) return true;
 
+    // FIX: raw identifier only
     const rawIp = this.extractRealIp(req);
-    const normalizedIp = this.normalizeKey(rawIp);
-
-    // NEW: normalize email (empty safe)
-    const email = (req.body?.email || '').toLowerCase().trim();
-    const normalizedEmail = email.replace(/[^a-zA-Z0-9]/g, '_') || 'noemail';
-
-    // FIX: include email + ip
-    const key = `${action}:${normalizedEmail}:${normalizedIp}`;
+    const ipKey = this.normalizeIp(rawIp);
 
     try {
       const info: RateLimitConsumeResult = await this.rlService.consume(
         action,
-        key,
+        ipKey,
       );
 
       res.setHeader('X-RateLimit-Limit', String(info.limit));
@@ -149,7 +137,7 @@ export class RateLimitGuard implements CanActivate {
       res.setHeader('X-RateLimit-Reset', String(retry));
 
       this.logger.warn(
-        `Rate limit blocked: action="${action}" key="${key}" ip="${rawIp}" retryAfter=${retry}`,
+        `Rate limit blocked: action="${action}" key="${ipKey}" ip="${rawIp}" retryAfter=${retry}`,
       );
 
       res.status(429).json({
