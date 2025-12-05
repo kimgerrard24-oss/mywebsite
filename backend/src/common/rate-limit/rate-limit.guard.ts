@@ -48,9 +48,6 @@ export class RateLimitGuard implements CanActivate {
     return s;
   }
 
-  /**
-   * NEW: Remove rate-limit block after successful login
-   */
   static async revokeIp(ip: string) {
     try {
       const clean = String(ip || '')
@@ -62,14 +59,13 @@ export class RateLimitGuard implements CanActivate {
       const redis = require('ioredis');
       const client = new redis(process.env.REDIS_URL);
 
-      // Remove all possible key formats
       await client.del(`rl:login:${clean}`);
       await client.del(`login:${clean}`);
       await client.del(`rl_login:${clean}`);
 
       client.disconnect();
     } catch (err) {
-      // fail silently, never block login
+      // fail silently
     }
   }
 
@@ -110,13 +106,29 @@ export class RateLimitGuard implements CanActivate {
       return true;
     }
 
+    // ------------------------------------------------------
+    // LOGIN BYPASS (ADDED)
+    // ------------------------------------------------------
     const isLoginPath =
       path === '/login' ||
-      path === '/auth/local/login';
+      path === '/auth/login' || // ADDED
+      path === '/auth/local/login' ||
+      path === '/api/auth/local/login' || // ADDED
+      path === '/login/'; // ADDED
 
     if (isLoginPath && req.method && req.method.toUpperCase() === 'POST') {
       return true;
     }
+
+    // ADDED: prefix match
+    if (
+      path.startsWith('/login') ||
+      path.startsWith('/auth/login') ||
+      path.startsWith('/api/auth/local/login')
+    ) {
+      return true;
+    }
+    // ------------------------------------------------------
 
     if (path.startsWith('/auth/local/register')) return true;
     if (path.startsWith('/auth/local/refresh')) return true;

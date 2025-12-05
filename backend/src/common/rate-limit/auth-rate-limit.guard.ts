@@ -76,12 +76,12 @@ export class AuthRateLimitGuard implements CanActivate {
       return true;
     }
 
-    // NEW — allow POST /auth/complete
+    // allow POST /auth/complete only
     if (path === '/auth/complete' && req.method.toUpperCase() === 'POST') {
       return true;
     }
 
-    // LOGIN bypass
+    // allow POST only for login
     const isLoginPath =
       path === '/login' ||
       path === '/auth/local/login';
@@ -103,7 +103,9 @@ export class AuthRateLimitGuard implements CanActivate {
 
     const rawIp = this.extractRealIp(req);
     const normalizedIp = this.normalizeIp(rawIp);
-    const key = `${action}_${normalizedIp}`;
+
+    // FIX: correct redis key format
+    const key = `${action}:${normalizedIp}`;
 
     try {
       const info = await this.rlService.consume(action, key);
@@ -126,6 +128,7 @@ export class AuthRateLimitGuard implements CanActivate {
         statusCode: 429,
         message: 'Too many requests. Please slow down.',
       });
+
       return false;
     }
   }
