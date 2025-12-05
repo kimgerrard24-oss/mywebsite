@@ -42,7 +42,6 @@ export class AuthRateLimitGuard implements CanActivate {
 
     let path = (req.path || '').toLowerCase();
 
-    // remove trailing slash
     if (path.endsWith('/')) {
       path = path.slice(0, -1);
     }
@@ -72,18 +71,17 @@ export class AuthRateLimitGuard implements CanActivate {
 
     if (
       path.startsWith('/auth/google') ||
-      path.startsWith('/auth/facebook') ||
-      path.startsWith('/auth/complete')
+      path.startsWith('/auth/facebook')
     ) {
       return true;
     }
 
-    // --------------------------------------------------------------------
-    // LOGIN bypass (FINAL SAFE VERSION)
-    // - allow POST only
-    // - allow both /login and /auth/local/login
-    // - ignore trailing slash
-    // --------------------------------------------------------------------
+    // NEW — allow POST /auth/complete
+    if (path === '/auth/complete' && req.method.toUpperCase() === 'POST') {
+      return true;
+    }
+
+    // LOGIN bypass
     const isLoginPath =
       path === '/login' ||
       path === '/auth/local/login';
@@ -91,7 +89,6 @@ export class AuthRateLimitGuard implements CanActivate {
     if (isLoginPath && req.method.toUpperCase() === 'POST') {
       return true;
     }
-    // --------------------------------------------------------------------
 
     if (path.startsWith('/auth/local/register')) return true;
     if (path.startsWith('/auth/local/refresh')) return true;

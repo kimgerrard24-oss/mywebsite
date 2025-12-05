@@ -28,7 +28,9 @@ export class RateLimitService implements OnModuleDestroy {
           keyPrefix: `rl:${action}`,
           points: config.points,
           duration: config.duration,
-          blockDuration: 0,
+
+          // FIX: use blockDuration from policy, not duration
+          blockDuration: config.blockDuration || 0,
         });
 
         this.limiters.set(action as RateLimitAction, limiter);
@@ -114,6 +116,23 @@ export class RateLimitService implements OnModuleDestroy {
         retryAfterSec,
         reset: retryAfterSec,
       });
+    }
+  }
+
+  // NEW: allow login success to reset
+  async revoke(action: RateLimitAction, key: string): Promise<void> {
+    const limiter = this.limiters.get(action);
+    if (!limiter) return;
+
+    const sanitizedKey = this.sanitizeKey(key);
+
+    try {
+      await limiter.delete(sanitizedKey);
+      this.logger.debug(`Revoked limiter key=${sanitizedKey} for action="${action}"`);
+    } catch (err) {
+      this.logger.warn(
+        `Failed to revoke key="${sanitizedKey}" for action="${action}"`,
+      );
     }
   }
 

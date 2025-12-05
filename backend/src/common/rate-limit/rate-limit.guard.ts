@@ -1,3 +1,5 @@
+// src/common/rate-limit/rate-limit-guard.ts
+
 import {
   CanActivate,
   ExecutionContext,
@@ -9,39 +11,6 @@ import { Request, Response } from 'express';
 import { RateLimitService } from './rate-limit.service';
 import { RATE_LIMIT_CONTEXT_KEY } from './rate-limit.decorator';
 import { RateLimitAction } from './rate-limit.policy';
-
-import { RateLimiterRedis } from 'rate-limiter-flexible';
-import Redis from 'ioredis';
-
-if (!process.env.REDIS_URL) {
-  throw new Error('REDIS_URL is not defined in environment variables');
-}
-
-const redisClient = new Redis(process.env.REDIS_URL, {
-  maxRetriesPerRequest: 2,
-  enableReadyCheck: true,
-  retryStrategy(times) {
-    return Math.min(times * 200, 30000);
-  },
-  reconnectOnError(err) {
-    const target = ['READONLY', 'ECONNRESET', 'ECONNREFUSED'];
-    return target.some((m) => err.message.includes(m));
-  },
-});
-
-const maxWrongAttemptsByIPperMinute =
-  Number(process.env.RATE_LIMIT_MAX_ATTEMPTS) || 10;
-
-const blockDuration =
-  Number(process.env.RATE_LIMIT_BLOCK_SECONDS) || 60 * 15;
-
-const loginLimiter = new RateLimiterRedis({
-  storeClient: redisClient,
-  points: maxWrongAttemptsByIPperMinute,
-  duration: 60,
-  blockDuration,
-  keyPrefix: 'rl_login',
-});
 
 export type RateLimitConsumeResult = {
   limit: number;
@@ -77,17 +46,6 @@ export class RateLimitGuard implements CanActivate {
     s = s.replace(/:\d+$/, '');
     s = s.replace(/[^a-zA-Z0-9_-]/g, '_');
     return s;
-  }
-
-  static async revokeIp(ip: string) {
-    try {
-      const key = String(ip || '')
-        .trim()
-        .replace(/^::ffff:/, '')
-        .replace(/:\d+$/, '')
-        .replace(/[^a-zA-Z0-9_-]/g, '_');
-      await loginLimiter.delete(key);
-    } catch (err) {}
   }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {

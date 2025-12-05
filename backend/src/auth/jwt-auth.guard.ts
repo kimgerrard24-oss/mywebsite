@@ -1,4 +1,5 @@
 // file: src/auth/jwt-auth.guard.ts
+
 import {
   Injectable,
   CanActivate,
@@ -16,16 +17,25 @@ export class JwtAuthGuard implements CanActivate {
 
   canActivate(context: ExecutionContext): boolean | Promise<boolean> {
     const req = context.switchToHttp().getRequest<Request>();
-    const token = this.extractToken(req);
 
+    const token = this.extractToken(req);
     if (!token) {
       throw new UnauthorizedException('Missing token');
     }
+
+    // ========================================
+    // SECURE: Define algorithms explicitly
+    // ========================================
+    const verifyOptions: jwt.VerifyOptions = {
+      algorithms: ['HS256'],
+      ignoreExpiration: false,
+    };
 
     try {
       const decoded: any = jwt.verify(
         token,
         process.env.JWT_ACCESS_SECRET as string,
+        verifyOptions,
       );
 
       req.user = decoded;
@@ -34,9 +44,21 @@ export class JwtAuthGuard implements CanActivate {
     } catch (err: any) {
       const jti = this.extractTokenId(token);
 
-      this.authLogger.logJwtInvalid(jti ?? 'unknown', err?.message ?? 'invalid_jwt');
+      // ========================================
+      // SECURE: Log invalid tokens
+      // ========================================
+      this.authLogger.logJwtInvalid(
+        jti ?? 'unknown',
+        err?.message ?? 'invalid_jwt',
+      );
 
-      Sentry.captureException(err);
+      // ========================================
+      // SECURE: Only send to Sentry when relevant
+      // Prevent Sentry spam from expired tokens
+      // ========================================
+      if (err?.name !== 'TokenExpiredError') {
+        Sentry.captureException(err);
+      }
 
       throw new UnauthorizedException('Invalid token');
     }
@@ -48,7 +70,7 @@ export class JwtAuthGuard implements CanActivate {
 
     const parts = header.split(' ');
     if (parts.length === 2 && parts[0] === 'Bearer') {
-      return parts[1];
+      return parts[1].trim();
     }
 
     return null;

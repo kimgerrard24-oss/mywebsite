@@ -39,13 +39,13 @@ export class FirebaseAuthGuard implements CanActivate {
     }
 
     // ============================================
-    // 2) Safe normalize URL (remove query)
+    // 2) Normalize URL (lowercase & no query)
     // ============================================
     const rawUrl = req.originalUrl || req.url || '';
     const url = rawUrl.split('?')[0].toLowerCase();
 
     // ============================================
-    // UPDATED: Public URL Prefixes (Social Login)
+    // FIXED: Public URL Prefixes (correct slash)
     // ============================================
     const publicPrefixes = [
       '/system-check',
@@ -59,7 +59,6 @@ export class FirebaseAuthGuard implements CanActivate {
       '/health/socket',
       '/health/r2',
 
-      // local auth (unchanged)
       '/auth/local/google',
       '/auth/local/google/callback',
       '/auth/local/google/redirect',
@@ -72,18 +71,14 @@ export class FirebaseAuthGuard implements CanActivate {
       '/auth/local/complete',
       '/auth/local/firebase',
 
-      // API style local auth (unchanged)
       '/api/auth/local/google',
       '/api/auth/local/google/callback',
       '/api/auth/local/facebook',
       '/api/auth/local/facebook/callback',
       '/api/auth/local/complete',
       '/api/auth/local/firebase',
-      'api/auth/local/session',
+      '/api/auth/local/session', // FIXED
 
-      // ============================================
-      // NEW: Social Login (no /local) – required for new controller
-      // ============================================
       '/auth/google',
       '/auth/google/callback',
       '/auth/google/redirect',
@@ -102,15 +97,28 @@ export class FirebaseAuthGuard implements CanActivate {
       '/api/auth/facebook/callback',
       '/api/auth/complete',
       '/api/auth/firebase',
-      'api/auth/session',
+      '/api/auth/session', // FIXED
     ];
 
-    if (publicPrefixes.some((p) => url.startsWith(p))) {
+    // ============================================
+    // SECURE MATCH: exact or prefix/
+    // ============================================
+    for (const p of publicPrefixes) {
+      if (url === p || url.startsWith(p + '/')) {
+        return true;
+      }
+    }
+
+    // ============================================
+    // 3) NEW: Support local session (important)
+    // ============================================
+    if (req.session && req.session.user) {
+      req.user = req.session.user;
       return true;
     }
 
     // ============================================
-    // 3) Authenticate: Session Cookie OR Bearer token
+    // 4) Authenticate: Session Cookie OR Bearer
     // ============================================
     const cookieName = process.env.SESSION_COOKIE_NAME || '__session';
     let sessionCookieValue: string | null = null;
@@ -154,7 +162,7 @@ export class FirebaseAuthGuard implements CanActivate {
     }
 
     // ============================================
-    // 4) Allow WebSocket Upgrade
+    // 5) Allow WebSocket Upgrade
     // ============================================
     const isWebsocketUpgrade =
       (req.headers.upgrade &&
