@@ -48,6 +48,31 @@ export class RateLimitGuard implements CanActivate {
     return s;
   }
 
+  /**
+   * NEW: Remove rate-limit block after successful login
+   */
+  static async revokeIp(ip: string) {
+    try {
+      const clean = String(ip || '')
+        .trim()
+        .replace(/^::ffff:/, '')
+        .replace(/:\d+$/, '')
+        .replace(/[^a-zA-Z0-9_-]/g, '_');
+
+      const redis = require('ioredis');
+      const client = new redis(process.env.REDIS_URL);
+
+      // Remove all possible key formats
+      await client.del(`rl:login:${clean}`);
+      await client.del(`login:${clean}`);
+      await client.del(`rl_login:${clean}`);
+
+      client.disconnect();
+    } catch (err) {
+      // fail silently, never block login
+    }
+  }
+
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const req = context.switchToHttp().getRequest<Request>();
     const res = context.switchToHttp().getResponse<Response>();
