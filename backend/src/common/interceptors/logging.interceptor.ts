@@ -14,35 +14,11 @@ import type { Span } from '@sentry/core';
 @Injectable()
 export class LoggingInterceptor implements NestInterceptor {
   private getRealIp(req: any): string {
-    // Cloudflare
-    if (req.headers['cf-connecting-ip']) {
-      const cf = String(req.headers['cf-connecting-ip']).split(',')[0].trim();
-      return cf.replace(/^::ffff:/, '').replace(/:\d+$/, '');
+    const fwd = req.headers['x-forwarded-for'];
+    if (typeof fwd === 'string') {
+      return fwd.split(',')[0].trim();
     }
-
-    // Proxy chain
-    const xff = req.headers['x-forwarded-for'];
-    if (typeof xff === 'string' && xff.length > 0) {
-      const first = xff.split(',')[0].trim();
-      return first.replace(/^::ffff:/, '').replace(/:\d+$/, '');
-    }
-
-    // nginx / traefik
-    if (req.headers['x-real-ip']) {
-      const xr = String(req.headers['x-real-ip']).trim();
-      return xr.replace(/^::ffff:/, '').replace(/:\d+$/, '');
-    }
-
-    // fallback
-    const ip =
-      (req.socket && req.socket.remoteAddress) ||
-      req.ip ||
-      '';
-
-    return String(ip)
-      .replace(/^::ffff:/, '')
-      .replace(/:\d+$/, '')
-      .trim();
+    return (req.ip || '').replace('::ffff:', '');
   }
 
   private sanitizeRoute(route: string): string {
@@ -92,12 +68,14 @@ export class LoggingInterceptor implements NestInterceptor {
             span?.setAttribute('slow_request', true);
           }
 
+          // OK = 1
           span?.setStatus({ code: 1 });
           span?.end();
         },
         (err) => {
           Sentry.captureException(err);
 
+          // ERROR = 2
           span?.setStatus({ code: 2 });
           span?.end();
         },

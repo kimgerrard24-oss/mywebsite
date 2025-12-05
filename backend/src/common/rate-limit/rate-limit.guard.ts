@@ -61,48 +61,26 @@ export class RateLimitGuard implements CanActivate {
   ) {}
 
   private extractRealIp(req: Request): string {
-    // Cloudflare
-    if (req.headers['cf-connecting-ip']) {
-      return String(req.headers['cf-connecting-ip']).split(',')[0].trim();
-    }
-
-    // Generic reverse proxy
     const xff = req.headers['x-forwarded-for'];
-    if (typeof xff === 'string' && xff.length > 0) {
-      return xff.split(',')[0].trim();
+    if (typeof xff === 'string') {
+      return xff.split(',')[0].trim().replace(/^::ffff:/, '');
     }
-
-    // Nginx / Traefik
-    if (req.headers['x-real-ip']) {
-      return String(req.headers['x-real-ip']).trim();
-    }
-
-    // Fallback
     const ip =
-      (req.socket && req.socket.remoteAddress) ||
-      req.ip ||
+      (req.socket && (req.socket.remoteAddress as string)) ||
+      (req.ip as string) ||
       '';
-
-    return String(ip).trim();
+    return String(ip).replace(/^::ffff:/, '');
   }
 
   private normalizeKey(ip: string): string {
     if (!ip) return 'unknown';
+    let s = String(ip).trim().replace(/^::ffff:/, '');
 
-    let s = String(ip).trim();
-
-    // remove IPv6 mapped prefix
-    s = s.replace(/^::ffff:/, '');
-
-    // remove port
+    // remove port (e.g. :54129)
     s = s.replace(/:\d+$/, '');
 
     // remove unsafe chars
     s = s.replace(/[^a-zA-Z0-9_-]/g, '_');
-
-    if (!s || s.length === 0) {
-      return 'unknown';
-    }
 
     return s;
   }
@@ -112,7 +90,7 @@ export class RateLimitGuard implements CanActivate {
       const key = String(ip || '')
         .trim()
         .replace(/^::ffff:/, '')
-        .replace(/:\d+$/, '')
+        .replace(/:\d+$/, '') // remove port
         .replace(/[^a-zA-Z0-9_-]/g, '_');
       await loginLimiter.delete(key);
     } catch (err) {}
@@ -122,6 +100,7 @@ export class RateLimitGuard implements CanActivate {
     const req = context.switchToHttp().getRequest<Request>();
     const res = context.switchToHttp().getResponse<Response>();
 
+    // Normalize path (remove trailing slash)
     let path = (req.path || '').toLowerCase();
     if (path.endsWith('/')) {
       path = path.slice(0, -1);
@@ -155,6 +134,7 @@ export class RateLimitGuard implements CanActivate {
       return true;
     }
 
+    // LOGIN limiter (STRICT match)
     const isLoginPath =
       path === '/login' ||
       path === '/auth/local/login';

@@ -6,38 +6,6 @@ import { Request, Response } from 'express';
 
 @Catch()
 export class SentryExceptionFilter implements ExceptionFilter {
-  private getRealIp(req: Request): string {
-    // Cloudflare
-    if (req.headers['cf-connecting-ip']) {
-      const cf = String(req.headers['cf-connecting-ip']).split(',')[0].trim();
-      return cf.replace(/^::ffff:/, '').replace(/:\d+$/, '');
-    }
-
-    // Forwarded chain
-    const xff = req.headers['x-forwarded-for'];
-    if (typeof xff === 'string' && xff.length > 0) {
-      const first = xff.split(',')[0].trim();
-      return first.replace(/^::ffff:/, '').replace(/:\d+$/, '');
-    }
-
-    // nginx / traefik
-    if (req.headers['x-real-ip']) {
-      const xr = String(req.headers['x-real-ip']).trim();
-      return xr.replace(/^::ffff:/, '').replace(/:\d+$/, '');
-    }
-
-    // fallback
-    const ip =
-      (req.socket && req.socket.remoteAddress) ||
-      req.ip ||
-      '';
-
-    return String(ip)
-      .replace(/^::ffff:/, '')
-      .replace(/:\d+$/, '')
-      .trim();
-  }
-
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const req = ctx.getRequest<Request>();
@@ -55,10 +23,7 @@ export class SentryExceptionFilter implements ExceptionFilter {
         scope.setTag('service', process.env.SERVICE_NAME || 'backend-api');
         scope.setTag('env', process.env.NODE_ENV || 'production');
 
-        // use real IP resolution
-        const realIp = this.getRealIp(req);
-        scope.setTag('ip', realIp);
-
+        if (req?.ip) scope.setTag('ip', req.ip);
         if (req?.headers) scope.setContext('headers', sanitizeHeaders(req.headers));
 
         const user = (req as any)?.user;

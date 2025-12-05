@@ -5,37 +5,16 @@ import { Request, Response, NextFunction } from 'express';
 const logger = new Logger('HTTP');
 
 function getRealIp(req: Request): string {
-  // Cloudflare
-  if (req.headers['cf-connecting-ip']) {
-    return String(req.headers['cf-connecting-ip']).split(',')[0].trim();
+  // 1) Cloudflare / Nginx / Caddy forwarded IP
+  const forwarded = req.headers['x-forwarded-for'];
+
+  if (typeof forwarded === 'string') {
+    // ใช้ตัวแรก (คือต้นทางจริง)
+    return forwarded.split(',')[0].trim();
   }
 
-  // x-forwarded-for chain
-  const xff = req.headers['x-forwarded-for'];
-  if (typeof xff === 'string' && xff.length > 0) {
-    return xff.split(',')[0].trim();
-  }
-
-  // x-real-ip (nginx / traefik)
-  if (req.headers['x-real-ip']) {
-    return String(req.headers['x-real-ip']).trim();
-  }
-
-  // Socket direct
-  const ip =
-    (req.socket && req.socket.remoteAddress) ||
-    req.ip ||
-    '';
-
-  let normalized = String(ip).trim();
-
-  // Remove IPv6 mapped prefix
-  normalized = normalized.replace(/^::ffff:/, '');
-
-  // Remove port if present
-  normalized = normalized.replace(/:\d+$/, '');
-
-  return normalized;
+  // 2) Fallback ของ Express
+  return req.ip || '';
 }
 
 @Injectable()
