@@ -24,16 +24,18 @@ export class AuthRateLimitGuard implements CanActivate {
     if (typeof xff === 'string') {
       return xff.split(',')[0].trim().replace(/^::ffff:/, '');
     }
-    const ip =
-      req.socket?.remoteAddress ||
-      req.ip ||
-      '';
+    const ip = req.socket?.remoteAddress || req.ip || '';
     return String(ip).replace(/^::ffff:/, '');
   }
 
   private normalizeIp(ip: string): string {
     if (!ip) return 'unknown';
-    return ip.replace(/[^a-zA-Z0-9_-]/g, '_').replace(/_+/g, '_') || 'unknown';
+    return ip
+      .trim()
+      .replace(/^::ffff:/, '')
+      .replace(/:\d+$/, '')
+      .replace(/[^a-zA-Z0-9_-]/g, '_')
+      .replace(/_+/g, '_') || 'unknown';
   }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -41,22 +43,14 @@ export class AuthRateLimitGuard implements CanActivate {
     const res = context.switchToHttp().getResponse<Response>();
 
     let path = (req.path || '').toLowerCase();
-
     if (path.endsWith('/')) {
       path = path.slice(0, -1);
     }
 
-    if (req.method === 'OPTIONS' || req.method === 'HEAD') {
-      return true;
-    }
-
-    if (path === '/favicon.ico') {
-      return true;
-    }
-
-    if (path.startsWith('/_next') || path.startsWith('/static')) {
-      return true;
-    }
+    // bypasses
+    if (req.method === 'OPTIONS' || req.method === 'HEAD') return true;
+    if (path === '/favicon.ico') return true;
+    if (path.startsWith('/_next') || path.startsWith('/static')) return true;
 
     const internal = req.headers['x-internal-health'];
     if (
@@ -77,26 +71,21 @@ export class AuthRateLimitGuard implements CanActivate {
       return true;
     }
 
-    if (path.startsWith('/auth/session-check')) {
-      return true;
-    }
+    if (path.startsWith('/auth/session-check')) return true;
+    if (path.startsWith('/auth/google')) return true;
+    if (path.startsWith('/auth/facebook')) return true;
 
-    if (
-      path.startsWith('/auth/google') ||
-      path.startsWith('/auth/facebook')
-    ) {
-      return true;
-    }
+    // FIX: bypass ALL login POST paths
+    const isLoginPost =
+      req.method.toUpperCase() === 'POST' &&
+      (
+        path === '/login' ||
+        path === '/auth/login' ||
+        path === '/auth/local/login' ||
+        path === '/api/auth/local/login'
+      );
 
-    if (path === '/auth/complete' && req.method.toUpperCase() === 'POST') {
-      return true;
-    }
-
-    const isLoginPath =
-      path === '/login' ||
-      path === '/auth/local/login';
-
-    if (isLoginPath && req.method.toUpperCase() === 'POST') {
+    if (isLoginPost) {
       return true;
     }
 
@@ -112,18 +101,10 @@ export class AuthRateLimitGuard implements CanActivate {
     if (!action) return true;
 
     const rawIp = this.extractRealIp(req);
-    const normalizedIp = this.normalizeIp(rawIp);
-
-    // NEW: include email in rate-limit key
-    const email = (req.body?.email || '').toLowerCase().trim();
-    const normalizedEmail =
-      email.replace(/[^a-zA-Z0-9]/g, '_') || 'noemail';
-
-    // FIX: combine action + email + ip
-    const key = `${action}:${normalizedEmail}:${normalizedIp}`;
+    const ipKey = this.normalizeIp(rawIp);
 
     try {
-      const info = await this.rlService.consume(action, key);
+      const info = await this.rlService.consume(action, ipKey);
 
       res.setHeader('X-RateLimit-Limit', String(info.limit));
       res.setHeader('X-RateLimit-Remaining', String(info.remaining));

@@ -55,11 +55,8 @@ export class RateLimitGuard implements CanActivate {
     const res = context.switchToHttp().getResponse<Response>();
 
     let path = (req.path || '').toLowerCase();
-    if (path.endsWith('/')) {
-      path = path.slice(0, -1);
-    }
+    if (path.endsWith('/')) path = path.slice(0, -1);
 
-    // bypasses (unchanged)
     if (req.method === 'OPTIONS' || req.method === 'HEAD') return true;
     if (path === '/favicon.ico') return true;
     if (path.startsWith('/_next') || path.startsWith('/static')) return true;
@@ -113,7 +110,6 @@ export class RateLimitGuard implements CanActivate {
     );
     if (!action) return true;
 
-    // FIX: raw identifier only
     const rawIp = this.extractRealIp(req);
     const ipKey = this.normalizeIp(rawIp);
 
