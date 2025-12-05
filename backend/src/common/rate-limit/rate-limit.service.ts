@@ -25,7 +25,7 @@ export class RateLimitService implements OnModuleDestroy {
         const limiter = new RateLimiterRedis({
           storeClient: this.redis,
 
-          // FIX: use single prefix
+          // global prefix = rl
           keyPrefix: 'rl',
 
           points: config.points,
@@ -77,8 +77,8 @@ export class RateLimitService implements OnModuleDestroy {
 
     const ipSanitized = this.sanitizeKey(key);
 
-    // FIX: consistent full key for Redis
-    const fullKey = `rl:${action}:${ipSanitized}`;
+    // FIX: do not duplicate prefix (keyPrefix already = "rl")
+    const fullKey = `${action}:${ipSanitized}`;
 
     this.logger.debug(
       `Consume: action="${action}", raw="${key}", sanitized="${fullKey}"`,
@@ -116,7 +116,9 @@ export class RateLimitService implements OnModuleDestroy {
     if (!limiter) return;
 
     const ipSanitized = this.sanitizeKey(key);
-    const fullKey = `rl:${action}:${ipSanitized}`;
+
+    // FIX: same full key format
+    const fullKey = `${action}:${ipSanitized}`;
 
     try {
       await limiter.delete(fullKey);

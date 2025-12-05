@@ -16,40 +16,55 @@ export class AuthGuard implements CanActivate {
 
   canActivate(context: ExecutionContext): boolean {
     // ========================================
-    // 1) Allow @Public() routes properly
+    // 1) Allow @Public() routes
     // ========================================
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
       context.getClass(),
     ]);
 
-    if (isPublic) {
+    if (isPublic === true) {
       return true;
     }
 
     // ========================================
-    // 2) Support HTTP + WebSocket safely
+    // 2) Safely extract request
     // ========================================
-    const httpReq = context.switchToHttp().getRequest();
-    const wsClient =
-      context.switchToWs &&
-      context.switchToWs().getClient &&
-      context.switchToWs().getClient();
+    const http = context.switchToHttp();
+    const ws = context.switchToWs();
 
-    const req: any = httpReq || wsClient || null;
+    const httpReq = http.getRequest && http.getRequest();
+    const wsClient = ws.getClient && ws.getClient();
+
+    const req: any = httpReq || wsClient;
 
     if (!req) {
+      // non-HTTP/non-WS context, reject
       throw new UnauthorizedException('Authentication required');
     }
 
     // ========================================
-    // 3) Accept both Firebase + Session cookie
+    // 3) Accept both Firebase/JWT session
     // ========================================
-    if (req.user || (req.session && req.session.user)) {
+    if (req.user) {
       return true;
     }
 
-    // ไม่มี user แต่ route ไม่ใช่ public = block
+    // ========================================
+    // 4) Accept access-token cookie
+    // ========================================
+    // access token is stored in cookie
+    // req.cookies['phl_access'] (default)
+    const cookies = req.cookies || {};
+
+    const accessToken =
+      cookies[process.env.ACCESS_TOKEN_COOKIE_NAME || 'phl_access'];
+
+    if (accessToken) {
+      // token exists, allow; validation is done in downstream guards
+      return true;
+    }
+
     throw new UnauthorizedException('Authentication required');
   }
 }

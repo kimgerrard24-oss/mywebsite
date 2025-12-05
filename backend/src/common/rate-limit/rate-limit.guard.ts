@@ -122,8 +122,12 @@ export class RateLimitGuard implements CanActivate {
     const rawIp = this.extractRealIp(req);
     const normalizedIp = this.normalizeKey(rawIp);
 
-    // fix: prefix action to avoid collision
-    const key = `${action}:${normalizedIp}`;
+    // NEW: normalize email (empty safe)
+    const email = (req.body?.email || '').toLowerCase().trim();
+    const normalizedEmail = email.replace(/[^a-zA-Z0-9]/g, '_') || 'noemail';
+
+    // FIX: include email + ip
+    const key = `${action}:${normalizedEmail}:${normalizedIp}`;
 
     try {
       const info: RateLimitConsumeResult = await this.rlService.consume(

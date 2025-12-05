@@ -17,8 +17,7 @@ import { JwtStrategy } from './jwt.strategy';
 import { AuthRepository } from './auth.repository';
 import { FirebaseAuthGuard } from './firebase-auth.guard';
 import { MailModule } from '../mail/mail.module';
-import { AuditService } from './audit.service'; 
-
+import { AuditService } from './audit.service';
 
 @Module({
   imports: [
@@ -37,12 +36,11 @@ import { AuditService } from './audit.service';
     JwtAuthGuard,
     JwtStrategy,
     FirebaseAuthGuard,
-    AuditService, 
+    AuditService,
 
-    {
-      provide: APP_GUARD,
-      useClass: AuthRateLimitGuard,
-    },
+    // FIX:
+    // Do NOT apply AuthRateLimitGuard globally as APP_GUARD
+    // It must be attached at controller/route-level only.
   ],
 
   controllers: [

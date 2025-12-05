@@ -192,38 +192,45 @@ async login(
     .replace(/^::ffff:/, '')
     .replace(/:\d+$/, '')
     .replace(/[^a-zA-Z0-9_-]/g, '_')
-    .trim();
+    .replace(/_+/g, '_')
+    .trim() || 'unknown';
 
   const ua = (req.headers['user-agent'] as string) || null;
 
-  // validate credentials
+  // ======================================================
+  // FIX: CHECK RATE-LIMIT FIRST BEFORE VALIDATE CREDENTIALS
+  // ======================================================
+  const fullKey = `rl:login:${keyIp}`;
+
+  try {
+    await this.rateLimitService.consume('login', fullKey);
+  } catch (err: any) {
+    const retry = typeof err?.retryAfterSec === 'number'
+      ? err.retryAfterSec
+      : 900;
+
+    res.setHeader('Retry-After', String(retry));
+
+    await this.audit.logLoginAttempt({
+      email: body.email,
+      ip: normalizedIp,
+      userAgent: ua,
+      success: false,
+      reason: 'rate_limited',
+    });
+
+    return {
+      success: false,
+      message: 'Too many login attempts. Try again later.',
+    };
+  }
+
+  // ======================================================
+  // VALIDATE CREDENTIALS AFTER PASSING RATE LIMIT
+  // ======================================================
   const user = await this.authService.validateUser(body.email, body.password);
 
-  // invalid credentials
   if (!user) {
-    // consume COUNT ONLY HERE
-    try {
-      await this.rateLimitService.consume('login', keyIp);
-    } catch (err: any) {
-      const retry =
-        typeof err?.retryAfterSec === 'number' ? err.retryAfterSec : 900;
-
-      res.setHeader('Retry-After', String(retry));
-
-      await this.audit.logLoginAttempt({
-        email: body.email,
-        ip: normalizedIp,
-        userAgent: ua,
-        success: false,
-        reason: 'rate_limited',
-      });
-
-      return {
-        success: false,
-        message: 'Too many login attempts. Try again later.',
-      };
-    }
-
     await this.audit.logLoginAttempt({
       email: body.email,
       ip: normalizedIp,
@@ -270,8 +277,10 @@ async login(
     );
   }
 
-  // reset after success
-  await this.rateLimitService.reset('login', keyIp);
+  // ======================================================
+  // FIX: RESET RATE LIMIT AFTER SUCCESS
+  // ======================================================
+  await this.rateLimitService.reset('login', fullKey);
 
   const safeUser = { ...user };
   delete (safeUser as any).passwordHash;
@@ -284,6 +293,7 @@ async login(
     },
   };
 }
+
 
    
 // verify-email

@@ -114,8 +114,13 @@ export class AuthRateLimitGuard implements CanActivate {
     const rawIp = this.extractRealIp(req);
     const normalizedIp = this.normalizeIp(rawIp);
 
-    // FIX: include action prefix so each action has independent limit
-    const key = `${action}:${normalizedIp}`;
+    // NEW: include email in rate-limit key
+    const email = (req.body?.email || '').toLowerCase().trim();
+    const normalizedEmail =
+      email.replace(/[^a-zA-Z0-9]/g, '_') || 'noemail';
+
+    // FIX: combine action + email + ip
+    const key = `${action}:${normalizedEmail}:${normalizedIp}`;
 
     try {
       const info = await this.rlService.consume(action, key);
