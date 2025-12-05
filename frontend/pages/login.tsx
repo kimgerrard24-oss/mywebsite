@@ -1,6 +1,4 @@
-// ==============================
-// file: frontend/pages/login.tsx
-// ==============================
+// frontend/pages/login.tsx
 import React, { useEffect } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/router';
@@ -8,7 +6,6 @@ import axios from 'axios';
 import Cookies from 'js-cookie';
 import LoginForm from '@/components/auth/LoginForm';
 
-// Normalize API base URL
 const API_BASE = (
   process.env.NEXT_PUBLIC_API_BASE ||
   process.env.NEXT_PUBLIC_BACKEND_URL ||
@@ -19,8 +16,11 @@ function LoginPageInner() {
   const router = useRouter();
 
   useEffect(() => {
+    // Only check session if we have known-auth cookie
     const session = Cookies.get('__session');
-    if (!session) return;
+    if (!session || session.length < 10) return;
+
+    let isMounted = true;
 
     async function verify() {
       try {
@@ -28,27 +28,21 @@ function LoginPageInner() {
           withCredentials: true,
         });
 
+        if (!isMounted) return;
+
         if (res.data?.valid === true) {
-          router.replace('/feed');
-          return;
-        }
-
-        // Retry once (Hybrid OAuth cookie propagate delay)
-        await new Promise((resolve) => setTimeout(resolve, 200));
-
-        const retry = await axios.get(`${API_BASE}/auth/session-check`, {
-          withCredentials: true,
-        });
-
-        if (retry.data?.valid === true) {
           router.replace('/feed');
         }
       } catch {
-        // ignore errors
+        // ignore
       }
     }
 
     verify();
+
+    return () => {
+      isMounted = false;
+    };
   }, [router]);
 
   function startOAuth(provider: 'google' | 'facebook') {
@@ -82,5 +76,4 @@ function LoginPageInner() {
   );
 }
 
-// Force client-only rendering (fixes prerender errors)
 export default dynamic(() => Promise.resolve(LoginPageInner), { ssr: false });
