@@ -1,4 +1,3 @@
-// files src/common/rate-limit/rate-limit-guard.ts
 import {
   CanActivate,
   ExecutionContext,
@@ -75,13 +74,8 @@ export class RateLimitGuard implements CanActivate {
   private normalizeKey(ip: string): string {
     if (!ip) return 'unknown';
     let s = String(ip).trim().replace(/^::ffff:/, '');
-
-    // remove port (e.g. :54129)
     s = s.replace(/:\d+$/, '');
-
-    // remove unsafe chars
     s = s.replace(/[^a-zA-Z0-9_-]/g, '_');
-
     return s;
   }
 
@@ -90,7 +84,7 @@ export class RateLimitGuard implements CanActivate {
       const key = String(ip || '')
         .trim()
         .replace(/^::ffff:/, '')
-        .replace(/:\d+$/, '') // remove port
+        .replace(/:\d+$/, '')
         .replace(/[^a-zA-Z0-9_-]/g, '_');
       await loginLimiter.delete(key);
     } catch (err) {}
@@ -100,7 +94,6 @@ export class RateLimitGuard implements CanActivate {
     const req = context.switchToHttp().getRequest<Request>();
     const res = context.switchToHttp().getResponse<Response>();
 
-    // Normalize path (remove trailing slash)
     let path = (req.path || '').toLowerCase();
     if (path.endsWith('/')) {
       path = path.slice(0, -1);
@@ -134,43 +127,12 @@ export class RateLimitGuard implements CanActivate {
       return true;
     }
 
-    // LOGIN limiter (STRICT match)
     const isLoginPath =
       path === '/login' ||
       path === '/auth/local/login';
 
     if (isLoginPath && req.method && req.method.toUpperCase() === 'POST') {
-      const rawIp = this.extractRealIp(req);
-      const normalizedIp = this.normalizeKey(rawIp);
-      const key = normalizedIp;
-
-      try {
-        await loginLimiter.consume(key, 1);
-        return true;
-      } catch (err: any) {
-        const retryAfter =
-          typeof err?.msBeforeNext === 'number'
-            ? Math.ceil(err.msBeforeNext / 1000)
-            : typeof err?.msBeforeNext === 'string'
-            ? Math.ceil(Number(err.msBeforeNext) / 1000)
-            : Math.ceil((blockDuration || 60 * 15));
-
-        res.setHeader('Retry-After', String(retryAfter));
-        res.setHeader('X-RateLimit-Limit', String(maxWrongAttemptsByIPperMinute));
-        res.setHeader('X-RateLimit-Remaining', '0');
-        res.setHeader('X-RateLimit-Reset', String(retryAfter));
-
-        this.logger.warn(
-          `Login brute-force blocked: ip="${rawIp}" normalized="${normalizedIp}" retryAfter=${retryAfter}`,
-        );
-
-        res.status(429).json({
-          statusCode: 429,
-          message: 'Too many login attempts. Try again later.',
-        });
-
-        return false;
-      }
+      return true;
     }
 
     if (path.startsWith('/auth/local/register')) return true;
