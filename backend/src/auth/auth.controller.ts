@@ -198,32 +198,6 @@ async login(
   const ua = (req.headers['user-agent'] as string) || null;
 
   // ======================================================
-  // FIX: CHECK RATE-LIMIT FIRST (key = raw IP only)
-  // ======================================================
-  try {
-    await this.rateLimitService.consume('login', keyIp);
-  } catch (err: any) {
-    const retry = typeof err?.retryAfterSec === 'number'
-      ? err.retryAfterSec
-      : 900;
-
-    res.setHeader('Retry-After', String(retry));
-
-    await this.audit.logLoginAttempt({
-      email: body.email,
-      ip: normalizedIp,
-      userAgent: ua,
-      success: false,
-      reason: 'rate_limited',
-    });
-
-    return {
-      success: false,
-      message: 'Too many login attempts. Try again later.',
-    };
-  }
-
-  // ======================================================
   // VALIDATE CREDENTIALS
   // ======================================================
   const user = await this.authService.validateUser(body.email, body.password);
@@ -275,11 +249,6 @@ async login(
     );
   }
 
-  // ======================================================
-  // FIX: reset same key used in consume()
-  // ======================================================
-  await this.rateLimitService.reset('login', keyIp);
-
   const safeUser = { ...user };
   delete (safeUser as any).hashPassword;
 
@@ -292,7 +261,7 @@ async login(
   };
 }
 
-   
+
 // verify-email
   @Get('verify-email')
   async verifyEmail(@Query('uid') uid: string, @Query('token') token: string) {
