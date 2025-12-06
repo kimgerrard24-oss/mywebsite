@@ -18,10 +18,8 @@ let authInstance: Auth | null = null;
 let initializing = false;
 
 // Validate and clean environment values
-function clean(value?: string | null): string | null {
-  if (typeof value !== "string") return null;
-  const trimmed = value.trim();
-  return trimmed.length > 0 ? trimmed : null;
+function clean(value?: string) {
+  return value && value.trim().length > 0 ? value.trim() : undefined;
 }
 
 // ==============================
@@ -46,11 +44,11 @@ function initFirebase(): void {
     // Important required keys
     const required = ["apiKey", "authDomain", "projectId", "appId"] as const;
 
-    for (const key of required) {
-      if (!config[key]) {
+    for (const k of required) {
+      if (!config[k]) {
         initializing = false;
         throw new Error(
-          `Firebase missing config: NEXT_PUBLIC_FIREBASE_${String(key).toUpperCase()}`
+          `Firebase missing config: NEXT_PUBLIC_FIREBASE_${String(k).toUpperCase()}`
         );
       }
     }
@@ -67,6 +65,7 @@ function initFirebase(): void {
       appInstance = initializeApp(config as any);
     }
 
+    // Auth singleton
     authInstance = getAuth(appInstance);
     authInstance.useDeviceLanguage();
   } catch (err) {
@@ -79,18 +78,32 @@ function initFirebase(): void {
 }
 
 // ==============================
-// Public accessor (app + auth)
+// Public accessors
 // ==============================
-export function getFirebaseApp(): { app: FirebaseApp; auth: Auth } {
+export function getFirebaseApp(): FirebaseApp {
   if (typeof window === "undefined") {
     throw new Error("getFirebaseApp() cannot run on SSR");
   }
 
-  if (!appInstance || !authInstance) initFirebase();
+  if (!appInstance) initFirebase();
 
-  if (!appInstance || !authInstance) {
-    throw new Error("Firebase not initialized");
+  if (!appInstance) {
+    throw new Error("Firebase app not initialized");
   }
 
-  return { app: appInstance, auth: authInstance };
+  return appInstance;
+}
+
+export function getFirebaseAuth(): Auth {
+  if (typeof window === "undefined") {
+    throw new Error("getFirebaseAuth() cannot run on SSR");
+  }
+
+  if (!authInstance) initFirebase();
+
+  if (!authInstance) {
+    throw new Error("Firebase auth not initialized");
+  }
+
+  return authInstance;
 }
