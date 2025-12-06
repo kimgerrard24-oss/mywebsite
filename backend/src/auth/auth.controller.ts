@@ -279,7 +279,6 @@ async login(
     },
   );
 
-  // =========================================================
   // 5) Return safe user
   const safeUser = {
     id: user.id,

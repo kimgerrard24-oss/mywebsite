@@ -1,4 +1,5 @@
 // components/auth/LoginForm.tsx
+
 'use client';
 
 import React, { useState } from 'react';
@@ -24,6 +25,7 @@ export default function LoginForm() {
     password: '',
     remember: false,
   });
+
   const [visible, setVisible] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
@@ -40,12 +42,14 @@ export default function LoginForm() {
       setErrorMsg('กรุณากรอกอีเมลที่ถูกต้อง');
       return;
     }
+
     if (form.password.length < 8) {
       setErrorMsg('รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร');
       return;
     }
 
     setLoading(true);
+
     try {
       const res = await login({
         email: form.email.trim(),
@@ -128,7 +132,10 @@ export default function LoginForm() {
             จดจำฉัน
           </label>
 
-          <a href="/auth/forgot" className="text-sm text-slate-600 hover:underline">
+          <a
+            href="/auth/forgot"
+            className="text-sm text-slate-600 hover:underline"
+          >
             ลืมรหัสผ่าน?
           </a>
         </div>
