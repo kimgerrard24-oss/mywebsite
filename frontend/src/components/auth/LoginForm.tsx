@@ -1,4 +1,5 @@
 // components/auth/LoginForm.tsx
+
 'use client';
 
 import React, { useState } from 'react';
@@ -14,6 +15,11 @@ type FormState = {
 
 function validateEmail(email: string) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
+}
+
+// type guard
+function hasData(x: any): x is { data: any } {
+  return x && typeof x === 'object' && 'data' in x;
 }
 
 export default function LoginForm() {
@@ -53,18 +59,33 @@ export default function LoginForm() {
         remember: form.remember,
       });
 
-      const hasData = res && typeof res === 'object' && 'data' in res && res.data;
-
-      if (hasData && res.success && res.data?.user) {
+      // success branch
+      if (res && res.success === true && hasData(res) && res.data.user) {
         setUser(res.data.user);
         router.push('/feed');
         return;
       }
 
-      setErrorMsg(res.message || 'ไม่สามารถเข้าสู่ระบบได้ กรุณาลองอีกครั้ง');
-    } catch (err) {
+      // collect backend error message
+      const backendMsg =
+        typeof res?.message === 'string'
+          ? res.message
+          : Array.isArray(res?.message)
+          ? res.message.join(', ')
+          : null;
+
+      setErrorMsg(backendMsg || 'ไม่สามารถเข้าสู่ระบบได้ กรุณาลองอีกครั้ง');
+
+    } catch (err: any) {
       console.error('Login error', err);
-      setErrorMsg('เกิดข้อผิดพลาดในการเชื่อมต่อ กรุณาลองอีกครั้งภายหลัง');
+
+      const msg =
+        typeof err?.response?.data?.message === 'string'
+          ? err.response.data.message
+          : 'เกิดข้อผิดพลาดในการเชื่อมต่อ กรุณาลองอีกครั้งภายหลัง';
+
+      setErrorMsg(msg);
+
     } finally {
       setLoading(false);
     }

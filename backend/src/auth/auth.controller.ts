@@ -169,6 +169,7 @@ export class AuthController {
     };
   }
 
+  // local login
 @Public()
 @RateLimit('login')
 @Post('login')
@@ -176,31 +177,24 @@ export class AuthController {
 async login(
   @Body() body: LoginDto,
   @Req() req: Request,
-  @Res({ passthrough: true }) res: Response
+  @Res({ passthrough: true }) res: Response,
 ) {
-  let rawIp: string | null = null;
+  // =========================================================
+  // Extract client IP safely
+  // =========================================================
+  const forwarded = req.headers['x-forwarded-for'];
+  const rawIp =
+    typeof forwarded === 'string'
+      ? forwarded.split(',')[0].trim()
+      : req.ip || req.socket?.remoteAddress || 'unknown';
 
-  if (typeof req.headers['x-forwarded-for'] === 'string') {
-    rawIp = req.headers['x-forwarded-for'].split(',')[0].trim();
-  } else {
-    rawIp = req.ip || req.socket?.remoteAddress || null;
-  }
-
-  const normalizedIp = rawIp
-    ? rawIp.replace(/^::ffff:/, '').replace(/:\d+$/, '').trim()
-    : 'unknown';
-
-  const keyIp = normalizedIp
-    .replace(/^::ffff:/, '')
-    .replace(/:\d+$/, '')
-    .replace(/[^a-zA-Z0-9_-]/g, '_')
-    .replace(/_+/g, '_')
-    .trim() || 'unknown';
+  const normalizedIp = rawIp.replace(/^::ffff:/, '').replace(/:\d+$/, '');
+  const keyIp = normalizedIp.replace(/[^a-zA-Z0-9_-]/g, '_').trim() || 'unknown';
 
   const ua = (req.headers['user-agent'] as string) || null;
 
   // =========================================================
-  // 1) Rate limit check BEFORE password validation
+  // 1) Rate limit BEFORE password check
   // =========================================================
   const status = await this.rateLimitService.check('login', keyIp);
 
@@ -215,8 +209,8 @@ async login(
 
     throw new HttpException(
       `Too many attempts. Try again after ${status.retryAfterSec} seconds`,
-       HttpStatus.TOO_MANY_REQUESTS, // 429
-      );
+      HttpStatus.TOO_MANY_REQUESTS,
+    );
   }
 
   // =========================================================
@@ -225,7 +219,7 @@ async login(
   const user = await this.authService.validateUser(body.email, body.password);
 
   if (!user) {
-    // count attempt
+    // count fail
     await this.rateLimitService.consume('login', keyIp);
 
     await this.audit.logLoginAttempt({
@@ -240,7 +234,7 @@ async login(
   }
 
   // =========================================================
-  // 3) SUCCESS — clear rate counter
+  // 3) SUCCESS — clear counter
   // =========================================================
   await this.rateLimitService.reset('login', keyIp);
 
@@ -252,61 +246,62 @@ async login(
     success: true,
   });
 
-// =========================================================
-// 4) Create Firebase session cookie
-// =========================================================
+  // =========================================================
+  // 4) Create Firebase session cookie
+  // =========================================================
 
-// create Firebase custom token
-const customToken = await this.authService.createFirebaseCustomToken(
-  user.id,
-  user,
-);
+  // Step 1: create Firebase Custom Token
+  const customToken = await this.authService.createFirebaseCustomToken(
+    user.id,
+    user,
+  );
 
-// expiry
-const expiresIn =
-  (Number(process.env.ACCESS_TOKEN_TTL_SECONDS) || 60 * 15) * 1000;
+  // Step 2: convert to session cookie
+  const expiresIn =
+    (Number(process.env.ACCESS_TOKEN_TTL_SECONDS) || 60 * 15) * 1000;
 
-// create secure session cookie
-const cookieValue = await this.authService.createSessionCookie(
-  customToken,
-  expiresIn,
-);
-
-// set cookie
-res.cookie(
-  process.env.ACCESS_TOKEN_COOKIE_NAME || 'phl_access',
-  cookieValue,
-  {
-    httpOnly: true,
-    secure: process.env.COOKIE_SECURE !== 'false',
-    sameSite: 'strict',
-    domain: process.env.COOKIE_DOMAIN || undefined,
-    maxAge: expiresIn,
-    path: '/',
-  },
-);
-
-// safe user for response
-const safeUser = {
-  id: user.id,
-  email: user.email,
-  username: user.username,
-  name: user.name,
-  avatarUrl: user.avatarUrl,
-  isEmailVerified: user.isEmailVerified,
-  createdAt: user.createdAt,
-  updatedAt: user.updatedAt,
-};
-
-return {
-  success: true,
-  data: {
-    user: safeUser,
+  const sessionCookie = await this.authService.createSessionCookie(
+    customToken,
     expiresIn,
-  },
-};
+  );
 
+  // Step 3: send cookie
+  res.cookie(
+    process.env.ACCESS_TOKEN_COOKIE_NAME || 'phl_access',
+    sessionCookie,
+    {
+      httpOnly: true,
+      secure: process.env.COOKIE_SECURE !== 'false',
+      sameSite: 'strict',
+      domain: process.env.COOKIE_DOMAIN || undefined,
+      maxAge: expiresIn,
+      path: '/',
+    },
+  );
+
+  // =========================================================
+  // 5) Return safe user
+  // =========================================================
+  const safeUser = {
+    id: user.id,
+    email: user.email,
+    username: user.username,
+    name: user.name,
+    avatarUrl: user.avatarUrl,
+    isEmailVerified: user.isEmailVerified,
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt,
+  };
+
+  return {
+    success: true,
+    data: {
+      user: safeUser,
+      expiresIn,
+    },
+  };
 }
+
 
 // verify-email
   @Get('verify-email')

@@ -100,9 +100,17 @@ constructor(
 // Local Login
 // -------------------------------------------------------
 async validateUser(email: string, password: string) {
+  // Normalize password to string
+  password = typeof password === 'string' ? password : '';
+
   const user = await this.repo.findUserByEmail(email);
+
   if (!user) {
-    await this.audit.logLoginAttempt({ email, success: false, reason: 'user_not_found' });
+    await this.audit.logLoginAttempt({
+      email,
+      success: false,
+      reason: 'user_not_found',
+    });
     return null;
   }
 
@@ -116,7 +124,7 @@ async validateUser(email: string, password: string) {
     throw new ForbiddenException('Account disabled');
   }
 
-  // Prevent argon2.verify crash
+  // Ensure password hash exists
   if (!user.hashedPassword || typeof user.hashedPassword !== 'string') {
     await this.audit.logLoginAttempt({
       userId: user.id,
@@ -127,7 +135,22 @@ async validateUser(email: string, password: string) {
     return null;
   }
 
-  const ok = await argon2.verify(user.hashedPassword, password);
+  // Verify hash safely
+  let ok = false;
+  try {
+    ok = await argon2.verify(user.hashedPassword, password);
+  } catch (err) {
+    await this.audit.logLoginAttempt({
+      userId: user.id,
+      email,
+      success: false,
+      reason: 'hash_verify_exception',
+    });
+
+    // Do NOT leak error details
+    return null;
+  }
+
   if (!ok) {
     await this.audit.logLoginAttempt({
       userId: user.id,
@@ -138,19 +161,21 @@ async validateUser(email: string, password: string) {
     return null;
   }
 
+  // Update last login
   await this.repo.updateLastLogin(user.id);
+
   await this.audit.logLoginAttempt({
     userId: user.id,
     email,
     success: true,
   });
 
+  // Return safe object
   const safe: any = { ...user };
   delete safe.hashedPassword;
 
   return safe;
 }
-
 
 
   // -------------------------------------------------------
