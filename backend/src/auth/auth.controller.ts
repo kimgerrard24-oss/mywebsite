@@ -252,61 +252,60 @@ async login(
     success: true,
   });
 
-  // =========================================================
-  // 4) Create session cookies
-  // =========================================================
-  const session = await this.authService.createSessionToken(user.id);
+// =========================================================
+// 4) Create Firebase session cookie
+// =========================================================
 
-  const cookieOptions = {
+// create Firebase custom token
+const customToken = await this.authService.createFirebaseCustomToken(
+  user.id,
+  user,
+);
+
+// expiry
+const expiresIn =
+  (Number(process.env.ACCESS_TOKEN_TTL_SECONDS) || 60 * 15) * 1000;
+
+// create secure session cookie
+const cookieValue = await this.authService.createSessionCookie(
+  customToken,
+  expiresIn,
+);
+
+// set cookie
+res.cookie(
+  process.env.ACCESS_TOKEN_COOKIE_NAME || 'phl_access',
+  cookieValue,
+  {
     httpOnly: true,
     secure: process.env.COOKIE_SECURE !== 'false',
-    sameSite: 'strict' as const,
+    sameSite: 'strict',
     domain: process.env.COOKIE_DOMAIN || undefined,
-    maxAge: (Number(process.env.ACCESS_TOKEN_TTL_SECONDS) || 60 * 15) * 1000,
+    maxAge: expiresIn,
     path: '/',
-  };
+  },
+);
 
-  res.cookie(
-    process.env.ACCESS_TOKEN_COOKIE_NAME || 'phl_access',
-    session.accessToken,
-    cookieOptions,
-  );
+// safe user for response
+const safeUser = {
+  id: user.id,
+  email: user.email,
+  username: user.username,
+  name: user.name,
+  avatarUrl: user.avatarUrl,
+  isEmailVerified: user.isEmailVerified,
+  createdAt: user.createdAt,
+  updatedAt: user.updatedAt,
+};
 
-  if (session.refreshToken) {
-    res.cookie(
-      process.env.REFRESH_TOKEN_COOKIE_NAME || 'phl_refresh',
-      session.refreshToken,
-      {
-        httpOnly: true,
-        secure: process.env.COOKIE_SECURE !== 'false',
-        sameSite: 'strict' as const,
-        domain: process.env.COOKIE_DOMAIN || undefined,
-        maxAge:
-          (Number(process.env.REFRESH_TOKEN_TTL_SECONDS) ||
-            60 * 60 * 24 * 30) * 1000,
-        path: '/',
-      },
-    );
-  }
+return {
+  success: true,
+  data: {
+    user: safeUser,
+    expiresIn,
+  },
+};
 
-  const safeUser = {
-    id: user.id,
-    email: user.email,
-    username: user.username,
-    name: user.name,
-    avatarUrl: user.avatarUrl,
-    isEmailVerified: user.isEmailVerified,
-    createdAt: user.createdAt,
-    updatedAt: user.updatedAt,
-  };
-
-  return {
-    success: true,
-    data: {
-      user: safeUser,
-      expiresIn: session.expiresIn,
-    },
-  };
 }
 
 // verify-email
