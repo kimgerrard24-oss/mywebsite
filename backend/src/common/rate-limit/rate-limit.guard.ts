@@ -108,6 +108,8 @@ export class RateLimitGuard implements CanActivate {
       RATE_LIMIT_CONTEXT_KEY,
       context.getHandler(),
     );
+    if (action === 'login') return true;
+
     if (!action) return true;
 
     const rawIp = this.extractRealIp(req);

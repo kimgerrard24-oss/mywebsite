@@ -98,6 +98,8 @@ export class AuthRateLimitGuard implements CanActivate {
         context.getHandler(),
       ) || null;
 
+    if (action === 'login') return true;
+
     if (!action) return true;
 
     const rawIp = this.extractRealIp(req);

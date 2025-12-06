@@ -281,7 +281,7 @@ async login(
   await this.rateLimitService.reset('login', keyIp);
 
   const safeUser = { ...user };
-  delete (safeUser as any).passwordHash;
+  delete (safeUser as any).hashPassword;
 
   return {
     success: true,
