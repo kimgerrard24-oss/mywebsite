@@ -139,4 +139,41 @@ export class RateLimitService implements OnModuleDestroy {
       this.logger.error('Error during RateLimitService shutdown', err as any);
     }
   }
+
+   async check(action: RateLimitAction, key: string) {
+  const { points, duration, blockDuration } = RateLimitPolicy[action];
+
+  const keyBlocked = `rl:block:${action}:${key}`;
+
+  // if already blocked → return retryAfter
+  const ttl = await this.redis.ttl(keyBlocked);
+
+  if (ttl > 0) {
+    return {
+      blocked: true,
+      retryAfterSec: ttl,
+    };
+  }
+
+  // get current usage
+  const keyUsage = `rl:${action}:${key}`;
+  const count = Number(await this.redis.get(keyUsage)) || 0;
+
+  if (count >= points) {
+    // set block
+    if (blockDuration) {
+      await this.redis.setex(keyBlocked, blockDuration, '1');
+    }
+
+    return {
+      blocked: true,
+      retryAfterSec: blockDuration || duration,
+    };
+  }
+
+  return {
+    blocked: false,
+  };
+}
+
 }

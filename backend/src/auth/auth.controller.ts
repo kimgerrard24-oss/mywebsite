@@ -167,8 +167,8 @@ export class AuthController {
     };
   }
 
-// Local login
 @Public()
+@RateLimit('login')
 @Post('login')
 @HttpCode(HttpStatus.OK)
 async login(
@@ -197,12 +197,27 @@ async login(
 
   const ua = (req.headers['user-agent'] as string) || null;
 
-  // ======================================================
-  // VALIDATE CREDENTIALS
-  // ======================================================
+  // ================================
+  // 1) CHECK BEFORE VALIDATE CREDENTIALS
+  // ================================
+  const status = await this.rateLimitService.check('login', keyIp);
+
+  if (status.blocked) {
+    return {
+      success: false,
+      message: `Too many attempts. Try again after ${status.retryAfterSec} seconds`,
+    };
+  }
+
+  // ================================
+  // 2) VALIDATE CREDENTIALS
+  // ================================
   const user = await this.authService.validateUser(body.email, body.password);
 
+  // FAIL = consume + log + reject
   if (!user) {
+    await this.rateLimitService.consume('login', keyIp);
+
     await this.audit.logLoginAttempt({
       email: body.email,
       ip: normalizedIp,
@@ -214,7 +229,12 @@ async login(
     return { success: false, message: 'Invalid email or password' };
   }
 
-  // success – generate session
+  // ================================
+  // 3) SUCCESS = RESET COUNTER
+  // ================================
+  await this.rateLimitService.reset('login', keyIp);
+
+  // continue with session cookie…
   const session = await this.authService.createSessionToken(user.id);
 
   const cookieOptions = {
@@ -249,8 +269,16 @@ async login(
     );
   }
 
-  const safeUser = { ...user };
-  delete (safeUser as any).hashPassword;
+  const safeUser = {
+    id: user.id,
+    email: user.email,
+    username: user.username,
+    name: user.name,
+    avatarUrl: user.avatarUrl,
+    isEmailVerified: user.isEmailVerified,
+    createdAt: user.createdAt,
+    updatedAt: user.updatedAt,
+  };
 
   return {
     success: true,
@@ -260,6 +288,7 @@ async login(
     },
   };
 }
+
 
 
 // verify-email
