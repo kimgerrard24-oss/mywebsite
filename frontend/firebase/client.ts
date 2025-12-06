@@ -1,78 +1,97 @@
 // ==============================
-// file: frontend/lib/firebaseClient.ts
-// Safe Firebase initialization for Next.js 16
+// files frontend/firebase/client 
 // ==============================
 
 import {
   initializeApp,
   getApps,
-  type FirebaseApp,
   getApp,
+  type FirebaseApp,
 } from "firebase/app";
 import { getAuth, type Auth } from "firebase/auth";
 
-let firebaseApp: FirebaseApp | undefined;
-let firebaseAuth: Auth | undefined;
+// Singleton instances
+let appInstance: FirebaseApp | null = null;
+let authInstance: Auth | null = null;
 
-// Safe client-only initializer
-function createFirebase(): void {
-  if (typeof window === "undefined") {
-    return; // SSR safe
-  }
+// Prevent parallel init race
+let initializing = false;
 
-  if (firebaseApp) return;
+// Validate and clean environment values
+function clean(value?: string) {
+  return value && value.trim().length > 0 ? value.trim() : undefined;
+}
+
+// ==============================
+// Core initialization
+// ==============================
+function initFirebase(): void {
+  if (typeof window === "undefined") return; // SSR safe
+
+  if (initializing) return;
+  initializing = true;
 
   try {
-    const apiKey = process.env.NEXT_PUBLIC_FIREBASE_API_KEY;
-    const authDomain = process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN;
-    const projectId = process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID;
-    const storageBucket = process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET;
-    const messagingSenderId =
-      process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID;
-    const appId = process.env.NEXT_PUBLIC_FIREBASE_APP_ID;
+    const config = {
+      apiKey: clean(process.env.NEXT_PUBLIC_FIREBASE_API_KEY),
+      authDomain: clean(process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN),
+      projectId: clean(process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID),
+      storageBucket: clean(process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET),
+      messagingSenderId: clean(process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID),
+      appId: clean(process.env.NEXT_PUBLIC_FIREBASE_APP_ID),
+    };
 
-    // FIX — throw when missing critical values
-    if (!apiKey || !authDomain || !projectId || !appId) {
-      throw new Error("Missing Firebase environment variables");
+    // Important required keys
+    const required = ["apiKey", "authDomain", "projectId", "appId"] as const;
+
+    for (const k of required) {
+      if (!config[k]) {
+        initializing = false;
+        throw new Error(
+          `Firebase missing config: NEXT_PUBLIC_FIREBASE_${String(k).toUpperCase()}`
+        );
+      }
     }
 
-    if (getApps().length === 0) {
-      firebaseApp = initializeApp({
-        apiKey,
-        authDomain,
-        projectId,
-        storageBucket,
-        messagingSenderId,
-        appId,
-      });
+    // Check existing instance
+    const existing = getApps();
+    if (existing.length > 0) {
+      try {
+        appInstance = getApp();
+      } catch {
+        appInstance = initializeApp(config as any);
+      }
     } else {
-      firebaseApp = getApp();
+      appInstance = initializeApp(config as any);
     }
 
-    firebaseAuth = getAuth(firebaseApp);
-    firebaseAuth.useDeviceLanguage();
+    // Auth singleton
+    authInstance = getAuth(appInstance);
+    authInstance.useDeviceLanguage();
   } catch (err) {
-    console.error("Failed to initialize Firebase:", err);
-    firebaseApp = undefined;
-    firebaseAuth = undefined;
-    throw err; // FIX — do not silent fail
+    console.error("Firebase initialization error:", err);
+    appInstance = null;
+    authInstance = null;
+  } finally {
+    initializing = false;
   }
 }
 
+// ==============================
+// Public accessors
+// ==============================
 export function getFirebaseApp(): FirebaseApp {
   if (typeof window === "undefined") {
     throw new Error("getFirebaseApp() cannot run on SSR");
   }
 
-  if (!firebaseApp) {
-    createFirebase();
-  }
+  if (!appInstance) initFirebase();
 
-  if (!firebaseApp) {
+  if (!appInstance) {
     throw new Error("Firebase app not initialized");
   }
 
-  return firebaseApp;
+  return appInstance;
 }
 
 export function getFirebaseAuth(): Auth {
@@ -80,13 +99,11 @@ export function getFirebaseAuth(): Auth {
     throw new Error("getFirebaseAuth() cannot run on SSR");
   }
 
-  if (!firebaseAuth) {
-    createFirebase();
-  }
+  if (!authInstance) initFirebase();
 
-  if (!firebaseAuth) {
+  if (!authInstance) {
     throw new Error("Firebase auth not initialized");
   }
 
-  return firebaseAuth;
+  return authInstance;
 }

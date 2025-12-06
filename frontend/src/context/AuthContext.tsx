@@ -5,7 +5,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { User } from 'firebase/auth';
 
-import { getFirebaseAuth } from '@/lib/firebaseClient';
+import { getFirebaseAuth } from 'firebase/client';
 import { onAuthStateChanged, type Auth } from 'firebase/auth';
 
 const API_BASE =

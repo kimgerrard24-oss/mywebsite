@@ -5,7 +5,7 @@ import '../sentry.client.config';
 import '../sentry.server.config';
 
 import { useEffect, useRef } from 'react';
-import { getFirebaseAuth } from '@/lib/firebaseClient';
+import { getFirebaseAuth } from 'firebase/client';
 import { UserProvider } from '@/stores/user.store';
 
 function exposeFirebaseAuthSafeOnce() {
