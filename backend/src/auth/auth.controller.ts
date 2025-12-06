@@ -168,7 +168,7 @@ export class AuthController {
     };
   }
 
- // local login
+// local login
 @Public()
 @RateLimit('login')
 @Post('login')
@@ -221,45 +221,50 @@ async login(
     body.password,
   );
 
- // =========================================================
-// 2.1 Invalid credentials
-// =========================================================
-if (!user) {
-  try {
-    // Try to consume fail attempt
-    // If threshold is not exceeded yet, consume() resolves
-    await this.rateLimitService.consume('login', keyIp);
+  // =========================================================
+  // 2.1 Invalid credentials
+  // =========================================================
+  if (!user) {
+    try {
+      // Try to consume fail attempt
+      // If threshold not exceeded → consume() resolves normally
+      await this.rateLimitService.consume('login', keyIp);
 
-    // Not blocked yet → log & return invalid credentials
-    await this.audit.logLoginAttempt({
-      email: body.email,
-      ip: normalizedIp,
-      userAgent: ua,
-      success: false,
-      reason: 'invalid_credentials',
-    });
+      // Not blocked yet → log & throw invalid credentials
+      await this.audit.logLoginAttempt({
+        email: body.email,
+        ip: normalizedIp,
+        userAgent: ua,
+        success: false,
+        reason: 'invalid_credentials',
+      });
 
-    throw new UnauthorizedException('Invalid email or password');
+      throw new UnauthorizedException('Invalid email or password');
 
-  } catch (err: any) {
-    // Threshold exceeded → consume() throws with retryAfterSec
-    await this.audit.logLoginAttempt({
-      email: body.email,
-      ip: normalizedIp,
-      userAgent: ua,
-      success: false,
-      reason: 'rate_limit_block',
-    });
+    } catch (err: any) {
+      // Threshold exceeded → consume() threw
+      await this.audit.logLoginAttempt({
+        email: body.email,
+        ip: normalizedIp,
+        userAgent: ua,
+        success: false,
+        reason: 'rate_limit_block',
+      });
 
-    throw new HttpException(
-      `Too many attempts. Try again after ${err.retryAfterSec} seconds`,
-      HttpStatus.TOO_MANY_REQUESTS,
-    );
+      const retry =
+        typeof err?.retryAfterSec === 'number'
+          ? err.retryAfterSec
+          : 60;
+
+      throw new HttpException(
+        `Too many attempts. Try again after ${retry} seconds`,
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
   }
-}
 
   // =========================================================
-  // 3) SUCCESS — clear counter
+  // 3) Success → reset counter
   // =========================================================
   await this.rateLimitService.reset('login', keyIp);
 
@@ -273,7 +278,7 @@ if (!user) {
 
   // =========================================================
   // 4) Create backend session tokens (Redis)
-  //    ใช้ createSessionToken แทน Firebase session cookie
+  // =========================================================
   const session = await this.authService.createSessionToken(user.id);
 
   const accessMaxAgeMs =
@@ -316,7 +321,9 @@ if (!user) {
     );
   }
 
+  // =========================================================
   // 5) Return safe user
+  // =========================================================
   const safeUser = {
     id: user.id,
     email: user.email,
