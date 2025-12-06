@@ -14,7 +14,6 @@ import { PrismaService } from '../prisma/prisma.service';
 import { FirebaseAdminService } from '../firebase/firebase.service';
 import { SecretsService } from '../secrets/secrets.service';
 import { randomBytes } from 'crypto';
-import * as argon2 from 'argon2';
 import { sign, verify } from 'jsonwebtoken';
 import { AuthLoggerService } from '../common/logging/auth-logger.service';
 import { AuthRepository } from './auth.repository';
@@ -100,17 +99,9 @@ constructor(
 // Local Login
 // -------------------------------------------------------
 async validateUser(email: string, password: string) {
-  // Normalize password to string
-  password = typeof password === 'string' ? password : '';
-
   const user = await this.repo.findUserByEmail(email);
-
   if (!user) {
-    await this.audit.logLoginAttempt({
-      email,
-      success: false,
-      reason: 'user_not_found',
-    });
+    await this.audit.logLoginAttempt({ email, success: false, reason: 'user_not_found' });
     return null;
   }
 
@@ -124,33 +115,8 @@ async validateUser(email: string, password: string) {
     throw new ForbiddenException('Account disabled');
   }
 
-  // Ensure password hash exists
-  if (!user.hashedPassword || typeof user.hashedPassword !== 'string') {
-    await this.audit.logLoginAttempt({
-      userId: user.id,
-      email,
-      success: false,
-      reason: 'missing_password_hash',
-    });
-    return null;
-  }
-
-  // Verify hash safely
-  let ok = false;
-  try {
-    ok = await argon2.verify(user.hashedPassword, password);
-  } catch (err) {
-    await this.audit.logLoginAttempt({
-      userId: user.id,
-      email,
-      success: false,
-      reason: 'hash_verify_exception',
-    });
-
-    // Do NOT leak error details
-    return null;
-  }
-
+  // Correct column name
+  const ok = await comparePassword(password, user.hashedPassword);
   if (!ok) {
     await this.audit.logLoginAttempt({
       userId: user.id,
@@ -161,20 +127,79 @@ async validateUser(email: string, password: string) {
     return null;
   }
 
-  // Update last login
   await this.repo.updateLastLogin(user.id);
-
   await this.audit.logLoginAttempt({
     userId: user.id,
     email,
     success: true,
   });
 
-  // Return safe object
+  // Remove hash from return object
   const safe: any = { ...user };
   delete safe.hashedPassword;
 
   return safe;
+}
+
+// -------------------------------------------------------
+// Session Token Creation
+// -------------------------------------------------------
+async createSessionToken(userId: string) {
+  // Access token
+  const accessToken = randomBytes(32).toString('hex');
+  const accessKey = `session:access:${accessToken}`;
+
+  const payload = {
+    userId,
+    createdAt: Date.now(),
+  };
+
+  await this.redis.set(
+    accessKey,
+    JSON.stringify(payload),
+    'EX',
+    ACCESS_TOKEN_TTL, // seconds
+  );
+
+  // Refresh token
+  const refreshToken = randomBytes(48).toString('hex');
+  const refreshKey = `session:refresh:${refreshToken}`;
+
+  await this.redis.set(
+    refreshKey,
+    JSON.stringify({ userId }),
+    'EX',
+    REFRESH_TOKEN_TTL, // seconds
+  );
+
+  return {
+    accessToken,
+    refreshToken,
+    expiresIn: ACCESS_TOKEN_TTL,
+  };
+}
+
+// -------------------------------------------------------
+// Token Validation
+// -------------------------------------------------------
+async validateAccessToken(token: string) {
+  const key = `session:access:${token}`;
+  const raw = await this.redis.get(key);
+  if (!raw) return null;
+
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+// -------------------------------------------------------
+// Revoke Access Token
+// -------------------------------------------------------
+async revokeAccessToken(token: string) {
+  const key = `session:access:${token}`;
+  await this.redis.del(key);
 }
 
 
