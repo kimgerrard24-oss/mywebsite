@@ -172,7 +172,6 @@ export class AuthController {
 // local login
 // =========================================================
 @Public()
-@RateLimit('login')
 @Post('login')
 @HttpCode(HttpStatus.OK)
 async login(
