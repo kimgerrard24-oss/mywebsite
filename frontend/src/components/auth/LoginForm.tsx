@@ -57,7 +57,7 @@ export default function LoginForm() {
 
       if (hasData && res.success && res.data?.user) {
         setUser(res.data.user);
-        router.push('/');
+        router.push('/feed');
         return;
       }
 

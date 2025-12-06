@@ -16,9 +16,15 @@ function LoginPageInner() {
   const router = useRouter();
 
   useEffect(() => {
-    // Only check session if we have known-auth cookie
-    const session = Cookies.get('__session');
-    if (!session || session.length < 10) return;
+    // Check common session cookies
+    const access = Cookies.get('phl_access');
+    const refresh = Cookies.get('phl_refresh');
+    const firebase = Cookies.get('__session');
+
+    // No session cookie → don't check yet
+    if (!access && !refresh && !firebase) {
+      return;
+    }
 
     let isMounted = true;
 
@@ -30,11 +36,13 @@ function LoginPageInner() {
 
         if (!isMounted) return;
 
+        // If backend confirms valid session → go to feed
         if (res.data?.valid === true) {
           router.replace('/feed');
         }
-      } catch {
-        // ignore
+      } catch (err) {
+        // Silent fail - do not block login page
+        console.warn("session-check failed:", err);
       }
     }
 
