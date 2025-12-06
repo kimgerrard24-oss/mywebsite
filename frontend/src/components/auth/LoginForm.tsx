@@ -46,6 +46,7 @@ export default function LoginForm() {
     }
 
     setLoading(true);
+
     try {
       const res = await login({
         email: form.email.trim(),
@@ -53,7 +54,8 @@ export default function LoginForm() {
         remember: form.remember,
       });
 
-      const hasData = res && typeof res === 'object' && 'data' in res && res.data;
+      const hasData =
+        res && typeof res === 'object' && 'data' in res && res.data;
 
       if (hasData && res.success && res.data?.user) {
         setUser(res.data.user);
@@ -61,10 +63,32 @@ export default function LoginForm() {
         return;
       }
 
+      // fallback from backend (rare)
       setErrorMsg(res.message || 'ไม่สามารถเข้าสู่ระบบได้ กรุณาลองอีกครั้ง');
-    } catch (err) {
+    } catch (err: any) {
       console.error('Login error', err);
-      setErrorMsg('เกิดข้อผิดพลาดในการเชื่อมต่อ กรุณาลองอีกครั้งภายหลัง');
+
+      // -----------------------------
+      // 🔥 Handle 401 - Invalid Credentials
+      // -----------------------------
+      if (err.response?.status === 401) {
+        setErrorMsg('อีเมลหรือรหัสผ่านไม่ถูกต้อง');
+        return;
+      }
+
+      // -----------------------------
+      // 🔥 Handle 429 - Rate Limit
+      // -----------------------------
+      if (err.response?.status === 429) {
+        const retry = err.response.data?.retryAfterSec || 60;
+        setErrorMsg(`คุณพยายามเข้าสู่ระบบบ่อยเกินไป กรุณารอ ${retry} วินาที`);
+        return;
+      }
+
+      // -----------------------------
+      // ⚠️ Everything else
+      // -----------------------------
+      setErrorMsg('เกิดข้อผิดพลาดในระบบ กรุณาลองอีกครั้งภายหลัง');
     } finally {
       setLoading(false);
     }
@@ -91,7 +115,9 @@ export default function LoginForm() {
 
         <label className="block">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-slate-700">รหัสผ่าน</span>
+            <span className="text-sm font-medium text-slate-700">
+              รหัสผ่าน
+            </span>
             <button
               type="button"
               tabIndex={0}
@@ -128,7 +154,10 @@ export default function LoginForm() {
             จดจำฉัน
           </label>
 
-          <a href="/auth/forgot" className="text-sm text-slate-600 hover:underline">
+          <a
+            href="/auth/forgot"
+            className="text-sm text-slate-600 hover:underline"
+          >
             ลืมรหัสผ่าน?
           </a>
         </div>
