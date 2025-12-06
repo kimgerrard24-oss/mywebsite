@@ -252,7 +252,6 @@ export class AuthController {
     // =========================================================
     // 4) Create backend session tokens (Redis)
     //    ใช้ createSessionToken แทน Firebase session cookie
-    // =========================================================
     const session = await this.authService.createSessionToken(user.id);
 
     const accessMaxAgeMs =
