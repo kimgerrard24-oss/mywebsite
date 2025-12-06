@@ -33,7 +33,6 @@ import { AuditService } from './audit.service';
 import { RateLimitGuard } from '../common/rate-limit/rate-limit.guard';
 import { RateLimitService } from '../common/rate-limit/rate-limit.service';
 
-
 if (!process.env.REDIS_URL) {
   throw new Error('REDIS_URL is not defined in environment variables');
 }
@@ -43,7 +42,7 @@ const redis = new IORedis(process.env.REDIS_URL, {
   enableReadyCheck: true,
 
   retryStrategy(times) {
-    return Math.min(times * 200, 30000); 
+    return Math.min(times * 200, 30000);
   },
 
   reconnectOnError(err) {
@@ -103,11 +102,11 @@ function buildFinalUrl(
 export class AuthController {
   private readonly logger = new Logger(AuthController.name);
 
-  constructor(private readonly authService: AuthService,
-              private readonly authRepo: AuthRepository,
-              private readonly audit: AuditService,
-              private readonly rateLimitService: RateLimitService,
-
+  constructor(
+    private readonly authService: AuthService,
+    private readonly authRepo: AuthRepository,
+    private readonly audit: AuditService,
+    private readonly rateLimitService: RateLimitService,
   ) {}
 
   // Local register
@@ -170,138 +169,154 @@ export class AuthController {
   }
 
   // local login
-@Public()
-@RateLimit('login')
-@Post('login')
-@HttpCode(HttpStatus.OK)
-async login(
-  @Body() body: LoginDto,
-  @Req() req: Request,
-  @Res({ passthrough: true }) res: Response,
-) {
-  // =========================================================
-  // Extract client IP safely
-  // =========================================================
-  const forwarded = req.headers['x-forwarded-for'];
-  const rawIp =
-    typeof forwarded === 'string'
-      ? forwarded.split(',')[0].trim()
-      : req.ip || req.socket?.remoteAddress || 'unknown';
+  @Public()
+  @RateLimit('login')
+  @Post('login')
+  @HttpCode(HttpStatus.OK)
+  async login(
+    @Body() body: LoginDto,
+    @Req() req: Request,
+    @Res({ passthrough: true }) res: Response,
+  ) {
+    // =========================================================
+    // Extract client IP safely
+    // =========================================================
+    const forwarded = req.headers['x-forwarded-for'];
+    const rawIp =
+      typeof forwarded === 'string'
+        ? forwarded.split(',')[0].trim()
+        : req.ip || req.socket?.remoteAddress || 'unknown';
 
-  const normalizedIp = rawIp.replace(/^::ffff:/, '').replace(/:\d+$/, '');
-  const keyIp = normalizedIp.replace(/[^a-zA-Z0-9_-]/g, '_').trim() || 'unknown';
+    const normalizedIp = rawIp.replace(/^::ffff:/, '').replace(/:\d+$/, '');
+    const keyIp =
+      normalizedIp.replace(/[^a-zA-Z0-9_-]/g, '_').trim() || 'unknown';
 
-  const ua = (req.headers['user-agent'] as string) || null;
+    const ua = (req.headers['user-agent'] as string) || null;
 
-  // =========================================================
-  // 1) Rate limit BEFORE password check
-  // =========================================================
-  const status = await this.rateLimitService.check('login', keyIp);
+    // =========================================================
+    // 1) Rate limit BEFORE password check
+    // =========================================================
+    const status = await this.rateLimitService.check('login', keyIp);
 
-  if (status.blocked) {
-    await this.audit.logLoginAttempt({
-      email: body.email,
-      ip: normalizedIp,
-      userAgent: ua,
-      success: false,
-      reason: 'rate_limit_block',
-    });
+    if (status.blocked) {
+      await this.audit.logLoginAttempt({
+        email: body.email,
+        ip: normalizedIp,
+        userAgent: ua,
+        success: false,
+        reason: 'rate_limit_block',
+      });
 
-    throw new HttpException(
-      `Too many attempts. Try again after ${status.retryAfterSec} seconds`,
-      HttpStatus.TOO_MANY_REQUESTS,
+      throw new HttpException(
+        `Too many attempts. Try again after ${status.retryAfterSec} seconds`,
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
+    // =========================================================
+    // 2) Validate credentials
+    // =========================================================
+    const user = await this.authService.validateUser(
+      body.email,
+      body.password,
     );
-  }
 
-  // =========================================================
-  // 2) Validate credentials
-  // =========================================================
-  const user = await this.authService.validateUser(body.email, body.password);
+    if (!user) {
+      // count fail
+      await this.rateLimitService.consume('login', keyIp);
 
-  if (!user) {
-    // count fail
-    await this.rateLimitService.consume('login', keyIp);
+      await this.audit.logLoginAttempt({
+        email: body.email,
+        ip: normalizedIp,
+        userAgent: ua,
+        success: false,
+        reason: 'invalid_credentials',
+      });
+
+      throw new UnauthorizedException('Invalid email or password');
+    }
+
+    // =========================================================
+    // 3) SUCCESS — clear counter
+    // =========================================================
+    await this.rateLimitService.reset('login', keyIp);
 
     await this.audit.logLoginAttempt({
-      email: body.email,
+      userId: user.id,
+      email: user.email,
       ip: normalizedIp,
       userAgent: ua,
-      success: false,
-      reason: 'invalid_credentials',
+      success: true,
     });
 
-    throw new UnauthorizedException('Invalid email or password');
+    // =========================================================
+    // 4) Create backend session tokens (Redis)
+    //    ใช้ createSessionToken แทน Firebase session cookie
+    // =========================================================
+    const session = await this.authService.createSessionToken(user.id);
+
+    const accessMaxAgeMs =
+      (Number(process.env.ACCESS_TOKEN_TTL_SECONDS) || 60 * 15) * 1000;
+    const refreshMaxAgeMs =
+      (Number(process.env.REFRESH_TOKEN_TTL_SECONDS) ||
+        60 * 60 * 24 * 30) *
+      1000;
+
+    const cookieDomain = process.env.COOKIE_DOMAIN || undefined;
+    const secureFlag = process.env.COOKIE_SECURE !== 'false';
+
+    // Access token cookie
+    res.cookie(
+      process.env.ACCESS_TOKEN_COOKIE_NAME || 'phl_access',
+      session.accessToken,
+      {
+        httpOnly: true,
+        secure: secureFlag,
+        sameSite: 'strict',
+        domain: cookieDomain,
+        maxAge: accessMaxAgeMs,
+        path: '/',
+      },
+    );
+
+    // Optional refresh token cookie
+    if (session.refreshToken) {
+      res.cookie(
+        process.env.REFRESH_TOKEN_COOKIE_NAME || 'phl_refresh',
+        session.refreshToken,
+        {
+          httpOnly: true,
+          secure: secureFlag,
+          sameSite: 'strict',
+          domain: cookieDomain,
+          maxAge: refreshMaxAgeMs,
+          path: '/',
+        },
+      );
+    }
+
+    // 5) Return safe user
+    const safeUser = {
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      name: user.name,
+      avatarUrl: user.avatarUrl,
+      isEmailVerified: user.isEmailVerified,
+      createdAt: user.createdAt,
+      updatedAt: user.updatedAt,
+    };
+
+    return {
+      success: true,
+      data: {
+        user: safeUser,
+        expiresIn: session.expiresIn,
+      },
+    };
   }
 
-  // =========================================================
-  // 3) SUCCESS — clear counter
-  // =========================================================
-  await this.rateLimitService.reset('login', keyIp);
-
-  await this.audit.logLoginAttempt({
-    userId: user.id,
-    email: user.email,
-    ip: normalizedIp,
-    userAgent: ua,
-    success: true,
-  });
-
-  // =========================================================
-  // 4) Create Firebase session cookie
-  // =========================================================
-
-  // Step 1: create Firebase Custom Token
-  const customToken = await this.authService.createFirebaseCustomToken(
-    user.id,
-    user,
-  );
-
-  // Step 2: convert to session cookie
-  const expiresIn =
-    (Number(process.env.ACCESS_TOKEN_TTL_SECONDS) || 60 * 15) * 1000;
-
-  const sessionCookie = await this.authService.createSessionCookie(
-    customToken,
-    expiresIn,
-  );
-
-  // Step 3: send cookie
-  res.cookie(
-    process.env.ACCESS_TOKEN_COOKIE_NAME || 'phl_access',
-    sessionCookie,
-    {
-      httpOnly: true,
-      secure: process.env.COOKIE_SECURE !== 'false',
-      sameSite: 'strict',
-      domain: process.env.COOKIE_DOMAIN || undefined,
-      maxAge: expiresIn,
-      path: '/',
-    },
-  );
-
-  // 5) Return safe user
-  const safeUser = {
-    id: user.id,
-    email: user.email,
-    username: user.username,
-    name: user.name,
-    avatarUrl: user.avatarUrl,
-    isEmailVerified: user.isEmailVerified,
-    createdAt: user.createdAt,
-    updatedAt: user.updatedAt,
-  };
-
-  return {
-    success: true,
-    data: {
-      user: safeUser,
-      expiresIn,
-    },
-  };
-}
-
-
-// verify-email
+  // verify-email
   @Get('verify-email')
   async verifyEmail(@Query('uid') uid: string, @Query('token') token: string) {
     if (!uid || !token) {

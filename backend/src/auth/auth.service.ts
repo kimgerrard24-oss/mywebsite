@@ -14,6 +14,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { FirebaseAdminService } from '../firebase/firebase.service';
 import { SecretsService } from '../secrets/secrets.service';
 import { randomBytes } from 'crypto';
+import * as argon2 from 'argon2';
 import { sign, verify } from 'jsonwebtoken';
 import { AuthLoggerService } from '../common/logging/auth-logger.service';
 import { AuthRepository } from './auth.repository';
@@ -115,8 +116,31 @@ async validateUser(email: string, password: string) {
     throw new ForbiddenException('Account disabled');
   }
 
-  // Correct column name
-  const ok = await comparePassword(password, user.hashedPassword);
+  // Prevent crash if DB has no hash
+  if (!user.hashedPassword || typeof user.hashedPassword !== 'string') {
+    await this.audit.logLoginAttempt({
+      userId: user.id,
+      email,
+      success: false,
+      reason: 'missing_password_hash',
+    });
+    return null;
+  }
+
+  // Argon2 verify
+  let ok = false;
+  try {
+    ok = await argon2.verify(user.hashedPassword, password);
+  } catch (err) {
+    await this.audit.logLoginAttempt({
+      userId: user.id,
+      email,
+      success: false,
+      reason: 'password_verify_error',
+    });
+    return null;
+  }
+
   if (!ok) {
     await this.audit.logLoginAttempt({
       userId: user.id,
@@ -134,18 +158,14 @@ async validateUser(email: string, password: string) {
     success: true,
   });
 
-  // Remove hash from return object
   const safe: any = { ...user };
   delete safe.hashedPassword;
 
   return safe;
 }
 
-// -------------------------------------------------------
-// Session Token Creation
-// -------------------------------------------------------
 async createSessionToken(userId: string) {
-  // Access token
+  // 1) create access token
   const accessToken = randomBytes(32).toString('hex');
   const accessKey = `session:access:${accessToken}`;
 
@@ -154,52 +174,35 @@ async createSessionToken(userId: string) {
     createdAt: Date.now(),
   };
 
+  // TTL in seconds
+  const accessTTL = Number(process.env.ACCESS_TOKEN_TTL_SECONDS) || 60 * 15;
+
   await this.redis.set(
     accessKey,
     JSON.stringify(payload),
     'EX',
-    ACCESS_TOKEN_TTL, // seconds
+    accessTTL,
   );
 
-  // Refresh token
+  // 2) create refresh token
   const refreshToken = randomBytes(48).toString('hex');
   const refreshKey = `session:refresh:${refreshToken}`;
+
+  const refreshTTL =
+    Number(process.env.REFRESH_TOKEN_TTL_SECONDS) || 60 * 60 * 24 * 30;
 
   await this.redis.set(
     refreshKey,
     JSON.stringify({ userId }),
     'EX',
-    REFRESH_TOKEN_TTL, // seconds
+    refreshTTL,
   );
 
   return {
     accessToken,
     refreshToken,
-    expiresIn: ACCESS_TOKEN_TTL,
+    expiresIn: accessTTL,
   };
-}
-
-// -------------------------------------------------------
-// Token Validation
-// -------------------------------------------------------
-async validateAccessToken(token: string) {
-  const key = `session:access:${token}`;
-  const raw = await this.redis.get(key);
-  if (!raw) return null;
-
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
-}
-
-// -------------------------------------------------------
-// Revoke Access Token
-// -------------------------------------------------------
-async revokeAccessToken(token: string) {
-  const key = `session:access:${token}`;
-  await this.redis.del(key);
 }
 
 
