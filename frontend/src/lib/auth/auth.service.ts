@@ -1,13 +1,14 @@
 // lib/auth/auth.service.ts
 import axios from 'axios';
 
-const rawBase = process.env.NEXT_PUBLIC_API_URL || '';
+const rawBase = (process.env.NEXT_PUBLIC_API_URL || '').trim();
 const API_BASE = rawBase.replace(/\/+$/, '');
 
 const api = axios.create({
   baseURL: API_BASE,
   withCredentials: true,
-  timeout: 10000, // protect against hanging requests
+  timeout: 10000,
+  maxRedirects: 5,
   headers: {
     'Content-Type': 'application/json',
     Accept: 'application/json',
@@ -32,11 +33,13 @@ export async function login(payload: { email: string; password: string; remember
     };
   } catch (err: any) {
     if (err?.response?.data) {
+      const message = typeof err.response.data?.message === 'string'
+        ? err.response.data.message
+        : 'Login failed';
+
       return {
         success: false,
-        message: typeof err.response.data?.message === 'string'
-          ? err.response.data.message
-          : 'Login failed',
+        message,
       };
     }
 
