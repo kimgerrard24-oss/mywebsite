@@ -12,7 +12,9 @@ import {
   Res,
   Body,
   Inject,
+  HttpException,
   Logger,
+  UnauthorizedException,
   Query,
   UseGuards,
   BadRequestException,
@@ -197,25 +199,33 @@ async login(
 
   const ua = (req.headers['user-agent'] as string) || null;
 
-  // ================================
-  // 1) CHECK BEFORE VALIDATE CREDENTIALS
-  // ================================
+  // =========================================================
+  // 1) Rate limit check BEFORE password validation
+  // =========================================================
   const status = await this.rateLimitService.check('login', keyIp);
 
   if (status.blocked) {
-    return {
+    await this.audit.logLoginAttempt({
+      email: body.email,
+      ip: normalizedIp,
+      userAgent: ua,
       success: false,
-      message: `Too many attempts. Try again after ${status.retryAfterSec} seconds`,
-    };
+      reason: 'rate_limit_block',
+    });
+
+    throw new HttpException(
+      `Too many attempts. Try again after ${status.retryAfterSec} seconds`,
+       HttpStatus.TOO_MANY_REQUESTS, // 429
+      );
   }
 
-  // ================================
-  // 2) VALIDATE CREDENTIALS
-  // ================================
+  // =========================================================
+  // 2) Validate credentials
+  // =========================================================
   const user = await this.authService.validateUser(body.email, body.password);
 
-  // FAIL = consume + log + reject
   if (!user) {
+    // count attempt
     await this.rateLimitService.consume('login', keyIp);
 
     await this.audit.logLoginAttempt({
@@ -226,15 +236,25 @@ async login(
       reason: 'invalid_credentials',
     });
 
-    return { success: false, message: 'Invalid email or password' };
+    throw new UnauthorizedException('Invalid email or password');
   }
 
-  // ================================
-  // 3) SUCCESS = RESET COUNTER
-  // ================================
+  // =========================================================
+  // 3) SUCCESS — clear rate counter
+  // =========================================================
   await this.rateLimitService.reset('login', keyIp);
 
-  // continue with session cookie…
+  await this.audit.logLoginAttempt({
+    userId: user.id,
+    email: user.email,
+    ip: normalizedIp,
+    userAgent: ua,
+    success: true,
+  });
+
+  // =========================================================
+  // 4) Create session cookies
+  // =========================================================
   const session = await this.authService.createSessionToken(user.id);
 
   const cookieOptions = {
@@ -249,7 +269,7 @@ async login(
   res.cookie(
     process.env.ACCESS_TOKEN_COOKIE_NAME || 'phl_access',
     session.accessToken,
-    cookieOptions
+    cookieOptions,
   );
 
   if (session.refreshToken) {
@@ -288,8 +308,6 @@ async login(
     },
   };
 }
-
-
 
 // verify-email
   @Get('verify-email')
