@@ -18,8 +18,10 @@ let authInstance: Auth | null = null;
 let initializing = false;
 
 // Validate and clean environment values
-function clean(value?: string) {
-  return value && value.trim().length > 0 ? value.trim() : undefined;
+function clean(value?: string | null): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
 }
 
 // ==============================
@@ -44,11 +46,11 @@ function initFirebase(): void {
     // Important required keys
     const required = ["apiKey", "authDomain", "projectId", "appId"] as const;
 
-    for (const k of required) {
-      if (!config[k]) {
+    for (const key of required) {
+      if (!config[key]) {
         initializing = false;
         throw new Error(
-          `Firebase missing config: NEXT_PUBLIC_FIREBASE_${String(k).toUpperCase()}`
+          `Firebase missing config: NEXT_PUBLIC_FIREBASE_${String(key).toUpperCase()}`
         );
       }
     }
@@ -65,7 +67,6 @@ function initFirebase(): void {
       appInstance = initializeApp(config as any);
     }
 
-    // Auth singleton
     authInstance = getAuth(appInstance);
     authInstance.useDeviceLanguage();
   } catch (err) {
@@ -78,32 +79,18 @@ function initFirebase(): void {
 }
 
 // ==============================
-// Public accessors
+// Public accessor (app + auth)
 // ==============================
-export function getFirebaseApp(): FirebaseApp {
+export function getFirebaseApp(): { app: FirebaseApp; auth: Auth } {
   if (typeof window === "undefined") {
     throw new Error("getFirebaseApp() cannot run on SSR");
   }
 
-  if (!appInstance) initFirebase();
+  if (!appInstance || !authInstance) initFirebase();
 
-  if (!appInstance) {
-    throw new Error("Firebase app not initialized");
+  if (!appInstance || !authInstance) {
+    throw new Error("Firebase not initialized");
   }
 
-  return appInstance;
-}
-
-export function getFirebaseAuth(): Auth {
-  if (typeof window === "undefined") {
-    throw new Error("getFirebaseAuth() cannot run on SSR");
-  }
-
-  if (!authInstance) initFirebase();
-
-  if (!authInstance) {
-    throw new Error("Firebase auth not initialized");
-  }
-
-  return authInstance;
+  return { app: appInstance, auth: authInstance };
 }

@@ -1,9 +1,10 @@
 // pages/index.tsx
+
 import Head from "next/head";
 import { FormEvent, useEffect, useState } from "react";
 import Cookies from "js-cookie";
-import { initializeApp } from "firebase/app";
-import { getAuth, signInWithCustomToken } from "firebase/auth";
+import { signInWithCustomToken } from "firebase/auth";
+import { getFirebase } from "../firebase/init"; // <-- ใช้ singleton
 
 export default function HomePage() {
   const [email, setEmail] = useState("");
@@ -14,15 +15,13 @@ export default function HomePage() {
     process.env.NEXT_PUBLIC_API_BASE ||
     "https://api.phlyphant.com";
 
-  // Firebase Config
-  const firebaseConfig = {
-    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  };
+  // SITE_ORIGIN canonical สำหรับ callback OAuth
+  const SITE_ORIGIN =
+    process.env.NEXT_PUBLIC_SITE_URL ||
+    "https://www.phlyphant.com";
 
-  const app = initializeApp(firebaseConfig);
-  const auth = getAuth(app);
+  // Singleton Firebase
+  const { auth } = getFirebase();
 
   // ==================================================
   // FIX A: รองรับ customToken หลัง OAuth Callback
@@ -35,10 +34,8 @@ export default function HomePage() {
 
         if (!customToken) return;
 
-        // Login ด้วย Custom Token จาก Backend
         await signInWithCustomToken(auth, customToken);
 
-        // รอ user
         const user = auth.currentUser;
 
         if (!user) {
@@ -58,7 +55,6 @@ export default function HomePage() {
           return;
         }
 
-        // ถ้า user มีแล้ว
         const idToken = await user.getIdToken(true);
 
         await fetch(`${backend}/auth/complete`, {
@@ -75,7 +71,7 @@ export default function HomePage() {
     };
 
     run();
-  }, []);
+  }, [auth, backend]);
 
   // ==================================================
   // FIX B: ผู้ใช้ login แล้ว ห้ามเข้า index.tsx อีก
@@ -83,7 +79,7 @@ export default function HomePage() {
   useEffect(() => {
     const session = Cookies.get("__session");
     if (session) {
-      window.location.href = "/home";
+      window.location.href = "/feed";
     }
   }, []);
 
@@ -98,21 +94,23 @@ export default function HomePage() {
         body: JSON.stringify({ email, password }),
       });
 
-      window.location.href = "/home";
+      window.location.href = "/feed";
     } catch (err) {
       console.error("Login failed", err);
     }
   };
 
   // ==================================================
-  // FIX: เปลี่ยนเป็น route ที่ถูกต้อง
+  // FIX: ส่ง origin parameter ที่ถูกต้อง
   // ==================================================
   const loginWithGoogle = () => {
-    window.location.href = `${backend}/auth/google`;
+    window.location.href =
+      `${backend}/auth/google?origin=${encodeURIComponent(SITE_ORIGIN)}`;
   };
 
   const loginWithFacebook = () => {
-    window.location.href = `${backend}/auth/facebook`;
+    window.location.href =
+      `${backend}/auth/facebook?origin=${encodeURIComponent(SITE_ORIGIN)}`;
   };
 
   return (
@@ -233,3 +231,4 @@ export default function HomePage() {
     </>
   );
 }
+ห
