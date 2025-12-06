@@ -3,7 +3,7 @@
 // Production-Safe Firebase Auth Debug Exposer
 // ==============================
 
-import { getFirebaseAuth } from "@/lib/firebaseClient";
+import { getFirebaseAuth } from "firebase/client";
 
 /**
  * ตรวจสอบว่าควรเปิดโหมด Debug หรือไม่

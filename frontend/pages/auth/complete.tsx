@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import Head from "next/head";
 import { useRouter } from "next/router";
 import axios from "@/lib/axios";
-import { getFirebaseAuth } from "@/lib/firebaseClient";
+import { getFirebaseAuth } from "firebase/client";
 import { signInWithCustomToken, Auth, User } from "firebase/auth";
 import { Loader2, CheckCircle, XCircle } from "lucide-react";
 
