@@ -168,7 +168,9 @@ export class AuthController {
     };
   }
 
+// =========================================================
 // local login
+// =========================================================
 @Public()
 @RateLimit('login')
 @Post('login')
@@ -178,6 +180,7 @@ async login(
   @Req() req: Request,
   @Res({ passthrough: true }) res: Response,
 ) {
+
   // =========================================================
   // Extract client IP safely
   // =========================================================
@@ -187,16 +190,24 @@ async login(
       ? forwarded.split(',')[0].trim()
       : req.ip || req.socket?.remoteAddress || 'unknown';
 
-  const normalizedIp = rawIp.replace(/^::ffff:/, '').replace(/:\d+$/, '');
-  const keyIp =
-    normalizedIp.replace(/[^a-zA-Z0-9_-]/g, '_').trim() || 'unknown';
+  const normalizedIp = rawIp
+    .replace(/^::ffff:/, '')
+    .replace(/:\d+$/, '');
+
+  // ---------------------------------------------------------
+  // IMPORTANT FIX:
+  // Combine email + IP to avoid blocking from different users
+  // ---------------------------------------------------------
+  const key = `${body.email}:${normalizedIp}`
+    .replace(/[^a-zA-Z0-9_-]/g, '_')
+    .trim() || 'unknown';
 
   const ua = (req.headers['user-agent'] as string) || null;
 
   // =========================================================
   // 1) Rate limit BEFORE password check
   // =========================================================
-  const status = await this.rateLimitService.check('login', keyIp);
+  const status = await this.rateLimitService.check('login', key);
 
   if (status.blocked) {
     await this.audit.logLoginAttempt({
@@ -228,9 +239,8 @@ async login(
     try {
       // Try to consume fail attempt
       // If threshold not exceeded → consume() resolves normally
-      await this.rateLimitService.consume('login', keyIp);
+      await this.rateLimitService.consume('login', key);
 
-      // Not blocked yet → log & throw invalid credentials
       await this.audit.logLoginAttempt({
         email: body.email,
         ip: normalizedIp,
@@ -266,7 +276,7 @@ async login(
   // =========================================================
   // 3) Success → reset counter
   // =========================================================
-  await this.rateLimitService.reset('login', keyIp);
+  await this.rateLimitService.reset('login', key);
 
   await this.audit.logLoginAttempt({
     userId: user.id,
