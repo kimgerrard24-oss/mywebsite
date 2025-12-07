@@ -1,4 +1,4 @@
-// src/common/rate-limit/rate-limit-service.ts 
+// src/common/rate-limit/rate-limit-service.ts
 
 import { Injectable, Logger, Inject, OnModuleDestroy } from '@nestjs/common';
 import { RateLimiterRedis } from 'rate-limiter-flexible';
@@ -61,7 +61,7 @@ export class RateLimitService implements OnModuleDestroy {
   async consume(
     action: RateLimitAction,
     key: string,
-  ): Promise<RateLimitConsumeResult> {
+  ): Promise<RateLimitConsumeResult & { blocked: boolean }> {
     const limiter = this.limiters.get(action);
 
     if (!limiter) {
@@ -71,6 +71,7 @@ export class RateLimitService implements OnModuleDestroy {
         remaining: 0,
         retryAfterSec: 0,
         reset: 0,
+        blocked: false,
       };
     }
 
@@ -90,6 +91,7 @@ export class RateLimitService implements OnModuleDestroy {
         remaining: result.remainingPoints,
         retryAfterSec: 0,
         reset: resetSec,
+        blocked: false,
       };
     } catch (err: any) {
       const retryAfterSec =
@@ -99,12 +101,14 @@ export class RateLimitService implements OnModuleDestroy {
         `Rate limit exceeded for action="${action}", key="${fullKey}", retryAfterSec=${retryAfterSec}`,
       );
 
-      return Promise.reject({
+      // IMPORTANT: do not reject, return a blocked result instead
+      return {
         limit: limiter.points,
         remaining: 0,
         retryAfterSec,
         reset: retryAfterSec,
-      });
+        blocked: true,
+      };
     }
   }
 
@@ -148,10 +152,12 @@ export class RateLimitService implements OnModuleDestroy {
     try {
       const res = await limiter.get(fullKey);
 
-      if (!res || typeof res.remainingPoints !== 'number') {
+      // FIX: allow first usage (no consumption yet)
+      if (!res || res.consumedPoints === 0) {
         return { blocked: false, retryAfterSec: 0 };
       }
 
+      // already has remaining points
       if (res.remainingPoints > 0) {
         return { blocked: false, retryAfterSec: 0 };
       }

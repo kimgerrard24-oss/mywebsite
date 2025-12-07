@@ -194,7 +194,6 @@ async login(
     .replace(/:\d+$/, '');
 
   // ---------------------------------------------------------
-  // IMPORTANT FIX:
   // Combine email + IP to avoid blocking from different users
   // ---------------------------------------------------------
   const key = `${body.email}:${normalizedIp}`
@@ -235,23 +234,13 @@ async login(
   // 2.1 Invalid credentials
   // =========================================================
   if (!user) {
-    try {
-      // Try to consume fail attempt
-      // If threshold not exceeded → consume() resolves normally
-      await this.rateLimitService.consume('login', key);
 
-      await this.audit.logLoginAttempt({
-        email: body.email,
-        ip: normalizedIp,
-        userAgent: ua,
-        success: false,
-        reason: 'invalid_credentials',
-      });
+    // =====================================================
+    // NEW LOGIC: consume() does NOT throw anymore
+    // =====================================================
+    const consumeResult = await this.rateLimitService.consume('login', key);
 
-      throw new UnauthorizedException('Invalid email or password');
-
-    } catch (err: any) {
-      // Threshold exceeded → consume() threw
+    if (consumeResult.blocked) {
       await this.audit.logLoginAttempt({
         email: body.email,
         ip: normalizedIp,
@@ -260,16 +249,21 @@ async login(
         reason: 'rate_limit_block',
       });
 
-      const retry =
-        typeof err?.retryAfterSec === 'number'
-          ? err.retryAfterSec
-          : 60;
-
       throw new HttpException(
-        `Too many attempts. Try again after ${retry} seconds`,
+        `Too many attempts. Try again after ${consumeResult.retryAfterSec} seconds`,
         HttpStatus.TOO_MANY_REQUESTS,
       );
     }
+
+    await this.audit.logLoginAttempt({
+      email: body.email,
+      ip: normalizedIp,
+      userAgent: ua,
+      success: false,
+      reason: 'invalid_credentials',
+    });
+
+    throw new UnauthorizedException('Invalid email or password');
   }
 
   // =========================================================
@@ -352,6 +346,7 @@ async login(
     },
   };
 }
+
 
 
   // verify-email
