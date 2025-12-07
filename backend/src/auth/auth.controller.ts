@@ -194,7 +194,7 @@ async login(
     .replace(/:\d+$/, '');
 
   // ---------------------------------------------------------
-  // Combine email + IP to avoid blocking from different users
+  // Combine email + IP to avoid blocking different users
   // ---------------------------------------------------------
   const key = `${body.email}:${normalizedIp}`
     .replace(/[^a-zA-Z0-9_-]/g, '_')
@@ -203,9 +203,7 @@ async login(
   const ua = (req.headers['user-agent'] as string) || null;
 
   // =========================================================
-  // 1) Validate credentials FIRST
-  //    - ให้สิทธิลูกค้าที่ใส่รหัสถูก ผ่านไปก่อน
-  //    - ใช้ rate-limit เฉพาะกรณีรหัสผิด / brute force
+  // Step 1: Validate credentials BEFORE rate-limit
   // =========================================================
   const user = await this.authService.validateUser(
     body.email,
@@ -213,12 +211,11 @@ async login(
   );
 
   // =========================================================
-  // 1.1 Invalid credentials → handle rate-limit
+  // Step 1.1: Invalid credentials
   // =========================================================
   if (!user) {
     // -------------------------------------------------------
-    // เช็คก่อนว่าตอนนี้ key นี้โดนบล็อกอยู่แล้วหรือยัง
-    // ถ้าโดนอยู่ → ตอบ 429 ทันที (ไม่ต้อง consume ซ้ำ)
+    // Check if already blocked
     // -------------------------------------------------------
     const status = await this.rateLimitService.check('login', key);
 
@@ -238,8 +235,7 @@ async login(
     }
 
     // -------------------------------------------------------
-    // ยังไม่ถูก block → consume หนึ่งครั้ง
-    // (consume() เวอร์ชันใหม่จะคืนค่า blocked=true ถ้าเกิน)
+    // Not blocked yet → consume one attempt
     // -------------------------------------------------------
     const consumeResult = await this.rateLimitService.consume('login', key);
 
@@ -259,7 +255,7 @@ async login(
     }
 
     // -------------------------------------------------------
-    // ยังไม่ถูก block แต่รหัสผิด → log เป็น invalid_credentials
+    // Not blocked but password invalid
     // -------------------------------------------------------
     await this.audit.logLoginAttempt({
       email: body.email,
@@ -273,8 +269,7 @@ async login(
   }
 
   // =========================================================
-  // 2) Success → reset counter
-  //    - เข้ารหัสถูกต้อง ให้รีเซ็ต rate-limit ของ key นี้
+  // Step 2: Valid credentials → Reset rate-limit counter
   // =========================================================
   await this.rateLimitService.reset('login', key);
 
@@ -287,7 +282,7 @@ async login(
   });
 
   // =========================================================
-  // 3) Create backend session tokens (Redis)
+  // Step 3: Create backend session
   // =========================================================
   const session = await this.authService.createSessionToken(user.id);
 
@@ -332,7 +327,7 @@ async login(
   }
 
   // =========================================================
-  // 4) Return safe user
+  // Step 4: Return safe user
   // =========================================================
   const safeUser = {
     id: user.id,
@@ -353,7 +348,6 @@ async login(
     },
   };
 }
-
 
   // verify-email
   @Get('verify-email')

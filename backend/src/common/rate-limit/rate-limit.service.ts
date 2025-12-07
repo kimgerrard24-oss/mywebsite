@@ -97,9 +97,8 @@ export class RateLimitService implements OnModuleDestroy {
       const retryAfterSec =
         err?.msBeforeNext ? Math.ceil(err.msBeforeNext / 1000) : 60;
 
-      // 🔥 LOG REASON FOR BLOCK
       this.logger.warn(
-        `RateLimit BLOCKED: action="${action}", key="${fullKey}", retryAfterSec=${retryAfterSec}s, reason="${err?.message || 'Exceeded limit'}"`
+        `RateLimit BLOCKED: action="${action}", key="${fullKey}", retryAfterSec=${retryAfterSec}s, reason="${err?.message || 'Exceeded limit'}"`,
       );
 
       return {
@@ -122,9 +121,8 @@ export class RateLimitService implements OnModuleDestroy {
     try {
       await limiter.delete(fullKey);
 
-      // 🔥 LOG RESET ACTION
       this.logger.warn(
-        `RateLimit RESET: action="${action}", key="${fullKey}"`
+        `RateLimit RESET: action="${action}", key="${fullKey}"`,
       );
     } catch {
       this.logger.warn(
@@ -167,9 +165,8 @@ export class RateLimitService implements OnModuleDestroy {
           ? Math.ceil(res.msBeforeNext / 1000)
           : 60;
 
-      // 🔥 LOG CHECK BLOCK
       this.logger.warn(
-        `RateLimit CHECK BLOCKED: action="${action}", key="${fullKey}", retryAfterSec=${retrySec}s`
+        `RateLimit CHECK BLOCKED: action="${action}", key="${fullKey}", retryAfterSec=${retrySec}s`,
       );
 
       return {
