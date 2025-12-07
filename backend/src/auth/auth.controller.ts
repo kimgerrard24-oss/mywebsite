@@ -33,6 +33,7 @@ import { AuditService } from './audit.service';
 import { RateLimitGuard } from '../common/rate-limit/rate-limit.guard';
 import { RateLimitService } from '../common/rate-limit/rate-limit.service';
 import { AuthRateLimitGuard } from '../common/rate-limit/auth-rate-limit.guard';
+import { SkipThrottle } from '@nestjs/throttler';
 
 
 if (!process.env.REDIS_URL) {
@@ -174,7 +175,10 @@ export class AuthController {
 // =========================================================
 // local login
 // =========================================================
+
+@UseGuards(AuthRateLimitGuard)
 @Public()
+@SkipThrottle()
 @Post('login')
 @HttpCode(HttpStatus.OK)
 async login(
@@ -355,7 +359,6 @@ async login(
     },
   };
 }
-
 
   // verify-email
   @Get('verify-email')
