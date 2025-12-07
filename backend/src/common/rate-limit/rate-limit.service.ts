@@ -75,8 +75,8 @@ export class RateLimitService implements OnModuleDestroy {
       };
     }
 
-    const ipSanitized = this.sanitizeKey(key);
-    const fullKey = `${action}:${ipSanitized}`;
+    const sanitized = this.sanitizeKey(key);
+    const fullKey = `${action}:${sanitized}`;
 
     this.logger.debug(
       `Consume: action="${action}", raw="${key}", sanitized="${fullKey}"`,
@@ -115,8 +115,8 @@ export class RateLimitService implements OnModuleDestroy {
     const limiter = this.limiters.get(action);
     if (!limiter) return;
 
-    const ipSanitized = this.sanitizeKey(key);
-    const fullKey = `${action}:${ipSanitized}`;
+    const sanitized = this.sanitizeKey(key);
+    const fullKey = `${action}:${sanitized}`;
 
     try {
       await limiter.delete(fullKey);
@@ -146,8 +146,8 @@ export class RateLimitService implements OnModuleDestroy {
       return { blocked: false, retryAfterSec: 0 };
     }
 
-    const sanitizedKey = this.sanitizeKey(key);
-    const fullKey = `${action}:${sanitizedKey}`;
+    const sanitized = this.sanitizeKey(key);
+    const fullKey = `${action}:${sanitized}`;
 
     try {
       const res = await limiter.get(fullKey);
