@@ -21,6 +21,8 @@ services:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
       - /var/lib/phlyphant/caddy/data:/data
       - /var/lib/phlyphant/caddy/config:/config
+      - /etc/caddy/cloudflare.crt:/etc/caddy/cloudflare.crt:ro
+      - /etc/caddy/cloudflare.key:/etc/caddy/cloudflare.key:ro      
     depends_on:
       - frontend
       - backend

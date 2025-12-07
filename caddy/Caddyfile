@@ -8,7 +8,7 @@
 phlyphant.com, www.phlyphant.com {
     encode gzip
 
-    tls {
+    tls /etc/caddy/cloudflare.crt /etc/caddy/cloudflare.key {
         protocols tls1.2 tls1.3
     }
 
@@ -58,7 +58,7 @@ phlyphant.com, www.phlyphant.com {
 api.phlyphant.com {
     encode gzip
 
-    tls {
+    tls /etc/caddy/cloudflare.crt /etc/caddy/cloudflare.key {
         protocols tls1.2 tls1.3
     }
 
@@ -112,8 +112,7 @@ api.phlyphant.com {
     handle {
         reverse_proxy phlyphant-backend:4001 {
             transport http {
-                versions 1.1    
-
+                versions 1.1
             }
 
             header_up Host {host}

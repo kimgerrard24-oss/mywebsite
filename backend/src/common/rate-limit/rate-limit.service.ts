@@ -140,13 +140,21 @@ export class RateLimitService implements OnModuleDestroy {
     }
   }
 
-   async check(action: RateLimitAction, key: string) {
+ async check(action: RateLimitAction, key: string) {
   const { points, duration, blockDuration } = RateLimitPolicy[action];
 
-  const keyBlocked = `rl:block:${action}:${key}`;
+  // ------------------------------------------------------------------
+  // IMPORTANT: keys must match consume() format exactly
+  // consume() uses: fullKey = `${action}:${sanitized}`
+  // so here we must do the same
+  // ------------------------------------------------------------------
+  const fullKey = `${action}:${key}`;
+
+  // 1) block key (rl:block:action:key)
+  const blockKey = `rl:block:${fullKey}`;
 
   // if already blocked → return retryAfter
-  const ttl = await this.redis.ttl(keyBlocked);
+  const ttl = await this.redis.ttl(blockKey);
 
   if (ttl > 0) {
     return {
@@ -155,14 +163,16 @@ export class RateLimitService implements OnModuleDestroy {
     };
   }
 
+  // 2) usage key (rl:action:key)
+  const usageKey = `rl:${fullKey}`;
+
   // get current usage
-  const keyUsage = `rl:${action}:${key}`;
-  const count = Number(await this.redis.get(keyUsage)) || 0;
+  const count = Number(await this.redis.get(usageKey)) || 0;
 
   if (count >= points) {
     // set block
     if (blockDuration) {
-      await this.redis.setex(keyBlocked, blockDuration, '1');
+      await this.redis.setex(blockKey, blockDuration, '1');
     }
 
     return {
@@ -171,9 +181,11 @@ export class RateLimitService implements OnModuleDestroy {
     };
   }
 
+  // ok
   return {
     blocked: false,
   };
 }
+
 
 }
