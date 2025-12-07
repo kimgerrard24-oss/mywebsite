@@ -203,27 +203,9 @@ async login(
   const ua = (req.headers['user-agent'] as string) || null;
 
   // =========================================================
-  // 1) Rate limit BEFORE password check
-  // =========================================================
-  const status = await this.rateLimitService.check('login', key);
-
-  if (status.blocked) {
-    await this.audit.logLoginAttempt({
-      email: body.email,
-      ip: normalizedIp,
-      userAgent: ua,
-      success: false,
-      reason: 'rate_limit_block',
-    });
-
-    throw new HttpException(
-      `Too many attempts. Try again after ${status.retryAfterSec} seconds`,
-      HttpStatus.TOO_MANY_REQUESTS,
-    );
-  }
-
-  // =========================================================
-  // 2) Validate credentials
+  // 1) Validate credentials FIRST
+  //    - ให้สิทธิลูกค้าที่ใส่รหัสถูก ผ่านไปก่อน
+  //    - ใช้ rate-limit เฉพาะกรณีรหัสผิด / brute force
   // =========================================================
   const user = await this.authService.validateUser(
     body.email,
@@ -231,13 +213,34 @@ async login(
   );
 
   // =========================================================
-  // 2.1 Invalid credentials
+  // 1.1 Invalid credentials → handle rate-limit
   // =========================================================
   if (!user) {
+    // -------------------------------------------------------
+    // เช็คก่อนว่าตอนนี้ key นี้โดนบล็อกอยู่แล้วหรือยัง
+    // ถ้าโดนอยู่ → ตอบ 429 ทันที (ไม่ต้อง consume ซ้ำ)
+    // -------------------------------------------------------
+    const status = await this.rateLimitService.check('login', key);
 
-    // =====================================================
-    // NEW LOGIC: consume() does NOT throw anymore
-    // =====================================================
+    if (status.blocked) {
+      await this.audit.logLoginAttempt({
+        email: body.email,
+        ip: normalizedIp,
+        userAgent: ua,
+        success: false,
+        reason: 'rate_limit_block',
+      });
+
+      throw new HttpException(
+        `Too many attempts. Try again after ${status.retryAfterSec} seconds`,
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
+    // -------------------------------------------------------
+    // ยังไม่ถูก block → consume หนึ่งครั้ง
+    // (consume() เวอร์ชันใหม่จะคืนค่า blocked=true ถ้าเกิน)
+    // -------------------------------------------------------
     const consumeResult = await this.rateLimitService.consume('login', key);
 
     if (consumeResult.blocked) {
@@ -255,6 +258,9 @@ async login(
       );
     }
 
+    // -------------------------------------------------------
+    // ยังไม่ถูก block แต่รหัสผิด → log เป็น invalid_credentials
+    // -------------------------------------------------------
     await this.audit.logLoginAttempt({
       email: body.email,
       ip: normalizedIp,
@@ -267,7 +273,8 @@ async login(
   }
 
   // =========================================================
-  // 3) Success → reset counter
+  // 2) Success → reset counter
+  //    - เข้ารหัสถูกต้อง ให้รีเซ็ต rate-limit ของ key นี้
   // =========================================================
   await this.rateLimitService.reset('login', key);
 
@@ -280,7 +287,7 @@ async login(
   });
 
   // =========================================================
-  // 4) Create backend session tokens (Redis)
+  // 3) Create backend session tokens (Redis)
   // =========================================================
   const session = await this.authService.createSessionToken(user.id);
 
@@ -325,7 +332,7 @@ async login(
   }
 
   // =========================================================
-  // 5) Return safe user
+  // 4) Return safe user
   // =========================================================
   const safeUser = {
     id: user.id,
@@ -346,7 +353,6 @@ async login(
     },
   };
 }
-
 
 
   // verify-email

@@ -97,11 +97,11 @@ export class RateLimitService implements OnModuleDestroy {
       const retryAfterSec =
         err?.msBeforeNext ? Math.ceil(err.msBeforeNext / 1000) : 60;
 
+      // 🔥 LOG REASON FOR BLOCK
       this.logger.warn(
-        `Rate limit exceeded for action="${action}", key="${fullKey}", retryAfterSec=${retryAfterSec}`,
+        `RateLimit BLOCKED: action="${action}", key="${fullKey}", retryAfterSec=${retryAfterSec}s, reason="${err?.message || 'Exceeded limit'}"`
       );
 
-      // IMPORTANT: do not reject, return a blocked result instead
       return {
         limit: limiter.points,
         remaining: 0,
@@ -121,8 +121,10 @@ export class RateLimitService implements OnModuleDestroy {
 
     try {
       await limiter.delete(fullKey);
-      this.logger.debug(
-        `RateLimit reset: action="${action}", key="${fullKey}"`,
+
+      // 🔥 LOG RESET ACTION
+      this.logger.warn(
+        `RateLimit RESET: action="${action}", key="${fullKey}"`
       );
     } catch {
       this.logger.warn(
@@ -152,12 +154,10 @@ export class RateLimitService implements OnModuleDestroy {
     try {
       const res = await limiter.get(fullKey);
 
-      // FIX: allow first usage (no consumption yet)
       if (!res || res.consumedPoints === 0) {
         return { blocked: false, retryAfterSec: 0 };
       }
 
-      // already has remaining points
       if (res.remainingPoints > 0) {
         return { blocked: false, retryAfterSec: 0 };
       }
@@ -166,6 +166,11 @@ export class RateLimitService implements OnModuleDestroy {
         res.msBeforeNext && res.msBeforeNext > 0
           ? Math.ceil(res.msBeforeNext / 1000)
           : 60;
+
+      // 🔥 LOG CHECK BLOCK
+      this.logger.warn(
+        `RateLimit CHECK BLOCKED: action="${action}", key="${fullKey}", retryAfterSec=${retrySec}s`
+      );
 
       return {
         blocked: true,
