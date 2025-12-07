@@ -29,7 +29,7 @@ export class RateLimitService implements OnModuleDestroy {
             points: config.max,
             duration: config.windowSec,
             blockDuration: config.blockDurationSec,
-            
+
             });
 
         this.limiters.set(action as RateLimitAction, limiter);
@@ -76,7 +76,6 @@ export class RateLimitService implements OnModuleDestroy {
 
     const ipSanitized = this.sanitizeKey(key);
 
-    // FIX: do not duplicate prefix (keyPrefix already = "rl")
     const fullKey = `${action}:${ipSanitized}`;
 
     this.logger.debug(
@@ -116,7 +115,6 @@ export class RateLimitService implements OnModuleDestroy {
 
     const ipSanitized = this.sanitizeKey(key);
 
-    // FIX: same full key format
     const fullKey = `${action}:${ipSanitized}`;
 
     try {
@@ -142,11 +140,7 @@ export class RateLimitService implements OnModuleDestroy {
  async check(action: RateLimitAction, key: string) {
   const { points, duration, blockDuration } = RateLimitPolicy[action];
 
-  // ------------------------------------------------------------------
-  // IMPORTANT: keys must match consume() format exactly
-  // consume() uses: fullKey = `${action}:${sanitized}`
-  // so here we must do the same
-  // ------------------------------------------------------------------
+
   const fullKey = `${action}:${key}`;
 
   // 1) block key (rl:block:action:key)
