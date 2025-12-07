@@ -23,15 +23,14 @@ export class RateLimitService implements OnModuleDestroy {
     try {
       Object.entries(RateLimitPolicy).forEach(([action, config]) => {
         const limiter = new RateLimiterRedis({
-          storeClient: this.redis,
 
-          // global prefix = rl
-          keyPrefix: 'rl',
-
-          points: config.points,
-          duration: config.duration,
-          blockDuration: (config as any).blockDuration || 0,
-        });
+            storeClient: this.redis,
+            keyPrefix: 'rl',
+            points: config.max,
+            duration: config.windowSec,
+            blockDuration: config.blockDurationSec,
+            
+            });
 
         this.limiters.set(action as RateLimitAction, limiter);
       });
@@ -186,6 +185,5 @@ export class RateLimitService implements OnModuleDestroy {
     blocked: false,
   };
 }
-
 
 }
