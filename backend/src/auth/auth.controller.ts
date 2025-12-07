@@ -32,6 +32,8 @@ import { AuthRepository } from './auth.repository';
 import { AuditService } from './audit.service';
 import { RateLimitGuard } from '../common/rate-limit/rate-limit.guard';
 import { RateLimitService } from '../common/rate-limit/rate-limit.service';
+import { AuthRateLimitGuard } from '../common/rate-limit/auth-rate-limit.guard';
+
 
 if (!process.env.REDIS_URL) {
   throw new Error('REDIS_URL is not defined in environment variables');
@@ -98,6 +100,7 @@ function buildFinalUrl(
   return `${base}${targetPath}?customToken=${encodeURIComponent(customToken)}`;
 }
 
+@UseGuards(AuthRateLimitGuard)
 @Controller('auth/local')
 export class AuthController {
   private readonly logger = new Logger(AuthController.name);
