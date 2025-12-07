@@ -19,6 +19,8 @@ services:
       - "443:443"
     volumes:
       - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - /var/lib/phlyphant/caddy/data:/data
+      - /var/lib/phlyphant/caddy/config:/config
     depends_on:
       - frontend
       - backend
