@@ -1,4 +1,5 @@
-// src/common/rate-limit/rate-limit-service.ts
+// src/common/rate-limit/rate-limit-service.ts 
+
 import { Injectable, Logger, Inject, OnModuleDestroy } from '@nestjs/common';
 import { RateLimiterRedis } from 'rate-limiter-flexible';
 import { Redis } from 'ioredis';
@@ -23,14 +24,12 @@ export class RateLimitService implements OnModuleDestroy {
     try {
       Object.entries(RateLimitPolicy).forEach(([action, config]) => {
         const limiter = new RateLimiterRedis({
-
-            storeClient: this.redis,
-            keyPrefix: 'rl',
-            points: config.max,
-            duration: config.windowSec,
-            blockDuration: config.blockDurationSec,
-
-            });
+          storeClient: this.redis,
+          keyPrefix: 'rl',
+          points: config.max,
+          duration: config.windowSec,
+          blockDuration: config.blockDurationSec,
+        });
 
         this.limiters.set(action as RateLimitAction, limiter);
       });
@@ -50,7 +49,8 @@ export class RateLimitService implements OnModuleDestroy {
   private sanitizeKey(raw: string): string {
     if (!raw) return 'unknown';
 
-    let k = raw.trim()
+    let k = raw
+      .trim()
       .replace(/^::ffff:/, '')
       .replace(/:\d+$/, '')
       .replace(/[^a-zA-Z0-9_-]/g, '_');
@@ -75,7 +75,6 @@ export class RateLimitService implements OnModuleDestroy {
     }
 
     const ipSanitized = this.sanitizeKey(key);
-
     const fullKey = `${action}:${ipSanitized}`;
 
     this.logger.debug(
@@ -114,7 +113,6 @@ export class RateLimitService implements OnModuleDestroy {
     if (!limiter) return;
 
     const ipSanitized = this.sanitizeKey(key);
-
     const fullKey = `${action}:${ipSanitized}`;
 
     try {
@@ -137,47 +135,42 @@ export class RateLimitService implements OnModuleDestroy {
     }
   }
 
- async check(action: RateLimitAction, key: string) {
-  const { points, duration, blockDuration } = RateLimitPolicy[action];
-
-
-  const fullKey = `${action}:${key}`;
-
-  // 1) block key (rl:block:action:key)
-  const blockKey = `rl:block:${fullKey}`;
-
-  // if already blocked → return retryAfter
-  const ttl = await this.redis.ttl(blockKey);
-
-  if (ttl > 0) {
-    return {
-      blocked: true,
-      retryAfterSec: ttl,
-    };
-  }
-
-  // 2) usage key (rl:action:key)
-  const usageKey = `rl:${fullKey}`;
-
-  // get current usage
-  const count = Number(await this.redis.get(usageKey)) || 0;
-
-  if (count >= points) {
-    // set block
-    if (blockDuration) {
-      await this.redis.setex(blockKey, blockDuration, '1');
+  async check(action: RateLimitAction, key: string) {
+    const limiter = this.limiters.get(action);
+    if (!limiter) {
+      this.logger.warn(`RateLimitPolicy not found for action="${action}"`);
+      return { blocked: false, retryAfterSec: 0 };
     }
 
-    return {
-      blocked: true,
-      retryAfterSec: blockDuration || duration,
-    };
+    const sanitizedKey = this.sanitizeKey(key);
+    const fullKey = `${action}:${sanitizedKey}`;
+
+    try {
+      const res = await limiter.get(fullKey);
+
+      if (!res || typeof res.remainingPoints !== 'number') {
+        return { blocked: false, retryAfterSec: 0 };
+      }
+
+      if (res.remainingPoints > 0) {
+        return { blocked: false, retryAfterSec: 0 };
+      }
+
+      const retrySec =
+        res.msBeforeNext && res.msBeforeNext > 0
+          ? Math.ceil(res.msBeforeNext / 1000)
+          : 60;
+
+      return {
+        blocked: true,
+        retryAfterSec: retrySec,
+      };
+    } catch (err: any) {
+      this.logger.error(
+        `RateLimit check error for key="${fullKey}"`,
+        err?.message || err,
+      );
+      return { blocked: false, retryAfterSec: 0 };
+    }
   }
-
-  // ok
-  return {
-    blocked: false,
-  };
-}
-
 }
