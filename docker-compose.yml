@@ -130,10 +130,10 @@ services:
         redis-server \
           --requirepass "${REDIS_PASSWORD}" \
           --protected-mode yes \
-          --appendonly no \
-          --save "" \
+          --appendonly yes \
+          --save "60 1000" \
           --maxmemory 256mb \
-          --maxmemory-policy allkeys-lru \
+          --maxmemory-policy volatile-lru \
           --rename-command FLUSHALL "" \
           --rename-command FLUSHDB "" \
           --rename-command CONFIG "" \
