@@ -76,18 +76,16 @@ export class AuthRateLimitGuard implements CanActivate {
     if (path.startsWith('/auth/facebook')) return true;
 
     // FIX: bypass ALL login POST paths
-    const isLoginPost =
-      req.method.toUpperCase() === 'POST' &&
-      (
-        path === '/login' ||
-        path === '/auth/login' ||
-        path === '/auth/local/login' ||
-        path === '/api/auth/local/login'
-      );
+const isLoginPost =
+  req.method === 'POST' &&
+  (
+    path.endsWith('/login') ||
+    path.includes('/auth/local/login') ||
+    path.includes('/auth/login')
+  );
 
-    if (isLoginPost) {
-      return true;
-    }
+if (isLoginPost) return true;
+
 
     if (path.startsWith('/auth/local/register')) return true;
     if (path.startsWith('/auth/local/refresh')) return true;

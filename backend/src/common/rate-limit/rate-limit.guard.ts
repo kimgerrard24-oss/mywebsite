@@ -89,17 +89,16 @@ export class RateLimitGuard implements CanActivate {
       return true;
     }
 
-    if (
-      req.method.toUpperCase() === 'POST' &&
-      (
-        path === '/login' ||
-        path === '/auth/login' ||
-        path === '/auth/local/login' ||
-        path === '/api/auth/local/login'
-      )
-    ) {
-      return true;
-    }
+  if (
+  req.method === 'POST' &&
+  (
+    path.endsWith('/login') ||
+    path.includes('/auth/local/login') ||
+    path.includes('/auth/login')
+  )
+) {
+  return true;
+}
 
     if (path.startsWith('/auth/local/register')) return true;
     if (path.startsWith('/auth/local/refresh')) return true;
