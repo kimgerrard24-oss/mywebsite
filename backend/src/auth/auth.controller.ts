@@ -214,28 +214,9 @@ async login(
   // Step 1.1: Invalid credentials
   // =========================================================
   if (!user) {
-    // -------------------------------------------------------
-    // Check if already blocked
-    // -------------------------------------------------------
-    const status = await this.rateLimitService.check('login', key);
-
-    if (status.blocked) {
-      await this.audit.logLoginAttempt({
-        email: body.email,
-        ip: normalizedIp,
-        userAgent: ua,
-        success: false,
-        reason: 'rate_limit_block',
-      });
-
-      throw new HttpException(
-        `Too many attempts. Try again after ${status.retryAfterSec} seconds`,
-        HttpStatus.TOO_MANY_REQUESTS,
-      );
-    }
 
     // -------------------------------------------------------
-    // Not blocked yet → consume one attempt
+    // consume BEFORE check
     // -------------------------------------------------------
     const consumeResult = await this.rateLimitService.consume('login', key);
 
@@ -250,6 +231,26 @@ async login(
 
       throw new HttpException(
         `Too many attempts. Try again after ${consumeResult.retryAfterSec} seconds`,
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
+    // -------------------------------------------------------
+    // then check if already blocked (rare edge-case)
+    // -------------------------------------------------------
+    const status = await this.rateLimitService.check('login', key);
+
+    if (status.blocked) {
+      await this.audit.logLoginAttempt({
+        email: body.email,
+        ip: normalizedIp,
+        userAgent: ua,
+        success: false,
+        reason: 'rate_limit_block',
+      });
+
+      throw new HttpException(
+        `Too many attempts. Try again after ${status.retryAfterSec} seconds`,
         HttpStatus.TOO_MANY_REQUESTS,
       );
     }
@@ -348,6 +349,7 @@ async login(
     },
   };
 }
+
 
   // verify-email
   @Get('verify-email')
