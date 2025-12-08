@@ -8,6 +8,8 @@ import type { User } from 'firebase/auth';
 import { getFirebaseAuth } from 'firebase/client';
 import { onAuthStateChanged, type Auth } from 'firebase/auth';
 
+import { refreshAccessToken } from "../lib/auth/auth.service";
+
 const API_BASE =
   (process.env.NEXT_PUBLIC_BACKEND_URL ||
     process.env.NEXT_PUBLIC_API_BASE ||
@@ -24,11 +26,26 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<any | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // เพิ่มฟังก์ชันนี้: refresh ครั้งแรกตอน mount
+  async function tryRefresh() {
+    try {
+      const result = await refreshAccessToken();
+      if (result?.user) {
+        setUser(result.user); // ใช้ backend user
+      }
+    } catch {
+      // ไม่ต้อง throw
+    }
+  }
+
   useEffect(() => {
     if (typeof window === 'undefined') {
       setLoading(false);
       return;
     }
+
+    // เรียก refresh access token ก่อน session-check
+    tryRefresh();
 
     let auth: Auth;
 
@@ -53,7 +70,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const valid = data?.valid === true;
 
         if (valid) {
-          // FIX — use backend user instead of Firebase client user
+          // ใช้ backend user แทน Firebase user
           setUser(data.user || null);
         } else {
           setUser(null);
@@ -85,3 +102,4 @@ export function useAuthContext() {
   }
   return ctx;
 }
+export { AuthContext };

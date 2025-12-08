@@ -1,19 +1,9 @@
 // lib/auth/auth.service.ts
 import axios from 'axios';
+import { api } from "../api";
 
 const rawBase = (process.env.NEXT_PUBLIC_API_URL || '').trim();
 const API_BASE = rawBase.replace(/\/+$/, '');
-
-const api = axios.create({
-  baseURL: API_BASE,
-  withCredentials: true,
-  timeout: 10000,
-  maxRedirects: 5,
-  headers: {
-    'Content-Type': 'application/json',
-    Accept: 'application/json',
-  },
-});
 
 export async function login(payload: { email: string; password: string; remember?: boolean }) {
   try {
@@ -81,3 +71,11 @@ export default {
   fetchCurrentUser,
   logout,
 };
+
+export async function refreshAccessToken() {
+  const response = await api.post("/auth/local/refresh", {}, {
+    withCredentials: true,
+  });
+
+  return response.data; // { accessToken, refreshToken?, user }
+}

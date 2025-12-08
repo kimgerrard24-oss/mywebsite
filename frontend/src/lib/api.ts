@@ -1,6 +1,7 @@
 // ==============================
 // file: frontend/lib/api.ts
 // ==============================
+import axios from "axios";
 
 // normalize API base
 const rawBase =
@@ -155,3 +156,9 @@ export async function verifyEmail(token: string, uid: string) {
     credentials: "include",
   });
 }
+
+export const api = axios.create({
+  baseURL: API_BASE,
+  withCredentials: true, // สำคัญมากสำหรับ refresh cookie
+  timeout: 12000,
+});

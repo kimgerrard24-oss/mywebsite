@@ -6,36 +6,40 @@ import { Global, Module, Inject, OnApplicationShutdown, Logger } from '@nestjs/c
 import Redis from 'ioredis';
 import type { Redis as RedisClient, RedisOptions } from 'ioredis';
 
-// ---------------------------------------------------------
-// Resolve Redis configuration from ENV
-// ---------------------------------------------------------
 function getRedisConfig() {
   const url = process.env.REDIS_URL;
   const password = process.env.REDIS_PASSWORD;
 
-  if (url && url.trim() !== '') {
-    const parsed = new URL(url);
+if (url && url.trim() !== '') {
+  const parsed = new URL(url);
 
-    const host = parsed.hostname;
-    const rawPort = parsed.port;
-    const port = rawPort ? parseInt(rawPort, 10) : 6379;
+  const host = parsed.hostname;
 
-    if (!Number.isInteger(port) || port <= 0 || port > 65535) {
-      throw new Error(`Invalid Redis port: ${rawPort}`);
-    }
+  const envPort = Number(process.env.REDIS_PORT);
+  const defaultPort =
+    Number.isInteger(envPort) && envPort > 0 && envPort <= 65535
+      ? envPort
+      : undefined;
 
-    const finalPassword =
-      parsed.password && parsed.password.trim() !== ''
-        ? parsed.password
-        : password || undefined;
+  const port = parsed.port ? Number(parsed.port) : defaultPort;
 
-    return {
-      type: 'host' as const,
-      host,
-      port,
-      password: finalPassword,
-    };
+  if (
+    port !== undefined &&
+    (!Number.isInteger(port) || port <= 0 || port > 65535)
+  ) {
+    throw new Error(`Invalid Redis port value: ${parsed.port || envPort}`);
   }
+
+  const finalPassword =
+    parsed.password?.trim() || password || undefined;
+
+  return {
+    type: 'host' as const,
+    host,
+    port,
+    password: finalPassword,
+  };
+}
 
   const host = process.env.REDIS_HOST;
   const rawPort = process.env.REDIS_PORT;

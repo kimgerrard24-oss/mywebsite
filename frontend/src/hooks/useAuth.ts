@@ -7,6 +7,8 @@
 import { useEffect, useState } from "react";
 import axios from "@/lib/axios";
 import type { User } from "@/types/index";
+import { useContext } from "react";
+import { AuthContext } from "@/context/AuthContext";
 
 // Normalize backend URL
 const rawBase =
@@ -16,7 +18,19 @@ const rawBase =
 
 const API_BASE = rawBase.replace(/\/+$/, "");
 
+// ========================================
+// Added: useAuth() mapping from AuthContext
+// ========================================
 export function useAuth() {
+  const ctx = useContext(AuthContext);
+  return ctx;
+}
+
+// ==============================
+// Existing internal hook logic
+// ==============================
+
+export function useAuthInternal() {
   const [user, setUser] = useState<Partial<User> | null>(null);
   const [loading, setLoading] = useState(true);
 

@@ -21,6 +21,7 @@ import { AuditService } from './audit.service';
 import { AuthGuard } from './auth.guard';
 import { RateLimitGuard } from '../common/rate-limit/rate-limit.guard';
 import { RedisService } from '../redis/redis.service';
+import { LocalRefreshModule } from './dto/local/local-refresh.module';
 
 
 @Module({
@@ -31,6 +32,7 @@ import { RedisService } from '../redis/redis.service';
     RedisModule,
     RateLimitModule,
     MailModule,
+    LocalRefreshModule,
   ],
 
   providers: [
