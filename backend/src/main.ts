@@ -338,11 +338,16 @@ async function bootstrap(): Promise<void> {
     } catch {}
   });
 
-  const port = parseInt(process.env.PORT || '4001', 10);
+ const raw = process.env.PORT;
+if (!raw) {
+  throw new Error('PORT is missing. Please check backend/.env.production');
+}
+const port = parseInt(raw, 10);
 
-  httpServer.listen(port, '0.0.0.0', () => {
-    logger.log(`Backend running inside Docker & listening on port ${port}`);
-  });
+httpServer.listen(port, '0.0.0.0', () => {
+  logger.log(`Backend running inside Docker & listening on port ${port}`);
+});
+
 }
 
 void bootstrap();
