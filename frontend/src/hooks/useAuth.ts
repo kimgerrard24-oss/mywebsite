@@ -38,7 +38,6 @@ export function useAuth() {
           const decoded = data.decoded || {};
           const backendUser = data.user || null;
 
-          // Build dynamic user object
           const builtUser = {
             id:
               backendUser?.id ||
@@ -69,7 +68,6 @@ export function useAuth() {
               "/images/default-avatar.png",
           };
 
-          // FIX: allow dynamic fields via type cast
           setUser(builtUser as Partial<User>);
         } else {
           setUser(null);
@@ -90,10 +88,13 @@ export function useAuth() {
 
   const updateUser = (u: Partial<User> | null) => setUser(u);
 
+  // =========================================
+  // Added: Correct logout route for production
+  // =========================================
   const signOut = async () => {
     try {
       await axios.post(
-        `${API_BASE}/auth/logout`,
+        `${API_BASE}/auth/local/logout`,
         {},
         { withCredentials: true }
       );
@@ -103,6 +104,7 @@ export function useAuth() {
 
     setUser(null);
   };
+  // =========================================
 
   return {
     user,

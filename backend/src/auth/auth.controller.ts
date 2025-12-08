@@ -32,6 +32,7 @@ import { AuthRepository } from './auth.repository';
 import { AuditService } from './audit.service';
 import { RateLimitGuard } from '../common/rate-limit/rate-limit.guard';
 import { RateLimitService } from '../common/rate-limit/rate-limit.service';
+import { AuthGuard } from './auth.guard';
 
 if (!process.env.REDIS_URL) {
   throw new Error('REDIS_URL is not defined in environment variables');
@@ -349,6 +350,14 @@ async login(
     },
   };
 }
+// Locoal Logout
+ @UseGuards(AuthGuard, RateLimitGuard)
+  @Post('logout')
+  @HttpCode(200)
+  async logout(@Res() res: Response) {
+    await this.authService.logout(res);
+    return res.json({ message: 'Logged out successfully' });
+  }
 
   // verify-email
   @Get('verify-email')

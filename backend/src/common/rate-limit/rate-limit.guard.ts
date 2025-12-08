@@ -7,7 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { Request, Response } from 'express';
+  import { Request, Response } from 'express';
 import { RateLimitService } from './rate-limit.service';
 import { RATE_LIMIT_CONTEXT_KEY } from './rate-limit.decorator';
 import { RateLimitAction } from './rate-limit.policy';
@@ -89,16 +89,16 @@ export class RateLimitGuard implements CanActivate {
       return true;
     }
 
-  if (
-  req.method === 'POST' &&
-  (
-    path.endsWith('/login') ||
-    path.includes('/auth/local/login') ||
-    path.includes('/auth/login')
-  )
-) {
-  return true;
-}
+    if (
+      req.method === 'POST' &&
+      (
+        path.endsWith('/login') ||
+        path.includes('/auth/local/login') ||
+        path.includes('/auth/login')
+      )
+    ) {
+      return true;
+    }
 
     if (path.startsWith('/auth/local/register')) return true;
     if (path.startsWith('/auth/local/refresh')) return true;
@@ -110,6 +110,50 @@ export class RateLimitGuard implements CanActivate {
     if (action === 'login') return true;
 
     if (!action) return true;
+
+
+    if (
+      req.method === 'POST' &&
+      (
+        path === '/auth/local/logout' ||
+        path.endsWith('/auth/local/logout')
+      )
+    ) {
+      const rawIp = this.extractRealIp(req);
+      const ipKey = this.normalizeIp(rawIp);
+      const key = `rl:logout:${ipKey}`;
+
+      try {
+        const limit = 20;
+        const count = await this.rlService.consume('logout', key);
+
+        res.setHeader('X-RateLimit-Limit', String(limit));
+        res.setHeader('X-RateLimit-Remaining', String(Math.max(limit - count.remaining, 0)));
+        res.setHeader('X-RateLimit-Reset', String(count.reset));
+
+        return true;
+      } catch (err: any) {
+        const retry =
+          typeof err?.retryAfterSec === 'number' ? err.retryAfterSec : 60;
+
+        res.setHeader('Retry-After', String(retry));
+        res.setHeader('X-RateLimit-Limit', err?.limit ?? 0);
+        res.setHeader('X-RateLimit-Remaining', '0');
+        res.setHeader('X-RateLimit-Reset', String(retry));
+
+        this.logger.warn(
+          `Rate limit blocked: action="logout" key="rl:logout:${ipKey}" ip="${rawIp}" retryAfter=${retry}`,
+        );
+
+        res.status(429).json({
+          statusCode: 429,
+          message: 'Too many requests. Please slow down.',
+        });
+
+        return false;
+      }
+    }
+    // -------------------------------------------------------------
 
     const rawIp = this.extractRealIp(req);
     const ipKey = this.normalizeIp(rawIp);

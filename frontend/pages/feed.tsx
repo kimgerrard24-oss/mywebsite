@@ -6,6 +6,10 @@ import Head from "next/head";
 import { GetServerSideProps } from "next";
 import { validateSessionOnServer } from "@/lib/auth";
 import LogoutButton from "@/components/auth/LogoutButton";
+import axios from "axios";
+import Cookies from "js-cookie";
+import { useRouter } from "next/router";
+import { useCallback } from "react";
 
 type FeedProps = {
   valid: boolean;
@@ -13,6 +17,35 @@ type FeedProps = {
 };
 
 export default function FeedPage({ valid, user }: FeedProps) {
+  const router = useRouter();
+
+  // =========================================
+  // Added: Logout handler for feed page
+  // =========================================
+  const handleLogout = useCallback(async () => {
+    try {
+      const API_BASE =
+        process.env.NEXT_PUBLIC_API_BASE ||
+        process.env.NEXT_PUBLIC_BACKEND_URL ||
+        "https://api.phlyphant.com";
+
+      await axios.post(
+        `${API_BASE.replace(/\/+$/, "")}/auth/local/logout`,
+        {},
+        { withCredentials: true }
+      );
+    } catch (err) {
+      console.error("Logout failed:", err);
+    }
+
+    Cookies.remove("phl_access");
+    Cookies.remove("phl_refresh");
+    Cookies.remove("__session");
+
+    router.replace("/");
+  }, [router]);
+  // =========================================
+
   return (
     <>
       <Head>
@@ -52,7 +85,17 @@ export default function FeedPage({ valid, user }: FeedProps) {
                 alt="Avatar"
               />
 
-              <LogoutButton />
+              {/* =========================================
+                  Added: Logout button usage
+              ========================================= */}
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="text-sm font-medium hover:text-red-600 transition"
+              >
+                Logout
+              </button>
+              {/* ========================================= */}
             </div>
           </nav>
         </header>
@@ -162,13 +205,12 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
   if (!result || !result.valid) {
     return {
       redirect: {
-        destination: "/login",
+        destination: "/",
         permanent: false,
       },
     };
   }
 
-  // แก้เพียงจุดนี้ (รองรับ Hybrid OAuth)
   const data = result as Record<string, any>;
   const decodedUser = data.decoded ?? null;
 

@@ -18,6 +18,10 @@ import { AuthRepository } from './auth.repository';
 import { FirebaseAuthGuard } from './firebase-auth.guard';
 import { MailModule } from '../mail/mail.module';
 import { AuditService } from './audit.service';
+import { AuthGuard } from './auth.guard';
+import { RateLimitGuard } from '../common/rate-limit/rate-limit.guard';
+import { RedisService } from '../redis/redis.service';
+
 
 @Module({
   imports: [
@@ -37,6 +41,9 @@ import { AuditService } from './audit.service';
     JwtStrategy,
     FirebaseAuthGuard,
     AuditService,
+    AuthGuard,
+    RateLimitGuard,
+    RedisService,
 
     // FIX:
     // Do NOT apply AuthRateLimitGuard globally as APP_GUARD

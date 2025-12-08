@@ -25,6 +25,7 @@ import { MailService } from '../mail/mail.service';
 import { comparePassword } from './untils/password.util';
 import { AuditService } from './audit.service';
 import { Redis } from 'ioredis';
+import { RedisService } from '../redis/redis.service';
 
 
 interface GoogleOAuthConfig {
@@ -65,6 +66,7 @@ constructor(
   private readonly repo: AuthRepository,
   private readonly _mailService: MailService,
   private readonly audit: AuditService,
+  private readonly redisService: RedisService,
 
     @Inject('REDIS_CLIENT')
     private readonly redis: Redis,
@@ -204,6 +206,27 @@ async createSessionToken(userId: string) {
     expiresIn: accessTTL,
   };
 }
+
+ async logout(res: any) {
+    const cookieName = process.env.JWT_COOKIE_NAME || 'phlyphant_token';
+
+    // 1) Get token from cookie
+    const token = res.req.cookies?.[cookieName];
+
+    // 2) If token exists → remove session key in Redis
+    if (token) {
+      const redisKey = `session:${token}`;
+      await this.redis.del(redisKey);
+    }
+
+    // 3) Clear the cookie
+    res.clearCookie(cookieName, {
+      httpOnly: true,
+      secure: true,
+      sameSite: 'strict',
+      domain: process.env.COOKIE_DOMAIN,
+    });
+  }
 
 
   // -------------------------------------------------------

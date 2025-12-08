@@ -10,7 +10,8 @@ export type RateLimitAction =
   | 'followUser'
   | 'unfollowUser'
   | 'messagingSend'
-  | 'oauth';
+  | 'oauth'
+  | 'logout';
 
 export type RateLimitConfig = {
   // old structure (still used in service)
@@ -121,4 +122,20 @@ export const RateLimitPolicy: Record<RateLimitAction, RateLimitConfig> = {
     max: 20,
     blockDurationSec: 120,
   },
+
+    logout: {
+    /**
+     * Logout rate-limit
+     * ป้องกัน spam logout เพื่อป้องกัน load ฝั่ง backend
+     */
+    points: 20,
+    duration: 60,
+    blockDuration: 60,
+
+    // new format
+    windowSec: 60,        // window 1 minute
+    max: 20,              // allow max 20 per minute
+    blockDurationSec: 60, // block 1 minute
+  },
+
 };

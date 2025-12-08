@@ -59,7 +59,25 @@ export async function fetchCurrentUser() {
   }
 }
 
+// ===================================================
+// Added: logout functionality for POST /auth/local/logout
+// ===================================================
+export async function logout(): Promise<void> {
+  try {
+    await api.post('/auth/local/logout', {});
+  } catch (err) {
+    const message =
+      err && typeof err === 'object' && 'message' in err
+        ? (err as any).message
+        : 'Logout failed';
+
+    console.warn('logout error:', message);
+  }
+}
+// ===================================================
+
 export default {
   login,
   fetchCurrentUser,
+  logout,
 };

@@ -1,6 +1,6 @@
 // src/redis/redis.service.ts
 
-import { Injectable, Inject, Logger } from '@nestjs/common';
+import { Injectable, Inject, Logger, OnModuleInit } from '@nestjs/common';
 import { Redis as RedisClient } from 'ioredis';
 
 // Safe ENV loader (non-throwing for production stability)
@@ -326,6 +326,22 @@ export class RedisService {
     } catch (err: any) {
       this.logger.error(`Redis healthCheck error: ${err?.message ?? String(err)}`);
       return false;
+    }
+  }
+
+  async deleteSessionByToken(token: string): Promise<void> {
+    if (!this.client) {
+      this.logger.warn('Redis client not available - deleteSessionByToken ignored');
+      return;
+    }
+
+    const key = `session:${token}`;
+
+    try {
+      await this.client.del(key);
+      this.logger.log(`Deleted session key: ${key}`);
+    } catch (err: any) {
+      this.logger.error(`Redis deleteSessionByToken error: ${err?.message ?? String(err)}`);
     }
   }
 }
