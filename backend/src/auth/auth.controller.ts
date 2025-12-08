@@ -350,7 +350,6 @@ async login(
   };
 }
 
-
   // verify-email
   @Get('verify-email')
   async verifyEmail(@Query('uid') uid: string, @Query('token') token: string) {
