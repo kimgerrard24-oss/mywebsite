@@ -140,9 +140,7 @@ services:
           --rename-command SHUTDOWN "" \
           --rename-command DEBUG "" \
           --rename-command KEYS "" \
-          --rename-command SAVE "" \
-          --rename-command EVAL "" \
-          --rename-command SCRIPT ""
+          --rename-command SAVE ""
     volumes:
       - redis-data:/data
     networks:
