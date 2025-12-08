@@ -40,16 +40,6 @@ interface FacebookOAuthConfig {
   redirectUri: string;
 }
 
-if (!process.env.REDIS_URL) {
-  throw new Error('REDIS_URL is missing. Please set it in environment variables.');
-}
-
-const redis = new Redis(process.env.REDIS_URL, {
-  maxRetriesPerRequest: 3,
-  enableReadyCheck: true,
-  lazyConnect: false,
-});
-
 const ACCESS_TOKEN_TTL = Number(process.env.ACCESS_TOKEN_TTL_SECONDS) || 60 * 15;
 const REFRESH_TOKEN_TTL = Number(process.env.REFRESH_TOKEN_TTL_SECONDS) || 60 * 60 * 24 * 30;
 const ACCESS_TOKEN_COOKIE_NAME = process.env.ACCESS_TOKEN_COOKIE_NAME || 'phl_access';
@@ -207,27 +197,24 @@ async createSessionToken(userId: string) {
   };
 }
 
- async logout(res: any) {
-    const cookieName = process.env.JWT_COOKIE_NAME || 'phlyphant_token';
+// Local Logout
+async logout(res: any) {
+  const cookieName = process.env.JWT_COOKIE_NAME || 'phlyphant_token';
 
-    // 1) Get token from cookie
-    const token = res.req.cookies?.[cookieName];
+  const token = res.req.cookies?.[cookieName];
 
-    // 2) If token exists → remove session key in Redis
-    if (token) {
-      const redisKey = `session:${token}`;
-      await this.redis.del(redisKey);
-    }
-
-    // 3) Clear the cookie
-    res.clearCookie(cookieName, {
-      httpOnly: true,
-      secure: true,
-      sameSite: 'strict',
-      domain: process.env.COOKIE_DOMAIN,
-    });
+  if (token) {
+    const redisKey = `session:access:${token}`;
+    await this.redis.del(redisKey);
   }
 
+  res.clearCookie(cookieName, {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'strict',
+    domain: process.env.COOKIE_DOMAIN,
+  });
+}
 
   // -------------------------------------------------------
   // Refresh Token (Local)

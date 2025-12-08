@@ -1,7 +1,13 @@
 // frontend/pages/dashboard.tsx
+
 import React from "react";
 import { GetServerSideProps } from "next";
+
+// ===========================================================
+// ADDED: import LogoutButton for logout functionality
+// ===========================================================
 import LogoutButton from "@/components/auth/LogoutButton";
+
 import { validateSessionOnServer } from "@/lib/auth";
 
 type DashboardProps = {
@@ -27,9 +33,6 @@ export default function Dashboard({ valid, user }: DashboardProps) {
     );
   }
 
-  // ===========================
-  // Provider label (FIXED)
-  // ===========================
   const provider =
     user?.firebase?.sign_in_provider ||
     user?.sign_in_provider ||
@@ -59,6 +62,10 @@ export default function Dashboard({ valid, user }: DashboardProps) {
 
         <header className="flex items-center justify-between mb-10">
           <h1 className="text-3xl font-bold text-gray-800">Dashboard</h1>
+
+          {/* ===========================================================
+              ADDED: LogoutButton component displayed in header
+          ============================================================ */}
           <LogoutButton />
         </header>
 
@@ -136,7 +143,7 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
     if (!result || !result.valid) {
       return {
         redirect: {
-          destination: "/login",
+          destination: "/",
           permanent: false,
         },
       };
@@ -154,7 +161,7 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
   } catch {
     return {
       redirect: {
-        destination: "/login",
+        destination: "/",
         permanent: false,
       },
     };
