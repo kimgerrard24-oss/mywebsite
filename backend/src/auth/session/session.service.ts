@@ -18,11 +18,9 @@ export class SessionService implements OnModuleDestroy {
 
   constructor() {
     const redisUrl = process.env.REDIS_URL;
-
     const redisHost = process.env.REDIS_HOST;
     const redisPort = process.env.REDIS_PORT ? Number(process.env.REDIS_PORT) : undefined;
     const redisPassword = process.env.REDIS_PASSWORD;
-
     const useTLS = process.env.REDIS_USE_TLS === 'true';
 
     if (redisUrl) {
@@ -73,10 +71,12 @@ export class SessionService implements OnModuleDestroy {
     meta?: { userAgent?: string | null; ip?: string | null },
   ): Promise<void> {
     const refreshTokenHash = await argon2.hash(refreshToken);
+    const accessTokenHash = await argon2.hash(accessToken);
 
     const sessionData: StoredSessionData = {
       payload,
       refreshTokenHash,
+      accessTokenHash,
       userAgent: meta?.userAgent ?? null,
       ip: meta?.ip ?? null,
       createdAt: new Date().toISOString(),
@@ -86,7 +86,6 @@ export class SessionService implements OnModuleDestroy {
     const refreshKey = this.buildRefreshKey(refreshToken);
     const serialized = JSON.stringify(sessionData);
 
-    // ใช้ pipeline เพื่อลด round-trip
     const pipeline = this.redis.pipeline();
 
     pipeline.set(accessKey, serialized, 'EX', ACCESS_TOKEN_TTL_SECONDS);
@@ -95,9 +94,6 @@ export class SessionService implements OnModuleDestroy {
     await pipeline.exec();
   }
 
-  /**
-   * ดึง session จาก refresh token
-   */
   async getSessionByRefreshToken(
     refreshToken: string,
   ): Promise<StoredSessionData | null> {
@@ -114,9 +110,6 @@ export class SessionService implements OnModuleDestroy {
     }
   }
 
-  /**
-   * ตรวจว่า refresh token ถูกต้อง (argon2.verify)
-   */
   async verifyRefreshToken(
     refreshToken: string,
     stored: StoredSessionData,
@@ -129,11 +122,6 @@ export class SessionService implements OnModuleDestroy {
     }
   }
 
-  /**
-   * ลบ session เดิมออกจาก Redis ตาม refresh token เก่า
-   * หมายเหตุ: เรารู้แค่ refresh token เก่า → ลบได้แค่ refreshKey โดยตรง
-   * ส่วน accessKey เก่า แนะนำเก็บ accessToken ใน sessionData แล้วลบเพิ่มในอนาคต
-   */
   async revokeByRefreshToken(refreshToken: string): Promise<void> {
     const refreshKey = this.buildRefreshKey(refreshToken);
     try {
@@ -143,9 +131,6 @@ export class SessionService implements OnModuleDestroy {
     }
   }
 
-  /**
-   * ลบ accessKey ตาม access token (ใช้ในอนาคตถ้าคุณเก็บค่าไว้)
-   */
   async revokeByAccessToken(accessToken: string): Promise<void> {
     const accessKey = this.buildAccessKey(accessToken);
     try {
