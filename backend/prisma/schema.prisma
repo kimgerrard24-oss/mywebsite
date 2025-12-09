@@ -6,35 +6,36 @@ generator client {
 datasource db {
   provider          = "postgresql"
   url               = env("DATABASE_URL")
-  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")  
 }
 
 model User {
-  id                        String         @id @default(uuid())
-  email                     String         @unique
+  id                        String               @id @default(uuid())
+  email                     String               @unique
   name                      String?
-  username                  String         @unique
+  username                  String               @unique
   hashedPassword            String
-  isEmailVerified           Boolean        @default(false)
+  isEmailVerified           Boolean              @default(false)
   emailVerifyTokenHash      String?
   emailVerifyTokenExpires   DateTime?
-  isDisabled                Boolean        @default(false)
-  active                    Boolean        @default(true)
+  isDisabled                Boolean              @default(false)
+  active                    Boolean              @default(true)
   lastLoginAt               DateTime?
   passwordResetTokenHash    String?
   passwordResetTokenExpires DateTime?
   provider                  String
   providerId                String
-  firebaseUid               String?        @unique
+  firebaseUid               String?              @unique
   avatarUrl                 String?
   currentRefreshTokenHash   String?
-  createdAt                 DateTime       @default(now())
-  updatedAt                 DateTime       @updatedAt
+  createdAt                 DateTime             @default(now())
+  updatedAt                 DateTime             @updatedAt
   oauthAccounts             OAuthAccount[]
   refreshTokens             RefreshToken[]
   sessions                  Session[]
   activities                UserActivity[]
   auditLogs                 AuditLog[]
+  passwordResetTokens       PasswordResetToken[]
 }
 
 model Session {
@@ -45,6 +46,7 @@ model Session {
   userAgent    String?
   expiresAt    DateTime
   createdAt    DateTime @default(now())
+
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
@@ -56,6 +58,7 @@ model UserActivity {
   ipAddress String?
   userAgent String?
   createdAt DateTime @default(now())
+
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
@@ -68,6 +71,7 @@ model OAuthAccount {
   refreshToken String?
   expiresAt    DateTime?
   createdAt    DateTime  @default(now())
+
   user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([provider, providerId])
@@ -80,22 +84,38 @@ model RefreshToken {
   createdAt DateTime @default(now())
   expiresAt DateTime
   revoked   Boolean  @default(false)
+
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model AuditLog {
   id         String   @id @default(uuid())
-  userId     String?                        
-  user       User?     @relation(fields: [userId], references: [id], onDelete: SetNull)
-  
-  email      String                          
-  action     String                          
-  success    Boolean                         
-  reason     String?                         
-  targetId   String?                          
+
+  userId     String?  
+  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  email      String
+  action     String
+  success    Boolean
+  reason     String?
+  targetId   String?
   ip         String?
   userAgent  String?
-  metadata   Json?                           
+  metadata   Json?
 
-  occurredAt DateTime @default(now())       
+  occurredAt DateTime @default(now())
+}
+
+model PasswordResetToken {
+  id        String   @id @default(uuid())
+  userId    String
+  tokenHash String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  usedAt    DateTime?
+
+  user      User     @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([expiresAt])
 }
