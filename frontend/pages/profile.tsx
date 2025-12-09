@@ -6,16 +6,16 @@ import { useRouter } from "next/router";
 import { useAuthContext } from "@/context/AuthContext";
 import ProfileCard from "@/components/auth/ProfileCard";
 
+export const dynamic = 'force-dynamic';
+
 const ProfilePage: React.FC = () => {
   const { user, loading } = useAuthContext();
   const router = useRouter();
 
-  // ยังโหลดอยู่
   if (loading) {
     return <p>Loading...</p>;
   }
 
-  // ไม่มี user → redirect login
   if (!user) {
     if (typeof window !== "undefined") {
       router.push("/");
@@ -36,5 +36,11 @@ const ProfilePage: React.FC = () => {
     </>
   );
 };
+
+export async function getServerSideProps() {
+  return {
+    props: {},
+  };
+}
 
 export default ProfilePage;
