@@ -108,7 +108,6 @@ async validateUser(email: string, password: string) {
     throw new ForbiddenException('Account disabled');
   }
 
-  // Prevent crash if DB has no hash
   if (!user.hashedPassword || typeof user.hashedPassword !== 'string') {
     await this.audit.logLoginAttempt({
       userId: user.id,
@@ -119,7 +118,6 @@ async validateUser(email: string, password: string) {
     return null;
   }
 
-  // Argon2 verify
   let ok = false;
   try {
     ok = await argon2.verify(user.hashedPassword, password);
@@ -156,8 +154,11 @@ async validateUser(email: string, password: string) {
   return safe;
 }
 
+// -------------------------------------------------------
+// Create Session Token
+// -------------------------------------------------------
 async createSessionToken(userId: string) {
-  // 1) create access token
+  // 1) access token
   const accessToken = randomBytes(32).toString('hex');
   const accessKey = `session:access:${accessToken}`;
 
@@ -166,7 +167,6 @@ async createSessionToken(userId: string) {
     createdAt: Date.now(),
   };
 
-  // TTL in seconds
   const accessTTL = Number(process.env.ACCESS_TOKEN_TTL_SECONDS) || 60 * 15;
 
   await this.redis.set(
@@ -176,16 +176,26 @@ async createSessionToken(userId: string) {
     accessTTL,
   );
 
-  // 2) create refresh token
+  // 2) refresh token
   const refreshToken = randomBytes(48).toString('hex');
   const refreshKey = `session:refresh:${refreshToken}`;
 
   const refreshTTL =
     Number(process.env.REFRESH_TOKEN_TTL_SECONDS) || 60 * 60 * 24 * 30;
 
+  // hash refresh token before store
+  const refreshTokenHash = await argon2.hash(refreshToken);
+
+  // store structured session
+  const refreshSessionData = {
+    userId,
+    refreshTokenHash,
+    createdAt: Date.now(),
+  };
+
   await this.redis.set(
     refreshKey,
-    JSON.stringify({ userId }),
+    JSON.stringify(refreshSessionData),
     'EX',
     refreshTTL,
   );
@@ -196,6 +206,7 @@ async createSessionToken(userId: string) {
     expiresIn: accessTTL,
   };
 }
+
 
 // Local Logout
 async logout(res: any) {

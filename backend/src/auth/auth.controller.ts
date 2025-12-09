@@ -237,7 +237,7 @@ async login(
     }
 
     // -------------------------------------------------------
-    // then check if already blocked (rare edge-case)
+    // then check if already blocked
     // -------------------------------------------------------
     const status = await this.rateLimitService.check('login', key);
 
@@ -298,21 +298,25 @@ async login(
   const cookieDomain = process.env.COOKIE_DOMAIN || undefined;
   const secureFlag = process.env.COOKIE_SECURE !== 'false';
 
-  // Access token cookie
+  // =========================================================
+  // Access token cookie (FIX: strict → lax)
+  // =========================================================
   res.cookie(
     process.env.ACCESS_TOKEN_COOKIE_NAME || 'phl_access',
     session.accessToken,
     {
       httpOnly: true,
       secure: secureFlag,
-      sameSite: 'strict',
+      sameSite: 'lax',   // <<=== FIXED
       domain: cookieDomain,
       maxAge: accessMaxAgeMs,
       path: '/',
     },
   );
 
-  // Optional refresh token cookie
+  // =========================================================
+  // Refresh token cookie (FIX: strict → lax)
+  // =========================================================
   if (session.refreshToken) {
     res.cookie(
       process.env.REFRESH_TOKEN_COOKIE_NAME || 'phl_refresh',
@@ -320,7 +324,7 @@ async login(
       {
         httpOnly: true,
         secure: secureFlag,
-        sameSite: 'strict',
+        sameSite: 'lax',  // <<=== FIXED
         domain: cookieDomain,
         maxAge: refreshMaxAgeMs,
         path: '/',
@@ -350,6 +354,7 @@ async login(
     },
   };
 }
+
 // Locoal Logout
  @UseGuards(AuthGuard, RateLimitGuard)
   @Post('logout')
