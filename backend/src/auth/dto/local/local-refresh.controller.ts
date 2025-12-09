@@ -17,21 +17,32 @@ import {
   ACCESS_TOKEN_TTL_SECONDS,
   REFRESH_TOKEN_TTL_SECONDS,
 } from '../../session/session.constants';
+import { SessionService } from '../../session/session.service';
 
 @Controller('auth/local')
 export class LocalRefreshController {
   private readonly logger = new Logger(LocalRefreshController.name);
 
-  constructor(private readonly localRefreshService: LocalRefreshService) {}
+  constructor(
+    private readonly localRefreshService: LocalRefreshService,
+    private readonly sessionService: SessionService,
+  ) {}
 
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   async refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    const refreshToken =
+    const oldRefreshToken =
       (req.cookies && req.cookies[REFRESH_TOKEN_COOKIE_NAME]) ||
       (req.signedCookies && req.signedCookies[REFRESH_TOKEN_COOKIE_NAME]) ||
       (req.body && (req.body.refreshToken as string)) ||
       '';
+
+    if (!oldRefreshToken) {
+      this.logger.warn('Refresh token missing');
+      return {
+        error: 'Refresh token required',
+      };
+    }
 
     const ip =
       (req.headers['x-forwarded-for'] as string) ||
@@ -40,11 +51,26 @@ export class LocalRefreshController {
 
     const userAgent = req.headers['user-agent'] || null;
 
-    const result = await this.localRefreshService.refreshTokens(refreshToken, {
-      ip,
-      userAgent,
-    });
+    const result = await this.localRefreshService.refreshTokens(
+      oldRefreshToken,
+      {
+        ip,
+        userAgent,
+      },
+    );
 
+    // =========================================================
+    // Refresh Token Rotation (REVOKE OLD)
+    // =========================================================
+    try {
+      await this.sessionService.revokeByRefreshToken(oldRefreshToken);
+    } catch (e) {
+      this.logger.error('Failed to revoke old refresh token', e);
+    }
+
+    // =========================================================
+    // Set new cookies
+    // =========================================================
     const isProduction = process.env.NODE_ENV === 'production';
 
     res.cookie(ACCESS_TOKEN_COOKIE_NAME, result.accessToken, {
@@ -55,7 +81,6 @@ export class LocalRefreshController {
       path: '/',
     });
 
-    // FIX: change path to root, so cookie is sent always
     res.cookie(REFRESH_TOKEN_COOKIE_NAME, result.refreshToken, {
       httpOnly: true,
       secure: isProduction,
@@ -64,6 +89,9 @@ export class LocalRefreshController {
       path: '/',
     });
 
+    // =========================================================
+    // Return result
+    // =========================================================
     return {
       accessToken: result.accessToken,
       refreshToken: result.refreshToken,
