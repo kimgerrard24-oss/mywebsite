@@ -1,4 +1,4 @@
-// src/mail/password-reset-mail.service.ts
+// file: src/mail/password-reset-mail.service.ts
 
 import { Injectable, Logger } from '@nestjs/common';
 import { SES } from 'aws-sdk';
@@ -14,9 +14,16 @@ export class PasswordResetMailService {
   private readonly fromAddress: string;
 
   constructor() {
-    const region = process.env.AWS_REGION || 'ap-southeast-7'; // ตามที่คุณใช้เป็น default
+    // Default region (note: your AWS is ap-southeast-7, but SES may only exist ap-southeast-1)
+    // This must match SES region in AWS console
+    const region = process.env.AWS_REGION || 'ap-southeast-1';
+
+    // Production email sender
+    // Always use domain you verified in SES
     this.fromAddress =
-      process.env.SES_FROM_ADDRESS || 'no-reply@example.com'; // แก้ใน env บน production
+      process.env.SES_FROM_ADDRESS ||
+      process.env.NEXT_PUBLIC_EMAIL_FROM ||
+      'support@phlyphant.com';
 
     this.ses = new SES({ region });
   }
@@ -27,8 +34,10 @@ export class PasswordResetMailService {
       usernameOrEmail?: string | null;
     },
   ): Promise<void> {
+    // Display name or fallback to email
     const usernameOrEmail = params.usernameOrEmail || to;
 
+    // Build content using your template
     const { subject, text, html } = buildPasswordResetEmailTemplate({
       usernameOrEmail,
       resetUrl: params.resetUrl,
@@ -58,11 +67,12 @@ export class PasswordResetMailService {
     try {
       await this.ses.sendEmail(emailParams).promise();
     } catch (error) {
-      // ไม่โยน error ออกไปให้รู้ว่า email ไหนมีปัญหา แค่ log ไว้ฝั่ง server
+      // Only log here for monitoring
+      // Do not reveal error to client
       this.logger.error(
-        `Failed to send password reset email to ${to}: ${error}`,
+        `Failed to send password reset email to ${to}: ${String(error)}`,
       );
-      // ใน production จริง อาจจะโยน custom error ภายใน เพื่อนำไปใช้ monitoring ได้
+      // Do not throw: email failure should not leak info
     }
   }
 }

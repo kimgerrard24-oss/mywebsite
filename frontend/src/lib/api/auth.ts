@@ -35,9 +35,12 @@ export async function verifyEmail(token: string) {
   return res.data;
 }
 
+// ===============================================
 // Request password reset
+// ===============================================
+
 export interface ApiSuccessResponse {
-  message: string;
+  message?: string;
 }
 
 export interface ApiErrorResponse {
@@ -76,6 +79,59 @@ export async function requestPasswordReset(email: string): Promise<string> {
 
     throw new Error(
       'Unable to process your request at the moment. Please try again later.',
+    );
+  }
+}
+
+// ===============================================
+// Reset password
+// ===============================================
+
+export interface ResetPasswordPayload {
+  email: string;
+  token: string;
+  newPassword: string;
+  confirmPassword: string;
+}
+
+export async function resetPassword(payload: ResetPasswordPayload): Promise<string> {
+  try {
+    const response = await axios.post<ApiSuccessResponse>(
+      `${baseURL}/auth/local/reset-password`,
+      payload,
+      {
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        withCredentials: false,
+      },
+    );
+
+    if (response.data?.message) {
+      return response.data.message;
+    }
+
+    return 'If the reset link is valid, your password has been updated.';
+  } catch (err) {
+    const error = err as AxiosError<ApiErrorResponse>;
+
+    // Token expired
+    if (error.response?.status === 410) {
+      throw new Error(
+        'Your reset link has expired. Please request a new password reset email.',
+      );
+    }
+
+    if (error.response?.data?.message) {
+      throw new Error(error.response.data.message);
+    }
+
+    if (error.response?.data?.error) {
+      throw new Error(error.response.data.error);
+    }
+
+    throw new Error(
+      'Unable to reset your password at the moment. Please try again later.',
     );
   }
 }

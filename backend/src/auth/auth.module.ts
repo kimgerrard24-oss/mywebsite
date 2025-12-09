@@ -52,6 +52,19 @@ import { PasswordResetMailService } from '../mail/password-reset-mail.service';
     PasswordResetService,
     PasswordResetTokenRepository,
     PasswordResetMailService,
+
+    /*
+      NOTE:
+      DO NOT apply AuthRateLimitGuard globally using APP_GUARD here.
+      This must be applied only at route-level.
+      Example:
+      @UseGuards(AuthRateLimitGuard)
+      on request-password-reset and reset-password routes.
+
+      This ensures:
+      - Public routes can be rate-limited
+      - Authenticated routes do not get blocked unexpectedly
+    */
   ],
 
   controllers: [
