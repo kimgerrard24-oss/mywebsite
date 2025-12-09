@@ -1,3 +1,4 @@
+// file src/users/users.service.ts
 import { Injectable } from "@nestjs/common";
 import { PrismaClient } from "@prisma/client";
 import { randomUUID } from "crypto";
@@ -27,7 +28,7 @@ export class UsersService {
       data: {
         email,
         username,
-        hashedPassword: passwordHash,  
+        hashedPassword: passwordHash,
         provider: "local",
         providerId: email,
         name: displayName ?? null,
@@ -95,9 +96,30 @@ export class UsersService {
     return this.prisma.user.update({
       where: { id: user.id },
       data: {
-        hashedPassword: newPasswordHash,  
+        hashedPassword: newPasswordHash,
         passwordResetTokenHash: null,
         passwordResetTokenExpires: null,
+      },
+    });
+  }
+
+  /**
+   * ดึงข้อมูลโปรไฟล์แบบ "safe"
+   * - ไม่ดึง hashedPassword
+   * - ไม่ดึง token ต่าง ๆ
+   */
+  async findSafeProfileById(userId: string) {
+    return this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        displayName: true, 
+        username: true,
+        name: true,
+        avatarUrl: true,
+        createdAt: true,
+        updatedAt: true,
       },
     });
   }

@@ -8,6 +8,7 @@ import {
   Inject,
   UnauthorizedException,
   ConflictException,
+  NotFoundException,
   ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
@@ -26,7 +27,8 @@ import { comparePassword } from './untils/password.util';
 import { AuditService } from './audit.service';
 import { Redis } from 'ioredis';
 import { RedisService } from '../redis/redis.service';
-
+import { UserProfileDto } from './dto/user-profile.dto';
+import { UsersService } from '../users/users.service';
 
 interface GoogleOAuthConfig {
   clientId: string;
@@ -57,6 +59,7 @@ constructor(
   private readonly _mailService: MailService,
   private readonly audit: AuditService,
   private readonly redisService: RedisService,
+  private readonly userService: UsersService,
 
     @Inject('REDIS_CLIENT')
     private readonly redis: Redis,
@@ -227,21 +230,17 @@ async logout(res: any) {
   });
 }
 
-  // -------------------------------------------------------
-  // Refresh Token (Local)
-  // -------------------------------------------------------
+// Local Profile
+ async getProfile(userId: string): Promise<UserProfileDto> {
+    const user = await this.userService.findSafeProfileById(userId);
 
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
 
-  // -------------------------------------------------------
-  // Request Password Reset (Local)
-  // -------------------------------------------------------
-
-
-  // -------------------------------------------------------
-  // Reset Password (Local)
-  // -------------------------------------------------------
+    return UserProfileDto.fromUser(user);
+  }
  
-
   // -------------------------------------------------------
   // Verify Email (Local)
   // -------------------------------------------------------

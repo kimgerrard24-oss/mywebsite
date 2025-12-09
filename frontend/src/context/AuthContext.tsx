@@ -4,37 +4,46 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import type { User } from 'firebase/auth';
-
 import { getFirebaseAuth } from 'firebase/client';
 import { onAuthStateChanged, type Auth } from 'firebase/auth';
-
 import { refreshAccessToken } from "../lib/auth/auth.service";
+import { getProfile } from "@/lib/api/auth";
+
+interface UserProfile {
+  id: string;
+  email: string;
+  name: string | null;
+  displayName: string | null;
+  avatarUrl: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface AuthContextValue {
+  user: UserProfile | null;
+  loading: boolean;
+}
+
+// =====================================
 
 const API_BASE =
   (process.env.NEXT_PUBLIC_BACKEND_URL ||
     process.env.NEXT_PUBLIC_API_BASE ||
     "https://api.phlyphant.com").replace(/\/+$/, "");
 
-type AuthContextType = {
-  user: any | null;     // FIX: must hold backend user, not Firebase User
-  loading: boolean;
-};
-
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<any | null>(null);
+  const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // เพิ่มฟังก์ชันนี้: refresh ครั้งแรกตอน mount
   async function tryRefresh() {
     try {
       const result = await refreshAccessToken();
       if (result?.user) {
-        setUser(result.user); // ใช้ backend user
+        setUser(result.user);
       }
     } catch {
-      // ไม่ต้อง throw
     }
   }
 
@@ -44,7 +53,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // เรียก refresh access token ก่อน session-check
     tryRefresh();
 
     let auth: Auth;
@@ -70,8 +78,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const valid = data?.valid === true;
 
         if (valid) {
-          // ใช้ backend user แทน Firebase user
           setUser(data.user || null);
+
+          const profile = await getProfile();
+          if (profile) {
+            setUser(profile);
+          }
         } else {
           setUser(null);
         }
@@ -102,4 +114,5 @@ export function useAuthContext() {
   }
   return ctx;
 }
+
 export { AuthContext };

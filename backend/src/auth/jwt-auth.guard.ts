@@ -23,9 +23,6 @@ export class JwtAuthGuard implements CanActivate {
       throw new UnauthorizedException('Missing token');
     }
 
-    // ========================================
-    // SECURE: Define algorithms explicitly
-    // ========================================
     const verifyOptions: jwt.VerifyOptions = {
       algorithms: ['HS256'],
       ignoreExpiration: false,
@@ -44,24 +41,29 @@ export class JwtAuthGuard implements CanActivate {
     } catch (err: any) {
       const jti = this.extractTokenId(token);
 
-      // ========================================
-      // SECURE: Log invalid tokens
-      // ========================================
       this.authLogger.logJwtInvalid(
         jti ?? 'unknown',
         err?.message ?? 'invalid_jwt',
       );
 
-      // ========================================
-      // SECURE: Only send to Sentry when relevant
-      // Prevent Sentry spam from expired tokens
-      // ========================================
       if (err?.name !== 'TokenExpiredError') {
         Sentry.captureException(err);
       }
 
       throw new UnauthorizedException('Invalid token');
     }
+  }
+
+  /**
+   * จัดการผลลัพธ์หลังจาก strategy ทำงานเสร็จ
+   * ถ้าไม่มี user หรือ error ให้โยน Unauthorized ออกไป
+   * เพื่อให้การใช้งานใน decorator @UseGuards(JwtAuthGuard) ทำงานถูกต้อง
+   */
+  handleRequest(err: any, user: any): any {
+    if (err || !user) {
+      throw new UnauthorizedException('Authentication required');
+    }
+    return user;
   }
 
   private extractToken(req: Request): string | null {

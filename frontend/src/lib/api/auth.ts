@@ -35,10 +35,6 @@ export async function verifyEmail(token: string) {
   return res.data;
 }
 
-// ===============================================
-// Request password reset
-// ===============================================
-
 export interface ApiSuccessResponse {
   message?: string;
 }
@@ -48,6 +44,7 @@ export interface ApiErrorResponse {
   error?: string;
 }
 
+// Request password reset
 export async function requestPasswordReset(email: string): Promise<string> {
   try {
     const response = await axios.post<ApiSuccessResponse>(
@@ -83,10 +80,6 @@ export async function requestPasswordReset(email: string): Promise<string> {
   }
 }
 
-// ===============================================
-// Reset password
-// ===============================================
-
 export interface ResetPasswordPayload {
   email: string;
   token: string;
@@ -94,6 +87,7 @@ export interface ResetPasswordPayload {
   confirmPassword: string;
 }
 
+// Reset password
 export async function resetPassword(payload: ResetPasswordPayload): Promise<string> {
   try {
     const response = await axios.post<ApiSuccessResponse>(
@@ -115,7 +109,6 @@ export async function resetPassword(payload: ResetPasswordPayload): Promise<stri
   } catch (err) {
     const error = err as AxiosError<ApiErrorResponse>;
 
-    // Token expired
     if (error.response?.status === 410) {
       throw new Error(
         'Your reset link has expired. Please request a new password reset email.',
@@ -133,5 +126,21 @@ export async function resetPassword(payload: ResetPasswordPayload): Promise<stri
     throw new Error(
       'Unable to reset your password at the moment. Please try again later.',
     );
+  }
+}
+
+// ===============================================
+// GET /auth/local/profile — SECURE
+// ===============================================
+
+export async function getProfile() {
+  try {
+    const response = await axios.get(`${baseURL}/auth/local/profile`, {
+      withCredentials: true, 
+    });
+
+    return response.data?.data || null;
+  } catch {
+    return null;
   }
 }

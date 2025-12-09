@@ -26,6 +26,8 @@ import { PasswordResetController } from './password-reset.controller';
 import { PasswordResetService } from './password-reset.service';
 import { PasswordResetTokenRepository } from './password-reset-token.repository';
 import { PasswordResetMailService } from '../mail/password-reset-mail.service';
+import { UsersService } from '../users/users.service';
+
 
 @Module({
   imports: [
@@ -47,6 +49,7 @@ import { PasswordResetMailService } from '../mail/password-reset-mail.service';
     FirebaseAuthGuard,
     AuditService,
     AuthGuard,
+    UsersService,
     RateLimitGuard,
     RedisService,
     PasswordResetService,
@@ -77,6 +80,7 @@ import { PasswordResetMailService } from '../mail/password-reset-mail.service';
     FirebaseAuthGuard,
     AuthService,
     AuditService,
+    JwtAuthGuard,
   ],
 })
 export class AuthModule {}
