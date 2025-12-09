@@ -194,7 +194,14 @@ function LoginPageInner() {
                 Forgot password?
               </a>
             </div>
-
+            <div className="mt-4 text-center">
+                       <a
+                        href="/auth/register"
+                 className="block w-full border border-blue-600 text-blue-600 py-3 rounded-lg font-medium hover:bg-blue-50 transition mt-4 text-center"
+                            >
+                       Register
+                       </a>
+                   </div>
             <section className="mt-8 space-y-4" aria-label="Social login options">
               <button
                 onClick={() => startOAuth("google")}
