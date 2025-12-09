@@ -14,6 +14,7 @@ import {
   Inject,
   HttpException,
   Logger,
+  Header,
   UnauthorizedException,
   Query,
   UseGuards,
@@ -33,6 +34,21 @@ import { AuditService } from './audit.service';
 import { RateLimitGuard } from '../common/rate-limit/rate-limit.guard';
 import { RateLimitService } from '../common/rate-limit/rate-limit.service';
 import { AuthGuard } from './auth.guard';
+import { JwtAuthGuard } from './jwt-auth.guard';
+import { UserProfileDto } from './dto/user-profile.dto';
+
+interface JwtUserPayload {
+  // ปรับตาม payload จริงของคุณ
+  sub?: string;      // กรณีใช้ sub เป็น userId
+  userId?: string;   // กรณีใช้ userId ตรง ๆ
+  email?: string;
+  // ...field อื่น ๆ ที่ strategy ใส่ให้
+}
+
+interface AuthenticatedRequest extends Request {
+  user?: JwtUserPayload;
+}
+
 
 if (!process.env.REDIS_URL) {
   throw new Error('REDIS_URL is not defined in environment variables');
@@ -181,9 +197,6 @@ async login(
   @Res({ passthrough: true }) res: Response,
 ) {
 
-  // =========================================================
-  // Extract client IP safely
-  // =========================================================
   const forwarded = req.headers['x-forwarded-for'];
   const rawIp =
     typeof forwarded === 'string'
@@ -194,31 +207,19 @@ async login(
     .replace(/^::ffff:/, '')
     .replace(/:\d+$/, '');
 
-  // ---------------------------------------------------------
-  // Combine email + IP to avoid blocking different users
-  // ---------------------------------------------------------
   const key = `${body.email}:${normalizedIp}`
     .replace(/[^a-zA-Z0-9_-]/g, '_')
     .trim() || 'unknown';
 
   const ua = (req.headers['user-agent'] as string) || null;
 
-  // =========================================================
-  // Step 1: Validate credentials BEFORE rate-limit
-  // =========================================================
   const user = await this.authService.validateUser(
     body.email,
     body.password,
   );
 
-  // =========================================================
-  // Step 1.1: Invalid credentials
-  // =========================================================
   if (!user) {
 
-    // -------------------------------------------------------
-    // consume BEFORE check
-    // -------------------------------------------------------
     const consumeResult = await this.rateLimitService.consume('login', key);
 
     if (consumeResult.blocked) {
@@ -236,9 +237,6 @@ async login(
       );
     }
 
-    // -------------------------------------------------------
-    // then check if already blocked
-    // -------------------------------------------------------
     const status = await this.rateLimitService.check('login', key);
 
     if (status.blocked) {
@@ -256,9 +254,6 @@ async login(
       );
     }
 
-    // -------------------------------------------------------
-    // Not blocked but password invalid
-    // -------------------------------------------------------
     await this.audit.logLoginAttempt({
       email: body.email,
       ip: normalizedIp,
@@ -270,9 +265,6 @@ async login(
     throw new UnauthorizedException('Invalid email or password');
   }
 
-  // =========================================================
-  // Step 2: Valid credentials → Reset rate-limit counter
-  // =========================================================
   await this.rateLimitService.reset('login', key);
 
   await this.audit.logLoginAttempt({
@@ -283,9 +275,6 @@ async login(
     success: true,
   });
 
-  // =========================================================
-  // Step 3: Create backend session
-  // =========================================================
   const session = await this.authService.createSessionToken(user.id);
 
   const accessMaxAgeMs =
@@ -298,25 +287,19 @@ async login(
   const cookieDomain = process.env.COOKIE_DOMAIN || undefined;
   const secureFlag = process.env.COOKIE_SECURE !== 'false';
 
-  // =========================================================
-  // Access token cookie (FIX: strict → lax)
-  // =========================================================
   res.cookie(
     process.env.ACCESS_TOKEN_COOKIE_NAME || 'phl_access',
     session.accessToken,
     {
       httpOnly: true,
       secure: secureFlag,
-      sameSite: 'lax',   // <<=== FIXED
+      sameSite: 'lax',   
       domain: cookieDomain,
       maxAge: accessMaxAgeMs,
       path: '/',
     },
   );
 
-  // =========================================================
-  // Refresh token cookie (FIX: strict → lax)
-  // =========================================================
   if (session.refreshToken) {
     res.cookie(
       process.env.REFRESH_TOKEN_COOKIE_NAME || 'phl_refresh',
@@ -324,7 +307,7 @@ async login(
       {
         httpOnly: true,
         secure: secureFlag,
-        sameSite: 'lax',  // <<=== FIXED
+        sameSite: 'lax',  
         domain: cookieDomain,
         maxAge: refreshMaxAgeMs,
         path: '/',
@@ -332,9 +315,6 @@ async login(
     );
   }
 
-  // =========================================================
-  // Step 4: Return safe user
-  // =========================================================
   const safeUser = {
     id: user.id,
     email: user.email,
@@ -376,6 +356,36 @@ async login(
     return {
       message: 'Email verified successfully',
       result,
+    };
+  }
+    // local profile
+   @Get('profile')
+  @UseGuards(JwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  @Header('Cache-Control', 'no-store') // ห้าม cache โปรไฟล์บน proxy/broswer
+  async getProfile(
+    @Req() req: AuthenticatedRequest,
+  ): Promise<{ success: boolean; data: UserProfileDto }> {
+    const jwtUser = req.user;
+
+    if (!jwtUser) {
+      throw new UnauthorizedException('Missing authentication payload');
+    }
+
+    const userId = jwtUser.userId || jwtUser.sub;
+
+    if (!userId) {
+      this.logger.warn(`JWT payload missing userId/sub: ${JSON.stringify(jwtUser)}`);
+      throw new UnauthorizedException('Invalid authentication payload');
+    }
+
+    const profile = await this.authService.getProfile(userId);
+
+    this.logger.debug(`Profile requested for userId=${userId}`);
+
+    return {
+      success: true,
+      data: profile,
     };
   }
 }
