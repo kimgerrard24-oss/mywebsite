@@ -22,7 +22,10 @@ import { AuthGuard } from './auth.guard';
 import { RateLimitGuard } from '../common/rate-limit/rate-limit.guard';
 import { RedisService } from '../redis/redis.service';
 import { LocalRefreshModule } from './dto/local/local-refresh.module';
-
+import { PasswordResetController } from './password-reset.controller';
+import { PasswordResetService } from './password-reset.service';
+import { PasswordResetTokenRepository } from './password-reset-token.repository';
+import { PasswordResetMailService } from '../mail/password-reset-mail.service';
 
 @Module({
   imports: [
@@ -46,15 +49,15 @@ import { LocalRefreshModule } from './dto/local/local-refresh.module';
     AuthGuard,
     RateLimitGuard,
     RedisService,
-
-    // FIX:
-    // Do NOT apply AuthRateLimitGuard globally as APP_GUARD
-    // It must be attached at controller/route-level only.
+    PasswordResetService,
+    PasswordResetTokenRepository,
+    PasswordResetMailService,
   ],
 
   controllers: [
     AuthController,
     SocialAuthController,
+    PasswordResetController,
   ],
 
   exports: [

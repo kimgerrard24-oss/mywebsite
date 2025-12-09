@@ -134,9 +134,6 @@ function LoginPageInner() {
     )}`;
   };
 
-  // ==================================================
-  // JSX SEMANTIC + SEO
-  // ==================================================
   return (
     <>
       <Head>
@@ -151,7 +148,6 @@ function LoginPageInner() {
       </Head>
 
       <main className="min-h-screen flex flex-col bg-gray-50">
-        {/* HEADER */}
         <header className="w-full py-6 border-b bg-white/80 backdrop-blur">
           <nav className="container mx-auto px-4 flex items-center justify-between">
             <a
@@ -170,7 +166,6 @@ function LoginPageInner() {
           </nav>
         </header>
 
-        {/* CONTENT */}
         <section
           className="flex flex-col-reverse md:flex-row flex-1 container mx-auto px-4 py-10 gap-10"
           aria-labelledby="login-heading"
@@ -188,12 +183,18 @@ function LoginPageInner() {
               </p>
             </header>
 
-            {/* 🎯 USE YOUR LoginForm DIRECTLY */}
-            <LoginForm
-              // You can pass callbacks or props here if needed later
-            />
+            <LoginForm />
 
-            {/* SOCIAL LOGIN */}
+            {/* Added: Forgot password link */}
+            <div className="mt-4 text-center">
+              <a
+                href="/auth/forgot-password"
+                className="text-sm text-blue-600 hover:underline"
+              >
+                Forgot password?
+              </a>
+            </div>
+
             <section className="mt-8 space-y-4" aria-label="Social login options">
               <button
                 onClick={() => startOAuth("google")}
@@ -221,7 +222,6 @@ function LoginPageInner() {
             </section>
           </article>
 
-          {/* HERO ILLUSTRATION */}
           <aside className="flex-1 flex items-center justify-center">
             <img
               src="/images/social-hero.svg"
@@ -231,7 +231,6 @@ function LoginPageInner() {
           </aside>
         </section>
 
-        {/* FOOTER */}
         <footer className="py-6 text-center text-gray-500 text-sm">
           © {new Date().getFullYear()} PhlyPhant — All rights reserved.
         </footer>
@@ -240,5 +239,4 @@ function LoginPageInner() {
   );
 }
 
-// Dynamic no-SSR wrapper is unnecessary here → but preserved for compatibility
 export default dynamic(() => Promise.resolve(LoginPageInner), { ssr: false });
