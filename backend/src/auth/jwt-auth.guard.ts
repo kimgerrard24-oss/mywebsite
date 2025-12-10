@@ -54,11 +54,6 @@ export class JwtAuthGuard implements CanActivate {
     }
   }
 
-  /**
-   * จัดการผลลัพธ์หลังจาก strategy ทำงานเสร็จ
-   * ถ้าไม่มี user หรือ error ให้โยน Unauthorized ออกไป
-   * เพื่อให้การใช้งานใน decorator @UseGuards(JwtAuthGuard) ทำงานถูกต้อง
-   */
   handleRequest(err: any, user: any): any {
     if (err || !user) {
       throw new UnauthorizedException('Authentication required');
@@ -68,11 +63,16 @@ export class JwtAuthGuard implements CanActivate {
 
   private extractToken(req: Request): string | null {
     const header = req.headers['authorization'];
-    if (!header || Array.isArray(header)) return null;
+    if (header && !Array.isArray(header)) {
+      const parts = header.split(' ');
+      if (parts.length === 2 && parts[0] === 'Bearer') {
+        return parts[1].trim();
+      }
+    }
 
-    const parts = header.split(' ');
-    if (parts.length === 2 && parts[0] === 'Bearer') {
-      return parts[1].trim();
+    const cookie = req.cookies?.['phl_access'];
+    if (cookie && typeof cookie === 'string') {
+      return cookie.trim();
     }
 
     return null;
@@ -87,3 +87,4 @@ export class JwtAuthGuard implements CanActivate {
     }
   }
 }
+
