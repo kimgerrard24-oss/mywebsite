@@ -29,6 +29,7 @@ import { Redis } from 'ioredis';
 import { RedisService } from '../redis/redis.service';
 import { UserProfileDto } from './dto/user-profile.dto';
 import { UsersService } from '../users/users.service';
+import * as jwt from 'jsonwebtoken';
 
 interface GoogleOAuthConfig {
   clientId: string;
@@ -161,35 +162,41 @@ async validateUser(email: string, password: string) {
 // Create Session Token
 // -------------------------------------------------------
 async createSessionToken(userId: string) {
-  // 1) access token
-  const accessToken = randomBytes(32).toString('hex');
-  const accessKey = `session:access:${accessToken}`;
-
-  const payload = {
-    userId,
-    createdAt: Date.now(),
-  };
-
+  // 1) access token (JWT)
   const accessTTL = Number(process.env.ACCESS_TOKEN_TTL_SECONDS) || 60 * 15;
 
+  const jwtPayload = {
+    sub: userId,
+    jti: randomUUID(),
+  };
+
+  const accessToken = jwt.sign(
+    jwtPayload,
+    process.env.JWT_ACCESS_SECRET as string,
+    {
+      expiresIn: accessTTL,
+      algorithm: 'HS256',
+    },
+  );
+
+  // Store session pointer in Redis (optional but recommended)
+  const accessKey = `session:access:${jwtPayload.jti}`;
   await this.redis.set(
     accessKey,
-    JSON.stringify(payload),
+    JSON.stringify({ userId, createdAt: Date.now() }),
     'EX',
     accessTTL,
   );
 
-  // 2) refresh token
+  // 2) refresh token (opaque + Redis)
   const refreshToken = randomBytes(48).toString('hex');
   const refreshKey = `session:refresh:${refreshToken}`;
 
   const refreshTTL =
     Number(process.env.REFRESH_TOKEN_TTL_SECONDS) || 60 * 60 * 24 * 30;
 
-  // hash refresh token before store
   const refreshTokenHash = await argon2.hash(refreshToken);
 
-  // store structured session
   const refreshSessionData = {
     userId,
     refreshTokenHash,
