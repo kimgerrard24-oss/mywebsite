@@ -59,10 +59,11 @@ export class UsersController {
   @Get('me')
   @UseGuards(AccessTokenCookieAuthGuard)
   async getMe(
-    @CurrentUser() sessionUser: SessionUser | null,
+    @CurrentUser() sessionUser: SessionUser,
   ): Promise<UserProfileDto> {
-    if (!sessionUser || !sessionUser.userId) {
-      // ปกติจะไม่ถึงจุดนี้เพราะ Guard จะ throw Unauthorized ก่อน
+
+    if (!sessionUser?.userId) {
+      // Safety fallback — ปกติ Guard จะจับก่อนถึงจุดนี้
       throw new Error('Session user is not available');
     }
 
