@@ -358,6 +358,7 @@ async logout(@Req() req: Request, @Res() res: Response) {
       result,
     };
   }
+  
     // local profile
    //@Get('profile')
   //@UseGuards(JwtAuthGuard)
