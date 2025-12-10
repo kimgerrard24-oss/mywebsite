@@ -31,7 +31,7 @@ export const getServerSideProps: GetServerSideProps<ProfilePageProps> = async (
   if (status === 401 || status === 403) {
     return {
       redirect: {
-        destination: "/login",
+        destination: "/",
         permanent: false,
       },
     };

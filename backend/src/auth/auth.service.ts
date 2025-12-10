@@ -220,34 +220,51 @@ async createSessionToken(userId: string) {
 // -------------------------------------------------------
 // Verify Access Token (JWT)
 // -------------------------------------------------------
-async verifyAccessToken(token: string): Promise<{ sub: string; jti: string }> {
+async verifyAccessToken(
+  token: string,
+): Promise<{ sub: string; jti: string }> {
   try {
-    // verify JWT
+    // -------------------------------
+    // 1) verify JWT signature + expiry
+    // -------------------------------
     const payload = jwt.verify(
       token,
       process.env.JWT_ACCESS_SECRET as string,
-    ) as any;
+      {
+        algorithms: ['HS256'],
+      },
+    ) as { sub?: string; jti?: string };
 
+    // -------------------------------
+    // 2) basic payload checks
+    // -------------------------------
     if (!payload?.sub || !payload?.jti) {
       throw new UnauthorizedException('Invalid JWT payload');
     }
 
-    // ตรวจ jti ใน Redis (session pointer)
-    const key = `session:access:${payload.jti}`;
-    const data = await this.redis.get(key);
+    // -------------------------------
+    // 3) check Redis session pointer
+    // -------------------------------
+    const redisKey = `session:access:${payload.jti}`;
 
-    if (!data) {
+    const exists = await this.redis.exists(redisKey);
+    if (!exists) {
       throw new UnauthorizedException('Session not found or expired');
     }
 
+    // -------------------------------
+    // 4) return safe session user
+    // -------------------------------
     return {
       sub: payload.sub,
       jti: payload.jti,
     };
-  } catch {
+  } catch (err) {
+    // อย่า log token เพื่อความปลอดภัย
     throw new UnauthorizedException('Invalid or expired token');
   }
 }
+
 
 // Local Logout
 async logout(req: any, res: any) {
