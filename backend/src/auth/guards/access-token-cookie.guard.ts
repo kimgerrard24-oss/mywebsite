@@ -16,19 +16,19 @@ export class AccessTokenCookieAuthGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
-    const httpContext = context.switchToHttp();
-    const req = httpContext.getRequest<Request>();
+    const req = context.switchToHttp().getRequest<Request>();
 
     try {
-      const sessionUser = await this.validateSessionService.validateAccessTokenFromRequest(
-        req,
-      );
+      // ===== Validate from Cookie =====
+      const sessionUser =
+        await this.validateSessionService.validateAccessTokenFromRequest(req);
 
-      // แนบ user เข้า request (ใช้กับ @CurrentUser)
-      (req as any).user = sessionUser;
+      // ===== Attach to request for decorator =====
+      (req as any).sessionUser = sessionUser;
 
+      // ===== Allow request =====
       return true;
-    } catch (error) {
+    } catch {
       throw new UnauthorizedException('Unauthorized');
     }
   }

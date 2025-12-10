@@ -217,6 +217,37 @@ async createSessionToken(userId: string) {
   };
 }
 
+// -------------------------------------------------------
+// Verify Access Token (JWT)
+// -------------------------------------------------------
+async verifyAccessToken(token: string): Promise<{ sub: string; jti: string }> {
+  try {
+    // verify JWT
+    const payload = jwt.verify(
+      token,
+      process.env.JWT_ACCESS_SECRET as string,
+    ) as any;
+
+    if (!payload?.sub || !payload?.jti) {
+      throw new UnauthorizedException('Invalid JWT payload');
+    }
+
+    // ตรวจ jti ใน Redis (session pointer)
+    const key = `session:access:${payload.jti}`;
+    const data = await this.redis.get(key);
+
+    if (!data) {
+      throw new UnauthorizedException('Session not found or expired');
+    }
+
+    return {
+      sub: payload.sub,
+      jti: payload.jti,
+    };
+  } catch {
+    throw new UnauthorizedException('Invalid or expired token');
+  }
+}
 
 // Local Logout
 async logout(req: any, res: any) {
@@ -299,7 +330,6 @@ async verifyEmailLocal(uid: string, token: string) {
 
   return { ok: true };
 }
-
 
   // ==========================================
   // GOOGLE

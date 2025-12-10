@@ -7,9 +7,12 @@ import {
 import type { SessionUser } from '../services/validate-session.service';
 
 export const CurrentUser = createParamDecorator(
-  (data: unknown, ctx: ExecutionContext): SessionUser | null => {
+  (_data: unknown, ctx: ExecutionContext): SessionUser | null => {
     const request = ctx.switchToHttp().getRequest();
-    const user = request.user as SessionUser | undefined;
-    return user ?? null;
+
+    // ดึงจากที่ guard แนบไว้
+    const sessionUser = request.sessionUser as SessionUser | undefined;
+
+    return sessionUser ?? null;
   },
 );

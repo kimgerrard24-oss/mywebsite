@@ -60,4 +60,9 @@ instance.interceptors.request.use((config) => {
   return config;
 });
 
+// ==============================
+// EXPORTS (added as requested)
+// ==============================
+
+export { API_BASE };
 export default instance;

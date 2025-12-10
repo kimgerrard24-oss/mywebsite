@@ -143,6 +143,15 @@ const ProfilePage: NextPage<ProfilePageProps> = ({
             </div>
           </nav>
         </header>
+          
+        <div className="max-w-5xl mx-auto px-4 pt-4">
+       <Link
+        href="/feed"
+        className="text-sm text-blue-600 hover:underline"
+  >
+        ← Back to feed
+        </Link>
+          </div>
 
         <div className="mx-auto max-w-5xl px-4 pb-12 pt-4 sm:px-6 lg:px-8">
           {loading && <ProfileSkeleton />}
