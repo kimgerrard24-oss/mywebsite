@@ -10,6 +10,7 @@ import axios from "axios";
 import Cookies from "js-cookie";
 import { useRouter } from "next/router";
 import { useCallback } from "react";
+import Link from "next/link";
 
 type FeedProps = {
   valid: boolean;
@@ -19,9 +20,6 @@ type FeedProps = {
 export default function FeedPage({ valid, user }: FeedProps) {
   const router = useRouter();
 
-  // =========================================
-  // Added: Logout handler for feed page
-  // =========================================
   const handleLogout = useCallback(async () => {
     try {
       const API_BASE =
@@ -44,7 +42,6 @@ export default function FeedPage({ valid, user }: FeedProps) {
 
     router.replace("/");
   }, [router]);
-  // =========================================
 
   return (
     <>
@@ -79,15 +76,23 @@ export default function FeedPage({ valid, user }: FeedProps) {
                 Dashboard
               </a>
 
+              {/* =====================
+                  NEW: Profile button
+              ===================== */}
+              <Link
+                href="/profile"
+                className="text-sm font-medium hover:text-blue-600 transition"
+              >
+                Profile
+              </Link>
+              {/* ===================== */}
+
               <img
                 src={user?.picture || "/images/default-avatar.png"}
                 className="w-10 h-10 rounded-full border object-cover"
                 alt="Avatar"
               />
 
-              {/* =========================================
-                  Added: Logout button usage
-              ========================================= */}
               <button
                 type="button"
                 onClick={handleLogout}
@@ -95,7 +100,6 @@ export default function FeedPage({ valid, user }: FeedProps) {
               >
                 Logout
               </button>
-              {/* ========================================= */}
             </div>
           </nav>
         </header>
