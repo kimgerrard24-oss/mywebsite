@@ -6,7 +6,7 @@ const PUBLIC_API_BASE_URL =
   process.env.NEXT_PUBLIC_API_BASE ||
   process.env.NEXT_PUBLIC_BACKEND_URL ||
   process.env.NEXT_PUBLIC_API_URL ||
-  'http://localhost:4001';
+  "https://api.phlyphant.com";
 
 export interface UserProfile {
   id: string;
@@ -49,7 +49,7 @@ export async function fetchMyProfileServer(cookieHeader: string | undefined): Pr
   const baseUrl =
     process.env.INTERNAL_BACKEND_URL ||
     process.env.NEXT_PUBLIC_API_BASE_URL ||
-    'http://localhost:4001';
+    'https://api.phlyphant.com';
 
   const response = await axios.get<UserProfile>(`${baseUrl}/users/me`, {
     headers: {
