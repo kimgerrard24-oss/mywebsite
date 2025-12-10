@@ -7,6 +7,9 @@ ENV NODE_OPTIONS="--max-old-space-size=4096"
 
 COPY package*.json ./
 
+# เพิ่มบรรทัดนี้ เพื่อให้ Next.js build เห็นค่า env.production จาก GitHub Actions
+COPY .env.production .env.production
+
 # เพิ่ม registry fallback ป้องกัน npm ci ล้มเหลว
 RUN npm set registry https://registry.npmmirror.com \
     && npm set fetch-retries 5 \
