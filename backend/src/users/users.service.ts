@@ -1,7 +1,8 @@
 // file src/users/users.service.ts
-import { Injectable } from "@nestjs/common";
+import { Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaClient } from "@prisma/client";
 import { randomUUID } from "crypto";
+import { UserProfileDto } from "./dto/user-profile.dto";
 
 @Injectable()
 export class UsersService {
@@ -122,5 +123,31 @@ export class UsersService {
         updatedAt: true,
       },
     });
+  }
+
+  /**
+   * Get current user's profile by userId (ใช้สำหรับ route GET /users/me)
+   * - ปลอดภัย: ไม่ select hashedPassword / token ต่าง ๆ
+   * - ถ้าไม่พบ user -> โยน NotFoundException
+   */
+  async getMe(userId: string): Promise<UserProfileDto> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId }, // ถ้าคุณใช้ field อื่น เช่น firebaseUid ให้เปลี่ยนตรงนี้
+      select: {
+        id: true,
+        email: true,
+        displayName: true,
+        avatarUrl: true,
+        bio: true,
+        createdAt: true,
+        // ไม่ select hashedPassword / token / fields ลับอื่น ๆ
+      },
+    });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return user as UserProfileDto;
   }
 }

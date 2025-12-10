@@ -12,7 +12,6 @@ import { SentryModule, SentryGlobalFilter } from '@sentry/nestjs/setup';
 import { APP_FILTER } from '@nestjs/core';
 import { AppController } from './app.controller';
 import { ThrottlerModule } from '@nestjs/throttler';
-import { UsersTestController } from './users/users.controller';
 import { PrismaModule } from './prisma/prisma.module';
 import { FirebaseAdminModule } from './firebase/firebase.module';
 import cookieParser from 'cookie-parser';
@@ -20,6 +19,7 @@ import helmet from 'helmet';
 import { R2Module } from './r2/r2.module';
 import { RateLimitModule } from './common/rate-limit/rate-limit.module';
 import { TestRateModule } from './modules/test/test.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -37,13 +37,14 @@ import { TestRateModule } from './modules/test/test.module';
     AuthModule,
     AwsModule,
     R2Module,
-    RateLimitModule,      // <-- ใช้ระบบ rate-limit ใหม่ที่ถูกต้อง
+    RateLimitModule,   
     HealthModule,
     PrismaModule,
     RedisModule,
     AppCacheModule,
     QueueModule,
     TestRateModule,
+    UsersModule,
     SentryModule.forRoot(),
 
     ThrottlerModule.forRoot({
@@ -56,7 +57,7 @@ import { TestRateModule } from './modules/test/test.module';
     }),
   ],
 
-  controllers: [AppController, UsersTestController],
+  controllers: [AppController],
 
   providers: [
     {

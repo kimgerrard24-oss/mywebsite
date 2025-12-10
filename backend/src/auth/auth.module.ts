@@ -27,7 +27,8 @@ import { PasswordResetService } from './password-reset.service';
 import { PasswordResetTokenRepository } from './password-reset-token.repository';
 import { PasswordResetMailService } from '../mail/password-reset-mail.service';
 import { UsersService } from '../users/users.service';
-
+import { ValidateSessionService } from './services/validate-session.service';
+import { AccessTokenCookieAuthGuard } from './guards/access-token-cookie.guard';
 
 @Module({
   imports: [
@@ -55,6 +56,8 @@ import { UsersService } from '../users/users.service';
     PasswordResetService,
     PasswordResetTokenRepository,
     PasswordResetMailService,
+    ValidateSessionService, 
+    AccessTokenCookieAuthGuard,
 
     /*
       NOTE:
@@ -81,6 +84,8 @@ import { UsersService } from '../users/users.service';
     AuthService,
     AuditService,
     JwtAuthGuard,
+    ValidateSessionService, 
+    AccessTokenCookieAuthGuard,
   ],
 })
 export class AuthModule {}

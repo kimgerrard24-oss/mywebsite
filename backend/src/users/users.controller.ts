@@ -1,13 +1,27 @@
 //  file: backend/src/users/users.controller.ts
-import { Controller, Post, Body, Req, UnauthorizedException } from '@nestjs/common';
+import { 
+  Controller, 
+  Post,
+  Get,
+  UseGuards,
+  Body, 
+  Req, 
+  UnauthorizedException } from '@nestjs/common';
 import { Request } from 'express';
 import { CreateUserDto } from './dto/create-user.dto';
 import { FirebaseAdminService } from '../firebase/firebase.service';
 import * as cookie from 'cookie';
+import { UserProfileDto } from './dto/user-profile.dto';
+import { AccessTokenCookieAuthGuard } from '../auth/guards/access-token-cookie.guard';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import type { SessionUser } from '../auth/services/validate-session.service';
+import { UsersService } from './users.service';
 
-@Controller('test-users')
-export class UsersTestController {
-  constructor(private readonly firebase: FirebaseAdminService) {}
+@Controller('users')
+export class UsersController {
+  constructor(private readonly firebase: FirebaseAdminService,
+              private readonly usersService: UsersService,
+  ) {}
 
   @Post()
   async create(@Body() dto: CreateUserDto, @Req() req: Request) {
@@ -41,4 +55,18 @@ export class UsersTestController {
       data: dto,
     };
   }
+  // users/me โปรไฟล์ตัวเอง 
+  @Get('me')
+  @UseGuards(AccessTokenCookieAuthGuard)
+  async getMe(
+    @CurrentUser() sessionUser: SessionUser | null,
+  ): Promise<UserProfileDto> {
+    if (!sessionUser || !sessionUser.userId) {
+      // ปกติจะไม่ถึงจุดนี้เพราะ Guard จะ throw Unauthorized ก่อน
+      throw new Error('Session user is not available');
+    }
+
+    return this.usersService.getMe(sessionUser.userId);
+  }
+
 }

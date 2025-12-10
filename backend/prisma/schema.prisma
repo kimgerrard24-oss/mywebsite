@@ -26,8 +26,10 @@ model User {
   passwordResetTokenExpires DateTime?
   provider                  String
   providerId                String
+  bio                       String?
   firebaseUid               String?              @unique
   avatarUrl                 String?
+  coverUrl                  String?
   currentRefreshTokenHash   String?
   createdAt                 DateTime             @default(now())
   updatedAt                 DateTime             @updatedAt
