@@ -97,7 +97,7 @@ const ProfilePage: NextPage<ProfilePageProps> = ({
   // redirect client-side ถ้าไม่มี auth
   useEffect(() => {
     if (!isAuthenticated && !profile && !loading) {
-      void router.replace("/login");
+      void router.replace("/");
     }
   }, [isAuthenticated, profile, loading, router]);
 
