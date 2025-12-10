@@ -335,14 +335,14 @@ async login(
   };
 }
 
-// Locoal Logout
- @UseGuards(AuthGuard, RateLimitGuard)
-  @Post('logout')
-  @HttpCode(200)
-  async logout(@Res() res: Response) {
-    await this.authService.logout(res);
-    return res.json({ message: 'Logged out successfully' });
-  }
+// Local Logout
+@UseGuards(AuthGuard, RateLimitGuard)
+@Post('logout')
+@HttpCode(200)
+async logout(@Req() req: Request, @Res() res: Response) {
+  await this.authService.logout(req, res);
+  return res.json({ message: 'Logged out successfully' });
+}
 
   // verify-email
   @Get('verify-email')

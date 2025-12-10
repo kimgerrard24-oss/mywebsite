@@ -219,23 +219,46 @@ async createSessionToken(userId: string) {
 
 
 // Local Logout
-async logout(res: any) {
-  const cookieName = process.env.JWT_COOKIE_NAME || 'phlyphant_token';
+async logout(req: any, res: any) {
+  // read cookie names from env
+  const accessCookie = process.env.ACCESS_TOKEN_COOKIE_NAME || 'phl_access';
+  const refreshCookie = process.env.REFRESH_TOKEN_COOKIE_NAME || 'phl_refresh';
 
-  const token = res.req.cookies?.[cookieName];
+  const accessToken = req.cookies?.[accessCookie];
+  const refreshToken = req.cookies?.[refreshCookie];
 
-  if (token) {
-    const redisKey = `session:access:${token}`;
-    await this.redis.del(redisKey);
+  // delete access session
+  if (accessToken) {
+    const accessKey = `session:access:${accessToken}`;
+    await this.redis.del(accessKey);
   }
 
-  res.clearCookie(cookieName, {
+  // delete refresh session (hashed stored in redis)
+  if (refreshToken) {
+    const refreshKey = `session:refresh:${refreshToken}`;
+    await this.redis.del(refreshKey);
+  }
+
+  // Clear cookies
+  res.clearCookie(accessCookie, {
     httpOnly: true,
     secure: true,
-    sameSite: 'strict',
+    sameSite: 'lax',
     domain: process.env.COOKIE_DOMAIN,
+    path: '/',
   });
+
+  res.clearCookie(refreshCookie, {
+    httpOnly: true,
+    secure: true,
+    sameSite: 'lax',
+    domain: process.env.COOKIE_DOMAIN,
+    path: '/',
+  });
+
+  return { success: true };
 }
+
 
 // Local Profile
  async getProfile(userId: string): Promise<UserProfileDto> {
