@@ -359,33 +359,33 @@ async logout(@Req() req: Request, @Res() res: Response) {
     };
   }
     // local profile
-   @Get('profile')
-  @UseGuards(JwtAuthGuard)
-  @HttpCode(HttpStatus.OK)
-  @Header('Cache-Control', 'no-store') // ห้าม cache โปรไฟล์บน proxy/broswer
-  async getProfile(
-    @Req() req: AuthenticatedRequest,
-  ): Promise<{ success: boolean; data: UserProfileDto }> {
-    const jwtUser = req.user;
+   //@Get('profile')
+  //@UseGuards(JwtAuthGuard)
+  //@HttpCode(HttpStatus.OK)
+  //@Header('Cache-Control', 'no-store') // ห้าม cache โปรไฟล์บน proxy/broswer
+  //async getProfile(
+   // @Req() req: AuthenticatedRequest,
+  //): Promise<{ success: boolean; data: UserProfileDto }> {
+   // const jwtUser = req.user;
 
-    if (!jwtUser) {
-      throw new UnauthorizedException('Missing authentication payload');
-    }
+    //if (!jwtUser) {
+     // throw new UnauthorizedException('Missing authentication payload');
+   // }
 
-    const userId = jwtUser.userId || jwtUser.sub;
+    //const userId = jwtUser.userId || jwtUser.sub;
 
-    if (!userId) {
-      this.logger.warn(`JWT payload missing userId/sub: ${JSON.stringify(jwtUser)}`);
-      throw new UnauthorizedException('Invalid authentication payload');
-    }
+    //if (!userId) {
+     // this.logger.warn(`JWT payload missing userId/sub: ${JSON.stringify(jwtUser)}`);
+      //throw new UnauthorizedException('Invalid authentication payload');
+    //}
 
-    const profile = await this.authService.getProfile(userId);
+    //const profile = await this.authService.getProfile(userId);
 
-    this.logger.debug(`Profile requested for userId=${userId}`);
+    //this.logger.debug(`Profile requested for userId=${userId}`);
 
-    return {
-      success: true,
-      data: profile,
-    };
-  }
+    //return {
+     // success: true,
+      //data: profile,
+    //};
+  //}
 }

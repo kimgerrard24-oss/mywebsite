@@ -180,12 +180,11 @@ async createSessionToken(userId: string) {
   );
 
   // Store session pointer in Redis (optional but recommended)
-  const accessKey = `session:access:${jwtPayload.jti}`;
-  await this.redis.set(
+ const accessKey = `session:access:${jwtPayload.jti}`;
+  await this.redis.setex(
     accessKey,
-    JSON.stringify({ userId, createdAt: Date.now() }),
-    'EX',
     accessTTL,
+    JSON.stringify({ userId, createdAt: Date.now() }),
   );
 
   // 2) refresh token (opaque + Redis)
@@ -203,11 +202,10 @@ async createSessionToken(userId: string) {
     createdAt: Date.now(),
   };
 
-  await this.redis.set(
+   await this.redis.setex(
     refreshKey,
-    JSON.stringify(refreshSessionData),
-    'EX',
     refreshTTL,
+    JSON.stringify(refreshSessionData),
   );
 
   return {
@@ -308,7 +306,7 @@ async logout(req: any, res: any) {
 }
 
 
-// Local Profile
+// Get user/me Profile
  async getProfile(userId: string): Promise<UserProfileDto> {
     const user = await this.userService.findSafeProfileById(userId);
 

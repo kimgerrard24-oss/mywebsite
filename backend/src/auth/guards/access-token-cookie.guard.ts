@@ -19,14 +19,13 @@ export class AccessTokenCookieAuthGuard implements CanActivate {
     const req = context.switchToHttp().getRequest<Request>();
 
     try {
-      // ===== Validate from Cookie =====
+      // Validate from cookie
       const sessionUser =
         await this.validateSessionService.validateAccessTokenFromRequest(req);
 
-      // ===== Attach to request for decorator =====
-      (req as any).sessionUser = sessionUser;
+      // Attach to request as user (NestJS standard)
+      (req as any).user = sessionUser;
 
-      // ===== Allow request =====
       return true;
     } catch {
       throw new UnauthorizedException('Unauthorized');
