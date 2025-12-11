@@ -185,6 +185,8 @@ jobs:
           INTERNAL_HEALTH_TOKEN: ${{ secrets.INTERNAL_HEALTH_TOKEN }}
           FRONTEND_DIGEST: ${{ env.FRONTEND_DIGEST }}
           BACKEND_DIGEST: ${{ env.BACKEND_DIGEST }}
+          FRONTEND_ENV_PRODUCTION: ${{ secrets.FRONTEND_ENV_PRODUCTION }}
+          BACKEND_ENV_PRODUCTION: ${{ secrets.BACKEND_ENV_PRODUCTION }}
 
         with:
           host: ${{ secrets.LINODE_HOST }}
@@ -193,7 +195,7 @@ jobs:
           port: 22
           script_stop: false
           use_insecure_cipher: true
-          envs: GHCR_USERNAME,GHCR_TOKEN,INTERNAL_HEALTH_TOKEN,FRONTEND_DIGEST,BACKEND_DIGEST
+          envs: GHCR_USERNAME,GHCR_TOKEN,INTERNAL_HEALTH_TOKEN,FRONTEND_DIGEST,BACKEND_DIGEST,FRONTEND_ENV_PRODUCTION,BACKEND_ENV_PRODUCTION
 
           script: |
             set -euo pipefail
@@ -206,6 +208,10 @@ jobs:
             docker compose down
 
             echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
+
+            # Overwrite .env files on the server from secrets
+            printf '%s' "$FRONTEND_ENV_PRODUCTION" > frontend/.env.production
+            printf '%s' "$BACKEND_ENV_PRODUCTION" > backend/.env.production
 
             if [[ "${BACKEND_DIGEST:-}" == *"@"* ]]; then
               echo "Pulling backend by digest: $BACKEND_DIGEST"
