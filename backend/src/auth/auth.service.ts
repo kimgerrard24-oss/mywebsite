@@ -295,7 +295,7 @@ async logout(req: any, res: any) {
   }
 
  async hashPassword(password: string): Promise<string> {
-    return await argon2.hash(password);  // ใช้ argon2 ในการแฮชรหัสผ่าน
+    return await argon2.hash(password);  
   }
   // -------------------------------------------------------
   // Verify Email (Local)

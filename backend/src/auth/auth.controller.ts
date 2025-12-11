@@ -265,6 +265,7 @@ async login(
       60 * 60 * 24 * 30) *
     1000;
 
+  // Set access token cookie
   res.cookie(
     process.env.ACCESS_TOKEN_COOKIE_NAME || 'phl_access',
     session.accessToken,  // Use raw JWT directly
@@ -278,6 +279,7 @@ async login(
     },
   );
 
+  // Set refresh token cookie (only if refresh token exists)
   if (session.refreshToken) {
     res.cookie(
       process.env.REFRESH_TOKEN_COOKIE_NAME || 'phl_refresh',
@@ -308,6 +310,8 @@ async login(
     success: true,
     data: {
       user: safeUser,
+      accessToken: session.accessToken,  // Include accessToken
+      refreshToken: session.refreshToken,  // Include refreshToken
       expiresIn: session.expiresIn,
     },
   };

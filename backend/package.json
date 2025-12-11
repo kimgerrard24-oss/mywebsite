@@ -61,6 +61,7 @@
     "class-validator": "^0.14.2",
     "cookie-parser": "^1.4.7",
     "csurf": "^1.11.0",
+    "email-validator": "^2.0.4",
     "express-rate-limit": "^8.2.1",
     "express-validator": "^7.3.0",
     "firebase-admin": "^13.6.0",
