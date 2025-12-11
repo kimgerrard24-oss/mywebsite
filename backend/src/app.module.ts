@@ -32,15 +32,20 @@ import { UsersModule } from './users/users.module';
       cache: true,
     }),
 
+    // ---- Core System Dependencies ----
     SecretsModule,
     FirebaseAdminModule,
-    AuthModule,
-    AwsModule,
-    R2Module,
-    RateLimitModule,   
-    HealthModule,
     PrismaModule,
     RedisModule,
+
+    // ---- Auth (needs Prisma + Redis ready) ----
+    AuthModule,
+
+    // ---- Rest ----
+    AwsModule,
+    R2Module,
+    RateLimitModule,
+    HealthModule,
     AppCacheModule,
     QueueModule,
     TestRateModule,
@@ -79,3 +84,4 @@ export class AppModule implements NestModule {
       .forRoutes('*');
   }
 }
+

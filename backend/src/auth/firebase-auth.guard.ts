@@ -1,6 +1,6 @@
-// ==============================
+// ==============================================
 // file: src/auth/firebase-auth.guard.ts
-// ==============================
+// ==============================================
 
 import {
   CanActivate,
@@ -14,6 +14,7 @@ import { FirebaseAdminService } from '../firebase/firebase.service';
 import { IS_PUBLIC_KEY } from './decorators/public.decorator';
 import * as cookie from 'cookie';
 import type { Request } from 'express';
+import { AuthService } from './auth.service';
 
 @Injectable()
 export class FirebaseAuthGuard implements CanActivate {
@@ -22,22 +23,20 @@ export class FirebaseAuthGuard implements CanActivate {
   constructor(
     private readonly firebase: FirebaseAdminService,
     private readonly reflector: Reflector,
+    private readonly authService: AuthService, // <<=== เพิ่มตรงนี้
   ) {}
 
   async canActivate(ctx: ExecutionContext) {
     const req = ctx.switchToHttp().getRequest<Request & Record<string, any>>();
 
     // ============================================
-    // 1) Public Decorator
+    // 1) Public decorator
     // ============================================
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       ctx.getHandler(),
       ctx.getClass(),
     ]);
-
-    if (isPublic) {
-      return true;
-    }
+    if (isPublic) return true;
 
     // ============================================
     // 2) Normalize URL
@@ -46,7 +45,7 @@ export class FirebaseAuthGuard implements CanActivate {
     const url = rawUrl.split('?')[0].toLowerCase();
 
     // ============================================
-    // 3) Public prefixes (Firebase-related only)
+    // 3) Public prefixes for Firebase
     // ============================================
     const publicPrefixes = [
       '/auth/local/google',
@@ -54,8 +53,8 @@ export class FirebaseAuthGuard implements CanActivate {
       '/auth/local/facebook',
       '/auth/local/facebook/callback',
       '/auth/local/complete',
-      '/auth/local/session',
       '/auth/local/firebase',
+      '/auth/local/session',
 
       '/api/auth/local/google',
       '/api/auth/local/google/callback',
@@ -77,23 +76,36 @@ export class FirebaseAuthGuard implements CanActivate {
       '/health/r2',
     ];
 
-    // Firebase guard should NOT block other auth systems
-    // เช่น /users/me ต้องไปใช้ AccessTokenCookieAuthGuard ไม่ใช่อันนี้
-    const localAuthPrefixes = ['/auth/local', '/api/auth/local'];
-    for (const p of localAuthPrefixes) {
+    // ============================================
+    // 4) Allow local auth routes (handled by AuthGuard)
+    // ============================================
+    const localPrefixes = ['/auth/local', '/api/auth/local'];
+    for (const p of localPrefixes) {
       if (url === p || url.startsWith(p + '/')) {
         return true;
       }
     }
 
     for (const p of publicPrefixes) {
-      if (url === p || url.startsWith(p + '/')) {
+      if (url === p || url.startsWith(p + '/')) return true;
+    }
+
+    // ============================================
+    // 5) NEW — Handle JWT Access Token (phl_access)
+    // ============================================
+    const accessCookie = req.cookies?.['phl_access'];
+    if (accessCookie) {
+      try {
+        const decoded = await this.authService.verifyAccessToken(accessCookie);
+        req.user = { userId: decoded.sub };
         return true;
+      } catch (err) {
+        this.logger.debug('JWT access cookie verification failed: ' + String(err));
       }
     }
 
     // ============================================
-    // 4) Try Firebase Session Cookie
+    // 6) Try Firebase session cookie
     // ============================================
     const cookieName = process.env.SESSION_COOKIE_NAME || '__session';
     let sessionCookieValue: string | null = null;
@@ -121,6 +133,7 @@ export class FirebaseAuthGuard implements CanActivate {
         return true;
       }
 
+      // Firebase Bearer token
       if (authHeader.startsWith('Bearer ')) {
         const token = authHeader.replace(/^Bearer\s+/i, '').trim();
         if (token) {
@@ -134,17 +147,15 @@ export class FirebaseAuthGuard implements CanActivate {
     }
 
     // ============================================
-    // 5) WebSocket upgrade allow for handshake only
+    // 7) Allow WebSocket upgrade
     // ============================================
-    const isWebsocketUpgrade =
+    const isUpgrade =
       (req.headers.upgrade &&
         String(req.headers.upgrade).toLowerCase() === 'websocket') ||
       (req.headers.connection &&
         String(req.headers.connection).toLowerCase().includes('upgrade'));
 
-    if (isWebsocketUpgrade) {
-      return true;
-    }
+    if (isUpgrade) return true;
 
     throw new UnauthorizedException('Authentication required');
   }
