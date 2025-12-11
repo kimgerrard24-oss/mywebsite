@@ -34,7 +34,6 @@ import { AuditService } from './audit.service';
 import { RateLimitGuard } from '../common/rate-limit/rate-limit.guard';
 import { RateLimitService } from '../common/rate-limit/rate-limit.service';
 import { AuthGuard } from './auth.guard';
-import { JwtAuthGuard } from './jwt-auth.guard';
 import { UserProfileDto } from './dto/user-profile.dto';
 
 interface JwtUserPayload {
@@ -48,25 +47,6 @@ interface JwtUserPayload {
 interface AuthenticatedRequest extends Request {
   user?: JwtUserPayload;
 }
-
-
-if (!process.env.REDIS_URL) {
-  throw new Error('REDIS_URL is not defined in environment variables');
-}
-
-const redis = new IORedis(process.env.REDIS_URL, {
-  maxRetriesPerRequest: 2,
-  enableReadyCheck: true,
-
-  retryStrategy(times) {
-    return Math.min(times * 200, 30000);
-  },
-
-  reconnectOnError(err) {
-    const triggers = ['READONLY', 'ECONNRESET', 'ECONNREFUSED'];
-    return triggers.some((msg) => err.message.includes(msg));
-  },
-});
 
 function normalizeRedirectUri(raw: string): string {
   if (!raw) return raw;

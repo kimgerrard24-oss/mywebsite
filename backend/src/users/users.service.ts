@@ -1,12 +1,12 @@
 // file src/users/users.service.ts
 import { Injectable, NotFoundException } from "@nestjs/common";
-import { PrismaClient } from "@prisma/client";
+import { PrismaService } from '../prisma/prisma.service';
 import { randomUUID } from "crypto";
 import { UserProfileDto } from "./dto/user-profile.dto";
 
 @Injectable()
 export class UsersService {
-  private prisma = new PrismaClient();
+  private prisma = new PrismaService();
 
   async findByEmail(email: string) {
     return this.prisma.user.findUnique({ where: { email } });

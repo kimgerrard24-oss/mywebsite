@@ -162,13 +162,9 @@ async validateUser(email: string, password: string) {
 // Create Session Token
 // -------------------------------------------------------
 async createSessionToken(userId: string) {
-  // 1) access token (JWT)
   const accessTTL = Number(process.env.ACCESS_TOKEN_TTL_SECONDS) || 60 * 15;
 
-  const jwtPayload = {
-    sub: userId,
-    jti: randomUUID(),
-  };
+  const jwtPayload = { sub: userId }; // ไม่ต้องมี jti แล้ว
 
   const accessToken = jwt.sign(
     jwtPayload,
@@ -179,33 +175,30 @@ async createSessionToken(userId: string) {
     },
   );
 
-  // Store session pointer in Redis (optional but recommended)
- const accessKey = `session:access:${jwtPayload.jti}`;
+  // เก็บ session ตาม accessToken
+  const accessKey = `session:access:${accessToken}`;
   await this.redis.setex(
     accessKey,
     accessTTL,
     JSON.stringify({ userId, createdAt: Date.now() }),
   );
 
-  // 2) refresh token (opaque + Redis)
+  // ===== refresh token เดิมใช้ได้ต่อไป =====
   const refreshToken = randomBytes(48).toString('hex');
   const refreshKey = `session:refresh:${refreshToken}`;
-
   const refreshTTL =
     Number(process.env.REFRESH_TOKEN_TTL_SECONDS) || 60 * 60 * 24 * 30;
 
   const refreshTokenHash = await argon2.hash(refreshToken);
 
-  const refreshSessionData = {
-    userId,
-    refreshTokenHash,
-    createdAt: Date.now(),
-  };
-
-   await this.redis.setex(
+  await this.redis.setex(
     refreshKey,
     refreshTTL,
-    JSON.stringify(refreshSessionData),
+    JSON.stringify({
+      userId,
+      refreshTokenHash,
+      createdAt: Date.now(),
+    }),
   );
 
   return {
@@ -215,50 +208,33 @@ async createSessionToken(userId: string) {
   };
 }
 
+
 // -------------------------------------------------------
 // Verify Access Token (JWT)
 // -------------------------------------------------------
-async verifyAccessToken(
-  token: string,
-): Promise<{ sub: string; jti: string }> {
+async verifyAccessToken(token: string): Promise<{ sub: string }> {
   try {
-    // -------------------------------
-    // 1) verify JWT signature + expiry
-    // -------------------------------
+    // verify JWT
     const payload = jwt.verify(
       token,
       process.env.JWT_ACCESS_SECRET as string,
-      {
-        algorithms: ['HS256'],
-      },
-    ) as { sub?: string; jti?: string };
+      { algorithms: ['HS256'] }
+    ) as { sub?: string };
 
-    // -------------------------------
-    // 2) basic payload checks
-    // -------------------------------
-    if (!payload?.sub || !payload?.jti) {
+    if (!payload?.sub) {
       throw new UnauthorizedException('Invalid JWT payload');
     }
 
-    // -------------------------------
-    // 3) check Redis session pointer
-    // -------------------------------
-    const redisKey = `session:access:${payload.jti}`;
-
+    //  เช็ค session ด้วย access token
+    const redisKey = `session:access:${token}`;
     const exists = await this.redis.exists(redisKey);
+
     if (!exists) {
       throw new UnauthorizedException('Session not found or expired');
     }
 
-    // -------------------------------
-    // 4) return safe session user
-    // -------------------------------
-    return {
-      sub: payload.sub,
-      jti: payload.jti,
-    };
-  } catch (err) {
-    // อย่า log token เพื่อความปลอดภัย
+    return { sub: payload.sub };
+  } catch {
     throw new UnauthorizedException('Invalid or expired token');
   }
 }
@@ -266,33 +242,22 @@ async verifyAccessToken(
 
 // Local Logout
 async logout(req: any, res: any) {
-  // read cookie names from env
   const accessCookie = process.env.ACCESS_TOKEN_COOKIE_NAME || 'phl_access';
   const refreshCookie = process.env.REFRESH_TOKEN_COOKIE_NAME || 'phl_refresh';
 
   const accessToken = req.cookies?.[accessCookie];
   const refreshToken = req.cookies?.[refreshCookie];
 
-  // delete access session
+  // 🔥 ลบ session ด้วย accessToken (ไม่ decode อีกต่อไป)
   if (accessToken) {
-    try {
-      const decoded: any = jwt.decode(accessToken);
-      const jti = decoded?.jti;
-
-      if (jti) {
-        const accessKey = `session:access:${jti}`;
-        await this.redis.del(accessKey);
-      }
-    } catch {}
+    await this.redis.del(`session:access:${accessToken}`);
   }
 
-  // delete refresh session (hashed stored in redis)
   if (refreshToken) {
-    const refreshKey = `session:refresh:${refreshToken}`;
-    await this.redis.del(refreshKey);
+    await this.redis.del(`session:refresh:${refreshToken}`);
   }
 
-  // Clear cookies
+  // clear cookies
   res.clearCookie(accessCookie, {
     httpOnly: true,
     secure: true,

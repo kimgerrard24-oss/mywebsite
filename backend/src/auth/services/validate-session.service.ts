@@ -27,15 +27,17 @@ export class ValidateSessionService {
     }
 
     try {
+      // ✔ verify JWT (signature + expiry)
       const payload = await this.authService.verifyAccessToken(token);
 
-      if (!payload || !payload.sub || !payload.jti) {
+      // ✔ payload ต้องมี sub เท่านั้น (ไม่ใช้ jti แล้ว)
+      if (!payload || !payload.sub) {
         throw new UnauthorizedException('Invalid token payload');
       }
 
-      const redisKey = `session:access:${payload.jti}`;
+      // ✔ แบบใหม่: ใช้ accessToken เป็น redis key
+      const redisKey = `session:access:${token}`;
 
-      // Support both RedisService.get and RedisService.getValue
       let sessionJson: string | null = null;
 
       if (typeof this.redisService.get === 'function') {

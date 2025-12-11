@@ -10,13 +10,16 @@ import {
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { IS_PUBLIC_KEY } from './decorators/public.decorator';
+import { ValidateSessionService } from './services/validate-session.service';
 
 @Injectable()
 export class AuthGuard implements CanActivate {
-  constructor(private readonly reflector: Reflector) {}
+  constructor(
+    private readonly reflector: Reflector,
+    private readonly validateSessionService: ValidateSessionService,
+  ) {}
 
-  canActivate(context: ExecutionContext): boolean {
-
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
       context.getClass(),
@@ -26,42 +29,20 @@ export class AuthGuard implements CanActivate {
       return true;
     }
 
-    const http = context.switchToHttp();
-    const ws = context.switchToWs();
-
-    const httpReq = http.getRequest && http.getRequest();
-    const wsClient = ws.getClient && ws.getClient();
-
-    const req: any = httpReq || wsClient;
+    const req = context.switchToHttp().getRequest();
 
     if (!req) {
       throw new UnauthorizedException('Authentication required');
     }
 
-    if (req.user) {
+    try {
+      const sessionUser =
+        await this.validateSessionService.validateAccessTokenFromRequest(req);
+
+      req.user = sessionUser;
       return true;
+    } catch {
+      throw new UnauthorizedException('Authentication required');
     }
-
-    const cookies = req.cookies || {};
-    const accessToken =
-      cookies[process.env.ACCESS_TOKEN_COOKIE_NAME || 'phl_access'];
-
-    if (accessToken) {
-      return true;
-    }
-
-    // --------------------------------------------------------------
-    // Added for logout authentication checking via JWT cookie
-    // --------------------------------------------------------------
-    const logoutCookieName =
-      process.env.JWT_COOKIE_NAME || 'phlyphant_token';
-    const logoutToken = cookies[logoutCookieName];
-
-    if (logoutToken) {
-      return true;
-    }
-    // --------------------------------------------------------------
-
-    throw new UnauthorizedException('Authentication required');
   }
 }
