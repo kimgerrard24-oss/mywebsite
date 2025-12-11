@@ -75,13 +75,19 @@ jobs:
       # -----------------------------------------------------------
       - name: Install frontend dependencies
         working-directory: frontend
-        run: npm ci
+        run: |
+          rm -rf .next
+          npm ci
+          npm run build
 
       - name: Build frontend with Sentry
         working-directory: frontend
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
-        run: npm run build
+        run: |
+          rm -rf .next
+          npm ci
+          npm run build
 
       # -----------------------------------------------------------
       # 3.1) Upload Sentry sourcemaps
