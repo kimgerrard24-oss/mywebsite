@@ -36,6 +36,7 @@ export class ValidateSessionService {
     const token = rawToken || cookieToken;
 
     if (!token) {
+      this.logger.warn('Access token cookie is missing');  // เพิ่ม log เมื่อไม่มี token
       throw new UnauthorizedException('Access token cookie is missing');
     }
 
@@ -45,6 +46,7 @@ export class ValidateSessionService {
 
       const { sub, jti } = payload as any;
       if (!sub || !jti) {
+        this.logger.warn('Invalid token payload: missing sub or jti');
         throw new UnauthorizedException('Invalid token payload');
       }
 
@@ -57,27 +59,31 @@ export class ValidateSessionService {
       sessionJson = await this.redisService.get(redisKey);
 
       if (!sessionJson) {
+        this.logger.warn(`Session expired or revoked for jti: ${jti}`);
         throw new UnauthorizedException('Session expired or revoked');
       }
 
       let session;
       try {
         session = JSON.parse(sessionJson);
-      } catch {
+      } catch (e) {
+        this.logger.error('Failed to parse session data from Redis', e);
         throw new UnauthorizedException('Invalid session data');
       }
 
       if (!session || !session.userId) {
+        this.logger.warn(`Invalid session data for jti: ${jti}`);
         throw new UnauthorizedException('Invalid session data');
       }
 
       // หาก session มีค่า userId, ส่งข้อมูลผู้ใช้กลับ
       return { userId: session.userId };
     } catch (error) {
-      this.logger.error('Error verifying or fetching session', error); // ใช้งาน logger ที่นี่
+      this.logger.error('Error verifying or fetching session', error);  // ใช้งาน logger ที่นี่
       throw new UnauthorizedException('Invalid or expired access token');
     }
   }
 }
+
 
 

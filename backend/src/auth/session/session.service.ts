@@ -91,7 +91,11 @@ export class SessionService implements OnModuleDestroy {
     pipeline.set(refreshKey, serialized, 'EX', REFRESH_TOKEN_TTL_SECONDS);
 
     // Execute Redis commands in a single batch
-    await pipeline.exec();
+    try {
+      await pipeline.exec();
+    } catch (e) {
+      this.logger.error('Error setting session in Redis', e);
+    }
   }
 
   async getSessionByRefreshToken(
@@ -99,7 +103,11 @@ export class SessionService implements OnModuleDestroy {
   ): Promise<StoredSessionData | null> {
     const refreshKey = this.buildRefreshKey(refreshToken);
     const raw = await this.redis.get(refreshKey);
-    if (!raw) return null;
+
+    if (!raw) {
+      this.logger.warn('Session not found for refresh token:', refreshToken);
+      return null;
+    }
 
     try {
       return JSON.parse(raw) as StoredSessionData;

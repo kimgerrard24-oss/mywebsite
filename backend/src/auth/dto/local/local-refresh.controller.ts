@@ -66,7 +66,7 @@ export class LocalRefreshController {
       httpOnly: true,
       secure: secureFlag,
       sameSite: 'none', // Use 'Lax' based on your environment needs
-      domain: cookieDomain,
+      domain: process.env.COOKIE_DOMAIN,
       maxAge: ACCESS_TOKEN_TTL_SECONDS * 1000,
       path: '/',
     });
@@ -76,7 +76,7 @@ export class LocalRefreshController {
       httpOnly: true,
       secure: secureFlag,
       sameSite: 'none', // Use 'Lax' based on your environment needs
-      domain: cookieDomain,
+      domain: process.env.COOKIE_DOMAIN,
       maxAge: REFRESH_TOKEN_TTL_SECONDS * 1000,
       path: '/',
     });

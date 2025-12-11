@@ -22,6 +22,7 @@ export class JwtAuthGuard implements CanActivate {
 
     const token = this.extractToken(req);
     if (!token) {
+      this.authLogger.logJwtInvalid('missing_token', 'No access token provided');
       throw new UnauthorizedException('Missing access token');
     }
 
@@ -30,13 +31,14 @@ export class JwtAuthGuard implements CanActivate {
       const payload = await this.authService.verifyAccessToken(token);
 
       if (!payload?.sub) {
+        this.authLogger.logJwtInvalid('invalid_payload', 'Invalid token payload');
         throw new UnauthorizedException('Invalid token payload');
       }
 
       (req as any).user = { userId: payload.sub };
       return true;
     } catch (err: any) {
-      this.authLogger.logJwtInvalid('unknown', err?.message ?? 'invalid_jwt');
+      this.authLogger.logJwtInvalid('verification_failed', err?.message ?? 'invalid_jwt');
       throw new UnauthorizedException('Invalid or expired token');
     }
   }
@@ -51,4 +53,5 @@ export class JwtAuthGuard implements CanActivate {
     return null;
   }
 }
+
 
