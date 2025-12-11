@@ -1,6 +1,7 @@
 // frontend/components/Auth/LoginButton.tsx
 import React from 'react';
 
+
 type Props = {
   provider: 'google' | 'facebook';
   label?: string;

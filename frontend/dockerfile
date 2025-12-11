@@ -7,9 +7,6 @@ ENV NODE_OPTIONS="--max-old-space-size=4096"
 
 COPY package*.json ./
 
-# เพิ่มบรรทัดนี้ เพื่อให้ Next.js build เห็นค่า env.production จาก GitHub Actions
-COPY .env.production .env.production
-
 # เพิ่ม registry fallback ป้องกัน npm ci ล้มเหลว
 RUN npm set registry https://registry.npmmirror.com \
     && npm set fetch-retries 5 \
@@ -22,6 +19,9 @@ RUN --mount=type=cache,target=/root/.npm \
 RUN chmod +x node_modules/.bin/next
 
 COPY . .
+
+# จุดแก้ไขสำคัญ: ต้อง COPY หลัง COPY . .
+COPY .env.production .env.production
 
 RUN --mount=type=cache,target=/root/.npm \
     npm run build
@@ -44,7 +44,7 @@ COPY --from=build /app/node_modules ./node_modules
 COPY --from=build /app/public ./public
 COPY --from=build /app/.next ./.next
 
-# ต้องมีบรรทัดนี้ เพื่อให้ runtime ใช้ env.production จาก GitHub Actions
+# ใช้ env.production จาก Build stage
 COPY --from=build /app/.env.production ./.env.production
 
 EXPOSE 3000
