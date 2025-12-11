@@ -7,9 +7,9 @@ import {
   Logger,
 } from '@nestjs/common';
 import { SessionService } from '../../session/session.service';
-import { SessionPayload, StoredSessionData } from '../../session/session.types';
-import { AuthService } from '../../auth.service';
+import { SessionPayload } from '../../session/session.types';
 import { RefreshTokenResponseDto } from '../refresh-token-response.dto';
+import { generateSecureToken } from '../../../common/crypto/token-generator.util';
 
 @Injectable()
 export class LocalRefreshService {
@@ -17,21 +17,21 @@ export class LocalRefreshService {
 
   constructor(
     private readonly sessionService: SessionService,
-    private readonly authService: AuthService, // NEW
   ) {}
 
   /**
-   * Refresh tokens using new JWT + jti-based session architecture
+   * Refresh tokens using new session-based architecture (no JWT here)
    */
   async refreshTokens(
     refreshToken: string,
     meta?: { ip?: string | null; userAgent?: string | null },
   ): Promise<RefreshTokenResponseDto> {
+
     if (!refreshToken) {
       throw new BadRequestException('Refresh token is required');
     }
 
-    // Get stored session for this refresh token
+    // Retrieve stored refresh session
     const stored = await this.sessionService.getSessionByRefreshToken(refreshToken);
 
     if (!stored) {
@@ -48,15 +48,23 @@ export class LocalRefreshService {
 
     const payload: SessionPayload = stored.payload;
 
-    // Generate a full new session (JWT access token + refresh token)
-    const newSession = await this.authService.createSessionToken(payload.userId);
+    // Issue new access + refresh tokens
+    const newAccessToken = generateSecureToken(32);
+    const newRefreshToken = generateSecureToken(32);
 
-    // Remove old refresh token session
+    // Create new session (stores new tokens in Redis)
+    await this.sessionService.createSession(payload, newAccessToken, newRefreshToken, {
+      ip: meta?.ip ?? stored.ip,
+      userAgent: meta?.userAgent ?? stored.userAgent,
+    });
+
+    // Revoke the old refresh token
     await this.sessionService.revokeByRefreshToken(refreshToken);
 
+    // Build response DTO
     const response = new RefreshTokenResponseDto();
-    response.accessToken = newSession.accessToken;
-    response.refreshToken = newSession.refreshToken;
+    response.accessToken = newAccessToken;
+    response.refreshToken = newRefreshToken;
     response.user = payload;
 
     return response;
