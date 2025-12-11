@@ -48,12 +48,14 @@ export const firebaseAdminProvider: Provider = {
       throw new Error('Missing Firebase credentials. Set FIREBASE_* env vars or FIREBASE_SECRET_ARN.');
     }
 
-    // Support base64 private key
+    // Support base64 private key if it's provided as base64-encoded
     let rawPrivateKey = creds.private_key;
     if (rawPrivateKey.trim().startsWith('{') === false && rawPrivateKey.includes('\\n') === false) {
       try {
         rawPrivateKey = Buffer.from(rawPrivateKey, 'base64').toString('utf8');
-      } catch {}
+      } catch {
+        throw new Error('Failed to decode private key from base64');
+      }
     }
 
     const privateKey = rawPrivateKey.replace(/\\n/g, '\n');
@@ -76,3 +78,4 @@ export const firebaseAdminProvider: Provider = {
     );
   },
 };
+

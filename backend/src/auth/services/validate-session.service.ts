@@ -1,6 +1,6 @@
 // src/auth/services/validate-session.service.ts
 
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
 import type { Request } from 'express';
 import { AuthService } from '../auth.service';
 import { RedisService } from '../../redis/redis.service';
@@ -14,6 +14,8 @@ const ACCESS_TOKEN_COOKIE_NAME =
 
 @Injectable()
 export class ValidateSessionService {
+  private readonly logger = new Logger(ValidateSessionService.name); // เพิ่ม logger ที่นี่
+
   constructor(
     private readonly authService: AuthService,
     private readonly redisService: RedisService,
@@ -51,11 +53,8 @@ export class ValidateSessionService {
 
       let sessionJson: string | null = null;
 
-      if (typeof this.redisService.get === 'function') {
-        sessionJson = await this.redisService.get(redisKey);
-      } else if (typeof (this.redisService as any).getValue === 'function') {
-        sessionJson = await (this.redisService as any).getValue(redisKey);
-      }
+      // ใช้ RedisService เพื่อดึงข้อมูล session
+      sessionJson = await this.redisService.get(redisKey);
 
       if (!sessionJson) {
         throw new UnauthorizedException('Session expired or revoked');
@@ -72,9 +71,13 @@ export class ValidateSessionService {
         throw new UnauthorizedException('Invalid session data');
       }
 
+      // หาก session มีค่า userId, ส่งข้อมูลผู้ใช้กลับ
       return { userId: session.userId };
-    } catch {
+    } catch (error) {
+      this.logger.error('Error verifying or fetching session', error); // ใช้งาน logger ที่นี่
       throw new UnauthorizedException('Invalid or expired access token');
     }
   }
 }
+
+

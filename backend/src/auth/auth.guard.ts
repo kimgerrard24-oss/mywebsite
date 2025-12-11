@@ -41,21 +41,16 @@ export class AuthGuard implements CanActivate {
 
     try {
       // ================================================
-      // Decode Base64URL cookie and overwrite raw cookie
+      // Use raw JWT cookie without Base64URL decoding
       // ================================================
-      const encoded = req.cookies?.['phl_access'];
+      const accessToken = req.cookies?.['phl_access'];
 
-      if (encoded) {
-        const decoded = this.decodeBase64Url(encoded);
-        if (decoded) {
-          // overwrite the cookie so validateSessionService will use the decoded JWT
-          req.cookies['phl_access'] = decoded;
-        }
+      if (!accessToken) {
+        throw new UnauthorizedException('Authentication required');
       }
 
-      // validateSessionService expects only `req`
-      const sessionUser =
-        await this.validateSessionService.validateAccessTokenFromRequest(req);
+      // Validate the JWT token directly from cookie
+      const sessionUser = await this.validateSessionService.validateAccessTokenFromRequest(req);
 
       req.user = { userId: sessionUser.userId };
 
@@ -64,14 +59,5 @@ export class AuthGuard implements CanActivate {
       throw new UnauthorizedException('Authentication required');
     }
   }
-
-  private decodeBase64Url(encoded: string): string | null {
-    try {
-      const base64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
-      const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, '=');
-      return Buffer.from(padded, 'base64').toString('utf8');
-    } catch {
-      return null;
-    }
-  }
 }
+

@@ -19,37 +19,21 @@ export class AccessTokenCookieAuthGuard implements CanActivate {
     const req = context.switchToHttp().getRequest<Request>();
 
     try {
-      // =====================================================
-      // Decode Base64URL access token, then overwrite cookie
-      // =====================================================
-      const encoded = req.cookies?.['phl_access'];
+      // ตรวจสอบ access token โดยตรงจาก cookie
+      const cookieToken = req.cookies?.['phl_access'];
 
-      if (encoded && typeof encoded === 'string') {
-        const decoded = this.decodeBase64Url(encoded);
-        if (decoded) {
-          req.cookies['phl_access'] = decoded;
-        }
+      if (!cookieToken) {
+        throw new UnauthorizedException('Access token cookie is missing');
       }
 
-      // validateSessionService expects ONLY req
-      const sessionUser =
-        await this.validateSessionService.validateAccessTokenFromRequest(req);
+      // validate session ด้วย validateSessionService
+      const sessionUser = await this.validateSessionService.validateAccessTokenFromRequest(req);
 
       (req as any).user = sessionUser;
 
       return true;
     } catch {
       throw new UnauthorizedException('Unauthorized');
-    }
-  }
-
-  private decodeBase64Url(encoded: string): string | null {
-    try {
-      const base64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
-      const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, '=');
-      return Buffer.from(padded, 'base64').toString('utf8');
-    } catch {
-      return null;
     }
   }
 }

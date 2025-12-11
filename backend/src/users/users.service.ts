@@ -1,5 +1,5 @@
 // file src/users/users.service.ts
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Injectable, NotFoundException, BadRequestException } from "@nestjs/common";
 import { PrismaService } from '../prisma/prisma.service';
 import { randomUUID } from "crypto";
 import { UserProfileDto } from "./dto/user-profile.dto";
@@ -17,6 +17,7 @@ export class UsersService {
     let username = baseUsername;
     let counter = 1;
 
+    // Ensure unique username
     while (
       await this.prisma.user.findUnique({
         where: { username },
@@ -38,6 +39,9 @@ export class UsersService {
   }
 
   async setRefreshTokenHash(userId: string, hash: string | null) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+    
     return this.prisma.user.update({
       where: { id: userId },
       data: { currentRefreshTokenHash: hash },
@@ -45,6 +49,9 @@ export class UsersService {
   }
 
   async setEmailVerifyToken(userId: string, hash: string, expires: Date) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+    
     return this.prisma.user.update({
       where: { id: userId },
       data: {
@@ -55,6 +62,9 @@ export class UsersService {
   }
 
   async setPasswordResetToken(userId: string, hash: string, expires: Date) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('User not found');
+    
     return this.prisma.user.update({
       where: { id: userId },
       data: {
@@ -72,7 +82,7 @@ export class UsersService {
       },
     });
 
-    if (!user) return null;
+    if (!user) throw new BadRequestException('Invalid or expired token');
 
     return this.prisma.user.update({
       where: { id: user.id },
@@ -92,7 +102,7 @@ export class UsersService {
       },
     });
 
-    if (!user) return null;
+    if (!user) throw new BadRequestException('Invalid or expired token');
 
     return this.prisma.user.update({
       where: { id: user.id },
@@ -105,12 +115,10 @@ export class UsersService {
   }
 
   /**
-   * ดึงข้อมูลโปรไฟล์แบบ "safe"
-   * - ไม่ดึง hashedPassword
-   * - ไม่ดึง token ต่าง ๆ
+   * Get a "safe" profile (without sensitive data like hashedPassword or tokens)
    */
   async findSafeProfileById(userId: string) {
-    return this.prisma.user.findUnique({
+    const user = await this.prisma.user.findUnique({
       where: { id: userId },
       select: {
         id: true,
@@ -124,16 +132,22 @@ export class UsersService {
         updatedAt: true,
       },
     });
+
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    return user as UserProfileDto;
   }
 
   /**
-   * Get current user's profile by userId (ใช้สำหรับ route GET /users/me)
-   * - ปลอดภัย: ไม่ select hashedPassword / token ต่าง ๆ
-   * - ถ้าไม่พบ user -> โยน NotFoundException
+   * Get the current user's profile by userId (for route GET /users/me)
+   * - Safe: Doesn't select hashedPassword or tokens
+   * - If user is not found, throws NotFoundException
    */
   async getMe(userId: string): Promise<UserProfileDto> {
     const user = await this.prisma.user.findUnique({
-      where: { id: userId }, // ถ้าคุณใช้ field อื่น เช่น firebaseUid ให้เปลี่ยนตรงนี้
+      where: { id: userId },
       select: {
         id: true,
         email: true,
@@ -144,7 +158,6 @@ export class UsersService {
         bio: true,
         createdAt: true,
         updatedAt: true,
-        // ไม่ select hashedPassword / token / fields ลับอื่น ๆ
       },
     });
 

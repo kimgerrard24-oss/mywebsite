@@ -1,5 +1,4 @@
-// src/auth/local/local-refresh.controller.ts
-
+// backend/src/auth/dto/local/local-refresh.controller.ts
 import {
   Controller,
   Post,
@@ -29,9 +28,10 @@ export class LocalRefreshController {
   @Post('refresh')
   @HttpCode(HttpStatus.OK)
   async refresh(@Req() req: Request, @Res({ passthrough: true }) res: Response) {
-    const oldRefreshToken =
-      (req.cookies && req.cookies[REFRESH_TOKEN_COOKIE_NAME]) ||
+    // ดึง refresh token จาก signed cookies, cookies หรือ body
+    let oldRefreshToken =
       (req.signedCookies && req.signedCookies[REFRESH_TOKEN_COOKIE_NAME]) ||
+      (req.cookies && req.cookies[REFRESH_TOKEN_COOKIE_NAME]) ||
       (req.body && (req.body.refreshToken as string)) ||
       '';
 
@@ -49,31 +49,33 @@ export class LocalRefreshController {
 
     const userAgent = req.headers['user-agent'] || null;
 
-    // LocalRefreshService already handles:
-    // - verifying old refresh token
-    // - revoking old refresh token
-    // - creating new session (access+jti+refresh)
+    // ใช้ LocalRefreshService เพื่อ:
+    // - ยืนยัน refresh token เดิม
+    // - ยกเลิก refresh token เดิม
+    // - สร้าง session ใหม่ (access token + refresh token)
     const result = await this.localRefreshService.refreshTokens(
       oldRefreshToken,
       { ip, userAgent },
     );
 
-    const cookieDomain = process.env.COOKIE_DOMAIN;
-    const secureFlag = true;
+    const cookieDomain = process.env.COOKIE_DOMAIN || '.phlyphant.com';
+    const secureFlag = process.env.NODE_ENV === 'production'; // Set secure to true only in production environment
 
+    // Set new access token in cookie
     res.cookie(ACCESS_TOKEN_COOKIE_NAME, result.accessToken, {
       httpOnly: true,
       secure: secureFlag,
-      sameSite: 'none',
+      sameSite: 'none', // Use 'Lax' based on your environment needs
       domain: cookieDomain,
       maxAge: ACCESS_TOKEN_TTL_SECONDS * 1000,
       path: '/',
     });
 
+    // Set new refresh token in cookie
     res.cookie(REFRESH_TOKEN_COOKIE_NAME, result.refreshToken, {
       httpOnly: true,
       secure: secureFlag,
-      sameSite: 'none',
+      sameSite: 'none', // Use 'Lax' based on your environment needs
       domain: cookieDomain,
       maxAge: REFRESH_TOKEN_TTL_SECONDS * 1000,
       path: '/',

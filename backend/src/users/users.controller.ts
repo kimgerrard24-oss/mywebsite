@@ -7,7 +7,8 @@ import {
   UseGuards,
   Body, 
   Req, 
-  UnauthorizedException 
+  UnauthorizedException,
+  ConflictException 
 } from '@nestjs/common';
 import { Request } from 'express';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -33,9 +34,18 @@ export class UsersController {
       throw new UnauthorizedException('Authentication required');
     }
 
+    // Check if the email is already registered
+    const existingUser = await this.usersService.findByEmail(dto.email);
+    if (existingUser) {
+      throw new ConflictException('Email already registered');
+    }
+
+    const hashedPassword = await this.authService.hashPassword(dto.password);
+    const newUser = await this.usersService.createUser(dto.email, hashedPassword, dto.displayName);
+
     return {
-      message: 'DTO Passed Validation',
-      data: dto,
+      message: 'User created successfully',
+      data: newUser,
     };
   }
 
@@ -52,3 +62,4 @@ export class UsersController {
     return this.usersService.getMe(sessionUser.userId);
   }
 }
+

@@ -9,10 +9,11 @@ import { AuthModule } from '../../auth.module';
 @Module({
   imports: [
     SessionModule,
-    forwardRef(() => AuthModule),   
+    forwardRef(() => AuthModule),  // ใช้ forwardRef เพื่อหลีกเลี่ยงปัญหาการพึ่งพากัน (circular dependencies)
   ],
   controllers: [LocalRefreshController],
   providers: [LocalRefreshService],
-  exports: [LocalRefreshService],
+  exports: [LocalRefreshService],  // ทำให้ LocalRefreshService สามารถใช้งานได้จากที่อื่น ๆ
 })
 export class LocalRefreshModule {}
+

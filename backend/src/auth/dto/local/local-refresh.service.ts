@@ -1,3 +1,4 @@
+// backend/src/auth/dto/local/local-refresh.service.ts
 import {
   Injectable,
   UnauthorizedException,
@@ -27,6 +28,7 @@ export class LocalRefreshService {
       throw new BadRequestException('Refresh token is required');
     }
 
+    // Validate refresh token directly
     const stored = await this.sessionService.getSessionByRefreshToken(refreshToken);
 
     if (!stored) {
@@ -43,18 +45,30 @@ export class LocalRefreshService {
 
     const payload: SessionPayload = stored.payload;
 
-    // IMPORTANT: must use AuthService hybrid JWT session generator
+    // Generate new session with access token and refresh token
     const newSession = await this.authService.createSessionToken(payload.userId);
 
-    // revoke old refresh token
+    // Revoke old refresh token
     await this.sessionService.revokeByRefreshToken(refreshToken);
 
-    // build response
-    const response = new RefreshTokenResponseDto();
-    response.accessToken = newSession.accessToken;
-    response.refreshToken = newSession.refreshToken;
-    response.user = payload;
+    // Build response with new tokens and user details
+    // Fix: Pass arguments to the constructor
+    const response = new RefreshTokenResponseDto(
+      newSession.accessToken,
+      newSession.refreshToken,
+      payload,
+    );
 
     return response;
+  }
+
+  private decodeBase64Url(encoded: string): string {
+    try {
+      const base64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
+      const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, '=');
+      return Buffer.from(padded, 'base64').toString('utf8');
+    } catch (error) {
+      throw new UnauthorizedException('Invalid token format');
+    }
   }
 }

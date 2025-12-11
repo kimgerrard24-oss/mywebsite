@@ -20,15 +20,9 @@ export class JwtAuthGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const req = context.switchToHttp().getRequest<Request>();
 
-    const encodedToken = this.extractToken(req);
-    if (!encodedToken) {
-      throw new UnauthorizedException('Missing access token');
-    }
-
-    // Base64URL decode → JWT string
-    const token = this.decodeBase64UrlToken(encodedToken);
+    const token = this.extractToken(req);
     if (!token) {
-      throw new UnauthorizedException('Invalid access token format');
+      throw new UnauthorizedException('Missing access token');
     }
 
     try {
@@ -56,14 +50,5 @@ export class JwtAuthGuard implements CanActivate {
     }
     return null;
   }
-
-  private decodeBase64UrlToken(encoded: string): string | null {
-    try {
-      const base64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
-      const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, '=');
-      return Buffer.from(padded, 'base64').toString('utf8');
-    } catch {
-      return null;
-    }
-  }
 }
+

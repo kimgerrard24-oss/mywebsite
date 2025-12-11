@@ -86,9 +86,11 @@ export class SessionService implements OnModuleDestroy {
 
     const pipeline = this.redis.pipeline();
 
+    // Set session data for access and refresh tokens with TTL
     pipeline.set(accessKey, serialized, 'EX', ACCESS_TOKEN_TTL_SECONDS);
     pipeline.set(refreshKey, serialized, 'EX', REFRESH_TOKEN_TTL_SECONDS);
 
+    // Execute Redis commands in a single batch
     await pipeline.exec();
   }
 
@@ -137,3 +139,4 @@ export class SessionService implements OnModuleDestroy {
     }
   }
 }
+

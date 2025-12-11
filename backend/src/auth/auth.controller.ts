@@ -265,17 +265,9 @@ async login(
       60 * 60 * 24 * 30) *
     1000;
 
-  // =========================================================
-  // NEW: Base64URL encode tokens before setting cookies
-  // =========================================================
-  const encodedAccess = Buffer.from(session.accessToken, 'utf8').toString('base64url');
-  const encodedRefresh = session.refreshToken
-    ? Buffer.from(session.refreshToken, 'utf8').toString('base64url')
-    : null;
-
   res.cookie(
     process.env.ACCESS_TOKEN_COOKIE_NAME || 'phl_access',
-    encodedAccess,
+    session.accessToken,  // Use raw JWT directly
     {
       httpOnly: true,
       secure: true,
@@ -286,10 +278,10 @@ async login(
     },
   );
 
-  if (encodedRefresh) {
+  if (session.refreshToken) {
     res.cookie(
       process.env.REFRESH_TOKEN_COOKIE_NAME || 'phl_refresh',
-      encodedRefresh,
+      session.refreshToken,  // Use raw JWT directly
       {
         httpOnly: true,
         secure: true,
@@ -320,7 +312,6 @@ async login(
     },
   };
 }
-
 
 
 // =========================================================

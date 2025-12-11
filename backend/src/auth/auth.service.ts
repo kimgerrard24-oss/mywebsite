@@ -293,7 +293,10 @@ async logout(req: any, res: any) {
 
     return UserProfileDto.fromUser(user);
   }
- 
+
+ async hashPassword(password: string): Promise<string> {
+    return await argon2.hash(password);  // ใช้ argon2 ในการแฮชรหัสผ่าน
+  }
   // -------------------------------------------------------
   // Verify Email (Local)
   // -------------------------------------------------------

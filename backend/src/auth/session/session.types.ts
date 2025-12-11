@@ -1,5 +1,3 @@
-// backend/src/auth/session/session.types.ts
-
 /**
  * SessionPayload:
  * ข้อมูลผู้ใช้ที่เก็บไว้ใน session
