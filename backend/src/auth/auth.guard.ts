@@ -41,17 +41,21 @@ export class AuthGuard implements CanActivate {
 
     try {
       // ================================================
-      // Decode Base64URL cookie before validate
+      // Decode Base64URL cookie and overwrite raw cookie
       // ================================================
       const encoded = req.cookies?.['phl_access'];
-      let jwt: string | null = null;
 
       if (encoded) {
-        jwt = this.decodeBase64Url(encoded);
+        const decoded = this.decodeBase64Url(encoded);
+        if (decoded) {
+          // overwrite the cookie so validateSessionService will use the decoded JWT
+          req.cookies['phl_access'] = decoded;
+        }
       }
 
+      // validateSessionService expects only `req`
       const sessionUser =
-        await this.validateSessionService.validateAccessTokenFromRequest(req, jwt);
+        await this.validateSessionService.validateAccessTokenFromRequest(req);
 
       req.user = { userId: sessionUser.userId };
 

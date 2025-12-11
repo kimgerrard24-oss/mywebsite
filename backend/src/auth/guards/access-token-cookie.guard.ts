@@ -19,19 +19,21 @@ export class AccessTokenCookieAuthGuard implements CanActivate {
     const req = context.switchToHttp().getRequest<Request>();
 
     try {
-      // ================================================
-      // FIX: decode Base64URL access token cookie
-      // ================================================
+      // =====================================================
+      // Decode Base64URL access token, then overwrite cookie
+      // =====================================================
       const encoded = req.cookies?.['phl_access'];
-      let decodedToken: string | null = null;
 
       if (encoded && typeof encoded === 'string') {
-        decodedToken = this.decodeBase64Url(encoded);
+        const decoded = this.decodeBase64Url(encoded);
+        if (decoded) {
+          req.cookies['phl_access'] = decoded;
+        }
       }
 
-      // ส่ง decoded token เข้า service
+      // validateSessionService expects ONLY req
       const sessionUser =
-        await this.validateSessionService.validateAccessTokenFromRequest(req, decodedToken);
+        await this.validateSessionService.validateAccessTokenFromRequest(req);
 
       (req as any).user = sessionUser;
 
