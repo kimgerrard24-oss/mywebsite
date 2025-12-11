@@ -292,9 +292,9 @@ async login(
     session.accessToken,
     {
       httpOnly: true,
-      secure: secureFlag,
-      sameSite: 'lax',   
-      domain: cookieDomain,
+      secure: true,
+      sameSite: 'none',   
+      domain: process.env.COOKIE_DOMAIN,
       maxAge: accessMaxAgeMs,
       path: '/',
     },
@@ -306,9 +306,9 @@ async login(
       session.refreshToken,
       {
         httpOnly: true,
-        secure: secureFlag,
-        sameSite: 'lax',  
-        domain: cookieDomain,
+        secure: true,
+        sameSite: 'none',  
+        domain: process.env.COOKIE_DOMAIN,
         maxAge: refreshMaxAgeMs,
         path: '/',
       },
@@ -358,7 +358,7 @@ async logout(@Req() req: Request, @Res() res: Response) {
       result,
     };
   }
-  
+
     // local profile
    //@Get('profile')
   //@UseGuards(JwtAuthGuard)

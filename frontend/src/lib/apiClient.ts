@@ -12,26 +12,27 @@ const rawBase =
 // normalize base URL
 const baseURL = rawBase.replace(/\/+$/, "");
 
-// axios instance — important: DO NOT force withCredentials globally
+// axios instance — do NOT force withCredentials globally
 const API = axios.create({
   baseURL,
   timeout: 10000,
-  withCredentials: undefined,
+  withCredentials: undefined, // caller must control it
   headers: {
     Accept: "application/json",
   },
 });
 
-// request interceptor
+// -----------------------------------------------------
+// FIXED: remove forced withCredentials = false
+// Now caller fully controls cookie behavior
+// -----------------------------------------------------
 API.interceptors.request.use((cfg: InternalAxiosRequestConfig) => {
-  // allow caller to control withCredentials safely
-  if (typeof cfg.withCredentials === "undefined") {
-    cfg.withCredentials = false;
-  }
+  // ถ้า caller ไม่กำหนด withCredentials → ปล่อยว่างไว้ (สำคัญสำหรับ SameSite=None)
+  // ไม่บังคับ cfg.withCredentials = false อีกต่อไป
 
-  // content-type: set only if JSON body provided
   const method = cfg.method ? cfg.method.toLowerCase() : "";
 
+  // content-type: set only if JSON body provided
   if (
     ["post", "put", "patch"].includes(method) &&
     cfg.data &&
@@ -60,7 +61,7 @@ export async function apiGet<T = unknown>(
 ): Promise<T> {
   const res = await API.get<T>(normalizePath(path), {
     ...config,
-    // caller must control credentials
+    // caller controls withCredentials
   });
   return res.data;
 }

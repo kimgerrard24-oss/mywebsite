@@ -275,8 +275,15 @@ async logout(req: any, res: any) {
 
   // delete access session
   if (accessToken) {
-    const accessKey = `session:access:${accessToken}`;
-    await this.redis.del(accessKey);
+    try {
+      const decoded: any = jwt.decode(accessToken);
+      const jti = decoded?.jti;
+
+      if (jti) {
+        const accessKey = `session:access:${jti}`;
+        await this.redis.del(accessKey);
+      }
+    } catch {}
   }
 
   // delete refresh session (hashed stored in redis)
@@ -289,7 +296,7 @@ async logout(req: any, res: any) {
   res.clearCookie(accessCookie, {
     httpOnly: true,
     secure: true,
-    sameSite: 'lax',
+    sameSite: 'none',
     domain: process.env.COOKIE_DOMAIN,
     path: '/',
   });
@@ -297,7 +304,7 @@ async logout(req: any, res: any) {
   res.clearCookie(refreshCookie, {
     httpOnly: true,
     secure: true,
-    sameSite: 'lax',
+    sameSite: 'none',
     domain: process.env.COOKIE_DOMAIN,
     path: '/',
   });

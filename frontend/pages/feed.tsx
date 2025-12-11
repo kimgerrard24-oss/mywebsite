@@ -36,10 +36,6 @@ export default function FeedPage({ valid, user }: FeedProps) {
       console.error("Logout failed:", err);
     }
 
-    Cookies.remove("phl_access");
-    Cookies.remove("phl_refresh");
-    Cookies.remove("__session");
-
     router.replace("/");
   }, [router]);
 

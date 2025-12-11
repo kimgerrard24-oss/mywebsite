@@ -10,8 +10,8 @@ export const CurrentUser = createParamDecorator(
   (_data: unknown, ctx: ExecutionContext): SessionUser | null => {
     const request = ctx.switchToHttp().getRequest();
 
-    // ดึงจากที่ guard แนบไว้
-    const sessionUser = request.sessionUser as SessionUser | undefined;
+    // FIX: Guard ใส่ session user ไว้ที่ request.user
+    const sessionUser = request.user as SessionUser | undefined;
 
     return sessionUser ?? null;
   },
