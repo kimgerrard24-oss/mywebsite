@@ -35,20 +35,39 @@ export class AuthGuard implements CanActivate {
     }
 
     const req = context.switchToHttp().getRequest<AuthenticatedRequest>();
-
     if (!req) {
       throw new UnauthorizedException('Authentication required');
     }
 
     try {
-      const sessionUser = await this.validateSessionService.validateAccessTokenFromRequest(req);
+      // ================================================
+      // Decode Base64URL cookie before validate
+      // ================================================
+      const encoded = req.cookies?.['phl_access'];
+      let jwt: string | null = null;
 
-      // Normalize and attach to request in a predictable shape
+      if (encoded) {
+        jwt = this.decodeBase64Url(encoded);
+      }
+
+      const sessionUser =
+        await this.validateSessionService.validateAccessTokenFromRequest(req, jwt);
+
       req.user = { userId: sessionUser.userId };
 
       return true;
     } catch {
       throw new UnauthorizedException('Authentication required');
+    }
+  }
+
+  private decodeBase64Url(encoded: string): string | null {
+    try {
+      const base64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
+      const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, '=');
+      return Buffer.from(padded, 'base64').toString('utf8');
+    } catch {
+      return null;
     }
   }
 }

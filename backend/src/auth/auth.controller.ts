@@ -265,30 +265,35 @@ async login(
       60 * 60 * 24 * 30) *
     1000;
 
-  const cookieDomain = process.env.COOKIE_DOMAIN || undefined;
-  const secureFlag = process.env.COOKIE_SECURE !== 'false';
+  // =========================================================
+  // NEW: Base64URL encode tokens before setting cookies
+  // =========================================================
+  const encodedAccess = Buffer.from(session.accessToken, 'utf8').toString('base64url');
+  const encodedRefresh = session.refreshToken
+    ? Buffer.from(session.refreshToken, 'utf8').toString('base64url')
+    : null;
 
   res.cookie(
     process.env.ACCESS_TOKEN_COOKIE_NAME || 'phl_access',
-    session.accessToken,
+    encodedAccess,
     {
       httpOnly: true,
       secure: true,
-      sameSite: 'none',   
+      sameSite: 'none',
       domain: process.env.COOKIE_DOMAIN,
       maxAge: accessMaxAgeMs,
       path: '/',
     },
   );
 
-  if (session.refreshToken) {
+  if (encodedRefresh) {
     res.cookie(
       process.env.REFRESH_TOKEN_COOKIE_NAME || 'phl_refresh',
-      session.refreshToken,
+      encodedRefresh,
       {
         httpOnly: true,
         secure: true,
-        sameSite: 'none',  
+        sameSite: 'none',
         domain: process.env.COOKIE_DOMAIN,
         maxAge: refreshMaxAgeMs,
         path: '/',
@@ -316,7 +321,11 @@ async login(
   };
 }
 
+
+
+// =========================================================
 // Local Logout
+// =========================================================
 @UseGuards(AccessTokenCookieAuthGuard, RateLimitGuard)
 @Post('logout')
 @HttpCode(200)
@@ -324,6 +333,7 @@ async logout(@Req() req: Request, @Res() res: Response) {
   await this.authService.logout(req, res);
   return res.json({ message: 'Logged out successfully' });
 }
+
 
   // verify-email
   @Get('verify-email')

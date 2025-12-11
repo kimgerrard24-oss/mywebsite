@@ -19,25 +19,34 @@ export class ValidateSessionService {
     private readonly redisService: RedisService,
   ) {}
 
-  async validateAccessTokenFromRequest(req: Request): Promise<SessionUser> {
-    const token = req.cookies?.[ACCESS_TOKEN_COOKIE_NAME];
+  /**
+   * Validate JWT + Redis JTI session
+   * rawToken (optional) = decoded Base64URL cookie string
+   */
+  async validateAccessTokenFromRequest(
+    req: Request,
+    rawToken?: string | null,
+  ): Promise<SessionUser> {
+    // 1) ดึง token จาก cookie ก่อน
+    const cookieToken = req.cookies?.[ACCESS_TOKEN_COOKIE_NAME];
+
+    // 2) ถ้า rawToken ถูกส่งมา → ใช้ rawToken
+    const token = rawToken || cookieToken;
 
     if (!token) {
       throw new UnauthorizedException('Access token cookie is missing');
     }
 
     try {
-      // ✔ verify signature + expiry + jti validation + redis pointer
+      // ✔ verify signature + expiry + jti + redis pointer
       const payload = await this.authService.verifyAccessToken(token);
 
-      // payload ถูกต้องแน่นอน (sub + jti)
       const { sub, jti } = payload as any;
-
       if (!sub || !jti) {
         throw new UnauthorizedException('Invalid token payload');
       }
 
-      // ใช้ jti เป็น redis key
+      // ✔ Redis session pointer
       const redisKey = `session:access:${jti}`;
 
       let sessionJson: string | null = null;

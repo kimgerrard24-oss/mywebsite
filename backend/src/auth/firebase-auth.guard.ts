@@ -23,30 +23,21 @@ export class FirebaseAuthGuard implements CanActivate {
   constructor(
     private readonly firebase: FirebaseAdminService,
     private readonly reflector: Reflector,
-    private readonly authService: AuthService, // <<=== เพิ่มตรงนี้
+    private readonly authService: AuthService,
   ) {}
 
   async canActivate(ctx: ExecutionContext) {
     const req = ctx.switchToHttp().getRequest<Request & Record<string, any>>();
 
-    // ============================================
-    // 1) Public decorator
-    // ============================================
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       ctx.getHandler(),
       ctx.getClass(),
     ]);
     if (isPublic) return true;
 
-    // ============================================
-    // 2) Normalize URL
-    // ============================================
     const rawUrl = req.originalUrl || req.url || '';
     const url = rawUrl.split('?')[0].toLowerCase();
 
-    // ============================================
-    // 3) Public prefixes for Firebase
-    // ============================================
     const publicPrefixes = [
       '/auth/local/google',
       '/auth/local/google/callback',
@@ -55,7 +46,6 @@ export class FirebaseAuthGuard implements CanActivate {
       '/auth/local/complete',
       '/auth/local/firebase',
       '/auth/local/session',
-
       '/api/auth/local/google',
       '/api/auth/local/google/callback',
       '/api/auth/local/facebook',
@@ -63,7 +53,6 @@ export class FirebaseAuthGuard implements CanActivate {
       '/api/auth/local/complete',
       '/api/auth/local/firebase',
       '/api/auth/local/session',
-
       '/system-check',
       '/health',
       '/health/',
@@ -76,36 +65,36 @@ export class FirebaseAuthGuard implements CanActivate {
       '/health/r2',
     ];
 
-    // ============================================
-    // 4) Allow local auth routes (handled by AuthGuard)
-    // ============================================
     const localPrefixes = ['/auth/local', '/api/auth/local'];
     for (const p of localPrefixes) {
-      if (url === p || url.startsWith(p + '/')) {
-        return true;
-      }
+      if (url === p || url.startsWith(p + '/')) return true;
     }
-
     for (const p of publicPrefixes) {
       if (url === p || url.startsWith(p + '/')) return true;
     }
 
     // ============================================
-    // 5) NEW — Handle JWT Access Token (phl_access)
+    // FIX 1 — Read Base64URL encoded access token
     // ============================================
-    const accessCookie = req.cookies?.['phl_access'];
-    if (accessCookie) {
-      try {
-        const decoded = await this.authService.verifyAccessToken(accessCookie);
-        req.user = { userId: decoded.sub };
-        return true;
-      } catch (err) {
-        this.logger.debug('JWT access cookie verification failed: ' + String(err));
+    const encodedToken = req.cookies?.['phl_access'];
+    if (encodedToken) {
+      const jwt = this.decodeBase64UrlToken(encodedToken);
+
+      if (jwt) {
+        try {
+          const decoded = await this.authService.verifyAccessToken(jwt);
+          req.user = { userId: decoded.sub };
+          return true;
+        } catch (err) {
+          this.logger.debug(
+            'JWT access cookie verification failed: ' + String(err),
+          );
+        }
       }
     }
 
     // ============================================
-    // 6) Try Firebase session cookie
+    // Firebase session cookie fallback
     // ============================================
     const cookieName = process.env.SESSION_COOKIE_NAME || '__session';
     let sessionCookieValue: string | null = null;
@@ -133,7 +122,6 @@ export class FirebaseAuthGuard implements CanActivate {
         return true;
       }
 
-      // Firebase Bearer token
       if (authHeader.startsWith('Bearer ')) {
         const token = authHeader.replace(/^Bearer\s+/i, '').trim();
         if (token) {
@@ -143,12 +131,12 @@ export class FirebaseAuthGuard implements CanActivate {
         }
       }
     } catch (error) {
-      this.logger.debug('Firebase token verification failed: ' + String(error));
+      this.logger.debug(
+        'Firebase token verification failed: ' + String(error),
+      );
     }
 
-    // ============================================
-    // 7) Allow WebSocket upgrade
-    // ============================================
+    // Allow websocket handshake
     const isUpgrade =
       (req.headers.upgrade &&
         String(req.headers.upgrade).toLowerCase() === 'websocket') ||
@@ -158,5 +146,18 @@ export class FirebaseAuthGuard implements CanActivate {
     if (isUpgrade) return true;
 
     throw new UnauthorizedException('Authentication required');
+  }
+
+  // ====================================
+  // Base64URL → JWT decoder
+  // ====================================
+  private decodeBase64UrlToken(encoded: string): string | null {
+    try {
+      const base64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
+      const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, '=');
+      return Buffer.from(padded, 'base64').toString('utf8');
+    } catch {
+      return null;
+    }
   }
 }

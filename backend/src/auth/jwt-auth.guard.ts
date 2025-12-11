@@ -20,9 +20,15 @@ export class JwtAuthGuard implements CanActivate {
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const req = context.switchToHttp().getRequest<Request>();
 
-    const token = this.extractToken(req);
-    if (!token) {
+    const encodedToken = this.extractToken(req);
+    if (!encodedToken) {
       throw new UnauthorizedException('Missing access token');
+    }
+
+    // Base64URL decode → JWT string
+    const token = this.decodeBase64UrlToken(encodedToken);
+    if (!token) {
+      throw new UnauthorizedException('Invalid access token format');
     }
 
     try {
@@ -33,9 +39,7 @@ export class JwtAuthGuard implements CanActivate {
         throw new UnauthorizedException('Invalid token payload');
       }
 
-      // Attach session user to request
       (req as any).user = { userId: payload.sub };
-
       return true;
     } catch (err: any) {
       this.authLogger.logJwtInvalid('unknown', err?.message ?? 'invalid_jwt');
@@ -45,12 +49,21 @@ export class JwtAuthGuard implements CanActivate {
 
   private extractToken(req: Request): string | null {
     const cookieName = process.env.ACCESS_TOKEN_COOKIE_NAME || 'phl_access';
-    const token = req.cookies?.[cookieName];
+    const raw = req.cookies?.[cookieName];
 
-    if (token && typeof token === 'string') {
-      return token.trim();
+    if (raw && typeof raw === 'string') {
+      return raw.trim();
     }
-
     return null;
+  }
+
+  private decodeBase64UrlToken(encoded: string): string | null {
+    try {
+      const base64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
+      const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, '=');
+      return Buffer.from(padded, 'base64').toString('utf8');
+    } catch {
+      return null;
+    }
   }
 }

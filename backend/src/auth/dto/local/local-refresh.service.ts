@@ -7,7 +7,7 @@ import {
 import { SessionService } from '../../session/session.service';
 import { SessionPayload } from '../../session/session.types';
 import { RefreshTokenResponseDto } from '../refresh-token-response.dto';
-import { generateSecureToken } from '../../../common/crypto/token-generator.util';
+import { AuthService } from '../../auth.service';
 
 @Injectable()
 export class LocalRefreshService {
@@ -15,6 +15,7 @@ export class LocalRefreshService {
 
   constructor(
     private readonly sessionService: SessionService,
+    private readonly authService: AuthService,
   ) {}
 
   async refreshTokens(
@@ -26,15 +27,14 @@ export class LocalRefreshService {
       throw new BadRequestException('Refresh token is required');
     }
 
-    // Lookup refresh session
     const stored = await this.sessionService.getSessionByRefreshToken(refreshToken);
 
     if (!stored) {
       throw new UnauthorizedException('Invalid refresh token');
     }
 
-    // Verify refresh token hash
     const isValid = await this.sessionService.verifyRefreshToken(refreshToken, stored);
+
     if (!isValid) {
       this.logger.warn('Refresh token hash verification failed');
       await this.sessionService.revokeByRefreshToken(refreshToken);
@@ -43,27 +43,16 @@ export class LocalRefreshService {
 
     const payload: SessionPayload = stored.payload;
 
-    // Generate new session (hybrid JWT + Redis jti)
-    const newAccessToken = generateSecureToken(32);
-    const newRefreshToken = generateSecureToken(32);
+    // IMPORTANT: must use AuthService hybrid JWT session generator
+    const newSession = await this.authService.createSessionToken(payload.userId);
 
-    await this.sessionService.createSession(
-      payload,
-      newAccessToken,
-      newRefreshToken,
-      {
-        ip: meta?.ip ?? stored.ip,
-        userAgent: meta?.userAgent ?? stored.userAgent,
-      }
-    );
-
-    // Revoke old refresh token
+    // revoke old refresh token
     await this.sessionService.revokeByRefreshToken(refreshToken);
 
-    // Build response DTO
+    // build response
     const response = new RefreshTokenResponseDto();
-    response.accessToken = newAccessToken;
-    response.refreshToken = newRefreshToken;
+    response.accessToken = newSession.accessToken;
+    response.refreshToken = newSession.refreshToken;
     response.user = payload;
 
     return response;

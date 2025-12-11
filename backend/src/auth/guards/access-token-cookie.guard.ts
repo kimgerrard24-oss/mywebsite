@@ -19,16 +19,35 @@ export class AccessTokenCookieAuthGuard implements CanActivate {
     const req = context.switchToHttp().getRequest<Request>();
 
     try {
-      // Validate from cookie
-      const sessionUser =
-        await this.validateSessionService.validateAccessTokenFromRequest(req);
+      // ================================================
+      // FIX: decode Base64URL access token cookie
+      // ================================================
+      const encoded = req.cookies?.['phl_access'];
+      let decodedToken: string | null = null;
 
-      // Attach to request as user (NestJS standard)
+      if (encoded && typeof encoded === 'string') {
+        decodedToken = this.decodeBase64Url(encoded);
+      }
+
+      // ส่ง decoded token เข้า service
+      const sessionUser =
+        await this.validateSessionService.validateAccessTokenFromRequest(req, decodedToken);
+
       (req as any).user = sessionUser;
 
       return true;
     } catch {
       throw new UnauthorizedException('Unauthorized');
+    }
+  }
+
+  private decodeBase64Url(encoded: string): string | null {
+    try {
+      const base64 = encoded.replace(/-/g, '+').replace(/_/g, '/');
+      const padded = base64.padEnd(Math.ceil(base64.length / 4) * 4, '=');
+      return Buffer.from(padded, 'base64').toString('utf8');
+    } catch {
+      return null;
     }
   }
 }

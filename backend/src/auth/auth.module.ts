@@ -53,6 +53,7 @@ import { SessionModule } from './session/session.module';
 
     // Our JWT + Redis jti session layer
     SessionModule,
+    
   ],
 
   providers: [

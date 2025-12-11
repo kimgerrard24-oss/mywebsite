@@ -17,7 +17,6 @@ import {
   ACCESS_TOKEN_TTL_SECONDS,
   REFRESH_TOKEN_TTL_SECONDS,
 } from '../../session/session.constants';
-import { SessionService } from '../../session/session.service';
 
 @Controller('auth/local')
 export class LocalRefreshController {
@@ -25,7 +24,6 @@ export class LocalRefreshController {
 
   constructor(
     private readonly localRefreshService: LocalRefreshService,
-    private readonly sessionService: SessionService,
   ) {}
 
   @Post('refresh')
@@ -51,28 +49,17 @@ export class LocalRefreshController {
 
     const userAgent = req.headers['user-agent'] || null;
 
+    // LocalRefreshService already handles:
+    // - verifying old refresh token
+    // - revoking old refresh token
+    // - creating new session (access+jti+refresh)
     const result = await this.localRefreshService.refreshTokens(
       oldRefreshToken,
-      {
-        ip,
-        userAgent,
-      },
+      { ip, userAgent },
     );
 
-    // revoke old refresh token
-    try {
-      await this.sessionService.revokeByRefreshToken(oldRefreshToken);
-    } catch (e) {
-      this.logger.error('Failed to revoke old refresh token', e);
-    }
-
-    // ===================================================================
-    // FIX 1 : sameSite: 'none'
-    // FIX 2 : secure: true
-    // FIX 3 : domain: COOKIE_DOMAIN
-    // ===================================================================
     const cookieDomain = process.env.COOKIE_DOMAIN;
-    const secureFlag = true; // always secure in production with SameSite=None
+    const secureFlag = true;
 
     res.cookie(ACCESS_TOKEN_COOKIE_NAME, result.accessToken, {
       httpOnly: true,
