@@ -329,19 +329,36 @@ export class RedisService {
     }
   }
 
-  async deleteSessionByToken(token: string): Promise<void> {
-    if (!this.client) {
-      this.logger.warn('Redis client not available - deleteSessionByToken ignored');
-      return;
-    }
-
-    const key = `session:${token}`;
-
-    try {
-      await this.client.del(key);
-      this.logger.log(`Deleted session key: ${key}`);
-    } catch (err: any) {
-      this.logger.error(`Redis deleteSessionByToken error: ${err?.message ?? String(err)}`);
-    }
+  async deleteSessionByJti(jti: string): Promise<void> {
+  if (!this.client) {
+    this.logger.warn('Redis client not available - deleteSessionByJti ignored');
+    return;
   }
+
+  const key = `session:access:${jti}`;
+
+  try {
+    await this.client.del(key);
+    this.logger.log(`Deleted access session key: ${key}`);
+  } catch (err: any) {
+    this.logger.error(`Redis deleteSessionByJti error: ${err?.message ?? String(err)}`);
+  }
+}
+
+async deleteRefreshSession(refreshToken: string): Promise<void> {
+  if (!this.client) {
+    this.logger.warn('Redis client not available - deleteRefreshSession ignored');
+    return;
+  }
+
+  const key = `session:refresh:${refreshToken}`;
+
+  try {
+    await this.client.del(key);
+    this.logger.log(`Deleted refresh session key: ${key}`);
+  } catch (err: any) {
+    this.logger.error(`Redis deleteRefreshSession error: ${err?.message ?? String(err)}`);
+  }
+}
+
 }

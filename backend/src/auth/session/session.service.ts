@@ -53,8 +53,8 @@ export class SessionService implements OnModuleDestroy {
     }
   }
 
-  private buildAccessKey(accessToken: string): string {
-    return `${ACCESS_TOKEN_KEY_PREFIX}${accessToken}`;
+  private buildAccessKey(jti: string): string {
+    return `${ACCESS_TOKEN_KEY_PREFIX}${jti}`;
   }
 
   private buildRefreshKey(refreshToken: string): string {
@@ -62,27 +62,25 @@ export class SessionService implements OnModuleDestroy {
   }
 
   /**
-   * สร้าง session ใหม่: เก็บใน Redis ทั้ง access และ refresh key
+   * สร้าง session ใหม่ (ใช้ jti เท่านั้น)
    */
   async createSession(
     payload: SessionPayload,
-    accessToken: string,
+    jti: string,
     refreshToken: string,
     meta?: { userAgent?: string | null; ip?: string | null },
   ): Promise<void> {
     const refreshTokenHash = await argon2.hash(refreshToken);
-    const accessTokenHash = await argon2.hash(accessToken);
 
     const sessionData: StoredSessionData = {
       payload,
       refreshTokenHash,
-      accessTokenHash,
       userAgent: meta?.userAgent ?? null,
       ip: meta?.ip ?? null,
       createdAt: new Date().toISOString(),
     };
 
-    const accessKey = this.buildAccessKey(accessToken);
+    const accessKey = this.buildAccessKey(jti);
     const refreshKey = this.buildRefreshKey(refreshToken);
     const serialized = JSON.stringify(sessionData);
 
@@ -102,8 +100,7 @@ export class SessionService implements OnModuleDestroy {
     if (!raw) return null;
 
     try {
-      const parsed = JSON.parse(raw) as StoredSessionData;
-      return parsed;
+      return JSON.parse(raw) as StoredSessionData;
     } catch (e) {
       this.logger.error('Failed to parse StoredSessionData from Redis', e);
       return null;
@@ -131,8 +128,8 @@ export class SessionService implements OnModuleDestroy {
     }
   }
 
-  async revokeByAccessToken(accessToken: string): Promise<void> {
-    const accessKey = this.buildAccessKey(accessToken);
+  async revokeByJTI(jti: string): Promise<void> {
+    const accessKey = this.buildAccessKey(jti);
     try {
       await this.redis.del(accessKey);
     } catch (e) {

@@ -31,9 +31,6 @@ export interface StoredSessionData {
   // refresh token (opaque) hashed with argon2
   refreshTokenHash: string;
 
-  // access token hash (legacy: สำหรับ session model เก่า)
-  accessTokenHash: string;
-
   userAgent: string | null;
   ip: string | null;
 

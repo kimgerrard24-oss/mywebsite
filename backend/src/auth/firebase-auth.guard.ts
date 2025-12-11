@@ -1,6 +1,7 @@
 // ==============================
 // file: src/auth/firebase-auth.guard.ts
 // ==============================
+
 import {
   CanActivate,
   ExecutionContext,
@@ -27,7 +28,7 @@ export class FirebaseAuthGuard implements CanActivate {
     const req = ctx.switchToHttp().getRequest<Request & Record<string, any>>();
 
     // ============================================
-    // 1) Public Decorator — allow bypass
+    // 1) Public Decorator
     // ============================================
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       ctx.getHandler(),
@@ -39,15 +40,31 @@ export class FirebaseAuthGuard implements CanActivate {
     }
 
     // ============================================
-    // 2) Normalize URL (lowercase & no query)
+    // 2) Normalize URL
     // ============================================
     const rawUrl = req.originalUrl || req.url || '';
     const url = rawUrl.split('?')[0].toLowerCase();
 
     // ============================================
-    // FIXED: Public URL Prefixes (correct slash)
+    // 3) Public prefixes (Firebase-related only)
     // ============================================
     const publicPrefixes = [
+      '/auth/local/google',
+      '/auth/local/google/callback',
+      '/auth/local/facebook',
+      '/auth/local/facebook/callback',
+      '/auth/local/complete',
+      '/auth/local/session',
+      '/auth/local/firebase',
+
+      '/api/auth/local/google',
+      '/api/auth/local/google/callback',
+      '/api/auth/local/facebook',
+      '/api/auth/local/facebook/callback',
+      '/api/auth/local/complete',
+      '/api/auth/local/firebase',
+      '/api/auth/local/session',
+
       '/system-check',
       '/health',
       '/health/',
@@ -58,51 +75,17 @@ export class FirebaseAuthGuard implements CanActivate {
       '/health/queue',
       '/health/socket',
       '/health/r2',
-
-      '/auth/local/google',
-      '/auth/local/google/callback',
-      '/auth/local/google/redirect',
-      '/auth/local/facebook',
-      '/auth/local/facebook/callback',
-      '/auth/local/facebook/redirect',
-      '/auth/local/session',
-      '/auth/local/logout',
-      '/auth/local/config',
-      '/auth/local/complete',
-      '/auth/local/firebase',
-
-      '/api/auth/local/google',
-      '/api/auth/local/google/callback',
-      '/api/auth/local/facebook',
-      '/api/auth/local/facebook/callback',
-      '/api/auth/local/complete',
-      '/api/auth/local/firebase',
-      '/api/auth/local/session', // FIXED
-
-      '/auth/google',
-      '/auth/google/callback',
-      '/auth/google/redirect',
-      '/auth/facebook',
-      '/auth/facebook/callback',
-      '/auth/facebook/redirect',
-      '/auth/session',
-      '/auth/logout',
-      '/auth/config',
-      '/auth/complete',
-      '/auth/firebase',
-
-      '/api/auth/google',
-      '/api/auth/google/callback',
-      '/api/auth/facebook',
-      '/api/auth/facebook/callback',
-      '/api/auth/complete',
-      '/api/auth/firebase',
-      '/api/auth/session', // FIXED
     ];
 
-    // ============================================
-    // SECURE MATCH: exact or prefix/
-    // ============================================
+    // Firebase guard should NOT block other auth systems
+    // เช่น /users/me ต้องไปใช้ AccessTokenCookieAuthGuard ไม่ใช่อันนี้
+    const localAuthPrefixes = ['/auth/local', '/api/auth/local'];
+    for (const p of localAuthPrefixes) {
+      if (url === p || url.startsWith(p + '/')) {
+        return true;
+      }
+    }
+
     for (const p of publicPrefixes) {
       if (url === p || url.startsWith(p + '/')) {
         return true;
@@ -110,25 +93,15 @@ export class FirebaseAuthGuard implements CanActivate {
     }
 
     // ============================================
-    // 3) NEW: Support local session (important)
-    // ============================================
-    if (req.session && req.session.user) {
-      req.user = req.session.user;
-      return true;
-    }
-
-    // ============================================
-    // 4) Authenticate: Session Cookie OR Bearer
+    // 4) Try Firebase Session Cookie
     // ============================================
     const cookieName = process.env.SESSION_COOKIE_NAME || '__session';
     let sessionCookieValue: string | null = null;
 
     try {
-      if ((req as any).cookies && (req as any).cookies[cookieName]) {
-        sessionCookieValue = (req as any).cookies[cookieName];
-      }
-
-      if (!sessionCookieValue && typeof req.headers.cookie === 'string') {
+      if (req.cookies && req.cookies[cookieName]) {
+        sessionCookieValue = req.cookies[cookieName];
+      } else if (typeof req.headers.cookie === 'string') {
         const parsed = cookie.parse(req.headers.cookie);
         sessionCookieValue = parsed[cookieName] || null;
       }
@@ -150,7 +123,6 @@ export class FirebaseAuthGuard implements CanActivate {
 
       if (authHeader.startsWith('Bearer ')) {
         const token = authHeader.replace(/^Bearer\s+/i, '').trim();
-
         if (token) {
           const decoded = await this.firebase.auth().verifyIdToken(token);
           req.user = decoded;
@@ -158,18 +130,17 @@ export class FirebaseAuthGuard implements CanActivate {
         }
       }
     } catch (error) {
-      this.logger.debug('Token verification failed: ' + String(error));
+      this.logger.debug('Firebase token verification failed: ' + String(error));
     }
 
     // ============================================
-    // 5) Allow WebSocket Upgrade
+    // 5) WebSocket upgrade allow for handshake only
     // ============================================
     const isWebsocketUpgrade =
       (req.headers.upgrade &&
         String(req.headers.upgrade).toLowerCase() === 'websocket') ||
       (req.headers.connection &&
-        String(req.headers.connection).toLowerCase().includes('upgrade')) ||
-      req.headers['sec-websocket-key'];
+        String(req.headers.connection).toLowerCase().includes('upgrade'));
 
     if (isWebsocketUpgrade) {
       return true;

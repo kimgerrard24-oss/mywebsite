@@ -11,6 +11,11 @@ import {
 import { Reflector } from '@nestjs/core';
 import { IS_PUBLIC_KEY } from './decorators/public.decorator';
 import { ValidateSessionService } from './services/validate-session.service';
+import type { Request } from 'express';
+
+interface AuthenticatedRequest extends Request {
+  user?: { userId: string };
+}
 
 @Injectable()
 export class AuthGuard implements CanActivate {
@@ -29,17 +34,18 @@ export class AuthGuard implements CanActivate {
       return true;
     }
 
-    const req = context.switchToHttp().getRequest();
+    const req = context.switchToHttp().getRequest<AuthenticatedRequest>();
 
     if (!req) {
       throw new UnauthorizedException('Authentication required');
     }
 
     try {
-      const sessionUser =
-        await this.validateSessionService.validateAccessTokenFromRequest(req);
+      const sessionUser = await this.validateSessionService.validateAccessTokenFromRequest(req);
 
-      req.user = sessionUser;
+      // Normalize and attach to request in a predictable shape
+      req.user = { userId: sessionUser.userId };
+
       return true;
     } catch {
       throw new UnauthorizedException('Authentication required');

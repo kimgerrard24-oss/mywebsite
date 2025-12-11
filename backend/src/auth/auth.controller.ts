@@ -35,6 +35,7 @@ import { RateLimitGuard } from '../common/rate-limit/rate-limit.guard';
 import { RateLimitService } from '../common/rate-limit/rate-limit.service';
 import { AuthGuard } from './auth.guard';
 import { UserProfileDto } from './dto/user-profile.dto';
+import { AccessTokenCookieAuthGuard } from './guards/access-token-cookie.guard';
 
 interface JwtUserPayload {
   // ปรับตาม payload จริงของคุณ
@@ -316,7 +317,7 @@ async login(
 }
 
 // Local Logout
-@UseGuards(AuthGuard, RateLimitGuard)
+@UseGuards(AccessTokenCookieAuthGuard, RateLimitGuard)
 @Post('logout')
 @HttpCode(200)
 async logout(@Req() req: Request, @Res() res: Response) {

@@ -26,20 +26,11 @@ export class UsersController {
   ) {}
 
   @Post()
-  async create(@Body() dto: CreateUserDto, @Req() req: Request) {
-    // ใช้ระบบ session ใหม่ — ใช้ access token จาก cookie
-    const cookieName = process.env.ACCESS_TOKEN_COOKIE_NAME || 'phl_access';
-    const accessToken = req.cookies?.[cookieName];
+  @UseGuards(AccessTokenCookieAuthGuard)
+  async create(@Body() dto: CreateUserDto, @CurrentUser() sessionUser: SessionUser) {
 
-    if (!accessToken) {
-      throw new UnauthorizedException('Missing authentication token');
-    }
-
-    // verify JWT + redis session
-    const payload = await this.authService.verifyAccessToken(accessToken);
-
-    if (!payload?.sub) {
-      throw new UnauthorizedException('Invalid authentication token');
+    if (!sessionUser?.userId) {
+      throw new UnauthorizedException('Authentication required');
     }
 
     return {
@@ -55,7 +46,7 @@ export class UsersController {
   ): Promise<UserProfileDto> {
 
     if (!sessionUser?.userId) {
-      throw new Error('Session user is not available');
+      throw new UnauthorizedException('Authentication required');
     }
 
     return this.usersService.getMe(sessionUser.userId);

@@ -1,3 +1,5 @@
+// file: src/auth/auth.repository.ts
+
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
@@ -23,7 +25,7 @@ export class AuthRepository {
         id: true,
         email: true,
         username: true,
-        name: true,             
+        name: true,
         hashedPassword: true,
         isDisabled: true,
         isEmailVerified: true,
@@ -40,10 +42,14 @@ export class AuthRepository {
     });
   }
 
-  async createRefreshToken(userId: string, token: string, expiresAt: Date) {
-    return this.prisma.refreshToken.create({
-      data: { userId, token, expiresAt },
-    });
+  /**
+   * Legacy function (no longer used in new Redis-based session system)
+   * Disabled to avoid accidental usage.
+   */
+  async createRefreshToken(): Promise<never> {
+    throw new Error(
+      'createRefreshToken() is deprecated. Refresh tokens are now stored in Redis only.'
+    );
   }
 
   async findByEmailOrUsername(email: string, username: string) {

@@ -59,39 +59,39 @@ export class LocalRefreshController {
       },
     );
 
-    // =========================================================
-    // Refresh Token Rotation (REVOKE OLD)
-    // =========================================================
+    // revoke old refresh token
     try {
       await this.sessionService.revokeByRefreshToken(oldRefreshToken);
     } catch (e) {
       this.logger.error('Failed to revoke old refresh token', e);
     }
 
-    // =========================================================
-    // Set new cookies
-    // =========================================================
-    const isProduction = process.env.NODE_ENV === 'production';
+    // ===================================================================
+    // FIX 1 : sameSite: 'none'
+    // FIX 2 : secure: true
+    // FIX 3 : domain: COOKIE_DOMAIN
+    // ===================================================================
+    const cookieDomain = process.env.COOKIE_DOMAIN;
+    const secureFlag = true; // always secure in production with SameSite=None
 
     res.cookie(ACCESS_TOKEN_COOKIE_NAME, result.accessToken, {
       httpOnly: true,
-      secure: isProduction,
-      sameSite: 'lax',
+      secure: secureFlag,
+      sameSite: 'none',
+      domain: cookieDomain,
       maxAge: ACCESS_TOKEN_TTL_SECONDS * 1000,
       path: '/',
     });
 
     res.cookie(REFRESH_TOKEN_COOKIE_NAME, result.refreshToken, {
       httpOnly: true,
-      secure: isProduction,
-      sameSite: 'lax',
+      secure: secureFlag,
+      sameSite: 'none',
+      domain: cookieDomain,
       maxAge: REFRESH_TOKEN_TTL_SECONDS * 1000,
       path: '/',
     });
 
-    // =========================================================
-    // Return result
-    // =========================================================
     return {
       accessToken: result.accessToken,
       refreshToken: result.refreshToken,

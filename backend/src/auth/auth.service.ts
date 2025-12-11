@@ -43,6 +43,13 @@ interface FacebookOAuthConfig {
   redirectUri: string;
 }
 
+interface AccessTokenPayload {
+  sub: string;
+  jti: string;
+  iat?: number;
+  exp?: number;
+}
+
 const ACCESS_TOKEN_TTL = Number(process.env.ACCESS_TOKEN_TTL_SECONDS) || 60 * 15;
 const REFRESH_TOKEN_TTL = Number(process.env.REFRESH_TOKEN_TTL_SECONDS) || 60 * 60 * 24 * 30;
 const ACCESS_TOKEN_COOKIE_NAME = process.env.ACCESS_TOKEN_COOKIE_NAME || 'phl_access';
@@ -164,26 +171,28 @@ async validateUser(email: string, password: string) {
 async createSessionToken(userId: string) {
   const accessTTL = Number(process.env.ACCESS_TOKEN_TTL_SECONDS) || 60 * 15;
 
-  const jwtPayload = { sub: userId }; // ไม่ต้องมี jti แล้ว
+  const jti = randomUUID();
 
-  const accessToken = jwt.sign(
-    jwtPayload,
-    process.env.JWT_ACCESS_SECRET as string,
-    {
-      expiresIn: accessTTL,
-      algorithm: 'HS256',
-    },
-  );
+  const payload: AccessTokenPayload = {
+    sub: userId,
+    jti,
+  };
 
-  // เก็บ session ตาม accessToken
-  const accessKey = `session:access:${accessToken}`;
+  const secret = process.env.JWT_ACCESS_SECRET as string;
+
+  const accessToken = jwt.sign(payload, secret, {
+    expiresIn: accessTTL,
+    algorithm: 'HS256',
+  });
+
+  const accessKey = `session:access:${jti}`;
   await this.redis.setex(
     accessKey,
     accessTTL,
     JSON.stringify({ userId, createdAt: Date.now() }),
   );
 
-  // ===== refresh token เดิมใช้ได้ต่อไป =====
+  // refresh token logic (unchanged)
   const refreshToken = randomBytes(48).toString('hex');
   const refreshKey = `session:refresh:${refreshToken}`;
   const refreshTTL =
@@ -209,24 +218,21 @@ async createSessionToken(userId: string) {
 }
 
 
+
 // -------------------------------------------------------
 // Verify Access Token (JWT)
 // -------------------------------------------------------
 async verifyAccessToken(token: string): Promise<{ sub: string }> {
   try {
-    // verify JWT
-    const payload = jwt.verify(
-      token,
-      process.env.JWT_ACCESS_SECRET as string,
-      { algorithms: ['HS256'] }
-    ) as { sub?: string };
+    const secret = process.env.JWT_ACCESS_SECRET as string;
 
-    if (!payload?.sub) {
+    const payload = jwt.verify(token, secret) as AccessTokenPayload;
+
+    if (!payload?.sub || !payload?.jti) {
       throw new UnauthorizedException('Invalid JWT payload');
     }
 
-    //  เช็ค session ด้วย access token
-    const redisKey = `session:access:${token}`;
+    const redisKey = `session:access:${payload.jti}`;
     const exists = await this.redis.exists(redisKey);
 
     if (!exists) {
@@ -234,11 +240,10 @@ async verifyAccessToken(token: string): Promise<{ sub: string }> {
     }
 
     return { sub: payload.sub };
-  } catch {
+  } catch (err) {
     throw new UnauthorizedException('Invalid or expired token');
   }
 }
-
 
 // Local Logout
 async logout(req: any, res: any) {
@@ -248,16 +253,23 @@ async logout(req: any, res: any) {
   const accessToken = req.cookies?.[accessCookie];
   const refreshToken = req.cookies?.[refreshCookie];
 
-  // 🔥 ลบ session ด้วย accessToken (ไม่ decode อีกต่อไป)
   if (accessToken) {
-    await this.redis.del(`session:access:${accessToken}`);
+    try {
+      const secret = process.env.JWT_ACCESS_SECRET as string;
+      const payload = jwt.verify(accessToken, secret) as AccessTokenPayload;
+
+      if (payload?.jti) {
+        await this.redis.del(`session:access:${payload.jti}`);
+      }
+    } catch (err) {
+      // token invalid → ignore
+    }
   }
 
   if (refreshToken) {
     await this.redis.del(`session:refresh:${refreshToken}`);
   }
 
-  // clear cookies
   res.clearCookie(accessCookie, {
     httpOnly: true,
     secure: true,
@@ -276,7 +288,6 @@ async logout(req: any, res: any) {
 
   return { success: true };
 }
-
 
 // Get user/me Profile
  async getProfile(userId: string): Promise<UserProfileDto> {

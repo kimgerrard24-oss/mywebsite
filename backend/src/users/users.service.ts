@@ -6,7 +6,7 @@ import { UserProfileDto } from "./dto/user-profile.dto";
 
 @Injectable()
 export class UsersService {
-  private prisma = new PrismaService();
+  constructor(private readonly prisma: PrismaService) {}
 
   async findByEmail(email: string) {
     return this.prisma.user.findUnique({ where: { email } });
@@ -119,6 +119,7 @@ export class UsersService {
         username: true,
         name: true,
         avatarUrl: true,
+        bio: true,
         createdAt: true,
         updatedAt: true,
       },
@@ -137,9 +138,12 @@ export class UsersService {
         id: true,
         email: true,
         displayName: true,
+        username: true,
+        name: true,
         avatarUrl: true,
         bio: true,
         createdAt: true,
+        updatedAt: true,
         // ไม่ select hashedPassword / token / fields ลับอื่น ๆ
       },
     });

@@ -3,10 +3,11 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { PassportStrategy } from '@nestjs/passport';
 import { ExtractJwt, Strategy, StrategyOptions } from 'passport-jwt';
+import { AuthService } from './auth.service';
 
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
-  constructor() {
+  constructor(private readonly authService: AuthService) {
     const secret = process.env.JWT_ACCESS_SECRET;
 
     if (!secret || secret.trim() === '') {
@@ -15,11 +16,8 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
 
     const options: StrategyOptions = {
       jwtFromRequest: ExtractJwt.fromExtractors([
-        // 1) Authorization: Bearer <token>
-        ExtractJwt.fromAuthHeaderAsBearerToken(),
-
-        // 2) Cookie: phl_access=<token>
-        (req) => req?.cookies?.['phl_access'],
+        // ใช้ cookie เท่านั้น
+        (req) => req?.cookies?.[process.env.ACCESS_TOKEN_COOKIE_NAME || 'phl_access'] || null,
       ]),
       secretOrKey: secret,
       ignoreExpiration: false,
@@ -29,14 +27,24 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   }
 
   async validate(payload: any) {
-    if (!payload || !payload.sub) {
+    if (!payload || !payload.sub || !payload.jti) {
       throw new UnauthorizedException('Invalid JWT payload');
     }
 
+    // ตรวจ Redis session (สำคัญมาก)
+    const jti = payload.jti;
+    const sessionKey = `session:access:${jti}`;
+
+    const exists = await this.authService['redis'].exists(sessionKey);
+
+    if (!exists) {
+      throw new UnauthorizedException('Session not found or expired');
+    }
+
+    // คืนค่าให้ Passport → req.user
     return {
       userId: payload.sub,
-      email: payload.email,
-      jti: payload.jti || null,
+      jti,
     };
   }
 }
