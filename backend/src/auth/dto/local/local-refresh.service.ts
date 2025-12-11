@@ -1,5 +1,3 @@
-// src/auth/local/local-refresh.service.ts
-
 import {
   Injectable,
   UnauthorizedException,
@@ -9,7 +7,7 @@ import {
 import { SessionService } from '../../session/session.service';
 import { SessionPayload } from '../../session/session.types';
 import { RefreshTokenResponseDto } from '../refresh-token-response.dto';
-import { generateSecureToken } from '../../../common/crypto/token-generator.util';
+import { AuthService } from '../../auth.service';
 
 @Injectable()
 export class LocalRefreshService {
@@ -17,11 +15,9 @@ export class LocalRefreshService {
 
   constructor(
     private readonly sessionService: SessionService,
+    private readonly authService: AuthService,
   ) {}
 
-  /**
-   * Refresh tokens using new session-based architecture (no JWT here)
-   */
   async refreshTokens(
     refreshToken: string,
     meta?: { ip?: string | null; userAgent?: string | null },
@@ -31,14 +27,12 @@ export class LocalRefreshService {
       throw new BadRequestException('Refresh token is required');
     }
 
-    // Retrieve stored refresh session
     const stored = await this.sessionService.getSessionByRefreshToken(refreshToken);
 
     if (!stored) {
       throw new UnauthorizedException('Invalid refresh token');
     }
 
-    // Validate refresh token hash
     const isValid = await this.sessionService.verifyRefreshToken(refreshToken, stored);
     if (!isValid) {
       this.logger.warn('Refresh token hash verification failed');
@@ -48,23 +42,14 @@ export class LocalRefreshService {
 
     const payload: SessionPayload = stored.payload;
 
-    // Issue new access + refresh tokens
-    const newAccessToken = generateSecureToken(32);
-    const newRefreshToken = generateSecureToken(32);
+    // FIX: ใช้ตาม signature ปัจจุบัน (รับแค่ userId)
+    const newSession = await this.authService.createSessionToken(payload.userId);
 
-    // Create new session (stores new tokens in Redis)
-    await this.sessionService.createSession(payload, newAccessToken, newRefreshToken, {
-      ip: meta?.ip ?? stored.ip,
-      userAgent: meta?.userAgent ?? stored.userAgent,
-    });
-
-    // Revoke the old refresh token
     await this.sessionService.revokeByRefreshToken(refreshToken);
 
-    // Build response DTO
     const response = new RefreshTokenResponseDto();
-    response.accessToken = newAccessToken;
-    response.refreshToken = newRefreshToken;
+    response.accessToken = newSession.accessToken;
+    response.refreshToken = newSession.refreshToken;
     response.user = payload;
 
     return response;

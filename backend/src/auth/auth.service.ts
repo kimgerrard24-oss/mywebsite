@@ -30,6 +30,7 @@ import { RedisService } from '../redis/redis.service';
 import { UserProfileDto } from './dto/user-profile.dto';
 import { UsersService } from '../users/users.service';
 import * as jwt from 'jsonwebtoken';
+import { SessionService } from './session/session.service';
 
 interface GoogleOAuthConfig {
   clientId: string;
@@ -68,7 +69,7 @@ constructor(
   private readonly audit: AuditService,
   private readonly redisService: RedisService,
   private readonly userService: UsersService,
-
+  private readonly sessionService: SessionService,
     @Inject('REDIS_CLIENT')
     private readonly redis: Redis,
 ) {}
@@ -166,13 +167,17 @@ async validateUser(email: string, password: string) {
 }
 
 // -------------------------------------------------------
-// Create Session Token
+// Create Session Token (NEW SYSTEM: use SessionService for Redis)
 // -------------------------------------------------------
 async createSessionToken(userId: string) {
   const accessTTL = Number(process.env.ACCESS_TOKEN_TTL_SECONDS) || 60 * 15;
+  const refreshTTL =
+    Number(process.env.REFRESH_TOKEN_TTL_SECONDS) || 60 * 60 * 24 * 7;
 
+  // jti for session:access:<jti>
   const jti = randomUUID();
 
+  // JWT payload
   const payload: AccessTokenPayload = {
     sub: userId,
     jti,
@@ -180,34 +185,24 @@ async createSessionToken(userId: string) {
 
   const secret = process.env.JWT_ACCESS_SECRET as string;
 
+  // 1) Create JWT access token
   const accessToken = jwt.sign(payload, secret, {
     expiresIn: accessTTL,
     algorithm: 'HS256',
   });
 
-  const accessKey = `session:access:${jti}`;
-  await this.redis.setex(
-    accessKey,
-    accessTTL,
-    JSON.stringify({ userId, createdAt: Date.now() }),
-  );
-
-  // refresh token logic (unchanged)
+  // 2) Create refresh token
   const refreshToken = randomBytes(48).toString('hex');
-  const refreshKey = `session:refresh:${refreshToken}`;
-  const refreshTTL =
-    Number(process.env.REFRESH_TOKEN_TTL_SECONDS) || 60 * 60 * 24 * 30;
 
-  const refreshTokenHash = await argon2.hash(refreshToken);
-
-  await this.redis.setex(
-    refreshKey,
-    refreshTTL,
-    JSON.stringify({
-      userId,
-      refreshTokenHash,
-      createdAt: Date.now(),
-    }),
+  // 3) Store session in Redis using SessionService (NEW STANDARD)
+  await this.sessionService.createSession(
+    { userId }, // SessionPayload
+    jti, // NEW: we use jti as access key
+    refreshToken, // raw refresh token (SessionService hashes it)
+    {
+      ip: null,
+      userAgent: null,
+    }
   );
 
   return {
@@ -216,7 +211,6 @@ async createSessionToken(userId: string) {
     expiresIn: accessTTL,
   };
 }
-
 
 
 // -------------------------------------------------------

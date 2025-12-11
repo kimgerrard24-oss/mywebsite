@@ -1,6 +1,6 @@
 // file: src/auth/auth.module.ts
 
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { APP_GUARD } from '@nestjs/core';
 import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
@@ -29,6 +29,7 @@ import { PasswordResetMailService } from '../mail/password-reset-mail.service';
 import { UsersService } from '../users/users.service';
 import { ValidateSessionService } from './services/validate-session.service';
 import { AccessTokenCookieAuthGuard } from './guards/access-token-cookie.guard';
+import { SessionModule } from './session/session.module';
 
 @Module({
   imports: [
@@ -39,7 +40,9 @@ import { AccessTokenCookieAuthGuard } from './guards/access-token-cookie.guard';
     RateLimitModule,
     MailModule,
     LocalRefreshModule,
-  ],
+    SessionModule,
+    forwardRef(() => LocalRefreshModule),
+    ],
 
   providers: [
     AuthService,

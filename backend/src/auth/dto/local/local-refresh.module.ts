@@ -1,12 +1,14 @@
-// src/auth/local/local-refresh.module.ts
-
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { LocalRefreshController } from './local-refresh.controller';
 import { LocalRefreshService } from './local-refresh.service';
 import { SessionModule } from '../../session/session.module';
+import { AuthModule } from '../../auth.module';
 
 @Module({
-  imports: [SessionModule],
+  imports: [
+    SessionModule,
+    forwardRef(() => AuthModule),
+  ],
   controllers: [LocalRefreshController],
   providers: [LocalRefreshService],
   exports: [LocalRefreshService],
