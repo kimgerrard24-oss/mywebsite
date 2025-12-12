@@ -69,16 +69,12 @@ export default function FeedPage({ valid, user }: FeedProps) {
                 Dashboard
               </a>
 
-              {/* =====================
-                  NEW: Profile button
-              ===================== */}
               <Link
                 href="/profile"
                 className="text-sm font-medium hover:text-blue-600 transition"
               >
                 Profile
               </Link>
-              {/* ===================== */}
 
               <img
                 src={user?.picture || "/images/default-avatar.png"}
@@ -195,10 +191,8 @@ const MOCK_POSTS: Post[] = [
 ];
 
 export const getServerSideProps: GetServerSideProps = async (ctx) => {
-  // ดึง cookie จาก request
-  const cookieHeader = ctx.req.headers.cookie || "";
+  const cookieHeader = ctx.req.headers.cookie ?? undefined;
 
-  // ถูกต้อง → ส่ง cookieHeader ไปให้ sessionCheckServerSide
   const result = await sessionCheckServerSide(cookieHeader);
 
   if (!result || !result.valid) {
@@ -220,4 +214,3 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
     },
   };
 };
-

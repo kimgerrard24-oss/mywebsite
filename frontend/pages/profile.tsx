@@ -23,10 +23,9 @@ interface ProfilePageProps {
 export const getServerSideProps: GetServerSideProps<ProfilePageProps> = async (
   ctx,
 ) => {
-  const cookieHeader = ctx.req.headers.cookie;
+  const cookieHeader = ctx.req.headers.cookie || null;
 
-  // เรียกข้อมูลโปรไฟล์จาก backend (Local Auth)
-  const { profile, status } = await fetchMyProfileServer(cookieHeader);
+  const { profile, status } = await fetchMyProfileServer(cookieHeader || "");
 
   if (status === 401 || status === 403) {
     return {
@@ -65,7 +64,6 @@ const ProfilePage: NextPage<ProfilePageProps> = ({
   );
   const [error, setError] = useState<string | null>(null);
 
-  // Refresh โปรไฟล์ client-side เมื่อไม่มี initial data
   useEffect(() => {
     if (!isAuthenticated || initialProfile) return;
 
@@ -94,7 +92,6 @@ const ProfilePage: NextPage<ProfilePageProps> = ({
     };
   }, [isAuthenticated, initialProfile]);
 
-  // redirect client-side ถ้าไม่มี auth
   useEffect(() => {
     if (!isAuthenticated && !profile && !loading) {
       void router.replace("/");
@@ -123,7 +120,6 @@ const ProfilePage: NextPage<ProfilePageProps> = ({
       </Head>
 
       <main className="min-h-screen bg-gray-50 text-gray-900">
-        {/* ⛔️ ส่วนนี้ไม่แตะ เพราะคุณบอกไม่ให้แก้ส่วนที่ไม่เกี่ยวข้อง */}
         <header className="w-full bg-white shadow-sm sticky top-0 z-20">
           <nav className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
             <Link
@@ -143,15 +139,12 @@ const ProfilePage: NextPage<ProfilePageProps> = ({
             </div>
           </nav>
         </header>
-          
+
         <div className="max-w-5xl mx-auto px-4 pt-4">
-       <Link
-        href="/feed"
-        className="text-sm text-blue-600 hover:underline"
-  >
-        ← Back to feed
-        </Link>
-          </div>
+          <Link href="/feed" className="text-sm text-blue-600 hover:underline">
+            ← Back to feed
+          </Link>
+        </div>
 
         <div className="mx-auto max-w-5xl px-4 pb-12 pt-4 sm:px-6 lg:px-8">
           {loading && <ProfileSkeleton />}
