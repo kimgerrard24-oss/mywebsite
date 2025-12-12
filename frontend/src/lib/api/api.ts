@@ -155,6 +155,8 @@ export async function sessionCheckServerSide(cookieHeader?: string) {
       Accept: "application/json",
       ...(cookieHeader ? { cookie: cookieHeader } : {}),
     },
+    credentials: "include",
+    cache: "no-store",
   });
 
   if (!res.ok) return { valid: false };
@@ -166,6 +168,7 @@ export async function sessionCheckServerSide(cookieHeader?: string) {
     return { valid: false };
   }
 }
+
 
 // ==============================
 // SESSION CHECK (Client)

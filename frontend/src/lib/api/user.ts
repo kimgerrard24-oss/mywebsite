@@ -25,27 +25,19 @@ export interface UserProfile {
   updatedAt?: string;
 }
 
-/**
- * Axios instance สำหรับฝั่ง client (browser)
- * - withCredentials: true เพื่อส่ง cookie phl_access
- */
+// CSR client axios
 const apiClient: AxiosInstance = axios.create({
   baseURL: PUBLIC_API_BASE_URL,
   withCredentials: true,
 });
 
-/**
- * CSR: เรียกโปรไฟล์ตัวเองจากฝั่ง client
- * Backend response = { success, statusCode, data }
- */
+// CSR: เรียกโปรไฟล์ตัวเอง
 export async function fetchMyProfileClient(): Promise<UserProfile> {
   const response = await apiClient.get('/users/me');
   return response.data?.data;
 }
 
-/**
- * SSR: เรียกโปรไฟล์ตัวเองพร้อมส่ง cookie จาก request header
- */
+// SSR: เรียกโปรไฟล์ด้วย cookie จาก req.headers.cookie
 export async function fetchMyProfileServer(
   cookieHeader: string | undefined
 ): Promise<{
@@ -61,9 +53,14 @@ export async function fetchMyProfileServer(
   const response = await fetch(`${baseUrl}/users/me`, {
     method: "GET",
     headers: {
-      cookie: cookieHeader ?? "",
+      // FIX 1 — ห้ามใช้ "" เพราะ backend มองว่าเป็น invalid cookie
+      ...(cookieHeader ? { cookie: cookieHeader } : {}),
       Accept: "application/json",
-    }
+    },
+    // FIX 2 — ให้ SSR ส่ง cookie ข้าม domain
+    credentials: "include",
+    // FIX 3 — ป้องกัน SSR cache
+    cache: "no-store",
   });
 
   const status = response.status;

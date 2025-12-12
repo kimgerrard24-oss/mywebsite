@@ -21,11 +21,13 @@ interface ProfilePageProps {
 }
 
 export const getServerSideProps: GetServerSideProps<ProfilePageProps> = async (
-  ctx,
+  ctx
 ) => {
-  const cookieHeader = ctx.req.headers.cookie || null;
+  // FIX 1 — ต้องใช้ undefined หากไม่มี cookie
+  const cookieHeader = ctx.req.headers.cookie ?? undefined;
 
-  const { profile, status } = await fetchMyProfileServer(cookieHeader || "");
+  // FIX 2 — ห้ามส่ง "" ไปที่ fetchMyProfileServer
+  const { profile, status } = await fetchMyProfileServer(cookieHeader);
 
   if (status === 401 || status === 403) {
     return {
@@ -60,7 +62,7 @@ const ProfilePage: NextPage<ProfilePageProps> = ({
   const router = useRouter();
   const [profile, setProfile] = useState<UserProfile | null>(initialProfile);
   const [loading, setLoading] = useState<boolean>(
-    !initialProfile && isAuthenticated,
+    !initialProfile && isAuthenticated
   );
   const [error, setError] = useState<string | null>(null);
 
@@ -124,16 +126,17 @@ const ProfilePage: NextPage<ProfilePageProps> = ({
           <nav className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
             <Link
               href="/feed"
+              prefetch={false} 
               className="text-2xl font-semibold tracking-tight text-blue-600"
             >
               PhlyPhant
             </Link>
 
             <div className="flex items-center gap-4">
-              <Link href="/feed" className="text-sm hover:text-blue-600">
+              <Link href="/feed" prefetch={false} className="text-sm hover:text-blue-600">
                 Feed
               </Link>
-              <Link href="/dashboard" className="text-sm hover:text-blue-600">
+              <Link href="/dashboard" prefetch={false} className="text-sm hover:text-blue-600">
                 Dashboard
               </Link>
             </div>
@@ -141,7 +144,7 @@ const ProfilePage: NextPage<ProfilePageProps> = ({
         </header>
 
         <div className="max-w-5xl mx-auto px-4 pt-4">
-          <Link href="/feed" className="text-sm text-blue-600 hover:underline">
+          <Link href="/feed" prefetch={false} className="text-sm text-blue-600 hover:underline">
             ← Back to feed
           </Link>
         </div>

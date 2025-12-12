@@ -1,10 +1,10 @@
 // components/auth/LoginForm.tsx
-'use client';
+"use client";
 
-import React, { useState } from 'react';
-import { useRouter } from 'next/navigation';
-import { login } from '@/lib/auth/auth.service';
-import { useUserStore } from '@/stores/user.store';
+import React, { useState } from "react";
+import { useRouter } from "next/navigation";
+import { login } from "@/lib/auth/auth.service";
+import { useUserStore } from "@/stores/user.store";
 
 type FormState = {
   email: string;
@@ -18,10 +18,13 @@ function validateEmail(email: string) {
 
 export default function LoginForm() {
   const router = useRouter();
-  const { setUser } = useUserStore();
+
+  // user.store ไม่มี setUser แล้ว แต่เราใช้ destructure ได้ตามปกติ
+  const { isAuthenticated } = useUserStore();
+
   const [form, setForm] = useState<FormState>({
-    email: '',
-    password: '',
+    email: "",
+    password: "",
     remember: false,
   });
   const [visible, setVisible] = useState(false);
@@ -37,11 +40,11 @@ export default function LoginForm() {
     setErrorMsg(null);
 
     if (!validateEmail(form.email)) {
-      setErrorMsg('กรุณากรอกอีเมลที่ถูกต้อง');
+      setErrorMsg("กรุณากรอกอีเมลที่ถูกต้อง");
       return;
     }
     if (form.password.length < 8) {
-      setErrorMsg('รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร');
+      setErrorMsg("รหัสผ่านต้องมีอย่างน้อย 8 ตัวอักษร");
       return;
     }
 
@@ -54,41 +57,29 @@ export default function LoginForm() {
         remember: form.remember,
       });
 
-      const hasData =
-        res && typeof res === 'object' && 'data' in res && res.data;
-
-      if (hasData && res.success && res.data?.user) {
-        setUser(res.data.user);
-        router.push('/feed');
+      // Backend success → cookie ถูกเซตแล้ว
+      // AuthContext จะโหลด user เองหลังจากหน้า feed render
+      if (res?.success === true) {
+        router.push("/feed");
         return;
       }
 
-      // fallback from backend (rare)
-      setErrorMsg(res.message || 'ไม่สามารถเข้าสู่ระบบได้ กรุณาลองอีกครั้ง');
+      setErrorMsg(res.message || "ไม่สามารถเข้าสู่ระบบได้ กรุณาลองอีกครั้ง");
     } catch (err: any) {
-      console.error('Login error', err);
+      console.error("Login error", err);
 
-      // -----------------------------
-      // 🔥 Handle 401 - Invalid Credentials
-      // -----------------------------
       if (err.response?.status === 401) {
-        setErrorMsg('อีเมลหรือรหัสผ่านไม่ถูกต้อง');
+        setErrorMsg("อีเมลหรือรหัสผ่านไม่ถูกต้อง");
         return;
       }
 
-      // -----------------------------
-      // 🔥 Handle 429 - Rate Limit
-      // -----------------------------
       if (err.response?.status === 429) {
         const retry = err.response.data?.retryAfterSec || 60;
         setErrorMsg(`คุณพยายามเข้าสู่ระบบบ่อยเกินไป กรุณารอ ${retry} วินาที`);
         return;
       }
 
-      // -----------------------------
-      // ⚠️ Everything else
-      // -----------------------------
-      setErrorMsg('เกิดข้อผิดพลาดในระบบ กรุณาลองอีกครั้งภายหลัง');
+      setErrorMsg("เกิดข้อผิดพลาดในระบบ กรุณาลองอีกครั้งภายหลัง");
     } finally {
       setLoading(false);
     }
@@ -105,7 +96,7 @@ export default function LoginForm() {
             autoComplete="email"
             required
             value={form.email}
-            onChange={(e) => onChange('email', e.target.value)}
+            onChange={(e) => onChange("email", e.target.value)}
             className="mt-1 block w-full rounded-lg border border-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-300"
             aria-label="Email"
             aria-required="true"
@@ -125,15 +116,15 @@ export default function LoginForm() {
               className="text-sm text-slate-500 underline"
               aria-pressed={visible}
             >
-              {visible ? 'ซ่อน' : 'แสดง'}
+              {visible ? "ซ่อน" : "แสดง"}
             </button>
           </div>
           <input
-            type={visible ? 'text' : 'password'}
+            type={visible ? "text" : "password"}
             autoComplete="current-password"
             required
             value={form.password}
-            onChange={(e) => onChange('password', e.target.value)}
+            onChange={(e) => onChange("password", e.target.value)}
             className="mt-1 block w-full rounded-lg border border-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-300"
             aria-label="Password"
             aria-required="true"
@@ -147,7 +138,7 @@ export default function LoginForm() {
             <input
               type="checkbox"
               checked={form.remember}
-              onChange={(e) => onChange('remember', e.target.checked)}
+              onChange={(e) => onChange("remember", e.target.checked)}
               className="mr-2"
               aria-label="Remember me"
             />
@@ -175,7 +166,7 @@ export default function LoginForm() {
             className="w-full inline-flex items-center justify-center rounded-lg bg-slate-800 text-white px-4 py-2 text-sm font-medium disabled:opacity-60"
             aria-disabled={loading}
           >
-            {loading ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบ'}
+            {loading ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบ"}
           </button>
         </div>
       </div>

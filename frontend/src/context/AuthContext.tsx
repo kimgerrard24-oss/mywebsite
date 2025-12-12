@@ -35,7 +35,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // SSR safety
+    // SSR guard
     if (typeof window === "undefined") {
       setLoading(false);
       return;
@@ -52,29 +52,42 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // IMPORTANT: Removed auto-refresh logic
-    // Backend handles cookie rotation when needed.
-    // Frontend must remain stateless with respect to session handling.
-
-    const unsubscribe = onAuthStateChanged(auth, async () => {
+    // Hybrid Auth Logic (Local first, Firebase fallback)
+    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       try {
-        // ----------------------------------------------
-        // 1) Primary: Cookie-based Local Auth (/users/me)
-        // ----------------------------------------------
-        try {
-          const profile = await getProfile(); // wrapper → GET /users/me
-          if (profile) {
-            setUser(profile);
-            setLoading(false);
-            return;
+        // ======================================================
+        // CASE 1: NO Firebase user → treat as Local Auth mode
+        // ======================================================
+        if (!firebaseUser) {
+          try {
+            const profile = await getProfile();
+            if (profile) {
+              setUser(profile);
+              setLoading(false);
+              return;
+            }
+          } catch {
+            // no local profile — continue fallback
           }
-        } catch {
-          // continue to fallback
+
+          // fallback to session-check
+          const res = await fetch(`${API_BASE}/auth/session-check`, {
+            method: "GET",
+            credentials: "include",
+            headers: { Accept: "application/json" },
+          });
+
+          const data = await res.json().catch(() => null);
+          const valid = data?.valid === true;
+
+          setUser(valid ? data.user || null : null);
+          setLoading(false);
+          return;
         }
 
-        // ----------------------------------------------
-        // 2) Fallback: Firebase Social Login -> session-check
-        // ----------------------------------------------
+        // ======================================================
+        // CASE 2: Firebase user exists → Social Login mode
+        // ======================================================
         const res = await fetch(`${API_BASE}/auth/session-check`, {
           method: "GET",
           credentials: "include",
@@ -85,10 +98,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const valid = data?.valid === true;
 
         if (valid) {
-          // session-check basic user
           setUser(data.user || null);
 
-          // Attempt full profile (Local Auth)
+          // Try upgrade: get full local profile
           const profile = await getProfile().catch(() => null);
           if (profile) {
             setUser(profile);
