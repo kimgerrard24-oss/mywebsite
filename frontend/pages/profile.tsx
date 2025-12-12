@@ -23,20 +23,21 @@ interface ProfilePageProps {
 export const getServerSideProps: GetServerSideProps<ProfilePageProps> = async (ctx) => {
   const cookieHeader = ctx.req.headers.cookie ?? undefined;
 
-  const baseUrl =
-    process.env.NEXT_PUBLIC_API_BASE_URL ||
-    process.env.NEXT_PUBLIC_API_BASE ||
-    process.env.NEXT_PUBLIC_BACKEND_URL ||
-    "https://api.phlyphant.com";
+  // ใช้เฉพาะ INTERNAL_BACKEND_URL สำหรับ SSR
+  const baseUrl = process.env.INTERNAL_BACKEND_URL;
+
+  if (!baseUrl) {
+    throw new Error("INTERNAL_BACKEND_URL is missing in .env.production");
+  }
 
   const res = await fetch(`${baseUrl.replace(/\/+$/, "")}/users/me`, {
     method: "GET",
     headers: {
       Accept: "application/json",
-      ...(cookieHeader ? { Cookie: cookieHeader } : {})
+      ...(cookieHeader ? { Cookie: cookieHeader } : {}),
     },
     credentials: "include",
-    cache: "no-store"
+    cache: "no-store",
   });
 
   if (res.status === 401 || res.status === 403) {
@@ -58,6 +59,7 @@ export const getServerSideProps: GetServerSideProps<ProfilePageProps> = async (c
     },
   };
 };
+
 
 const ProfilePage: NextPage<ProfilePageProps> = ({
   initialProfile,
