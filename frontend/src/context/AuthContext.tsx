@@ -35,7 +35,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // SSR guard
     if (typeof window === "undefined") {
       setLoading(false);
       return;
@@ -52,25 +51,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // Hybrid Auth Logic (Local first, Firebase fallback)
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       try {
         // ======================================================
-        // CASE 1: NO Firebase user → treat as Local Auth mode
+        // CASE 1: NO Firebase user → Local Auth mode
         // ======================================================
         if (!firebaseUser) {
           try {
             const profile = await getProfile();
-            if (profile) {
-              setUser(profile);
+            const extracted = profile?.data || null;
+
+            if (extracted) {
+              setUser(extracted);
               setLoading(false);
               return;
             }
           } catch {
-            // no local profile — continue fallback
+            // fallback to session-check
           }
 
-          // fallback to session-check
           const res = await fetch(`${API_BASE}/auth/session-check`, {
             method: "GET",
             credentials: "include",
@@ -100,10 +99,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (valid) {
           setUser(data.user || null);
 
-          // Try upgrade: get full local profile
           const profile = await getProfile().catch(() => null);
-          if (profile) {
-            setUser(profile);
+          const extracted = profile?.data || null;
+
+          if (extracted) {
+            setUser(extracted);
           }
         } else {
           setUser(null);

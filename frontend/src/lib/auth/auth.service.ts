@@ -32,19 +32,24 @@ export async function login(payload: {
 
     return res.data;
   } catch (err: any) {
-    const message =
-      err?.response?.data?.message ?? "Login failed";
+    const message = err?.response?.data?.message ?? "Login failed";
     return { success: false, message };
   }
 }
 
 // ==============================
-// FETCH CURRENT USER
+// FETCH CURRENT USER (FIXED)
+// Must return only `data`, NOT whole response wrapper
 // ==============================
 export async function fetchCurrentUser() {
   try {
     const res = await api.get("/users/me");
-    return res.data;
+
+    if (res.data && typeof res.data === "object") {
+      return res.data.data || null;
+    }
+
+    return null;
   } catch {
     return null;
   }

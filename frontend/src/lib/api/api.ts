@@ -45,7 +45,6 @@ async function jsonFetch<T>(input: string, init: RequestInit = {}): Promise<T> {
     try {
       errBody = JSON.parse(errText);
     } catch {}
-
     const err: any = new Error(`HTTP ${res.status}`);
     err.status = res.status;
     err.body = errBody;
@@ -146,15 +145,21 @@ export async function logout() {
 }
 
 // ==============================
-// SESSION CHECK (SSR)
+// SESSION CHECK (SSR) — FIXED
 // ==============================
 export async function sessionCheckServerSide(cookieHeader?: string) {
+  const headers: Record<string, string> = {
+    Accept: "application/json",
+  };
+
+  // FIX: must use "Cookie" capitalized so backend receives it in SSR
+  if (cookieHeader && cookieHeader.trim()) {
+    headers["Cookie"] = cookieHeader;
+  }
+
   const res = await fetch(apiPath("/auth/session-check"), {
     method: "GET",
-    headers: {
-      Accept: "application/json",
-      ...(cookieHeader ? { cookie: cookieHeader } : {}),
-    },
+    headers,
     credentials: "include",
     cache: "no-store",
   });
@@ -162,13 +167,12 @@ export async function sessionCheckServerSide(cookieHeader?: string) {
   if (!res.ok) return { valid: false };
 
   try {
-    const data = await res.json();
-    return { valid: data.valid === true, ...data };
+    const data = await res.json().catch(() => null);
+    return { valid: data?.valid === true, ...data };
   } catch {
     return { valid: false };
   }
 }
-
 
 // ==============================
 // SESSION CHECK (Client)
@@ -189,9 +193,13 @@ export async function verifyEmail(token: string, uid: string) {
 }
 
 // ==============================
-// REFRESH TOKEN
+// REFRESH TOKEN (returns boolean)
 // ==============================
-export async function refreshAccessToken() {
-  const res = await api.post("/auth/local/refresh", {});
-  return res.data;
+export async function refreshAccessToken(): Promise<boolean> {
+  try {
+    await api.post("/auth/local/refresh", {});
+    return true;
+  } catch {
+    return false;
+  }
 }

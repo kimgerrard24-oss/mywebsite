@@ -4,7 +4,7 @@
 "use client";
 
 import { useEffect, useState, useContext } from "react";
-import { api } from "@/lib/api/api"; // FIXED
+import { api } from "@/lib/api/api";
 import type { User } from "@/types/index";
 import { AuthContext } from "@/context/AuthContext";
 
@@ -17,7 +17,7 @@ const rawBase =
 const API_BASE = rawBase.replace(/\/+$/, "");
 
 // ========================================
-// Added: useAuth() mapping from AuthContext
+// useAuth() mapping → AuthContext
 // ========================================
 export function useAuth() {
   const ctx = useContext(AuthContext);
@@ -45,7 +45,11 @@ export function useAuthInternal() {
 
         if (me.status >= 200 && me.status < 300) {
           if (!mounted) return;
-          setUser(me.data);
+
+          // FIXED: Extract only actual user object
+          const localUser = me.data?.data || null;
+          setUser(localUser);
+
           return;
         }
 
@@ -112,9 +116,7 @@ export function useAuthInternal() {
 
   const updateUser = (u: Partial<User> | null) => setUser(u);
 
-  // ---------------------------------------------
   // logout → backend clears session cookie
-  // ---------------------------------------------
   const signOut = async () => {
     try {
       await api.post("/auth/local/logout", {});

@@ -1,12 +1,10 @@
 // frontend/lib/api/user.ts
-import axios, { AxiosInstance } from 'axios';
+import axios, { AxiosInstance } from "axios";
 
-// Normalize function เพื่อป้องกัน baseURL ลงท้ายด้วย '/'
 function normalizeBaseUrl(url: string): string {
-  return url.replace(/\/+$/, '');
+  return url.replace(/\/+$/, "");
 }
 
-// โหลดค่าจาก ENV
 const PUBLIC_API_BASE_URL = normalizeBaseUrl(
   process.env.NEXT_PUBLIC_API_BASE_URL ||
     process.env.NEXT_PUBLIC_API_BASE ||
@@ -25,42 +23,40 @@ export interface UserProfile {
   updatedAt?: string;
 }
 
-// CSR client axios
+// ==============================
+// CSR (Browser)
+// ==============================
 const apiClient: AxiosInstance = axios.create({
   baseURL: PUBLIC_API_BASE_URL,
   withCredentials: true,
 });
 
-// CSR: เรียกโปรไฟล์ตัวเอง
 export async function fetchMyProfileClient(): Promise<UserProfile> {
-  const response = await apiClient.get('/users/me');
+  const response = await apiClient.get("/users/me");
   return response.data?.data;
 }
 
-// SSR: เรียกโปรไฟล์ด้วย cookie จาก req.headers.cookie
+// ==============================
+// SSR (Node Runtime)
+// ==============================
 export async function fetchMyProfileServer(
   cookieHeader: string | undefined
-): Promise<{
-  profile: UserProfile | null;
-  status: number;
-}> {
-  const baseUrl = normalizeBaseUrl(
-    process.env.NEXT_PUBLIC_API_BASE_URL ||
-      process.env.NEXT_PUBLIC_API_BASE ||
-      "https://api.phlyphant.com"
-  );
+): Promise<{ profile: UserProfile | null; status: number }> {
+  const baseUrl = normalizeBaseUrl(PUBLIC_API_BASE_URL);
 
   const response = await fetch(`${baseUrl}/users/me`, {
     method: "GET",
+
+    // IMPORTANT: Next.js SSR ต้องใช้ "Cookie" (ตัวใหญ่)
     headers: {
-      // FIX 1 — ห้ามใช้ "" เพราะ backend มองว่าเป็น invalid cookie
-      ...(cookieHeader ? { cookie: cookieHeader } : {}),
       Accept: "application/json",
+      ...(cookieHeader && cookieHeader.trim().length > 0
+        ? { Cookie: cookieHeader }
+        : {}),
     },
-    // FIX 2 — ให้ SSR ส่ง cookie ข้าม domain
-    credentials: "include",
-    // FIX 3 — ป้องกัน SSR cache
-    cache: "no-store",
+
+    credentials: "include", // ต้องใส่เพื่อให้ cookie ทำงาน
+    cache: "no-store", // ป้องกัน fetch จาก cache
   });
 
   const status = response.status;

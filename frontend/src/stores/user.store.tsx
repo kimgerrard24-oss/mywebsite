@@ -1,7 +1,6 @@
 // ==============================
 // stores/user.store.tsx
-// FIXED — Works with Hybrid Auth (Local + OAuth + Firebase)
-// Frontend stays stateless. No localStorage.
+// FIXED — Hybrid Auth Compatible
 // ==============================
 
 "use client";
@@ -10,7 +9,6 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import { api } from "@/lib/api/api";
 import { useAuthContext } from "@/context/AuthContext";
 
-// User type used for UI only
 export type User = {
   id: string;
   email?: string | null;
@@ -18,36 +16,47 @@ export type User = {
   avatar?: string | null;
 };
 
-// Store shape
 type UserContextValue = {
   user: User | null;
   isAuthenticated: boolean;
+  loading: boolean; 
   logout: () => Promise<void>;
 };
 
 const UserContext = createContext<UserContextValue | undefined>(undefined);
 
 export function UserProvider({ children }: { children: React.ReactNode }) {
-  const { user: authUser, loading } = useAuthContext();
+  const { user: authUser, loading: authLoading } = useAuthContext();
 
-  // UI-friendly user object
   const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  // Sync with AuthContext user
+  // Sync from AuthContext
   useEffect(() => {
-    if (loading) return;
+    if (authLoading) {
+      setLoading(true);
+      return;
+    }
 
     if (authUser) {
+      const username =
+        authUser.displayName?.trim() ||
+        (authUser.email ? authUser.email.split("@")[0] : null);
+
       setUser({
         id: authUser.id,
         email: authUser.email,
-        username: authUser.email ? authUser.email.split("@")[0] : null,
+        username,
         avatar: authUser.avatarUrl || "/images/default-avatar.png"
       });
-    } else {
-      setUser(null);
+
+      setLoading(false);
+      return;
     }
-  }, [authUser, loading]);
+
+    setUser(null);
+    setLoading(false);
+  }, [authUser, authLoading]);
 
   // Backend logout
   const logout = async () => {
@@ -63,13 +72,13 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   const value: UserContextValue = {
     user,
     isAuthenticated: Boolean(user),
+    loading,
     logout
   };
 
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
 }
 
-// Safe hook
 export function useUserStore() {
   const ctx = useContext(UserContext);
 
@@ -80,6 +89,7 @@ export function useUserStore() {
     return {
       user: null,
       isAuthenticated: false,
+      loading: true,
       logout: async () => {}
     };
   }

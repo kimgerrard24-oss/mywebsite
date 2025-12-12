@@ -1,6 +1,6 @@
 // ==============================
 // frontend/lib/api/auth.ts
-// FIXED — Now consistent with backend + axios instance
+// FIXED — Consistent with backend + axios instance
 // ==============================
 
 import axios, { AxiosError } from "axios";
@@ -66,8 +66,10 @@ export async function requestPasswordReset(email: string): Promise<string> {
       }
     );
 
-    return res.data?.message ||
-      "If an account exists for this email, a password reset link has been sent.";
+    return (
+      res.data?.message ||
+      "If an account exists for this email, a password reset link has been sent."
+    );
   } catch (err) {
     const error = err as AxiosError<ApiErrorResponse>;
 
@@ -97,8 +99,10 @@ export async function resetPassword(payload: ResetPasswordPayload): Promise<stri
       { withCredentials: false }
     );
 
-    return res.data?.message ||
-      "If the reset link is valid, your password has been updated.";
+    return (
+      res.data?.message ||
+      "If the reset link is valid, your password has been updated."
+    );
   } catch (err) {
     const error = err as AxiosError<ApiErrorResponse>;
 
@@ -115,12 +119,19 @@ export async function resetPassword(payload: ResetPasswordPayload): Promise<stri
 }
 
 // ==================================================
-// GET PROFILE (CORRECT ENDPOINT = /users/me)
+// GET PROFILE (CORRECT FIX)
+// Backend returns { success, statusCode, data }
+// Frontend must return ONLY data (profile)
 // ==================================================
 export async function getProfile() {
   try {
     const res = await client.get("/users/me");
-    return res.data || null;
+
+    if (res.data && typeof res.data === "object") {
+      return res.data.data || null;
+    }
+
+    return null;
   } catch {
     return null;
   }
