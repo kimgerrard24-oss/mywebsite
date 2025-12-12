@@ -4,10 +4,9 @@
 // ==============================
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useContext } from "react";
 import axios from "@/lib/axios";
 import type { User } from "@/types/index";
-import { useContext } from "react";
 import { AuthContext } from "@/context/AuthContext";
 
 // Normalize backend URL
@@ -27,9 +26,8 @@ export function useAuth() {
 }
 
 // ==============================
-// Existing internal hook logic
+// Internal hook logic (Hybrid Auth)
 // ==============================
-
 export function useAuthInternal() {
   const [user, setUser] = useState<Partial<User> | null>(null);
   const [loading, setLoading] = useState(true);
@@ -39,6 +37,23 @@ export function useAuthInternal() {
 
     async function load() {
       try {
+        // ============================================================
+        // 1) Local JWT + Redis (Fastest)
+        // ============================================================
+        const me = await axios.get(`${API_BASE}/users/me`, {
+          withCredentials: true,
+          validateStatus: () => true,
+        });
+
+        if (me.status >= 200 && me.status < 300) {
+          if (!mounted) return;
+          setUser(me.data); // Backend returns UserProfile DTO
+          return;
+        }
+
+        // ============================================================
+        // 2) Social Login fallback (Firebase session-check)
+        // ============================================================
         const res = await axios.get(`${API_BASE}/auth/session-check`, {
           withCredentials: true,
         });
@@ -103,7 +118,7 @@ export function useAuthInternal() {
   const updateUser = (u: Partial<User> | null) => setUser(u);
 
   // =========================================
-  // Added: Correct logout route for production
+  // logout → backend clears JWT + Redis session
   // =========================================
   const signOut = async () => {
     try {
@@ -118,7 +133,6 @@ export function useAuthInternal() {
 
     setUser(null);
   };
-  // =========================================
 
   return {
     user,

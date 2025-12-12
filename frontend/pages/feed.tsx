@@ -4,7 +4,7 @@
 
 import Head from "next/head";
 import { GetServerSideProps } from "next";
-import { validateSessionOnServer } from "@/lib/auth";
+import { sessionCheckServerSide } from "@/lib/api";
 import LogoutButton from "@/components/auth/LogoutButton";
 import axios from "axios";
 import Cookies from "js-cookie";
@@ -198,9 +198,11 @@ const MOCK_POSTS: Post[] = [
 ];
 
 export const getServerSideProps: GetServerSideProps = async (ctx) => {
-  const cookieHeader = ctx.req.headers.cookie;
+  // ดึง cookie จาก request
+  const cookieHeader = ctx.req.headers.cookie || "";
 
-  const result = await validateSessionOnServer(cookieHeader);
+  // ถูกต้อง → ส่ง cookieHeader ไปให้ sessionCheckServerSide
+  const result = await sessionCheckServerSide(cookieHeader);
 
   if (!result || !result.valid) {
     return {
@@ -212,7 +214,7 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
   }
 
   const data = result as Record<string, any>;
-  const decodedUser = data.decoded ?? null;
+  const decodedUser = data.user || data.decoded || null;
 
   return {
     props: {
@@ -221,3 +223,4 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
     },
   };
 };
+

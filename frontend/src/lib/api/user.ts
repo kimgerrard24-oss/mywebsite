@@ -1,12 +1,19 @@
 // frontend/lib/api/user.ts
 import axios, { AxiosInstance } from 'axios';
 
-const PUBLIC_API_BASE_URL =
+// Normalize function เพื่อป้องกัน baseURL ลงท้ายด้วย '/'
+function normalizeBaseUrl(url: string): string {
+  return url.replace(/\/+$/, '');
+}
+
+// โหลดค่าจาก ENV
+const PUBLIC_API_BASE_URL = normalizeBaseUrl(
   process.env.NEXT_PUBLIC_API_BASE_URL ||
-  process.env.NEXT_PUBLIC_API_BASE ||
-  process.env.NEXT_PUBLIC_BACKEND_URL ||
-  process.env.NEXT_PUBLIC_API_URL ||
-  "https://api.phlyphant.com";
+    process.env.NEXT_PUBLIC_API_BASE ||
+    process.env.NEXT_PUBLIC_BACKEND_URL ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    "https://api.phlyphant.com"
+);
 
 export interface UserProfile {
   id: string;
@@ -14,13 +21,13 @@ export interface UserProfile {
   displayName: string | null;
   avatarUrl: string | null;
   bio: string | null;
-  createdAt: string; // ISO string from backend
+  createdAt: string;
+  updatedAt?: string;
 }
 
 /**
  * Axios instance สำหรับฝั่ง client (browser)
- * - baseURL: https://api.phlyphant.com
- * - withCredentials: true เพื่อแนบ cookie (phl_access)
+ * - withCredentials: true เพื่อส่ง cookie phl_access
  */
 const apiClient: AxiosInstance = axios.create({
   baseURL: PUBLIC_API_BASE_URL,
@@ -28,41 +35,51 @@ const apiClient: AxiosInstance = axios.create({
 });
 
 /**
- * เรียกโปรไฟล์ตัวเองจากฝั่ง client (CSR)
- * ใช้ในหน้า /profile เวลาอยาก refresh ข้อมูล
+ * CSR: เรียกโปรไฟล์ตัวเองจากฝั่ง client
+ * Backend response = { success, statusCode, data }
  */
 export async function fetchMyProfileClient(): Promise<UserProfile> {
-  const response = await apiClient.get<UserProfile>('/users/me');
-  return response.data;
+  const response = await apiClient.get('/users/me');
+
+  // Backend ห่อ data ดังนี้:
+  // {
+  //   success: true,
+  //   statusCode: 200,
+  //   data: { ...profile }
+  // }
+  return response.data?.data;
 }
 
 /**
- * เรียกโปรไฟล์ตัวเองจากฝั่ง server (SSR)
- * - ใช้ใน getServerSideProps
- * - แนบ cookie จาก request header ของผู้ใช้
+ * SSR: เรียกโปรไฟล์ตัวเองพร้อมส่ง cookie จาก request header
  */
-export async function fetchMyProfileServer(cookieHeader: string | undefined): Promise<{
+export async function fetchMyProfileServer(
+  cookieHeader: string | undefined
+): Promise<{
   profile: UserProfile | null;
   status: number;
 }> {
-  // ฝั่ง server พยายามใช้ INTERNAL_BACKEND_URL ก่อน (Docker -> Backend)
-  const baseUrl =
+  // Normalize backend URL
+  const baseUrl = normalizeBaseUrl(
     process.env.INTERNAL_BACKEND_URL ||
-    process.env.NEXT_PUBLIC_API_BASE_URL ||
-    'https://api.phlyphant.com';
+      process.env.NEXT_PUBLIC_API_BASE_URL ||
+      "https://api.phlyphant.com"
+  );
 
-  const response = await axios.get<UserProfile>(`${baseUrl}/users/me`, {
+  const response = await axios.get(`${baseUrl}/users/me`, {
     headers: {
-      // forward cookie จาก browser ไปให้ backend ตรวจ phl_access
       cookie: cookieHeader ?? '',
     },
-    // ให้ axios คืน response มาแม้ status เป็น 4xx (จะได้เช็คเอง)
     validateStatus: () => true,
     withCredentials: true,
   });
 
+  // ตรวจสอบ status: 2xx ถือว่าสำเร็จ
   if (response.status >= 200 && response.status < 300) {
-    return { profile: response.data, status: response.status };
+    return {
+      profile: response.data?.data ?? null,
+      status: response.status,
+    };
   }
 
   return { profile: null, status: response.status };

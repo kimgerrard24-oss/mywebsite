@@ -1,6 +1,7 @@
+// frontend/src/components/feed/Composer.tsx
 'use client'
 import { useState } from 'react'
-import { apiPost } from '@/lib/apiClient'
+import { client } from '@/lib/api';
 
 export default function Composer({ onPosted }: { onPosted?: ()=>void }) {
   const [text, setText] = useState('')
@@ -9,7 +10,7 @@ export default function Composer({ onPosted }: { onPosted?: ()=>void }) {
     if(!text.trim()) return
     setLoading(true)
     try {
-      await apiPost('/posts', { text })
+await client.post('/posts', { text })
       setText('')
       onPosted?.()
     } finally { setLoading(false) }

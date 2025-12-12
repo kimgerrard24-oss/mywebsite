@@ -2,7 +2,7 @@
 import React from 'react';
 import { GetServerSideProps } from 'next';
 
-import { validateSessionOnServer } from '@/lib/auth';
+import { sessionCheckServerSide } from "@/lib/api";
 import LogoutButton from '@/components/auth/LogoutButton';
 
 type Props = {
@@ -39,7 +39,7 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
   const cookieHeader = ctx.req.headers.cookie;
 
   try {
-    const result = await validateSessionOnServer(cookieHeader);
+const result = await sessionCheckServerSide(cookieHeader);
 
     if (!result || !result.valid) {
       return {

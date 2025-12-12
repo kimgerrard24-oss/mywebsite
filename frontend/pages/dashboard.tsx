@@ -8,7 +8,7 @@ import { GetServerSideProps } from "next";
 // ===========================================================
 import LogoutButton from "@/components/auth/LogoutButton";
 
-import { validateSessionOnServer } from "@/lib/auth";
+import { sessionCheckServerSide } from "@/lib/api";
 
 type DashboardProps = {
   valid: boolean;
@@ -138,7 +138,7 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
   const cookieHeader = ctx.req.headers.cookie;
 
   try {
-    const result = await validateSessionOnServer(cookieHeader);
+const result = await sessionCheckServerSide(cookieHeader);
 
     if (!result || !result.valid) {
       return {
