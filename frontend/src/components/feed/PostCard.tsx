@@ -1,6 +1,6 @@
 import type { Post } from '@/types/index'
 import { useState } from 'react'
-import { apiPost } from '@/lib/apiClient'
+import { apiPost } from '@/lib/api'
 
 export default function PostCard({ post }: { post: Post }) {
   const [likes, setLikes] = useState(post.likes)
