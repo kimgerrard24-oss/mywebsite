@@ -1,81 +1,84 @@
+// ==============================
 // lib/auth/auth.service.ts
-import axios from 'axios';
+// FINAL FIXED VERSION
+// ==============================
+
 import { api } from "../api/api";
 
-const rawBase = (process.env.NEXT_PUBLIC_API_URL || '').trim();
-const API_BASE = rawBase.replace(/\/+$/, '');
+// Normalized API Base (match entire frontend)
+const rawBase =
+  process.env.NEXT_PUBLIC_API_BASE_URL ||
+  process.env.NEXT_PUBLIC_API_BASE ||
+  process.env.NEXT_PUBLIC_BACKEND_URL ||
+  process.env.NEXT_PUBLIC_API_URL ||
+  "https://api.phlyphant.com";
 
-export async function login(payload: { email: string; password: string; remember?: boolean }) {
+const API_BASE = rawBase.replace(/\/+$/, "");
+
+// ==============================
+// LOGIN
+// ==============================
+export async function login(payload: {
+  email: string;
+  password: string;
+  remember?: boolean;
+}) {
   try {
-    const resp = await api.post('/auth/local/login', {
+    const res = await api.post("/auth/local/login", {
       email: payload.email,
       password: payload.password,
       remember: Boolean(payload.remember),
     });
 
-    return resp.data as {
-      success: boolean;
-      data?: {
-        user?: { id: string; email?: string; username?: string; [k: string]: any };
-        expiresIn?: number;
-      };
-      message?: string;
-    };
+    return res.data;
   } catch (err: any) {
-    if (err?.response?.data) {
-      const message = typeof err.response.data?.message === 'string'
-        ? err.response.data.message
-        : 'Login failed';
+    const message =
+      err?.response?.data?.message ??
+      "Login failed";
 
-      return {
-        success: false,
-        message,
-      };
-    }
-
-    return {
-      success: false,
-      message: 'Network error',
-    };
+    return { success: false, message };
   }
 }
 
+// ==============================
+// FETCH CURRENT USER (CORRECT ROUTE)
+// ==============================
 export async function fetchCurrentUser() {
   try {
-    const resp = await api.get('/auth/me');
-    return resp.data;
+    // Correct protected endpoint
+    const res = await api.get("/users/me");
+    return res.data;
   } catch {
     return null;
   }
 }
 
-// ===================================================
-// Added: logout functionality for POST /auth/local/logout
-// ===================================================
+// ==============================
+// LOGOUT
+// ==============================
 export async function logout(): Promise<void> {
   try {
-    await api.post('/auth/local/logout', {});
-  } catch (err) {
-    const message =
-      err && typeof err === 'object' && 'message' in err
-        ? (err as any).message
-        : 'Logout failed';
-
-    console.warn('logout error:', message);
+    await api.post("/auth/local/logout", {});
+  } catch (err: any) {
+    console.warn("logout error:", err?.message || "Logout failed");
   }
 }
-// ===================================================
+
+// ==============================
+// REFRESH TOKEN
+// ==============================
+export async function refreshAccessToken() {
+  const res = await api.post(
+    "/auth/local/refresh",
+    {},
+    { withCredentials: true }
+  );
+  return res.data;
+}
 
 export default {
   login,
   fetchCurrentUser,
   logout,
+  refreshAccessToken,
 };
-
-export async function refreshAccessToken() {
-  const response = await api.post("/auth/local/refresh", {}, {
-    withCredentials: true,
-  });
-
-  return response.data; // { accessToken, refreshToken?, user }
-}

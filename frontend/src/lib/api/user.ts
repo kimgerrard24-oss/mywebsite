@@ -61,8 +61,8 @@ export async function fetchMyProfileServer(
 }> {
   // Normalize backend URL
   const baseUrl = normalizeBaseUrl(
-    process.env.INTERNAL_BACKEND_URL ||
-      process.env.NEXT_PUBLIC_API_BASE_URL ||
+    process.env.NEXT_PUBLIC_API_BASE_URL ||
+      process.env.NEXT_PUBLIC_API_BASE ||
       "https://api.phlyphant.com"
   );
 

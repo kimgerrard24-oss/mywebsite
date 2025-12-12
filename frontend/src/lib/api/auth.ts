@@ -1,34 +1,43 @@
+// ==============================
 // frontend/lib/api/auth.ts
+// FIXED — Now consistent with backend + axios instance
+// ==============================
 
-import axios, { AxiosError } from 'axios';
+import axios, { AxiosError } from "axios";
 
-const API = process.env.NEXT_PUBLIC_BACKEND_URL;
+// Normalize Base URL from ANY of the allowed env vars
+const rawBase =
+  process.env.NEXT_PUBLIC_API_BASE_URL ||
+  process.env.NEXT_PUBLIC_API_BASE ||
+  process.env.NEXT_PUBLIC_BACKEND_URL ||
+  process.env.NEXT_PUBLIC_API_URL ||
+  "https://api.phlyphant.com";
 
-if (!API) {
-  throw new Error('NEXT_PUBLIC_BACKEND_URL is missing. Please check frontend/.env.production');
-}
+const baseURL = rawBase.replace(/\/+$/, "");
 
-// Normalize base URL
-const baseURL = API.replace(/\/+$/, '');
-
+// Unified client instance
 const client = axios.create({
   baseURL,
   withCredentials: true,
-  timeout: 10000, // 10 seconds safety
+  timeout: 10000,
 });
 
-// Register user
+// ==================================================
+// REGISTER
+// ==================================================
 export async function registerUser(body: {
   email: string;
   username: string;
   password: string;
   turnstileToken: string;
 }) {
-  const res = await client.post('/auth/local/register', body);
+  const res = await client.post("/auth/local/register", body);
   return res.data;
 }
 
-// Verify email
+// ==================================================
+// EMAIL VERIFY
+// ==================================================
 export async function verifyEmail(token: string) {
   const encodedToken = encodeURIComponent(token);
   const res = await client.get(`/auth/local/verify-email?token=${encodedToken}`);
@@ -44,42 +53,35 @@ export interface ApiErrorResponse {
   error?: string;
 }
 
-// Request password reset
+// ==================================================
+// REQUEST PASSWORD RESET
+// ==================================================
 export async function requestPasswordReset(email: string): Promise<string> {
   try {
-    const response = await axios.post<ApiSuccessResponse>(
-      `${baseURL}/auth/local/request-password-reset`,
+    const res = await client.post<ApiSuccessResponse>(
+      "/auth/local/request-password-reset",
       { email },
       {
-        headers: {
-          'Content-Type': 'application/json',
-        },
         withCredentials: false,
-      },
+      }
     );
 
-    if (response.data?.message) {
-      return response.data.message;
-    }
-
-    return 'If an account exists for this email, a password reset link has been sent.';
+    return res.data?.message ||
+      "If an account exists for this email, a password reset link has been sent.";
   } catch (err) {
     const error = err as AxiosError<ApiErrorResponse>;
 
-    if (error.response?.data?.message) {
-      throw new Error(error.response.data.message);
-    }
-
-    if (error.response?.data?.error) {
-      throw new Error(error.response.data.error);
-    }
-
     throw new Error(
-      'Unable to process your request at the moment. Please try again later.',
+      error.response?.data?.message ||
+        error.response?.data?.error ||
+        "Unable to process your request at the moment."
     );
   }
 }
 
+// ==================================================
+// RESET PASSWORD
+// ==================================================
 export interface ResetPasswordPayload {
   email: string;
   token: string;
@@ -87,59 +89,38 @@ export interface ResetPasswordPayload {
   confirmPassword: string;
 }
 
-// Reset password
 export async function resetPassword(payload: ResetPasswordPayload): Promise<string> {
   try {
-    const response = await axios.post<ApiSuccessResponse>(
-      `${baseURL}/auth/local/reset-password`,
+    const res = await client.post<ApiSuccessResponse>(
+      "/auth/local/reset-password",
       payload,
-      {
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        withCredentials: false,
-      },
+      { withCredentials: false }
     );
 
-    if (response.data?.message) {
-      return response.data.message;
-    }
-
-    return 'If the reset link is valid, your password has been updated.';
+    return res.data?.message ||
+      "If the reset link is valid, your password has been updated.";
   } catch (err) {
     const error = err as AxiosError<ApiErrorResponse>;
 
     if (error.response?.status === 410) {
-      throw new Error(
-        'Your reset link has expired. Please request a new password reset email.',
-      );
-    }
-
-    if (error.response?.data?.message) {
-      throw new Error(error.response.data.message);
-    }
-
-    if (error.response?.data?.error) {
-      throw new Error(error.response.data.error);
+      throw new Error("Your reset link has expired. Please request a new one.");
     }
 
     throw new Error(
-      'Unable to reset your password at the moment. Please try again later.',
+      error.response?.data?.message ||
+        error.response?.data?.error ||
+        "Unable to reset your password at this moment."
     );
   }
 }
 
-// ===============================================
-// GET /auth/local/profile — SECURE
-// ===============================================
-
+// ==================================================
+// GET PROFILE (CORRECT ENDPOINT = /users/me)
+// ==================================================
 export async function getProfile() {
   try {
-    const response = await axios.get(`${baseURL}/auth/local/profile`, {
-      withCredentials: true, 
-    });
-
-    return response.data?.data || null;
+    const res = await client.get("/users/me");
+    return res.data || null;
   } catch {
     return null;
   }
