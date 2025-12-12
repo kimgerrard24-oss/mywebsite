@@ -6,7 +6,7 @@ import Head from "next/head";
 import { GetServerSideProps } from "next";
 import { sessionCheckServerSide } from "@/lib/api/api";
 import LogoutButton from "@/components/auth/LogoutButton";
-import axios from "axios";
+import { api } from "@/lib/api/api";
 import Cookies from "js-cookie";
 import { useRouter } from "next/router";
 import { useCallback } from "react";
@@ -27,11 +27,8 @@ export default function FeedPage({ valid, user }: FeedProps) {
         process.env.NEXT_PUBLIC_BACKEND_URL ||
         "https://api.phlyphant.com";
 
-      await axios.post(
-        `${API_BASE.replace(/\/+$/, "")}/auth/local/logout`,
-        {},
-        { withCredentials: true }
-      );
+      await api.post("/auth/local/logout", {});
+
     } catch (err) {
       console.error("Logout failed:", err);
     }

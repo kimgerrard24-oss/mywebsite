@@ -6,7 +6,6 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import type { User } from "firebase/auth";
 import { getFirebaseAuth } from "firebase/client";
 import { onAuthStateChanged, type Auth } from "firebase/auth";
-import { refreshAccessToken } from "../lib/auth/auth.service";
 import { getProfile } from "@/lib/api/auth";
 
 interface UserProfile {
@@ -35,22 +34,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  async function tryRefresh() {
-    try {
-      const result = await refreshAccessToken();
-      if (result?.user) {
-        setUser(result.user);
-      }
-    } catch {}
-  }
-
   useEffect(() => {
+    // SSR safety
     if (typeof window === "undefined") {
       setLoading(false);
       return;
     }
-
-    tryRefresh();
 
     let auth: Auth;
 
@@ -63,13 +52,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    // IMPORTANT: Removed auto-refresh logic
+    // Backend handles cookie rotation when needed.
+    // Frontend must remain stateless with respect to session handling.
+
     const unsubscribe = onAuthStateChanged(auth, async () => {
       try {
         // ----------------------------------------------
-        // 1) Primary: JWT + Redis --> /users/me
+        // 1) Primary: Cookie-based Local Auth (/users/me)
         // ----------------------------------------------
         try {
-          const profile = await getProfile(); // wrapper: GET /auth/local/profile OR /users/me
+          const profile = await getProfile(); // wrapper → GET /users/me
           if (profile) {
             setUser(profile);
             setLoading(false);
@@ -92,10 +85,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const valid = data?.valid === true;
 
         if (valid) {
-          // update basic session-check user
+          // session-check basic user
           setUser(data.user || null);
 
-          // try to fetch full profile (users/me)
+          // Attempt full profile (Local Auth)
           const profile = await getProfile().catch(() => null);
           if (profile) {
             setUser(profile);

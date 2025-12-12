@@ -1,11 +1,11 @@
 // ==============================
 // lib/auth/auth.service.ts
-// FINAL FIXED VERSION
+// FINAL FIXED VERSION (Correct Cookie-Based Auth)
 // ==============================
 
 import { api } from "../api/api";
 
-// Normalized API Base (match entire frontend)
+// Normalize API base URL
 const rawBase =
   process.env.NEXT_PUBLIC_API_BASE_URL ||
   process.env.NEXT_PUBLIC_API_BASE ||
@@ -33,19 +33,16 @@ export async function login(payload: {
     return res.data;
   } catch (err: any) {
     const message =
-      err?.response?.data?.message ??
-      "Login failed";
-
+      err?.response?.data?.message ?? "Login failed";
     return { success: false, message };
   }
 }
 
 // ==============================
-// FETCH CURRENT USER (CORRECT ROUTE)
+// FETCH CURRENT USER
 // ==============================
 export async function fetchCurrentUser() {
   try {
-    // Correct protected endpoint
     const res = await api.get("/users/me");
     return res.data;
   } catch {
@@ -65,15 +62,16 @@ export async function logout(): Promise<void> {
 }
 
 // ==============================
-// REFRESH TOKEN
+// REFRESH TOKEN — FIXED VERSION
+// Backend rotates cookie. Frontend does NOT use response data.
 // ==============================
-export async function refreshAccessToken() {
-  const res = await api.post(
-    "/auth/local/refresh",
-    {},
-    { withCredentials: true }
-  );
-  return res.data;
+export async function refreshAccessToken(): Promise<boolean> {
+  try {
+    await api.post("/auth/local/refresh", {});
+    return true;
+  } catch {
+    return false;
+  }
 }
 
 export default {

@@ -40,13 +40,6 @@ const apiClient: AxiosInstance = axios.create({
  */
 export async function fetchMyProfileClient(): Promise<UserProfile> {
   const response = await apiClient.get('/users/me');
-
-  // Backend ห่อ data ดังนี้:
-  // {
-  //   success: true,
-  //   statusCode: 200,
-  //   data: { ...profile }
-  // }
   return response.data?.data;
 }
 
@@ -59,28 +52,29 @@ export async function fetchMyProfileServer(
   profile: UserProfile | null;
   status: number;
 }> {
-  // Normalize backend URL
   const baseUrl = normalizeBaseUrl(
     process.env.NEXT_PUBLIC_API_BASE_URL ||
       process.env.NEXT_PUBLIC_API_BASE ||
       "https://api.phlyphant.com"
   );
 
-  const response = await axios.get(`${baseUrl}/users/me`, {
+  const response = await fetch(`${baseUrl}/users/me`, {
+    method: "GET",
     headers: {
-      cookie: cookieHeader ?? '',
-    },
-    validateStatus: () => true,
-    withCredentials: true,
+      cookie: cookieHeader ?? "",
+      Accept: "application/json",
+    }
   });
 
-  // ตรวจสอบ status: 2xx ถือว่าสำเร็จ
-  if (response.status >= 200 && response.status < 300) {
+  const status = response.status;
+
+  if (status >= 200 && status < 300) {
+    const json = await response.json().catch(() => null);
     return {
-      profile: response.data?.data ?? null,
-      status: response.status,
+      profile: json?.data ?? null,
+      status,
     };
   }
 
-  return { profile: null, status: response.status };
+  return { profile: null, status };
 }
