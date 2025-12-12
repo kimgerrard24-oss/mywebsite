@@ -1,6 +1,6 @@
 // ==============================
 // frontend/lib/api.ts
-// Unified API Client (Final Version)
+// Unified API Client (FINAL VERSION)
 // ==============================
 
 import axios from "axios";
@@ -19,17 +19,13 @@ export const API_BASE = rawBase.replace(/\/+$/, "");
 // Helper: Build full path
 // ==============================
 function apiPath(path: string): string {
-  if (!path.startsWith("/")) return `${API_BASE}/${path}`;
-  return `${API_BASE}${path}`;
+  return path.startsWith("/") ? `${API_BASE}${path}` : `${API_BASE}/${path}`;
 }
 
 // ==============================
-// SSR / Fetch JSON Wrapper
+// JSON Fetch (SSR Safe)
 // ==============================
-async function jsonFetch<T>(
-  input: RequestInfo,
-  init?: RequestInit
-): Promise<T> {
+async function jsonFetch<T>(input: RequestInfo, init?: RequestInit): Promise<T> {
   const hasBody = typeof init?.body !== "undefined";
 
   const res = await fetch(input, {
@@ -56,7 +52,7 @@ async function jsonFetch<T>(
   }
 
   const type = res.headers.get("content-type");
-  if (!type || !type.includes("application/json")) {
+  if (!type?.includes("application/json")) {
     return (await res.text()) as T;
   }
 
@@ -64,19 +60,19 @@ async function jsonFetch<T>(
 }
 
 // ==============================
-// 1) Axios Instance (main client)
+// AXIOS INSTANCE (main client)
 // ==============================
 export const api = axios.create({
   baseURL: API_BASE,
-  withCredentials: true, // critical for phl_access cookie
+  withCredentials: true, // IMPORTANT for cookie auth
   timeout: 12000,
 });
 
-// Request Interceptor
-api.interceptors.request.use((cfg) => {
+// Axios Interceptor
+api.interceptors.request.use((cfg: any) => {
   const method = cfg.method?.toLowerCase() ?? "";
+  cfg.headers = cfg.headers ?? {};
 
-  // Auto add Content-Type if JSON body
   if (
     ["post", "put", "patch"].includes(method) &&
     cfg.data &&
@@ -90,11 +86,14 @@ api.interceptors.request.use((cfg) => {
 });
 
 // ==============================
-// 2) Minimal Fetch Client
+// Minimal Fetch Client
 // ==============================
 export const client = {
   get: <T = any>(path: string) =>
-    jsonFetch<T>(apiPath(path), { method: "GET", credentials: "include" }),
+    jsonFetch<T>(apiPath(path), {
+      method: "GET",
+      credentials: "include",
+    }),
 
   post: <T = any>(path: string, data?: any) =>
     jsonFetch<T>(apiPath(path), {
@@ -105,33 +104,47 @@ export const client = {
 };
 
 // ==============================
-// 3) Session / Auth Operations
+// API WRAPPERS (from apiClient.ts)
 // ==============================
+export async function apiGet<T = unknown>(path: string, config: any = {}): Promise<T> {
+  const res = await api.get<T>(path, config);
+  return res.data;
+}
 
-// Used by Social OAuth Callback → Backend issues session cookie
+export async function apiPost<T = unknown>(path: string, body?: any, config: any = {}): Promise<T> {
+  const res = await api.post<T>(path, body, config);
+  return res.data;
+}
+
+export async function apiPut<T = unknown>(path: string, body?: any, config: any = {}): Promise<T> {
+  const res = await api.put<T>(path, body, config);
+  return res.data;
+}
+
+export async function apiDelete<T = unknown>(path: string, config: any = {}): Promise<T> {
+  const res = await api.delete<T>(path, config);
+  return res.data;
+}
+
+// ==============================
+// AUTH / SESSION
+// ==============================
 export async function createSessionCookie(idToken: string) {
   return client.post<{ ok: true }>("/auth/complete", { idToken });
 }
 
-// Universal logout (Local + Social)
 export async function logout() {
   return client.post("/auth/logout");
 }
 
-// ------------------------------
-// SESSION CHECK — SSR
-// ------------------------------
+// Session Check (SSR)
 export async function sessionCheckServerSide(cookieHeader?: string) {
-  const url = apiPath("/auth/session-check");
-
-  const res = await fetch(url, {
+  const res = await fetch(apiPath("/auth/session-check"), {
     method: "GET",
     credentials: "include",
     headers: {
       Accept: "application/json",
-      ...(cookieHeader
-        ? { cookie: cookieHeader, Cookie: cookieHeader }
-        : {}),
+      ...(cookieHeader ? { cookie: cookieHeader, Cookie: cookieHeader } : {}),
     },
   });
 
@@ -145,36 +158,22 @@ export async function sessionCheckServerSide(cookieHeader?: string) {
   }
 }
 
-// ------------------------------
-// SESSION CHECK — Client
-// ------------------------------
-export async function sessionCheckClient(): Promise<{
-  valid: boolean;
-  user?: any;
-  [key: string]: any;
-}> {
+// Session Check (Client)
+export async function sessionCheckClient() {
   const data = await jsonFetch<Record<string, any>>(apiPath("/auth/session-check"), {
     credentials: "include",
   });
 
-  return {
-    valid: data.valid === true,
-    ...data,
-  };
+  return { valid: data.valid === true, ...data };
 }
 
-
-// ------------------------------
 // Email Verify
-// ------------------------------
 export async function verifyEmail(token: string, uid: string) {
   return client.get(`/auth/verify-email?token=${token}&uid=${uid}`);
 }
 
-// ------------------------------
 // Refresh Access Token
-// ------------------------------
 export async function refreshAccessToken() {
   const res = await api.post("/auth/local/refresh", {});
-  return res.data; // { accessToken, user, valid }
+  return res.data;
 }

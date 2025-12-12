@@ -2,7 +2,7 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
-import { apiGet } from '@/lib/apiClient'
+import { apiGet } from '@/lib/api'
 import Image from 'next/image';
 
 export default function Header(){
