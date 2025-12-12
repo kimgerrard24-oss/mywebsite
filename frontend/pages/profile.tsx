@@ -20,16 +20,26 @@ interface ProfilePageProps {
   isAuthenticated: boolean;
 }
 
-export const getServerSideProps: GetServerSideProps<ProfilePageProps> = async (
-  ctx
-) => {
-  // FIX 1 — ต้องใช้ undefined หากไม่มี cookie
+export const getServerSideProps: GetServerSideProps<ProfilePageProps> = async (ctx) => {
   const cookieHeader = ctx.req.headers.cookie ?? undefined;
 
-  // FIX 2 — ห้ามส่ง "" ไปที่ fetchMyProfileServer
-  const { profile, status } = await fetchMyProfileServer(cookieHeader);
+  const baseUrl =
+    process.env.NEXT_PUBLIC_API_BASE_URL ||
+    process.env.NEXT_PUBLIC_API_BASE ||
+    process.env.NEXT_PUBLIC_BACKEND_URL ||
+    "https://api.phlyphant.com";
 
-  if (status === 401 || status === 403) {
+  const res = await fetch(`${baseUrl.replace(/\/+$/, "")}/users/me`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      ...(cookieHeader ? { Cookie: cookieHeader } : {})
+    },
+    credentials: "include",
+    cache: "no-store"
+  });
+
+  if (res.status === 401 || res.status === 403) {
     return {
       redirect: {
         destination: "/",
@@ -38,19 +48,13 @@ export const getServerSideProps: GetServerSideProps<ProfilePageProps> = async (
     };
   }
 
-  if (!profile) {
-    return {
-      props: {
-        initialProfile: null,
-        isAuthenticated: false,
-      },
-    };
-  }
+  const json = await res.json().catch(() => null);
+  const profile = json?.data ?? null;
 
   return {
     props: {
       initialProfile: profile,
-      isAuthenticated: true,
+      isAuthenticated: Boolean(profile),
     },
   };
 };
