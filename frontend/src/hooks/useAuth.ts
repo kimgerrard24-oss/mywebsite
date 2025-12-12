@@ -1,5 +1,6 @@
 // ==============================
 // src/hooks/useAuth.ts
+// FIXED — ปลอดภัย, ไม่ชนกับ AuthContext, ใช้ข้อมูลถูกต้อง
 // ==============================
 "use client";
 
@@ -17,46 +18,96 @@ const rawBase =
 const API_BASE = rawBase.replace(/\/+$/, "");
 
 // ========================================
-// useAuth() mapping → AuthContext
+// Public hook → ใช้ AuthContext เป็นแหล่งข้อมูลหลัก
 // ========================================
 export function useAuth() {
   const ctx = useContext(AuthContext);
   return ctx;
 }
 
-// ==============================
-// Internal hook logic (Hybrid Auth)
-// ==============================
+// Internal type เพื่อรองรับ avatar ได้
+type InternalAuthUser = {
+  id?: string;
+  email?: string;
+  username?: string;
+  avatar?: string;
+  provider?: string;
+};
+
+// ========================================
+// INTERNAL HOOK (Passive Mode)
+// ไม่ override AuthContext.user
+// ใช้เฉพาะเมื่อบางหน้าเลือกเรียกมันเองเท่านั้น
+// ========================================
 export function useAuthInternal() {
-  const [user, setUser] = useState<Partial<User> | null>(null);
+  const authCtx = useContext(AuthContext);
+
+  // FIX: ป้องกันกรณี AuthContext undefined
+  if (!authCtx) {
+    return {
+      user: null,
+      updateUser: () => {},
+      loading: false,
+      signOut: async () => {},
+    };
+  }
+
+  // ถ้ามี AuthContext.user → ใช้ข้อมูลนั้นก่อน
+  const [user, setUser] = useState<InternalAuthUser | null>(
+    authCtx.user ? (authCtx.user as InternalAuthUser) : null
+  );
+
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let mounted = true;
 
-    async function load() {
+  async function load() {
+  // FIX: ป้องกัน TS — authCtx อาจเป็น undefined
+  if (!authCtx) {
+    setUser(null);
+    setLoading(false);
+    return;
+  }
+
+  // ถ้า AuthContext ยังโหลด → ห้ามยิงซ้ำ
+  if (authCtx.loading) {
+    setLoading(true);
+    return;
+  }
+
+  // ถ้า AuthContext มี user อยู่แล้ว → ใช้เลย
+  if (authCtx.user) {
+    setUser(authCtx.user as InternalAuthUser);
+    setLoading(false);
+    return;
+  }
+
       try {
         // ---------------------------------------------
-        // 1) Local Auth (JWT Cookie → Redis session)
+        // 1) LOCAL AUTH (JWT Cookie → Redis)
         // ---------------------------------------------
         const me = await api.get("/users/me", {
           validateStatus: () => true,
         });
 
+        if (!mounted) return;
+
         if (me.status >= 200 && me.status < 300) {
-          if (!mounted) return;
+          // backend ส่ง user object ตรงๆ
+          const localUser = me.data || null;
 
-          // FIXED: Extract only actual user object
-          const localUser = me.data?.data || null;
           setUser(localUser);
-
+          setLoading(false);
           return;
         }
 
         // ---------------------------------------------
-        // 2) Social login fallback (session-check)
+        // 2) SOCIAL LOGIN FALLBACK
         // ---------------------------------------------
-        const res = await api.get("/auth/session-check");
+        const res = await api.get("/auth/session-check", {
+          validateStatus: () => true,
+        });
 
         if (!mounted) return;
 
@@ -64,40 +115,21 @@ export function useAuthInternal() {
         const valid = data.valid === true;
 
         if (valid) {
-          const decoded = data.decoded || {};
-          const backendUser = data.user || null;
+          const backendUser = data.user || {};
 
-          const builtUser = {
-            id:
-              backendUser?.id ||
-              decoded.user_id ||
-              decoded.uid ||
-              undefined,
-
-            email:
-              backendUser?.email ||
-              decoded.email ||
-              undefined,
-
-            username: (backendUser?.email || decoded.email)
-              ? (backendUser?.email || decoded.email).split("@")[0]
+          const builtUser: InternalAuthUser = {
+            id: backendUser.id,
+            email: backendUser.email,
+            username: backendUser.email
+              ? backendUser.email.split("@")[0]
               : "unknown",
-
-            provider:
-              backendUser?.provider ||
-              decoded.firebase?.sign_in_provider ||
-              decoded.sign_in_provider ||
-              undefined,
-
             avatar:
-              backendUser?.avatar ||
-              backendUser?.picture ||
-              backendUser?.picture_url ||
-              decoded.picture ||
+              backendUser.avatarUrl ||
+              backendUser.avatar ||
               "/images/default-avatar.png",
           };
 
-          setUser(builtUser as Partial<User>);
+          setUser(builtUser);
         } else {
           setUser(null);
         }
@@ -109,19 +141,20 @@ export function useAuthInternal() {
     }
 
     load();
+
     return () => {
       mounted = false;
     };
-  }, [API_BASE]);
+  }, [authCtx.user, authCtx.loading, API_BASE]);
 
-  const updateUser = (u: Partial<User> | null) => setUser(u);
+  const updateUser = (u: InternalAuthUser | null) => setUser(u);
 
-  // logout → backend clears session cookie
+  // logout → backend ลบ JWT cookies
   const signOut = async () => {
     try {
       await api.post("/auth/local/logout", {});
     } catch (err) {
-      console.warn("Backend logout error", err);
+      console.warn("Backend logout error:", err);
     }
 
     setUser(null);

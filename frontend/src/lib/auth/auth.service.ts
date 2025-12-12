@@ -38,15 +38,25 @@ export async function login(payload: {
 }
 
 // ==============================
-// FETCH CURRENT USER (FIXED)
-// Must return only `data`, NOT whole response wrapper
+// FETCH CURRENT USER (FULLY FIXED)
+// Must handle both backend formats:
+// 1) { data: {...} }
+// 2) { id, email, ... }
 // ==============================
 export async function fetchCurrentUser() {
   try {
     const res = await api.get("/users/me");
 
-    if (res.data && typeof res.data === "object") {
-      return res.data.data || null;
+    const body = res.data;
+
+    // format 1: { data: {...} }
+    if (body && typeof body === "object" && body.data) {
+      return body.data;
+    }
+
+    // format 2: user object directly
+    if (body && typeof body === "object" && body.id) {
+      return body;
     }
 
     return null;
@@ -67,8 +77,8 @@ export async function logout(): Promise<void> {
 }
 
 // ==============================
-// REFRESH TOKEN — FIXED VERSION
-// Backend rotates cookie. Frontend does NOT use response data.
+// REFRESH TOKEN — FIXED
+// Backend rotates cookie silently
 // ==============================
 export async function refreshAccessToken(): Promise<boolean> {
   try {

@@ -119,16 +119,27 @@ export async function resetPassword(payload: ResetPasswordPayload): Promise<stri
 }
 
 // ==================================================
-// GET PROFILE (CORRECT FIX)
-// Backend returns { success, statusCode, data }
-// Frontend must return ONLY data (profile)
+// GET PROFILE (FIXED)
+// Backend might return:
+// 1) { data: { ...user } }
+// 2) { id, email, ... }
 // ==================================================
 export async function getProfile() {
   try {
     const res = await client.get("/users/me");
 
-    if (res.data && typeof res.data === "object") {
-      return res.data.data || null;
+    if (!res.data) return null;
+
+    if (typeof res.data === "object") {
+      // Backend v1: { data: { ... } }
+      if (res.data.data && typeof res.data.data === "object") {
+        return res.data.data;
+      }
+
+      // Backend v2: { id, email, ... } (current)
+      if (res.data.id) {
+        return res.data;
+      }
     }
 
     return null;

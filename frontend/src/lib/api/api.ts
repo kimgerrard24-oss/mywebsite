@@ -85,7 +85,7 @@ api.interceptors.request.use((cfg) => {
 });
 
 // ==============================
-// Public API Wrapper (Corrected)
+// Public API Wrapper
 // ==============================
 export async function apiGet<T = any>(path: string, config: any = {}): Promise<T> {
   const res = await api.get(path, config);
@@ -152,9 +152,13 @@ export async function sessionCheckServerSide(cookieHeader?: string) {
     Accept: "application/json",
   };
 
-  // FIX: must use "Cookie" capitalized so backend receives it in SSR
-  if (cookieHeader && cookieHeader.trim()) {
-    headers["Cookie"] = cookieHeader;
+  // FIX 1 — ensure undefined, not empty string
+  const cookieToSend =
+    cookieHeader && cookieHeader.trim().length > 0 ? cookieHeader : undefined;
+
+  // FIX 2 — must manually forward cookie to backend
+  if (cookieToSend) {
+    headers["Cookie"] = cookieToSend;
   }
 
   const res = await fetch(apiPath("/auth/session-check"), {

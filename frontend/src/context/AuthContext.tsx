@@ -1,5 +1,6 @@
 // ==============================
 // frontend/context/AuthContext.tsx
+// FIXED (เฉพาะส่วนที่จำเป็น)
 // ==============================
 
 import React, { createContext, useContext, useEffect, useState } from "react";
@@ -45,7 +46,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     try {
       auth = getFirebaseAuth();
     } catch (err) {
-      console.error("Firebase init error in AuthContext:", err);
       setUser(null);
       setLoading(false);
       return;
@@ -53,63 +53,57 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       try {
-        // ======================================================
-        // CASE 1: NO Firebase user → Local Auth mode
-        // ======================================================
+        // CASE 1 — Local Auth (ไม่มี firebaseUser)
         if (!firebaseUser) {
           try {
+            // ***** FIX 1 — getProfile() ไม่มี .data *****
             const profile = await getProfile();
-            const extracted = profile?.data || null;
-
-            if (extracted) {
-              setUser(extracted);
+            if (profile) {
+              setUser(profile);
               setLoading(false);
               return;
             }
-          } catch {
-            // fallback to session-check
-          }
+          } catch {}
 
-          const res = await fetch(`${API_BASE}/auth/session-check`, {
+          // ***** FIX 2 — fallback เรียก users/me แบบถูกต้อง *****
+          const res2 = await fetch(`${API_BASE}/users/me`, {
             method: "GET",
             credentials: "include",
-            headers: { Accept: "application/json" },
+            headers: { Accept: "application/json" }
           });
 
-          const data = await res.json().catch(() => null);
-          const valid = data?.valid === true;
+          if (res2.ok) {
+            const u = await res2.json().catch(() => null);
+            setUser(u || null);
+          } else {
+            setUser(null);
+          }
 
-          setUser(valid ? data.user || null : null);
           setLoading(false);
           return;
         }
 
-        // ======================================================
-        // CASE 2: Firebase user exists → Social Login mode
-        // ======================================================
+        // CASE 2 — Firebase user exists (Social Login)
         const res = await fetch(`${API_BASE}/auth/session-check`, {
           method: "GET",
           credentials: "include",
-          headers: { Accept: "application/json" },
+          headers: { Accept: "application/json" }
         });
 
         const data = await res.json().catch(() => null);
         const valid = data?.valid === true;
 
         if (valid) {
-          setUser(data.user || null);
-
           const profile = await getProfile().catch(() => null);
-          const extracted = profile?.data || null;
-
-          if (extracted) {
-            setUser(extracted);
+          if (profile) {
+            setUser(profile);
+          } else {
+            setUser(data.user || null);
           }
         } else {
           setUser(null);
         }
-      } catch (err) {
-        console.error("AuthContext: session-check failed:", err);
+      } catch {
         setUser(null);
       } finally {
         setLoading(false);

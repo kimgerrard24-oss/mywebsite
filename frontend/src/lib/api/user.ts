@@ -1,4 +1,8 @@
+// ==============================
 // frontend/lib/api/user.ts
+// FIXED — Compatible with backend responses
+// ==============================
+
 import axios, { AxiosInstance } from "axios";
 
 function normalizeBaseUrl(url: string): string {
@@ -31,9 +35,26 @@ const apiClient: AxiosInstance = axios.create({
   withCredentials: true,
 });
 
-export async function fetchMyProfileClient(): Promise<UserProfile> {
-  const response = await apiClient.get("/users/me");
-  return response.data?.data;
+export async function fetchMyProfileClient(): Promise<UserProfile | null> {
+  try {
+    const response = await apiClient.get("/users/me");
+
+    const data = response.data;
+
+    // backend format 1: { data: {...} }
+    if (data && typeof data === "object" && data.data) {
+      return data.data;
+    }
+
+    // backend format 2: { id, email, ... }
+    if (data && typeof data === "object" && data.id) {
+      return data;
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 // ==============================
@@ -46,27 +67,34 @@ export async function fetchMyProfileServer(
 
   const response = await fetch(`${baseUrl}/users/me`, {
     method: "GET",
-
-    // IMPORTANT: Next.js SSR ต้องใช้ "Cookie" (ตัวใหญ่)
     headers: {
       Accept: "application/json",
-      ...(cookieHeader && cookieHeader.trim().length > 0
-        ? { Cookie: cookieHeader }
-        : {}),
+      ...(cookieHeader ? { Cookie: cookieHeader } : {}),
     },
-
-    credentials: "include", // ต้องใส่เพื่อให้ cookie ทำงาน
-    cache: "no-store", // ป้องกัน fetch จาก cache
+    credentials: "include",
+    cache: "no-store",
   });
 
   const status = response.status;
 
   if (status >= 200 && status < 300) {
     const json = await response.json().catch(() => null);
-    return {
-      profile: json?.data ?? null,
-      status,
-    };
+
+    if (!json) {
+      return { profile: null, status };
+    }
+
+    // backend format 1: { data: {...} }
+    if (json.data && typeof json.data === "object") {
+      return { profile: json.data, status };
+    }
+
+    // backend format 2: object user directly returned
+    if (json.id) {
+      return { profile: json, status };
+    }
+
+    return { profile: null, status };
   }
 
   return { profile: null, status };

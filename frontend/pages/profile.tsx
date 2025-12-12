@@ -1,5 +1,4 @@
 // frontend/pages/profile.tsx
-export const dynamic = "force-dynamic";
 
 import React, { useEffect, useState } from "react";
 import Head from "next/head";

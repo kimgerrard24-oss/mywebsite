@@ -16,7 +16,7 @@ export default function AccountPage({ user, valid }: Props) {
       <div style={{ padding: 24 }}>
         <h1>ต้องเข้าสู่ระบบ</h1>
         <p>คุณจะต้องเข้าสู่ระบบก่อนเข้าถึงหน้านี้</p>
-        <a href="/login">ไปที่หน้าเข้าสู่ระบบ</a>
+        <a href="/">ไปที่หน้าเข้าสู่ระบบ</a>
       </div>
     );
   }
@@ -43,7 +43,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
     if (!result || !result.valid) {
       return {
         redirect: {
-          destination: "/login",
+          destination: "/",
           permanent: false,
         },
       };
@@ -61,7 +61,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
   } catch {
     return {
       redirect: {
-        destination: "/login",
+        destination: "/feed",
         permanent: false,
       },
     };
