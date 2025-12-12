@@ -1,3 +1,4 @@
+// backend/src/common/interceptors/response.interceptor.ts
 import {
   CallHandler,
   ExecutionContext,

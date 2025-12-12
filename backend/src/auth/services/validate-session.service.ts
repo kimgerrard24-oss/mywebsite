@@ -14,7 +14,7 @@ const ACCESS_TOKEN_COOKIE_NAME =
 
 @Injectable()
 export class ValidateSessionService {
-  private readonly logger = new Logger(ValidateSessionService.name); // เพิ่ม logger ที่นี่
+  private readonly logger = new Logger(ValidateSessionService.name);
 
   constructor(
     private readonly authService: AuthService,
@@ -22,68 +22,87 @@ export class ValidateSessionService {
   ) {}
 
   /**
-   * Validate JWT + Redis JTI session
-   * rawToken (optional) = decoded Base64URL cookie string
+   * Validate JWT + Redis pointer (jti)
    */
-  async validateAccessTokenFromRequest(
-    req: Request,
-    rawToken?: string | null,
-  ): Promise<SessionUser> {
-    // 1) ดึง token จาก cookie ก่อน
-    const cookieToken = req.cookies?.[ACCESS_TOKEN_COOKIE_NAME];
+ async validateAccessTokenFromRequest(
+  req: Request,
+  rawToken?: string | null,
+): Promise<SessionUser> {
+  // 1) Extract token from cookie or passed raw token
+  const cookieToken = req.cookies?.[ACCESS_TOKEN_COOKIE_NAME];
+  const token = rawToken || cookieToken;
 
-    // 2) ถ้า rawToken ถูกส่งมา → ใช้ rawToken
-    const token = rawToken || cookieToken;
+  if (!token) {
+    this.logger.warn('Access token cookie is missing');
+    throw new UnauthorizedException('Access token cookie is missing');
+  }
 
-    if (!token) {
-      this.logger.warn('Access token cookie is missing');  // เพิ่ม log เมื่อไม่มี token
-      throw new UnauthorizedException('Access token cookie is missing');
+  try {
+    // 2) Verify JWT signature + expiry
+    const payload = await this.authService.verifyAccessToken(token);
+
+    // 3) Ensure payload exists and is an object
+    if (!payload || typeof payload !== 'object') {
+      this.logger.warn('Invalid token payload: not an object');
+      throw new UnauthorizedException('Invalid token payload');
     }
 
+    // 4) Normalize sub + jti fields (fallback for alternate naming)
+    const sub =
+      (payload as any).sub ??
+      (payload as any).userId ??
+      (payload as any)?.data?.sub;
+
+    const jti =
+      (payload as any).jti ??
+      (payload as any).sessionId ??
+      (payload as any)?.data?.jti;
+
+    if (!sub || !jti) {
+      this.logger.warn(`Invalid token payload: sub=${sub}, jti=${jti}`);
+      throw new UnauthorizedException('Invalid token payload');
+    }
+
+    // 5) Build Redis session key
+    const redisKey = `session:access:${jti}`;
+
+    // 6) Fetch Redis session
+    const sessionJson = await this.redisService.get(redisKey);
+
+    if (!sessionJson) {
+      this.logger.warn(`Session expired or revoked for jti: ${jti}`);
+      throw new UnauthorizedException('Session expired or revoked');
+    }
+
+    // 7) Parse Redis JSON safely
+    let session: any;
     try {
-      // ✔ verify signature + expiry + jti + redis pointer
-      const payload = await this.authService.verifyAccessToken(token);
-
-      const { sub, jti } = payload as any;
-      if (!sub || !jti) {
-        this.logger.warn('Invalid token payload: missing sub or jti');
-        throw new UnauthorizedException('Invalid token payload');
-      }
-
-      // ✔ Redis session pointer
-      const redisKey = `session:access:${jti}`;
-
-      let sessionJson: string | null = null;
-
-      // ใช้ RedisService เพื่อดึงข้อมูล session
-      sessionJson = await this.redisService.get(redisKey);
-
-      if (!sessionJson) {
-        this.logger.warn(`Session expired or revoked for jti: ${jti}`);
-        throw new UnauthorizedException('Session expired or revoked');
-      }
-
-      let session;
-      try {
-        session = JSON.parse(sessionJson);
-      } catch (e) {
-        this.logger.error('Failed to parse session data from Redis', e);
-        throw new UnauthorizedException('Invalid session data');
-      }
-
-      if (!session || !session.userId) {
-        this.logger.warn(`Invalid session data for jti: ${jti}`);
-        throw new UnauthorizedException('Invalid session data');
-      }
-
-      // หาก session มีค่า userId, ส่งข้อมูลผู้ใช้กลับ
-      return { userId: session.userId };
-    } catch (error) {
-      this.logger.error('Error verifying or fetching session', error);  // ใช้งาน logger ที่นี่
-      throw new UnauthorizedException('Invalid or expired access token');
+      session = JSON.parse(sessionJson);
+    } catch {
+      this.logger.error(
+        `Failed to parse session data from Redis for jti: ${jti}`,
+      );
+      throw new UnauthorizedException('Invalid session data');
     }
+
+    if (!session || !session.userId) {
+      this.logger.warn(`Invalid session data for jti: ${jti}`);
+      throw new UnauthorizedException('Invalid session data');
+    }
+
+    // 8) Return normalized session user object
+    return { userId: session.userId };
+
+  } catch (err: unknown) {
+    // Convert error to readable text WITHOUT assuming `.message` exists
+    const safeError =
+      err instanceof Error ? err.message : String(err);
+
+    this.logger.error(
+      `validateAccessTokenFromRequest failed: ${safeError}`,   );
+
+    throw new UnauthorizedException('Invalid or expired access token');
   }
 }
 
-
-
+}

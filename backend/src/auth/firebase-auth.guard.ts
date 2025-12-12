@@ -76,18 +76,21 @@ export class FirebaseAuthGuard implements CanActivate {
     // ============================================
     // FIX 1 — Use raw JWT token from cookie directly (no decoding)
     // ============================================
-    const encodedToken = req.cookies?.['phl_access'];
-    if (encodedToken) {
-      try {
-        const decoded = await this.authService.verifyAccessToken(encodedToken);
-        req.user = { userId: decoded.sub };
-        return true;
-      } catch (err) {
-        this.logger.debug(
-          'JWT access cookie verification failed: ' + String(err),
-        );
-      }
-    }
+ const encodedToken = req.cookies?.['phl_access'];
+if (encodedToken) {
+  try {
+    const decoded = await this.authService.verifyAccessToken(encodedToken);
+    req.user = {
+      userId: decoded.sub,
+      jti: decoded.jti,      // ✅ เพิ่ม jti ตรงนี้ (สำคัญมาก)
+    };
+    return true;
+  } catch (err) {
+    this.logger.debug(
+      'JWT access cookie verification failed: ' + String(err),
+    );
+  }
+}
 
     // ============================================
     // Firebase session cookie fallback
@@ -144,9 +147,6 @@ export class FirebaseAuthGuard implements CanActivate {
     throw new UnauthorizedException('Authentication required');
   }
 
-  // ====================================
-  // Removed Base64URL decoding
-  // ====================================
   private decodeBase64UrlToken(encoded: string): string | null {
     // No longer needed because we are using raw JWT directly
     return null;

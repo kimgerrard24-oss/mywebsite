@@ -72,8 +72,10 @@ export class SessionService implements OnModuleDestroy {
   ): Promise<void> {
     const refreshTokenHash = await argon2.hash(refreshToken);
 
-    const sessionData: StoredSessionData = {
-      payload,
+    // *** จุดที่แก้ไข ***
+    const sessionData: StoredSessionData & { userId: string } = {
+      userId: payload.userId,             // ← เพิ่มเพื่อรองรับระบบใหม่
+      payload,                             // ← เก็บรูปแบบเดิมเพื่อ backward compatibility
       refreshTokenHash,
       userAgent: meta?.userAgent ?? null,
       ip: meta?.ip ?? null,
@@ -147,4 +149,5 @@ export class SessionService implements OnModuleDestroy {
     }
   }
 }
+
 

@@ -1,3 +1,4 @@
+// backend/src/common/logging/auth-logger.service.ts
 import { Injectable, Logger } from '@nestjs/common';
 import * as Sentry from '@sentry/node';
 import * as crypto from 'crypto';

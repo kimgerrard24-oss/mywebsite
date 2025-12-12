@@ -216,16 +216,18 @@ async createSessionToken(userId: string) {
 // -------------------------------------------------------
 // Verify Access Token (JWT)
 // -------------------------------------------------------
-async verifyAccessToken(token: string): Promise<{ sub: string }> {
+async verifyAccessToken(token: string): Promise<{ sub: string; jti: string }> {
   try {
     const secret = process.env.JWT_ACCESS_SECRET as string;
 
     const payload = jwt.verify(token, secret) as AccessTokenPayload;
 
-    if (!payload?.sub || !payload?.jti) {
+    // ตรวจสอบ payload ว่าต้องมี sub และ jti ตามระบบ Hybrid JWT
+    if (!payload || !payload.sub || !payload.jti) {
       throw new UnauthorizedException('Invalid JWT payload');
     }
 
+    // ตรวจสอบ session pointer ใน Redis: session:access:<jti>
     const redisKey = `session:access:${payload.jti}`;
     const exists = await this.redis.exists(redisKey);
 
@@ -233,11 +235,15 @@ async verifyAccessToken(token: string): Promise<{ sub: string }> {
       throw new UnauthorizedException('Session not found or expired');
     }
 
-    return { sub: payload.sub };
+    return {
+      sub: payload.sub,
+      jti: payload.jti,
+    };
   } catch (err) {
     throw new UnauthorizedException('Invalid or expired token');
   }
 }
+
 
 // Local Logout
 async logout(req: any, res: any) {

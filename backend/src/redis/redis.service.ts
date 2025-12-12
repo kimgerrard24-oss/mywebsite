@@ -133,25 +133,24 @@ export class RedisService {
   }
 
   async get<T = any>(key: string): Promise<T | null> {
-    if (!this.client) {
-      this.logger.warn('Redis client not available - get returns null');
-      return null;
-    }
-
-    try {
-      const value = await this.client.get(key);
-      if (!value) return null;
-
-      try {
-        return JSON.parse(value) as T;
-      } catch {
-        return value as any;
-      }
-    } catch (err: any) {
-      this.logger.error(`Redis get error for key=${key}: ${err?.message ?? String(err)}`);
-      return null;
-    }
+  if (!this.client) {
+    this.logger.warn('Redis client not available - get returns null');
+    return null;
   }
+
+  try {
+    const value = await this.client.get(key);
+    if (value === null) return null;
+
+    // Return raw string — do NOT parse here
+    return value as any;
+
+  } catch (err: any) {
+    this.logger.error(`Redis get error for key=${key}: ${err?.message ?? String(err)}`);
+    return null;
+  }
+}
+
 
   async del(key: string): Promise<void> {
     if (!this.client) {

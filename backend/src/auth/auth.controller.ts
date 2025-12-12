@@ -256,19 +256,20 @@ async login(
     success: true,
   });
 
+  // ====== CREATE SESSION TOKEN ======
   const session = await this.authService.createSessionToken(user.id);
 
   const accessMaxAgeMs =
     (Number(process.env.ACCESS_TOKEN_TTL_SECONDS) || 60 * 15) * 1000;
   const refreshMaxAgeMs =
     (Number(process.env.REFRESH_TOKEN_TTL_SECONDS) ||
-      60 * 60 * 24 * 30) *
+      60 * 60 * 24 * 7) *
     1000;
 
-  // Set access token cookie
+  // ====== SET SECURE ACCESS COOKIE ======
   res.cookie(
     process.env.ACCESS_TOKEN_COOKIE_NAME || 'phl_access',
-    session.accessToken,  // Use raw JWT directly
+    session.accessToken,
     {
       httpOnly: true,
       secure: true,
@@ -279,11 +280,11 @@ async login(
     },
   );
 
-  // Set refresh token cookie (only if refresh token exists)
+  // ====== SET SECURE REFRESH COOKIE ======
   if (session.refreshToken) {
     res.cookie(
       process.env.REFRESH_TOKEN_COOKIE_NAME || 'phl_refresh',
-      session.refreshToken,  // Use raw JWT directly
+      session.refreshToken,
       {
         httpOnly: true,
         secure: true,
@@ -295,6 +296,7 @@ async login(
     );
   }
 
+  // ====== USER SAFE PROFILE ======
   const safeUser = {
     id: user.id,
     email: user.email,
@@ -306,16 +308,21 @@ async login(
     updatedAt: user.updatedAt,
   };
 
+  // =====================================================
+  // IMPORTANT:
+  // ไม่ส่ง accessToken / refreshToken ออกไปใน body อีกต่อไป
+  // เพื่อความปลอดภัยสูงสุดตามสถาปัตยกรรม Cookie-Based Auth
+  // =====================================================
+
   return {
     success: true,
     data: {
       user: safeUser,
-      accessToken: session.accessToken,  // Include accessToken
-      refreshToken: session.refreshToken,  // Include refreshToken
       expiresIn: session.expiresIn,
     },
   };
 }
+
 
 
 // =========================================================

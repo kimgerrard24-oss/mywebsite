@@ -27,18 +27,26 @@ export class JwtAuthGuard implements CanActivate {
     }
 
     try {
-      // Verify JWT + Redis session (jti)
+      // Verify JWT + Redis session (payload = { sub, jti })
       const payload = await this.authService.verifyAccessToken(token);
 
-      if (!payload?.sub) {
+      if (!payload?.sub || !payload?.jti) {
         this.authLogger.logJwtInvalid('invalid_payload', 'Invalid token payload');
         throw new UnauthorizedException('Invalid token payload');
       }
 
-      (req as any).user = { userId: payload.sub };
+      // Attach user info for request.user
+      (req as any).user = {
+        userId: payload.sub,
+        jti: payload.jti,
+      };
+
       return true;
     } catch (err: any) {
-      this.authLogger.logJwtInvalid('verification_failed', err?.message ?? 'invalid_jwt');
+      this.authLogger.logJwtInvalid(
+        'verification_failed',
+        err?.message ?? 'invalid_jwt',
+      );
       throw new UnauthorizedException('Invalid or expired token');
     }
   }
@@ -53,5 +61,6 @@ export class JwtAuthGuard implements CanActivate {
     return null;
   }
 }
+
 
 
