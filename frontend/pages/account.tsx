@@ -1,16 +1,40 @@
 // frontend/pages/account.tsx
-import React from 'react';
-import { GetServerSideProps } from 'next';
+import React from "react";
+import type { GetServerSideProps } from "next";
 
 import { sessionCheckServerSide } from "@/lib/api/api";
-import LogoutButton from '@/components/auth/LogoutButton';
+import LogoutButton from "@/components/auth/LogoutButton";
 
 type Props = {
-  user?: any;
+  user: any | null;
   valid: boolean;
 };
 
-export const getServerSideProps: GetServerSideProps = async (ctx) => {
+export default function AccountPage({ user, valid }: Props) {
+  if (!valid) {
+    return (
+      <div style={{ padding: 24 }}>
+        <h1>ต้องเข้าสู่ระบบ</h1>
+        <p>คุณจะต้องเข้าสู่ระบบก่อนเข้าถึงหน้านี้</p>
+        <a href="/login">ไปที่หน้าเข้าสู่ระบบ</a>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ padding: 24 }}>
+      <h1>บัญชีของคุณ</h1>
+
+      <p>ยินดีต้อนรับ, {user?.name || user?.email || "ผู้ใช้"}</p>
+
+      <pre>{JSON.stringify(user, null, 2)}</pre>
+
+      <LogoutButton />
+    </div>
+  );
+}
+
+export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
   const cookieHeader = ctx.req.headers.cookie || "";
 
   try {
@@ -19,7 +43,7 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
     if (!result || !result.valid) {
       return {
         redirect: {
-          destination: '/',
+          destination: "/login",
           permanent: false,
         },
       };
@@ -37,10 +61,9 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
   } catch {
     return {
       redirect: {
-        destination: '/',
+        destination: "/login",
         permanent: false,
       },
     };
   }
 };
-
