@@ -4,7 +4,7 @@
 
 import Head from "next/head";
 import { GetServerSideProps } from "next";
-import { sessionCheckServerSide } from "@/lib/api";
+import { sessionCheckServerSide } from "@/lib/api/api";
 import LogoutButton from "@/components/auth/LogoutButton";
 import axios from "axios";
 import Cookies from "js-cookie";

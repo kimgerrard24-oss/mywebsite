@@ -1,11 +1,10 @@
 // ==============================
 // src/hooks/useAuth.ts
-// Support: Hybrid OAuth + Firebase CustomToken + Backend Session Cookie
 // ==============================
 "use client";
 
 import { useEffect, useState, useContext } from "react";
-import axios from "@/lib/axios";
+import { api } from "@/lib/api/api"; // FIXED
 import type { User } from "@/types/index";
 import { AuthContext } from "@/context/AuthContext";
 
@@ -37,26 +36,23 @@ export function useAuthInternal() {
 
     async function load() {
       try {
-        // ============================================================
-        // 1) Local JWT + Redis (Fastest)
-        // ============================================================
-        const me = await axios.get(`${API_BASE}/users/me`, {
-          withCredentials: true,
+        // ---------------------------------------------
+        // 1) Local Auth (JWT Cookie → Redis session)
+        // ---------------------------------------------
+        const me = await api.get("/users/me", {
           validateStatus: () => true,
         });
 
         if (me.status >= 200 && me.status < 300) {
           if (!mounted) return;
-          setUser(me.data); // Backend returns UserProfile DTO
+          setUser(me.data);
           return;
         }
 
-        // ============================================================
-        // 2) Social Login fallback (Firebase session-check)
-        // ============================================================
-        const res = await axios.get(`${API_BASE}/auth/session-check`, {
-          withCredentials: true,
-        });
+        // ---------------------------------------------
+        // 2) Social login fallback (session-check)
+        // ---------------------------------------------
+        const res = await api.get("/auth/session-check");
 
         if (!mounted) return;
 
@@ -109,7 +105,6 @@ export function useAuthInternal() {
     }
 
     load();
-
     return () => {
       mounted = false;
     };
@@ -117,16 +112,12 @@ export function useAuthInternal() {
 
   const updateUser = (u: Partial<User> | null) => setUser(u);
 
-  // =========================================
-  // logout → backend clears JWT + Redis session
-  // =========================================
+  // ---------------------------------------------
+  // logout → backend clears session cookie
+  // ---------------------------------------------
   const signOut = async () => {
     try {
-      await axios.post(
-        `${API_BASE}/auth/local/logout`,
-        {},
-        { withCredentials: true }
-      );
+      await api.post("/auth/local/logout", {});
     } catch (err) {
       console.warn("Backend logout error", err);
     }

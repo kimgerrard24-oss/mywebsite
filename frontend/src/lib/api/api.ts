@@ -30,11 +30,8 @@ async function jsonFetch<T>(input: string, init: RequestInit = {}): Promise<T> {
   const hasBody = typeof init.body !== "undefined";
 
   const res = await fetch(input, {
-    // ALWAYS include cookie on client side
     credentials: init.credentials ?? "include",
-
     ...init,
-
     headers: {
       Accept: "application/json",
       ...(hasBody ? { "Content-Type": "application/json" } : {}),
@@ -72,7 +69,6 @@ export const api = axios.create({
   timeout: 12000,
 });
 
-// Normalize Content-Type
 api.interceptors.request.use((cfg) => {
   const method = cfg.method?.toLowerCase();
   cfg.headers = cfg.headers ?? {};
@@ -90,10 +86,10 @@ api.interceptors.request.use((cfg) => {
 });
 
 // ==============================
-// Public API Wrapper (used everywhere)
+// Public API Wrapper (Corrected)
 // ==============================
 export async function apiGet<T = any>(path: string, config: any = {}): Promise<T> {
-  const res = await api.get(apiPath(path), config);
+  const res = await api.get(path, config);
   return res.data;
 }
 
@@ -102,7 +98,7 @@ export async function apiPost<T = any>(
   body?: any,
   config: any = {}
 ): Promise<T> {
-  const res = await api.post(apiPath(path), body, config);
+  const res = await api.post(path, body, config);
   return res.data;
 }
 
@@ -111,7 +107,7 @@ export async function apiPut<T = any>(
   body?: any,
   config: any = {}
 ): Promise<T> {
-  const res = await api.put(apiPath(path), body, config);
+  const res = await api.put(path, body, config);
   return res.data;
 }
 
@@ -119,7 +115,7 @@ export async function apiDelete<T = any>(
   path: string,
   config: any = {}
 ): Promise<T> {
-  const res = await api.delete(apiPath(path), config);
+  const res = await api.delete(path, config);
   return res.data;
 }
 
@@ -149,9 +145,9 @@ export async function logout() {
   return client.post("/auth/logout");
 }
 
-// ------------------------------
+// ==============================
 // SESSION CHECK (SSR)
-// ------------------------------
+// ==============================
 export async function sessionCheckServerSide(cookieHeader?: string) {
   const res = await fetch(apiPath("/auth/session-check"), {
     method: "GET",
@@ -171,9 +167,9 @@ export async function sessionCheckServerSide(cookieHeader?: string) {
   }
 }
 
-// ------------------------------
+// ==============================
 // SESSION CHECK (Client)
-// ------------------------------
+// ==============================
 export async function sessionCheckClient() {
   const data = await jsonFetch<Record<string, any>>(apiPath("/auth/session-check"), {
     credentials: "include",
@@ -182,16 +178,16 @@ export async function sessionCheckClient() {
   return { valid: data.valid === true, ...data };
 }
 
-// ------------------------------
+// ==============================
 // VERIFY EMAIL
-// ------------------------------
+// ==============================
 export async function verifyEmail(token: string, uid: string) {
   return client.get(`/auth/verify-email?token=${token}&uid=${uid}`);
 }
 
-// ------------------------------
+// ==============================
 // REFRESH TOKEN
-// ------------------------------
+// ==============================
 export async function refreshAccessToken() {
   const res = await api.post("/auth/local/refresh", {});
   return res.data;

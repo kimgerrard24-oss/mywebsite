@@ -1,7 +1,7 @@
 // frontend/src/components/feed/Composer.tsx
 'use client'
 import { useState } from 'react'
-import { client } from '@/lib/api';
+import { client } from '@/lib/api/api';
 
 export default function Composer({ onPosted }: { onPosted?: ()=>void }) {
   const [text, setText] = useState('')

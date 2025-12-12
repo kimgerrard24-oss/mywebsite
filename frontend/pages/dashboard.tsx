@@ -8,7 +8,7 @@ import { GetServerSideProps } from "next";
 // ===========================================================
 import LogoutButton from "@/components/auth/LogoutButton";
 
-import { sessionCheckServerSide } from "@/lib/api";
+import { sessionCheckServerSide } from "@/lib/api/api";
 
 type DashboardProps = {
   valid: boolean;

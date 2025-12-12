@@ -1,6 +1,6 @@
 // files pages/auth/request-reset.tsx
 import { useState } from "react";
-import { client } from "@/lib/api"; // แก้ตรงนี้เท่านั้น
+import { client } from "@/lib/api/api"; // แก้ตรงนี้เท่านั้น
 
 export default function RequestReset() {
   const [email, setEmail] = useState("");

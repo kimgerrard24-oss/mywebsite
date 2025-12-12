@@ -2,7 +2,7 @@
 import React from 'react';
 import { GetServerSideProps } from 'next';
 
-import { sessionCheckServerSide } from "@/lib/api";
+import { sessionCheckServerSide } from "@/lib/api/api";
 import LogoutButton from '@/components/auth/LogoutButton';
 
 type Props = {

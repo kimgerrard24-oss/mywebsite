@@ -1,6 +1,6 @@
 // lib/auth/auth.service.ts
 import axios from 'axios';
-import { api } from "../api";
+import { api } from "../api/api";
 
 const rawBase = (process.env.NEXT_PUBLIC_API_URL || '').trim();
 const API_BASE = rawBase.replace(/\/+$/, '');

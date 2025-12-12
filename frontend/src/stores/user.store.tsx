@@ -2,7 +2,7 @@
 'use client';
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import axios from '@/lib/axios';
+import { api } from '@/lib/api/api';
 
 type User = {
   id: string;
@@ -14,8 +14,6 @@ type UserContextValue = {
   user: User | null;
   setUser: (u: User | null) => void;
   isAuthenticated: boolean;
-
-  // added for logout
   logout: () => Promise<void>;
 };
 
@@ -53,42 +51,26 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     setUserRaw(u);
   };
 
-  // ==========================================================
-  // Added: logout API integration for POST /auth/local/logout
-  // ==========================================================
+  // logout
   const logout = async () => {
     try {
-      const rawBase =
-        process.env.NEXT_PUBLIC_BACKEND_URL ||
-        process.env.NEXT_PUBLIC_API_BASE ||
-        'https://api.phlyphant.com';
-
-      const API_BASE = rawBase.replace(/\/+$/, '');
-
-      await axios.post(
-        `${API_BASE}/auth/local/logout`,
-        {},
-        { withCredentials: true }
-      );
+      await api.post('/auth/local/logout', {});
     } catch (err) {
       console.warn('logout API error', err);
     }
 
-    // clear local user storage
     try {
       localStorage.removeItem(STORAGE_KEY);
     } catch {}
 
-    // reset state
     setUserRaw(null);
   };
-  // ==========================================================
 
   const value: UserContextValue = {
     user,
     setUser,
     isAuthenticated: Boolean(user),
-    logout, // exposed for caller
+    logout,
   };
 
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>;

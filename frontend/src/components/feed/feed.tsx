@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import Composer from './Composer'
 import PostCard from './PostCard'
 import type { Post } from '@/types/index'
-import { client } from '@/lib/api'   // ← เปลี่ยนจาก apiGet
+import { client } from '@/lib/api/api'   // ← เปลี่ยนจาก apiGet
 
 export default function Feed() {
   const [posts, setPosts] = useState<Post[]>([])

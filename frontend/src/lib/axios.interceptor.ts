@@ -1,6 +1,6 @@
 // frontend/services/axios.interceptor.ts
 
-import { api } from "./api";
+import { api } from "./api/api";
 import { refreshAccessToken } from "./auth/auth.service";
 
 let isRefreshing = false;
