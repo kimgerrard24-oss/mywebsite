@@ -16,14 +16,11 @@ interface ProfilePageProps {
 }
 
 export const getServerSideProps: GetServerSideProps<ProfilePageProps> = async (ctx) => {
-  const cookieHeader = ctx.req.headers.cookie ?? undefined;
+  const cookieHeader = ctx.req.headers.cookie || "";
 
-  // ใช้ PUBLIC HTTPS BACKEND เพื่อให้ Cookie Secure ทำงาน
-  const baseUrl =
-    process.env.NEXT_PUBLIC_BACKEND_URL ||
-    process.env.NEXT_PUBLIC_API_BASE_URL ||
-    process.env.NEXT_PUBLIC_API_BASE ||
-    "https://api.phlyphant.com";
+  // ✔ ใช้ Internal Backend เท่านั้น
+  const baseUrl = process.env.INTERNAL_BACKEND_URL;
+  if (!baseUrl) throw new Error("Missing INTERNAL_BACKEND_URL");
 
   const apiUrl = `${baseUrl.replace(/\/+$/, "")}/users/me`;
 
@@ -31,11 +28,13 @@ export const getServerSideProps: GetServerSideProps<ProfilePageProps> = async (c
     method: "GET",
     headers: {
       Accept: "application/json",
-      ...(cookieHeader ? { Cookie: cookieHeader } : {}),
+      Cookie: cookieHeader,       // ✔ บังคับส่ง cookie
+      "X-Forwarded-Proto": "https" // ✔ ป้องกัน backend เข้าใจผิดว่าไม่ใช่ HTTPS
     },
     credentials: "include",
     cache: "no-store",
   });
+
 
   if (res.status === 401 || res.status === 403) {
     return {
