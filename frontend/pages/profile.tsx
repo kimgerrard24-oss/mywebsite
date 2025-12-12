@@ -18,14 +18,16 @@ interface ProfilePageProps {
 export const getServerSideProps: GetServerSideProps<ProfilePageProps> = async (ctx) => {
   const cookieHeader = ctx.req.headers.cookie ?? undefined;
 
-  // ใช้เฉพาะ INTERNAL_BACKEND_URL สำหรับ SSR
-  const baseUrl = process.env.INTERNAL_BACKEND_URL;
+  // ใช้ PUBLIC HTTPS BACKEND เพื่อให้ Cookie Secure ทำงาน
+  const baseUrl =
+    process.env.NEXT_PUBLIC_BACKEND_URL ||
+    process.env.NEXT_PUBLIC_API_BASE_URL ||
+    process.env.NEXT_PUBLIC_API_BASE ||
+    "https://api.phlyphant.com";
 
-  if (!baseUrl) {
-    throw new Error("INTERNAL_BACKEND_URL is missing in .env.production");
-  }
+  const apiUrl = `${baseUrl.replace(/\/+$/, "")}/users/me`;
 
-  const res = await fetch(`${baseUrl.replace(/\/+$/, "")}/users/me`, {
+  const res = await fetch(apiUrl, {
     method: "GET",
     headers: {
       Accept: "application/json",
@@ -54,7 +56,6 @@ export const getServerSideProps: GetServerSideProps<ProfilePageProps> = async (c
     },
   };
 };
-
 
 const ProfilePage: NextPage<ProfilePageProps> = ({
   initialProfile,
