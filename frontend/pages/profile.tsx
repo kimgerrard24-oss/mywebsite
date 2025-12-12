@@ -6,12 +6,7 @@ import type { GetServerSideProps, NextPage } from "next";
 import { useRouter } from "next/router";
 import Link from "next/link";
 
-import {
-  fetchMyProfileClient,
-  fetchMyProfileServer,
-  type UserProfile,
-} from "@/lib/api/user";
-
+import type { UserProfile } from "@/lib/api/user";
 import { ProfileCard } from "@/components/profile/profile-ProfileCard";
 import { ProfileSkeleton } from "@/components/profile/ProfileSkeleton";
 
@@ -80,7 +75,13 @@ const ProfilePage: NextPage<ProfilePageProps> = ({
     const loadProfile = async () => {
       try {
         setLoading(true);
-        const data = await fetchMyProfileClient();
+        const data = await fetch("/users/me", {
+             method: "GET",
+             credentials: "include",
+          })
+  .then(r => r.ok ? r.json() : null)
+  .then(j => j?.data || null);
+
         if (isMounted) {
           setProfile(data);
           setError(null);
