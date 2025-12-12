@@ -5,7 +5,7 @@
 import { useEffect, useState } from "react";
 import Head from "next/head";
 import { useRouter } from "next/router";
-import axios from "@/lib/axios";
+import { api } from "@/lib/api/api";
 import { getFirebaseAuth } from "firebase/client";
 import { signInWithCustomToken, Auth, User } from "firebase/auth";
 import { Loader2, CheckCircle, XCircle } from "lucide-react";
@@ -33,12 +33,10 @@ export default function AuthCompletePage() {
       try {
         let customToken: string | null = null;
 
-        // 1. customToken จาก query ปกติ
         if (typeof router.query.customToken === "string") {
           customToken = router.query.customToken;
         }
 
-        // 2. รองรับชื่ออื่น ๆ เช่น token, t
         if (!customToken) {
           if (typeof router.query.token === "string") {
             customToken = router.query.token;
@@ -47,7 +45,6 @@ export default function AuthCompletePage() {
           }
         }
 
-        // 3. รองรับ hash fragment เช่น #customToken=xxxx
         if (!customToken && window.location.hash) {
           const params = new URLSearchParams(window.location.hash.substring(1));
           if (params.get("customToken")) {
@@ -55,7 +52,6 @@ export default function AuthCompletePage() {
           }
         }
 
-        // ถ้าไม่มี token จริง → error
         if (!customToken) {
           setStatus("ERROR");
           setMessage("ไม่พบ customToken จาก OAuth callback");
@@ -66,7 +62,6 @@ export default function AuthCompletePage() {
         setMessage("กำลังเข้าสู่ระบบด้วย Firebase...");
 
         const auth = getFirebaseAuth() as Auth;
-
         await signInWithCustomToken(auth, customToken);
 
         let user: User | null = auth.currentUser;
@@ -87,13 +82,9 @@ export default function AuthCompletePage() {
         setStatus("SETTING_SESSION");
         setMessage("กำลังสร้าง session cookie...");
 
-        await axios.post(
-          `${API_BASE}/auth/complete`,
-          { idToken },
-          { withCredentials: true }
-        );
+        await api.post("/auth/complete", { idToken }, { withCredentials: true });
 
-        const verify = await axios.get(`${API_BASE}/auth/session-check`, {
+        const verify = await api.get("/auth/session-check", {
           withCredentials: true,
         });
 
