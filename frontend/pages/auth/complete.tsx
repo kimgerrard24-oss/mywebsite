@@ -15,7 +15,7 @@ type Status = "LOADING" | "FIREBASE_LOGIN" | "SETTING_SESSION" | "DONE" | "ERROR
 
 export default function AuthCompletePage() {
   const router = useRouter();
-  const { refreshUser, user } = useAuthContext();
+  const { refreshUser, user, loading } = useAuthContext();
 
   const hasRunRef = useRef(false);
 
@@ -30,10 +30,11 @@ export default function AuthCompletePage() {
 
   useEffect(() => {
     if (!router.isReady) return;
+    if (loading) return;
     if (hasRunRef.current) return;
     hasRunRef.current = true;
 
-    // ถ้ามี session อยู่แล้ว ไม่ต้องทำ social login ซ้ำ
+    // ถ้ามี session อยู่แล้ว → redirect ทันที
     if (user) {
       router.replace(REDIRECT_AFTER_LOGIN);
       return;
@@ -148,7 +149,7 @@ export default function AuthCompletePage() {
     return () => {
       cancelled = true;
     };
-  }, [router.isReady, user]);
+  }, [router.isReady, loading]);
 
   const StatusIcon =
     status === "DONE" ? (

@@ -1,19 +1,9 @@
 // ==============================
 // lib/auth/auth.service.ts
-// FINAL FIXED VERSION (Correct Cookie-Based Auth)
+// FINAL FIXED VERSION (Hardened for production)
 // ==============================
 
 import { api } from "../api/api";
-
-// Normalize API base URL
-const rawBase =
-  process.env.NEXT_PUBLIC_API_BASE_URL ||
-  process.env.NEXT_PUBLIC_API_BASE ||
-  process.env.NEXT_PUBLIC_BACKEND_URL ||
-  process.env.NEXT_PUBLIC_API_URL ||
-  "https://api.phlyphant.com";
-
-const API_BASE = rawBase.replace(/\/+$/, "");
 
 // ==============================
 // LOGIN
@@ -38,7 +28,7 @@ export async function login(payload: {
 }
 
 // ==============================
-// FETCH CURRENT USER (FULLY FIXED)
+// FETCH CURRENT USER
 // Must handle both backend formats:
 // 1) { data: {...} }
 // 2) { id, email, ... }
@@ -46,7 +36,6 @@ export async function login(payload: {
 export async function fetchCurrentUser() {
   try {
     const res = await api.get("/users/me");
-
     const body = res.data;
 
     // format 1: { data: {...} }
@@ -60,7 +49,20 @@ export async function fetchCurrentUser() {
     }
 
     return null;
-  } catch {
+  } catch (err: any) {
+    // 401 = not authenticated yet (normal case)
+    if (err?.response?.status === 401) {
+      return null;
+    }
+
+    // Other errors: silent log for non-production
+    if (process.env.NODE_ENV !== "production") {
+      console.warn(
+        "[fetchCurrentUser] unexpected error",
+        err?.message || err
+      );
+    }
+
     return null;
   }
 }
@@ -77,7 +79,7 @@ export async function logout(): Promise<void> {
 }
 
 // ==============================
-// REFRESH TOKEN — FIXED
+// REFRESH TOKEN
 // Backend rotates cookie silently
 // ==============================
 export async function refreshAccessToken(): Promise<boolean> {

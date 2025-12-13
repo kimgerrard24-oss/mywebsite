@@ -2,7 +2,7 @@
 // frontend/context/AuthContext.tsx
 // ==============================
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useRef, useState } from "react";
 import type { Auth } from "firebase/auth";
 import { getFirebaseAuth } from "firebase/client";
 import { onAuthStateChanged } from "firebase/auth";
@@ -30,10 +30,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // ----------------------------------
-  // Exposed helper for post-login sync
-  // ----------------------------------
-  const refreshUser = async () => {
+  // Prevent concurrent profile fetch
+  const fetchingRef = useRef(false);
+
+  const fetchProfileSafely = async () => {
+    if (fetchingRef.current) return;
+
+    fetchingRef.current = true;
     try {
       const profile = await getProfile();
       if (profile) {
@@ -43,7 +46,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     } catch {
       setUser(null);
+    } finally {
+      fetchingRef.current = false;
     }
+  };
+
+  // ----------------------------------
+  // Exposed helper for post-login sync
+  // ----------------------------------
+  const refreshUser = async () => {
+    await fetchProfileSafely();
   };
 
   useEffect(() => {
@@ -61,18 +73,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     // ----------------------------------
-    // 1) ALWAYS check Local Auth first
+    // 1) Local Auth (primary source)
     // ----------------------------------
     (async () => {
       try {
-        const profile = await getProfile();
-        if (profile) {
-          setUser(profile);
-        } else {
-          setUser(null);
-        }
-      } catch {
-        setUser(null);
+        await fetchProfileSafely();
       } finally {
         setLoading(false);
       }
@@ -80,21 +85,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // ----------------------------------
     // 2) Firebase = enhancement layer
-    //    (Social login / WS support)
     // ----------------------------------
     if (!auth) return;
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (!firebaseUser) return;
 
-      try {
-        const profile = await getProfile();
-        if (profile) {
-          setUser(profile);
-        }
-      } catch {
-        // intentionally do nothing
-      }
+      await fetchProfileSafely();
     });
 
     return () => {

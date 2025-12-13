@@ -1,6 +1,6 @@
 // ==============================
 // frontend/lib/api/auth.ts
-// FIXED — Consistent with backend + axios instance
+// FIXED — Hardened for production auth flow
 // ==============================
 
 import axios, { AxiosError } from "axios";
@@ -20,6 +20,14 @@ const client = axios.create({
   baseURL,
   withCredentials: true,
   timeout: 10000,
+});
+
+// --------------------------------------------------
+// Ensure credentials are ALWAYS sent (auth safety)
+// --------------------------------------------------
+client.interceptors.request.use((config) => {
+  config.withCredentials = true;
+  return config;
 });
 
 // ==================================================
@@ -91,7 +99,9 @@ export interface ResetPasswordPayload {
   confirmPassword: string;
 }
 
-export async function resetPassword(payload: ResetPasswordPayload): Promise<string> {
+export async function resetPassword(
+  payload: ResetPasswordPayload
+): Promise<string> {
   try {
     const res = await client.post<ApiSuccessResponse>(
       "/auth/local/reset-password",
@@ -119,7 +129,7 @@ export async function resetPassword(payload: ResetPasswordPayload): Promise<stri
 }
 
 // ==================================================
-// GET PROFILE (FIXED)
+// GET PROFILE (HARDENED)
 // Backend might return:
 // 1) { data: { ...user } }
 // 2) { id, email, ... }
@@ -131,19 +141,31 @@ export async function getProfile() {
     if (!res.data) return null;
 
     if (typeof res.data === "object") {
-      // Backend v1: { data: { ... } }
+      // Backend v1
       if (res.data.data && typeof res.data.data === "object") {
         return res.data.data;
       }
 
-      // Backend v2: { id, email, ... } (current)
+      // Backend v2 (current)
       if (res.data.id) {
         return res.data;
       }
     }
 
     return null;
-  } catch {
+  } catch (err) {
+    const error = err as AxiosError;
+
+    // 401 = not logged in yet (normal case)
+    if (error.response?.status === 401) {
+      return null;
+    }
+
+    // Other errors: log silently for debugging
+    if (process.env.NODE_ENV !== "production") {
+      console.warn("[getProfile] unexpected error", error);
+    }
+
     return null;
   }
 }

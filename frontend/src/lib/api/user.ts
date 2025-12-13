@@ -1,9 +1,9 @@
 // ==============================
 // frontend/lib/api/user.ts
-// FIXED — Compatible with backend responses
+// FIXED — Hardened for CSR/SSR consistency
 // ==============================
 
-import axios, { AxiosInstance } from "axios";
+import axios, { AxiosInstance, AxiosError } from "axios";
 
 function normalizeBaseUrl(url: string): string {
   return url.replace(/\/+$/, "");
@@ -35,10 +35,15 @@ const apiClient: AxiosInstance = axios.create({
   withCredentials: true,
 });
 
+// Ensure credentials are always sent (auth safety)
+apiClient.interceptors.request.use((config) => {
+  config.withCredentials = true;
+  return config;
+});
+
 export async function fetchMyProfileClient(): Promise<UserProfile | null> {
   try {
     const response = await apiClient.get("/users/me");
-
     const data = response.data;
 
     // backend format 1: { data: {...} }
@@ -52,7 +57,19 @@ export async function fetchMyProfileClient(): Promise<UserProfile | null> {
     }
 
     return null;
-  } catch {
+  } catch (err) {
+    const error = err as AxiosError;
+
+    // 401 = not logged in yet (normal case)
+    if (error.response?.status === 401) {
+      return null;
+    }
+
+    // Other errors: silent log for non-production
+    if (process.env.NODE_ENV !== "production") {
+      console.warn("[fetchMyProfileClient] unexpected error", error);
+    }
+
     return null;
   }
 }

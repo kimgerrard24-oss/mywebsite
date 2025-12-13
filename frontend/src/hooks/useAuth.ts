@@ -1,7 +1,6 @@
 // ==============================
 // src/hooks/useAuth.ts
-// FIXED — แก้ auth state ชนกัน
-// ไม่กระทบ social login
+// FIXED — Hardened auth state handling
 // ==============================
 "use client";
 
@@ -12,7 +11,11 @@ import { AuthContext } from "@/context/AuthContext";
 // Public hook → ใช้ AuthContext เป็นแหล่งข้อมูลหลัก
 // ========================================
 export function useAuth() {
-  return useContext(AuthContext);
+  const ctx = useContext(AuthContext);
+  if (!ctx) {
+    throw new Error("useAuth must be used inside AuthProvider");
+  }
+  return ctx;
 }
 
 // Internal type สำหรับ UI เท่านั้น
@@ -68,14 +71,22 @@ export function useAuthInternal() {
     setUser(u);
   };
 
-  // logout → เรียก backend เท่านั้น (ไม่ยุ่ง social login)
+  // logout → revoke backend session + reset UI state
   const signOut = async () => {
     try {
-      await fetch("/auth/local/logout", { method: "POST" });
+      await fetch("/auth/local/logout", {
+        method: "POST",
+        credentials: "include",
+      });
     } catch {
       // ignore
     }
+
+    // reset internal UI state
     setUser(null);
+
+    // force re-evaluate AuthContext (source of truth)
+    window.location.href = "/login";
   };
 
   return {

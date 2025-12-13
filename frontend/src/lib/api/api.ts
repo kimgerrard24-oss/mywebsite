@@ -30,8 +30,8 @@ async function jsonFetch<T>(input: string, init: RequestInit = {}): Promise<T> {
   const hasBody = typeof init.body !== "undefined";
 
   const res = await fetch(input, {
-    credentials: init.credentials ?? "include",
     ...init,
+    credentials: init.credentials ?? "include",
     headers: {
       Accept: "application/json",
       ...(hasBody ? { "Content-Type": "application/json" } : {}),
@@ -123,12 +123,17 @@ export async function apiDelete<T = any>(
 // ==============================
 export const client = {
   get: <T = any>(path: string) =>
-    jsonFetch<T>(apiPath(path), { method: "GET", credentials: "include" }),
+    jsonFetch<T>(apiPath(path), {
+      method: "GET",
+      credentials: "include",
+    }),
 
   post: <T = any>(path: string, data?: any) =>
     jsonFetch<T>(apiPath(path), {
       method: "POST",
-      body: JSON.stringify(data ?? {}),
+      ...(typeof data !== "undefined"
+        ? { body: JSON.stringify(data) }
+        : {}),
       credentials: "include",
     }),
 };
@@ -145,18 +150,16 @@ export async function logout() {
 }
 
 // ==============================
-// SESSION CHECK (SSR) — FIXED
+// SESSION CHECK (SSR)
 // ==============================
 export async function sessionCheckServerSide(cookieHeader?: string) {
   const headers: Record<string, string> = {
     Accept: "application/json",
   };
 
-  // FIX 1 — ensure undefined, not empty string
   const cookieToSend =
     cookieHeader && cookieHeader.trim().length > 0 ? cookieHeader : undefined;
 
-  // FIX 2 — must manually forward cookie to backend
   if (cookieToSend) {
     headers["Cookie"] = cookieToSend;
   }
@@ -182,9 +185,12 @@ export async function sessionCheckServerSide(cookieHeader?: string) {
 // SESSION CHECK (Client)
 // ==============================
 export async function sessionCheckClient() {
-  const data = await jsonFetch<Record<string, any>>(apiPath("/auth/session-check"), {
-    credentials: "include",
-  });
+  const data = await jsonFetch<Record<string, any>>(
+    apiPath("/auth/session-check"),
+    {
+      credentials: "include",
+    }
+  );
 
   return { valid: data.valid === true, ...data };
 }
@@ -197,7 +203,7 @@ export async function verifyEmail(token: string, uid: string) {
 }
 
 // ==============================
-// REFRESH TOKEN (returns boolean)
+// REFRESH TOKEN
 // ==============================
 export async function refreshAccessToken(): Promise<boolean> {
   try {
