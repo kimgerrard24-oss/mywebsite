@@ -17,7 +17,6 @@ import { Request, Response } from 'express';
 import axios from 'axios';
 import crypto from 'crypto';
 import IORedis from 'ioredis';
-
 import { AuthService } from './auth.service';
 import { AuthRateLimitGuard } from '../common/rate-limit/auth-rate-limit.guard';
 import { RateLimit } from '../common/rate-limit/rate-limit.decorator';
