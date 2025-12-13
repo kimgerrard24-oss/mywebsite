@@ -18,7 +18,6 @@ interface ProfilePageProps {
 export const getServerSideProps: GetServerSideProps<ProfilePageProps> = async (ctx) => {
   const cookieHeader = ctx.req.headers.cookie ?? undefined;
 
-  // ใช้ PUBLIC HTTPS BACKEND เพื่อให้ Cookie Secure ทำงาน
   const baseUrl =
     process.env.NEXT_PUBLIC_BACKEND_URL ||
     process.env.NEXT_PUBLIC_API_BASE_URL ||
@@ -47,7 +46,13 @@ export const getServerSideProps: GetServerSideProps<ProfilePageProps> = async (c
   }
 
   const json = await res.json().catch(() => null);
-  const profile = json?.data ?? null;
+
+  let profile: UserProfile | null = null;
+  if (json?.data && typeof json.data === "object") {
+    profile = json.data;
+  } else if (json?.id) {
+    profile = json;
+  }
 
   return {
     props: {
@@ -69,25 +74,39 @@ const ProfilePage: NextPage<ProfilePageProps> = ({
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!isAuthenticated || initialProfile) return;
+    if (initialProfile) return;
 
     let isMounted = true;
 
     const loadProfile = async () => {
       try {
         setLoading(true);
-        const data = await fetch("/users/me", {
-             method: "GET",
-             credentials: "include",
-          })
-  .then(r => r.ok ? r.json() : null)
-  .then(j => j?.data || null);
+
+        const API_BASE =
+          process.env.NEXT_PUBLIC_BACKEND_URL ||
+          process.env.NEXT_PUBLIC_API_BASE_URL ||
+          process.env.NEXT_PUBLIC_API_BASE ||
+          "https://api.phlyphant.com";
+
+        const data = await fetch(
+          `${API_BASE.replace(/\/+$/, "")}/users/me`,
+          {
+            method: "GET",
+            credentials: "include",
+          }
+        )
+          .then((r) => (r.ok ? r.json() : null))
+          .then((j) => {
+            if (j?.data) return j.data;
+            if (j?.id) return j;
+            return null;
+          });
 
         if (isMounted) {
           setProfile(data);
           setError(null);
         }
-      } catch (err) {
+      } catch {
         if (!isMounted) return;
         setError("เกิดข้อผิดพลาดในการโหลดข้อมูลโปรไฟล์ กรุณาลองใหม่อีกครั้ง");
       } finally {
@@ -100,7 +119,7 @@ const ProfilePage: NextPage<ProfilePageProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [isAuthenticated, initialProfile]);
+  }, [initialProfile]);
 
   useEffect(() => {
     if (!isAuthenticated && !profile && !loading) {
@@ -134,7 +153,7 @@ const ProfilePage: NextPage<ProfilePageProps> = ({
           <nav className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
             <Link
               href="/feed"
-              prefetch={false} 
+              prefetch={false}
               className="text-2xl font-semibold tracking-tight text-blue-600"
             >
               PhlyPhant

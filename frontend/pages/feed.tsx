@@ -4,31 +4,22 @@
 
 import Head from "next/head";
 import { GetServerSideProps } from "next";
-import { sessionCheckServerSide } from "@/lib/api/api";
 import LogoutButton from "@/components/auth/LogoutButton";
 import { api } from "@/lib/api/api";
-import Cookies from "js-cookie";
 import { useRouter } from "next/router";
 import { useCallback } from "react";
 import Link from "next/link";
 
 type FeedProps = {
-  valid: boolean;
   user: any | null;
 };
 
-export default function FeedPage({ valid, user }: FeedProps) {
+export default function FeedPage({ user }: FeedProps) {
   const router = useRouter();
 
   const handleLogout = useCallback(async () => {
     try {
-      const API_BASE =
-        process.env.NEXT_PUBLIC_API_BASE ||
-        process.env.NEXT_PUBLIC_BACKEND_URL ||
-        "https://api.phlyphant.com";
-
       await api.post("/auth/local/logout", {});
-
     } catch (err) {
       console.error("Logout failed:", err);
     }
@@ -77,7 +68,7 @@ export default function FeedPage({ valid, user }: FeedProps) {
               </Link>
 
               <img
-                src={user?.picture || "/images/default-avatar.png"}
+                src={user?.avatarUrl || "/images/default-avatar.png"}
                 className="w-10 h-10 rounded-full border object-cover"
                 alt="Avatar"
               />
@@ -99,7 +90,7 @@ export default function FeedPage({ valid, user }: FeedProps) {
         >
           <article className="bg-white p-6 rounded-2xl shadow border">
             <h2 className="text-xl font-semibold">
-              สวัสดี {user?.name || user?.email || "ผู้ใช้"}
+              สวัสดี {user?.displayName || user?.email || "ผู้ใช้"}
             </h2>
             <p className="text-gray-600 mt-1">
               ดูโพสต์ล่าสุดจากชุมชนของคุณบน PhlyPhant
@@ -193,9 +184,25 @@ const MOCK_POSTS: Post[] = [
 export const getServerSideProps: GetServerSideProps = async (ctx) => {
   const cookieHeader = ctx.req.headers.cookie ?? undefined;
 
-  const result = await sessionCheckServerSide(cookieHeader);
+  const baseUrl =
+    process.env.NEXT_PUBLIC_BACKEND_URL ||
+    process.env.NEXT_PUBLIC_API_BASE_URL ||
+    process.env.NEXT_PUBLIC_API_BASE ||
+    "https://api.phlyphant.com";
 
-  if (!result || !result.valid) {
+  const apiUrl = `${baseUrl.replace(/\/+$/, "")}/users/me`;
+
+  const res = await fetch(apiUrl, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      ...(cookieHeader ? { Cookie: cookieHeader } : {}),
+    },
+    credentials: "include",
+    cache: "no-store",
+  });
+
+  if (res.status === 401 || res.status === 403) {
     return {
       redirect: {
         destination: "/",
@@ -204,13 +211,18 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
     };
   }
 
-  const data = result as Record<string, any>;
-  const decodedUser = data.user || data.decoded || null;
+  const json = await res.json().catch(() => null);
+
+  let user = null;
+  if (json?.data && typeof json.data === "object") {
+    user = json.data;
+  } else if (json?.id) {
+    user = json;
+  }
 
   return {
     props: {
-      valid: true,
-      user: decodedUser,
+      user,
     },
   };
 };
