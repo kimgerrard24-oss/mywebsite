@@ -59,22 +59,31 @@ export class ValidateSessionService {
 
       // 3) Load session from Redis
       const redisKey = `session:access:${jti}`;
-      const sessionJson = await this.redisService.get(redisKey);
+      const rawSession = await this.redisService.get(redisKey);
 
-      if (!sessionJson) {
+      if (!rawSession) {
         this.logger.warn(`Session expired or revoked for jti: ${jti}`);
         throw new UnauthorizedException('Session expired or revoked');
       }
 
+      // 4) Normalize session object (string | object)
       let session: any;
-      try {
-        session = JSON.parse(sessionJson);
-      } catch {
-        this.logger.error(`Failed to parse session JSON for jti: ${jti}`);
+
+      if (typeof rawSession === 'string') {
+        try {
+          session = JSON.parse(rawSession);
+        } catch {
+          this.logger.error(`Failed to parse session JSON for jti: ${jti}`);
+          throw new UnauthorizedException('Invalid session data');
+        }
+      } else if (typeof rawSession === 'object') {
+        session = rawSession;
+      } else {
+        this.logger.error(`Unknown session type for jti: ${jti}`);
         throw new UnauthorizedException('Invalid session data');
       }
 
-      // 4) Normalize userId (backward compatible)
+      // 5) Normalize userId (backward compatible)
       const userId =
         session.userId ??
         session.payload?.userId ??
@@ -86,7 +95,7 @@ export class ValidateSessionService {
         throw new UnauthorizedException('Invalid session data');
       }
 
-      // 5) Touch session activity (NO TTL reset)
+      // 6) Touch session activity (best-effort, no TTL reset)
       this.touchSession(jti).catch(() => {});
 
       return { userId, jti };
@@ -98,7 +107,7 @@ export class ValidateSessionService {
   }
 
   /**
-   * Update lastSeenAt (best-effort, no TTL reset)
+   * Update lastSeenAt (best-effort, NO TTL reset)
    */
   async touchSession(jti: string): Promise<void> {
     const redisKey = `session:access:${jti}`;
@@ -108,16 +117,28 @@ export class ValidateSessionService {
       if (!raw) return;
 
       let session: any;
-      try {
-        session = JSON.parse(raw);
-      } catch {
+
+      if (typeof raw === 'string') {
+        try {
+          session = JSON.parse(raw);
+        } catch {
+          return;
+        }
+      } else if (typeof raw === 'object') {
+        session = raw;
+      } else {
+        return;
+      }
+
+      if (!session || typeof session !== 'object') {
         return;
       }
 
       session.lastSeenAt = new Date().toISOString();
 
-      // ⚠️ IMPORTANT:
-      // Do NOT reset TTL — let Redis expiry handle access token lifetime
+      // IMPORTANT:
+      // - Do NOT reset TTL
+      // - Assume RedisService.set(key, value) preserves TTL
       await this.redisService.set(redisKey, JSON.stringify(session));
     } catch (err) {
       this.logger.warn(

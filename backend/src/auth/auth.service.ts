@@ -176,65 +176,87 @@ async validateUser(email: string, password: string) {
 // Create Session Token (NEW SYSTEM: use SessionService for Redis)
 // -------------------------------------------------------
 async createSessionToken(userId: string, meta?: SessionMeta) {
-    const accessTTL =
-      Number(process.env.ACCESS_TOKEN_TTL_SECONDS) || 60 * 15;
+  const accessTTL =
+    Number(process.env.ACCESS_TOKEN_TTL_SECONDS) > 0
+      ? Number(process.env.ACCESS_TOKEN_TTL_SECONDS)
+      : 60 * 15; // fallback ชัดเจน
 
-    const jti = randomUUID();
+  const jti = randomUUID();
 
-    const payload: AccessTokenPayload = {
-      sub: userId,
-      jti,
-    };
+  const payload: AccessTokenPayload = {
+    sub: userId,
+    jti,
+  };
 
-    const secret = process.env.JWT_ACCESS_SECRET as string;
-
-    const accessToken = jwt.sign(payload, secret, {
-      expiresIn: accessTTL,
-      algorithm: 'HS256',
-    });
-
-    const refreshToken = randomBytes(48).toString('hex');
-
-    await this.sessionService.createSession(
-      { userId },
-      jti,
-      refreshToken,
-      {
-        ip: meta?.ip ?? null,
-        userAgent: meta?.userAgent ?? null,
-        deviceId: meta?.deviceId ?? null,
-      },
-    );
-
-    return {
-      accessToken,
-      refreshToken,
-      expiresIn: accessTTL,
-    };
+  const secret = process.env.JWT_ACCESS_SECRET;
+  if (!secret) {
+    throw new Error('JWT_ACCESS_SECRET not configured');
   }
+
+  const accessToken = jwt.sign(payload, secret, {
+    expiresIn: accessTTL,
+    algorithm: 'HS256',
+  });
+
+  const refreshToken = randomBytes(48).toString('hex');
+
+  await this.sessionService.createSession(
+    { userId },
+    jti,
+    refreshToken,
+    {
+      ip: meta?.ip ?? null,
+      userAgent: meta?.userAgent ?? null,
+      deviceId: meta?.deviceId ?? null,
+    },
+  );
+
+  return {
+    accessToken,
+    refreshToken,
+    expiresIn: accessTTL,
+  };
+}
 
 // -------------------------------------------------------
 // Verify Access Token (JWT)
 // -------------------------------------------------------
 async verifyAccessToken(
-    token: string,
-  ): Promise<{ sub: string; jti: string }> {
-    try {
-      const secret = process.env.JWT_ACCESS_SECRET as string;
-      const payload = jwt.verify(token, secret) as AccessTokenPayload;
-
-      if (!payload?.sub || !payload?.jti) {
-        throw new UnauthorizedException('Invalid JWT payload');
-      }
-
-      return {
-        sub: payload.sub,
-        jti: payload.jti,
-      };
-    } catch {
-      throw new UnauthorizedException('Invalid or expired token');
-    }
+  token: string,
+): Promise<{ sub: string; jti: string }> {
+  if (!token || typeof token !== 'string') {
+    throw new UnauthorizedException('Missing access token');
   }
+
+  const secret = process.env.JWT_ACCESS_SECRET;
+  if (!secret) {
+    // misconfiguration = server error
+    throw new UnauthorizedException('JWT secret not configured');
+  }
+
+  try {
+    const payload = jwt.verify(token, secret, {
+      algorithms: ['HS256'],
+    }) as AccessTokenPayload;
+
+    // strict payload validation
+    if (
+      !payload ||
+      typeof payload.sub !== 'string' ||
+      typeof payload.jti !== 'string'
+    ) {
+      throw new UnauthorizedException('Invalid JWT payload');
+    }
+
+    return {
+      sub: payload.sub,
+      jti: payload.jti,
+    };
+  } catch (err: any) {
+    // keep error generic for security
+    throw new UnauthorizedException('Invalid or expired access token');
+  }
+}
 
 
 // Local Logout

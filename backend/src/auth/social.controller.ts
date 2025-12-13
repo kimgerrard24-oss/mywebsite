@@ -100,108 +100,133 @@ export class SocialAuthController {
   /* ================================================================
    * GOOGLE
    * ================================================================ */
-  @RateLimit('oauth')
-  @RateLimitContext('oauth')
-  @UseGuards(AuthRateLimitGuard)
-  @Get('google')
-  async googleAuth(@Req() _req: Request, @Res() res: Response) {
-    const isProd = process.env.NODE_ENV === 'production';
-    const cookieDomain = process.env.COOKIE_DOMAIN || '.phlyphant.com';
+@RateLimit('oauth')
+@RateLimitContext('oauth')
+@UseGuards(AuthRateLimitGuard)
+@Get('google')
+async googleAuth(@Req() _req: Request, @Res() res: Response) {
+  const isProd = process.env.NODE_ENV === 'production';
+  const cookieDomain = process.env.COOKIE_DOMAIN || '.phlyphant.com';
 
-    const state = crypto.randomBytes(16).toString('hex');
-    await this.redisService.set(`oauth_state_${state}`, '1', 300);
+  const state = crypto.randomBytes(16).toString('hex');
+  await this.redisService.set(`oauth_state_${state}`, '1', 300);
 
-    res.cookie('oauth_state', state, {
-      httpOnly: true,
-      secure: isProd,
-      sameSite: 'none',
-      domain: cookieDomain,
+  res.cookie('oauth_state', state, {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: 'none',
+    domain: cookieDomain,
+    path: '/',
+    maxAge: 5 * 60 * 1000,
+  });
+
+  const redirectUri = process.env.GOOGLE_CALLBACK_URL || '';
+
+  const params = new URLSearchParams({
+    client_id: process.env.GOOGLE_CLIENT_ID || '',
+    redirect_uri: redirectUri,
+    response_type: 'code',
+    scope: 'openid email profile',
+    state,
+    prompt: 'select_account',
+  });
+
+  return res.redirect(
+    `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`,
+  );
+}
+
+@Get('google/callback')
+async googleCallback(@Req() req: Request, @Res() res: Response) {
+  try {
+    const code = req.query.code as string;
+    const state = req.query.state as string;
+
+    if (!code || !state) {
+      return res.status(400).send('Missing code or state');
+    }
+
+    const redisKey = `oauth_state_${state}`;
+    const exists = await this.redisService.get(redisKey);
+
+    if (!exists || req.cookies?.oauth_state !== state) {
+      return res.status(400).send('Invalid or expired state');
+    }
+
+    await this.redisService.del(redisKey);
+    res.clearCookie('oauth_state', {
+      domain: process.env.COOKIE_DOMAIN || '.phlyphant.com',
       path: '/',
-      maxAge: 5 * 60 * 1000,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'none',
     });
 
-    const redirectUri = process.env.GOOGLE_CALLBACK_URL || '';
+    const tokenRes = await axios.post(
+      'https://oauth2.googleapis.com/token',
+      new URLSearchParams({
+        code,
+        client_id: process.env.GOOGLE_CLIENT_ID || '',
+        client_secret: process.env.GOOGLE_CLIENT_SECRET || '',
+        redirect_uri: process.env.GOOGLE_CALLBACK_URL || '',
+        grant_type: 'authorization_code',
+      }).toString(),
+      {
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        timeout: 5000,
+      },
+    );
 
-    const params = new URLSearchParams({
-      client_id: process.env.GOOGLE_CLIENT_ID || '',
-      redirect_uri: redirectUri,
-      response_type: 'code',
-      scope: 'openid email profile',
-      state,
-      prompt: 'select_account',
-    });
+    const infoRes = await axios.get(
+      'https://www.googleapis.com/oauth2/v3/userinfo',
+      {
+        headers: {
+          Authorization: `Bearer ${tokenRes.data.access_token}`,
+        },
+        timeout: 5000,
+      },
+    );
+
+    const profile = infoRes.data;
+
+    // 1) หา / สร้าง user ในระบบ
+    const firebaseUid = await this.auth.getOrCreateOAuthUser(
+      'google',
+      profile.sub,
+      profile.email,
+      profile.name,
+      profile.picture,
+    );
+
+    // 2) ดึง user จริงจาก DB (สำคัญ)
+    const user = await this.auth.getUserByFirebaseUid(firebaseUid);
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
+
+    // 3) สร้าง Firebase Custom Token ด้วย user จริง
+    const customToken = await this.auth.createFirebaseCustomToken(
+      firebaseUid,
+      user,
+    );
+
+    const base =
+      process.env.GOOGLE_PROVIDER_REDIRECT_AFTER_LOGIN ||
+      'https://www.phlyphant.com';
+
+    const redirectBase = base.replace(/\/+$/, '');
 
     return res.redirect(
-      `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`,
+      `${redirectBase}/auth/complete?customToken=${encodeURIComponent(
+        customToken,
+      )}`,
     );
+  } catch (e: any) {
+    this.logger.error('[googleCallback] ' + (e?.stack || e?.message || e));
+    return res.status(500).send('Authentication error');
   }
-  @Get('google/callback')
-  async googleCallback(@Req() req: Request, @Res() res: Response) {
-    try {
-      const code = req.query.code as string;
-      const state = req.query.state as string;
-      if (!code || !state) {
-        return res.status(400).send('Missing code or state');
-      }
+}
 
-      const redisKey = `oauth_state_${state}`;
-      const exists = await this.redisService.get(redisKey);
-      if (!exists || req.cookies?.oauth_state !== state) {
-        return res.status(400).send('Invalid or expired state');
-      }
-
-      await this.redisService.del(redisKey);
-      res.clearCookie('oauth_state', {
-        domain: process.env.COOKIE_DOMAIN || '.phlyphant.com',
-        path: '/',
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'none',
-      });
-
-      const tokenRes = await axios.post(
-        'https://oauth2.googleapis.com/token',
-        new URLSearchParams({
-          code,
-          client_id: process.env.GOOGLE_CLIENT_ID || '',
-          client_secret: process.env.GOOGLE_CLIENT_SECRET || '',
-          redirect_uri: process.env.GOOGLE_CALLBACK_URL || '',
-          grant_type: 'authorization_code',
-        }).toString(),
-        { headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, timeout: 5000 },
-      );
-
-      const infoRes = await axios.get(
-        'https://www.googleapis.com/oauth2/v3/userinfo',
-        {
-          headers: { Authorization: `Bearer ${tokenRes.data.access_token}` },
-          timeout: 5000,
-        },
-      );
-
-      const profile = infoRes.data;
-
-      const firebaseUid = await this.auth.getOrCreateOAuthUser(
-        'google',
-        profile.sub,
-        profile.email,
-        profile.name,
-        profile.picture,
-      );
-
-      const customToken = await this.auth.createFirebaseCustomToken(
-        firebaseUid,
-        profile,
-      );
-
-      return res.redirect(
-        `${process.env.GOOGLE_PROVIDER_REDIRECT_AFTER_LOGIN || 'https://www.phlyphant.com'}/auth/complete?customToken=${encodeURIComponent(customToken)}`,
-      );
-    } catch (e: any) {
-      this.logger.error('[googleCallback] ' + String(e));
-      return res.status(500).send('Authentication error');
-    }
-  }
 
   /* ================================================================
    * FACEBOOK
