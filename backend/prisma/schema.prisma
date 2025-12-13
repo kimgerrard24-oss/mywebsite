@@ -39,6 +39,7 @@ model User {
   activities                UserActivity[]
   auditLogs                 AuditLog[]
   passwordResetTokens       PasswordResetToken[]
+  @@unique([provider, providerId])
 }
 
 model Session {

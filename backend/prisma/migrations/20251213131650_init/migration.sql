@@ -118,6 +118,9 @@ CREATE UNIQUE INDEX "User_username_key" ON "User"("username");
 CREATE UNIQUE INDEX "User_firebaseUid_key" ON "User"("firebaseUid");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "User_provider_providerId_key" ON "User"("provider", "providerId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "Session_sessionToken_key" ON "Session"("sessionToken");
 
 -- CreateIndex
