@@ -167,7 +167,7 @@ export class AuthController {
   }
 
 // =========================================================
-// local login
+// local login (RATE-LIMIT FIXED)
 // =========================================================
 @Public()
 @Post('login')
@@ -177,6 +177,9 @@ async login(
   @Req() req: Request,
   @Res({ passthrough: true }) res: Response,
 ) {
+  // -------------------------------------------------------
+  // 1) Extract real client IP (Cloudflare safe)
+  // -------------------------------------------------------
   const forwarded = req.headers['x-forwarded-for'];
   const rawIp =
     typeof forwarded === 'string'
@@ -185,58 +188,57 @@ async login(
 
   const normalizedIp = rawIp
     .replace(/^::ffff:/, '')
-    .replace(/:\d+$/, '');
+    .replace(/:\d+$/, '')
+    .trim() || 'unknown';
 
-  const key = `${body.email}:${normalizedIp}`
+  // -------------------------------------------------------
+  // 2) User-Agent (bind to device/browser)
+  // -------------------------------------------------------
+  const userAgent = (req.headers['user-agent'] as string) || 'unknown';
+
+  // lightweight hash (avoid storing raw UA in Redis key)
+  const uaHash = Buffer.from(userAgent).toString('base64').slice(0, 16);
+
+  // -------------------------------------------------------
+  // 3) Build rate-limit key (email + ip + ua)
+  // -------------------------------------------------------
+  const rateLimitKey = `${body.email}:${normalizedIp}:${uaHash}`
     .replace(/[^a-zA-Z0-9_-]/g, '_')
     .trim() || 'unknown';
 
-  const ua = (req.headers['user-agent'] as string) || null;
+  // -------------------------------------------------------
+  // 4) Rate-limit BEFORE credential validation
+  // -------------------------------------------------------
+  const rlResult = await this.rateLimitService.consume('login', rateLimitKey);
 
+  if (rlResult.blocked) {
+    await this.audit.logLoginAttempt({
+      email: body.email,
+      ip: normalizedIp,
+      userAgent,
+      success: false,
+      reason: 'rate_limit_block',
+    });
+
+    throw new HttpException(
+      `Too many attempts. Try again after ${rlResult.retryAfterSec} seconds`,
+      HttpStatus.TOO_MANY_REQUESTS,
+    );
+  }
+
+  // -------------------------------------------------------
+  // 5) Validate credentials
+  // -------------------------------------------------------
   const user = await this.authService.validateUser(
     body.email,
     body.password,
   );
 
   if (!user) {
-    const consumeResult = await this.rateLimitService.consume('login', key);
-
-    if (consumeResult.blocked) {
-      await this.audit.logLoginAttempt({
-        email: body.email,
-        ip: normalizedIp,
-        userAgent: ua,
-        success: false,
-        reason: 'rate_limit_block',
-      });
-
-      throw new HttpException(
-        `Too many attempts. Try again after ${consumeResult.retryAfterSec} seconds`,
-        HttpStatus.TOO_MANY_REQUESTS,
-      );
-    }
-
-    const status = await this.rateLimitService.check('login', key);
-
-    if (status.blocked) {
-      await this.audit.logLoginAttempt({
-        email: body.email,
-        ip: normalizedIp,
-        userAgent: ua,
-        success: false,
-        reason: 'rate_limit_block',
-      });
-
-      throw new HttpException(
-        `Too many attempts. Try again after ${status.retryAfterSec} seconds`,
-        HttpStatus.TOO_MANY_REQUESTS,
-      );
-    }
-
     await this.audit.logLoginAttempt({
       email: body.email,
       ip: normalizedIp,
-      userAgent: ua,
+      userAgent,
       success: false,
       reason: 'invalid_credentials',
     });
@@ -244,28 +246,32 @@ async login(
     throw new UnauthorizedException('Invalid email or password');
   }
 
-  await this.rateLimitService.reset('login', key);
+  // -------------------------------------------------------
+  // 6) Login success → reset rate-limit key
+  // -------------------------------------------------------
+  await this.rateLimitService.reset('login', rateLimitKey);
 
   await this.audit.logLoginAttempt({
     userId: user.id,
     email: user.email,
     ip: normalizedIp,
-    userAgent: ua,
+    userAgent,
     success: true,
   });
 
-  // ====== CREATE SESSION TOKEN (WITH META) ======
+  // -------------------------------------------------------
+  // 7) Create session (JWT + Redis)
+  // -------------------------------------------------------
   const session = await this.authService.createSessionToken(user.id, {
     ip: normalizedIp,
-    userAgent: ua,
+    userAgent,
     deviceId: null,
   });
 
   const accessMaxAgeMs =
     (Number(process.env.ACCESS_TOKEN_TTL_SECONDS) || 15 * 60) * 1000;
   const refreshMaxAgeMs =
-    (Number(process.env.REFRESH_TOKEN_TTL_SECONDS) || 7 * 24 * 60 * 60) *
-    1000;
+    (Number(process.env.REFRESH_TOKEN_TTL_SECONDS) || 7 * 24 * 60 * 60) * 1000;
 
   res.cookie(
     process.env.ACCESS_TOKEN_COOKIE_NAME || 'phl_access',
@@ -295,6 +301,9 @@ async login(
     );
   }
 
+  // -------------------------------------------------------
+  // 8) Return safe user
+  // -------------------------------------------------------
   const safeUser = {
     id: user.id,
     email: user.email,
@@ -314,6 +323,7 @@ async login(
     },
   };
 }
+
 
 // =========================================================
 // Local Logout
@@ -342,34 +352,4 @@ async logout(@Req() req: Request, @Res() res: Response) {
     };
   }
 
-    // local profile
-   //@Get('profile')
-  //@UseGuards(JwtAuthGuard)
-  //@HttpCode(HttpStatus.OK)
-  //@Header('Cache-Control', 'no-store') // ห้าม cache โปรไฟล์บน proxy/broswer
-  //async getProfile(
-   // @Req() req: AuthenticatedRequest,
-  //): Promise<{ success: boolean; data: UserProfileDto }> {
-   // const jwtUser = req.user;
-
-    //if (!jwtUser) {
-     // throw new UnauthorizedException('Missing authentication payload');
-   // }
-
-    //const userId = jwtUser.userId || jwtUser.sub;
-
-    //if (!userId) {
-     // this.logger.warn(`JWT payload missing userId/sub: ${JSON.stringify(jwtUser)}`);
-      //throw new UnauthorizedException('Invalid authentication payload');
-    //}
-
-    //const profile = await this.authService.getProfile(userId);
-
-    //this.logger.debug(`Profile requested for userId=${userId}`);
-
-    //return {
-     // success: true,
-      //data: profile,
-    //};
-  //}
 }
