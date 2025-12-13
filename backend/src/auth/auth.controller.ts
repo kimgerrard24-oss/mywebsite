@@ -167,7 +167,7 @@ export class AuthController {
   }
 
 // =========================================================
-// local login (RATE-LIMIT CORRECT & SAFE)
+// local login (RATE-LIMIT FINAL & SAFE)
 // =========================================================
 @Public()
 @Post('login')
@@ -178,7 +178,7 @@ async login(
   @Res({ passthrough: true }) res: Response,
 ) {
   // -------------------------------------------------------
-  // 1) Extract real client IP (Cloudflare / Proxy safe)
+  // 1) Extract real client IP
   // -------------------------------------------------------
   const forwarded = req.headers['x-forwarded-for'];
   const rawIp =
@@ -189,14 +189,10 @@ async login(
   const normalizedIp =
     rawIp.replace(/^::ffff:/, '').replace(/:\d+$/, '').trim() || 'unknown';
 
-  // -------------------------------------------------------
-  // 2) User-Agent (audit only, NOT for rate-limit key)
-  // -------------------------------------------------------
   const userAgent = (req.headers['user-agent'] as string) || 'unknown';
 
   // -------------------------------------------------------
-  // 3) Rate-limit key (STABLE)
-  //    email + ip ONLY
+  // 2) Stable rate-limit key (email + ip)
   // -------------------------------------------------------
   const rateLimitKey =
     `${body.email}:${normalizedIp}`
@@ -204,7 +200,30 @@ async login(
       .replace(/[^a-z0-9_-]/g, '_') || 'unknown';
 
   // -------------------------------------------------------
-  // 4) Validate credentials FIRST
+  // 3) PRE-CHECK: already blocked?
+  // -------------------------------------------------------
+  const status = await this.rateLimitService.check(
+    'login',
+    rateLimitKey,
+  );
+
+  if (status.blocked) {
+    await this.audit.logLoginAttempt({
+      email: body.email,
+      ip: normalizedIp,
+      userAgent,
+      success: false,
+      reason: 'rate_limit_block',
+    });
+
+    throw new HttpException(
+      `Too many attempts. Try again after ${status.retryAfterSec} seconds`,
+      HttpStatus.TOO_MANY_REQUESTS,
+    );
+  }
+
+  // -------------------------------------------------------
+  // 4) Validate credentials
   // -------------------------------------------------------
   const user = await this.authService.validateUser(
     body.email,
@@ -212,16 +231,15 @@ async login(
   );
 
   // -------------------------------------------------------
-  // 5) Login failed → consume rate-limit
-  //    (1–4 = allow, 5 = block by policy)
+  // 5) Invalid credentials → consume rate-limit
   // -------------------------------------------------------
   if (!user) {
-    const rlResult = await this.rateLimitService.consume(
+    const rl = await this.rateLimitService.consume(
       'login',
       rateLimitKey,
     );
 
-    if (rlResult.blocked) {
+    if (rl.blocked) {
       await this.audit.logLoginAttempt({
         email: body.email,
         ip: normalizedIp,
@@ -231,7 +249,7 @@ async login(
       });
 
       throw new HttpException(
-        `Too many attempts. Try again after ${rlResult.retryAfterSec} seconds`,
+        `Too many attempts. Try again after ${rl.retryAfterSec} seconds`,
         HttpStatus.TOO_MANY_REQUESTS,
       );
     }
@@ -248,7 +266,7 @@ async login(
   }
 
   // -------------------------------------------------------
-  // 6) Login success → reset rate-limit counter
+  // 6) Success → reset rate-limit
   // -------------------------------------------------------
   await this.rateLimitService.reset('login', rateLimitKey);
 
@@ -261,7 +279,7 @@ async login(
   });
 
   // -------------------------------------------------------
-  // 7) Create session (JWT + Redis)
+  // 7) Create session
   // -------------------------------------------------------
   const session = await this.authService.createSessionToken(user.id, {
     ip: normalizedIp,
@@ -303,28 +321,24 @@ async login(
     );
   }
 
-  // -------------------------------------------------------
-  // 8) Return safe user
-  // -------------------------------------------------------
-  const safeUser = {
-    id: user.id,
-    email: user.email,
-    username: user.username,
-    name: user.name,
-    avatarUrl: user.avatarUrl,
-    isEmailVerified: user.isEmailVerified,
-    createdAt: user.createdAt,
-    updatedAt: user.updatedAt,
-  };
-
   return {
     success: true,
     data: {
-      user: safeUser,
+      user: {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+        name: user.name,
+        avatarUrl: user.avatarUrl,
+        isEmailVerified: user.isEmailVerified,
+        createdAt: user.createdAt,
+        updatedAt: user.updatedAt,
+      },
       expiresIn: session.expiresIn,
     },
   };
 }
+
 
 // =========================================================
 // Local Logout
