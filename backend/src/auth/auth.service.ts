@@ -175,80 +175,66 @@ async validateUser(email: string, password: string) {
 // -------------------------------------------------------
 // Create Session Token (NEW SYSTEM: use SessionService for Redis)
 // -------------------------------------------------------
-async createSessionToken(
-  userId: string,
-  meta?: SessionMeta,
-) {
-  const accessTTL = Number(process.env.ACCESS_TOKEN_TTL_SECONDS) || 60 * 15;
-  const refreshTTL =
-    Number(process.env.REFRESH_TOKEN_TTL_SECONDS) || 60 * 60 * 24 * 7;
+async createSessionToken(userId: string, meta?: SessionMeta) {
+    const accessTTL =
+      Number(process.env.ACCESS_TOKEN_TTL_SECONDS) || 60 * 15;
 
-  const jti = randomUUID();
+    const jti = randomUUID();
 
-  const payload: AccessTokenPayload = {
-    sub: userId,
-    jti,
-  };
+    const payload: AccessTokenPayload = {
+      sub: userId,
+      jti,
+    };
 
-  const secret = process.env.JWT_ACCESS_SECRET as string;
+    const secret = process.env.JWT_ACCESS_SECRET as string;
 
-  const accessToken = jwt.sign(payload, secret, {
-    expiresIn: accessTTL,
-    algorithm: 'HS256',
-  });
+    const accessToken = jwt.sign(payload, secret, {
+      expiresIn: accessTTL,
+      algorithm: 'HS256',
+    });
 
-  const refreshToken = randomBytes(48).toString('hex');
+    const refreshToken = randomBytes(48).toString('hex');
 
-  await this.sessionService.createSession(
-    { userId },
-    jti,
-    refreshToken,
-    {
-      ip: meta?.ip ?? null,
-      userAgent: meta?.userAgent ?? null,
-      deviceId: meta?.deviceId ?? null,
-    }
-  );
+    await this.sessionService.createSession(
+      { userId },
+      jti,
+      refreshToken,
+      {
+        ip: meta?.ip ?? null,
+        userAgent: meta?.userAgent ?? null,
+        deviceId: meta?.deviceId ?? null,
+      },
+    );
 
-  return {
-    accessToken,
-    refreshToken,
-    expiresIn: accessTTL,
-  };
-}
-
-
+    return {
+      accessToken,
+      refreshToken,
+      expiresIn: accessTTL,
+    };
+  }
 
 // -------------------------------------------------------
 // Verify Access Token (JWT)
 // -------------------------------------------------------
-async verifyAccessToken(token: string): Promise<{ sub: string; jti: string }> {
-  try {
-    const secret = process.env.JWT_ACCESS_SECRET as string;
+async verifyAccessToken(
+    token: string,
+  ): Promise<{ sub: string; jti: string }> {
+    try {
+      const secret = process.env.JWT_ACCESS_SECRET as string;
+      const payload = jwt.verify(token, secret) as AccessTokenPayload;
 
-    const payload = jwt.verify(token, secret) as AccessTokenPayload;
+      if (!payload?.sub || !payload?.jti) {
+        throw new UnauthorizedException('Invalid JWT payload');
+      }
 
-    // ตรวจสอบ payload ว่าต้องมี sub และ jti ตามระบบ Hybrid JWT
-    if (!payload || !payload.sub || !payload.jti) {
-      throw new UnauthorizedException('Invalid JWT payload');
+      return {
+        sub: payload.sub,
+        jti: payload.jti,
+      };
+    } catch {
+      throw new UnauthorizedException('Invalid or expired token');
     }
-
-    // ตรวจสอบ session pointer ใน Redis: session:access:<jti>
-    const redisKey = `session:access:${payload.jti}`;
-    const exists = await this.redis.exists(redisKey);
-
-    if (!exists) {
-      throw new UnauthorizedException('Session not found or expired');
-    }
-
-    return {
-      sub: payload.sub,
-      jti: payload.jti,
-    };
-  } catch (err) {
-    throw new UnauthorizedException('Invalid or expired token');
   }
-}
 
 
 // Local Logout
@@ -296,13 +282,9 @@ async logout(req: any, res: any) {
 }
 
 // Get user/me Profile
- async getProfile(userId: string): Promise<UserProfileDto> {
+  async getProfile(userId: string): Promise<UserProfileDto> {
     const user = await this.userService.findSafeProfileById(userId);
-
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
+    if (!user) throw new NotFoundException('User not found');
     return UserProfileDto.fromUser(user);
   }
 

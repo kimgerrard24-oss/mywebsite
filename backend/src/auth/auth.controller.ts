@@ -177,7 +177,6 @@ async login(
   @Req() req: Request,
   @Res({ passthrough: true }) res: Response,
 ) {
-
   const forwarded = req.headers['x-forwarded-for'];
   const rawIp =
     typeof forwarded === 'string'
@@ -200,7 +199,6 @@ async login(
   );
 
   if (!user) {
-
     const consumeResult = await this.rateLimitService.consume('login', key);
 
     if (consumeResult.blocked) {
@@ -256,17 +254,19 @@ async login(
     success: true,
   });
 
-  // ====== CREATE SESSION TOKEN ======
-  const session = await this.authService.createSessionToken(user.id);
+  // ====== CREATE SESSION TOKEN (WITH META) ======
+  const session = await this.authService.createSessionToken(user.id, {
+    ip: normalizedIp,
+    userAgent: ua,
+    deviceId: null,
+  });
 
   const accessMaxAgeMs =
-    (Number(process.env.ACCESS_TOKEN_TTL_SECONDS) || 60 * 15) * 1000;
+    (Number(process.env.ACCESS_TOKEN_TTL_SECONDS) || 15 * 60) * 1000;
   const refreshMaxAgeMs =
-    (Number(process.env.REFRESH_TOKEN_TTL_SECONDS) ||
-      60 * 60 * 24 * 7) *
+    (Number(process.env.REFRESH_TOKEN_TTL_SECONDS) || 7 * 24 * 60 * 60) *
     1000;
 
-  // ====== SET SECURE ACCESS COOKIE ======
   res.cookie(
     process.env.ACCESS_TOKEN_COOKIE_NAME || 'phl_access',
     session.accessToken,
@@ -280,7 +280,6 @@ async login(
     },
   );
 
-  // ====== SET SECURE REFRESH COOKIE ======
   if (session.refreshToken) {
     res.cookie(
       process.env.REFRESH_TOKEN_COOKIE_NAME || 'phl_refresh',
@@ -296,7 +295,6 @@ async login(
     );
   }
 
-  // ====== USER SAFE PROFILE ======
   const safeUser = {
     id: user.id,
     email: user.email,
@@ -308,12 +306,6 @@ async login(
     updatedAt: user.updatedAt,
   };
 
-  // =====================================================
-  // IMPORTANT:
-  // ไม่ส่ง accessToken / refreshToken ออกไปใน body อีกต่อไป
-  // เพื่อความปลอดภัยสูงสุดตามสถาปัตยกรรม Cookie-Based Auth
-  // =====================================================
-
   return {
     success: true,
     data: {
@@ -322,8 +314,6 @@ async login(
     },
   };
 }
-
-
 
 // =========================================================
 // Local Logout

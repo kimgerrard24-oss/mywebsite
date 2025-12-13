@@ -14,7 +14,10 @@ import { ValidateSessionService } from './services/validate-session.service';
 import type { Request } from 'express';
 
 interface AuthenticatedRequest extends Request {
-  user?: { userId: string };
+  user?: {
+    userId: string;
+    jti: string;
+  };
 }
 
 @Injectable()
@@ -40,19 +43,18 @@ export class AuthGuard implements CanActivate {
     }
 
     try {
-      // ================================================
-      // Use raw JWT cookie without Base64URL decoding
-      // ================================================
       const accessToken = req.cookies?.['phl_access'];
-
       if (!accessToken) {
         throw new UnauthorizedException('Authentication required');
       }
 
-      // Validate the JWT token directly from cookie
-      const sessionUser = await this.validateSessionService.validateAccessTokenFromRequest(req);
+      const sessionUser =
+        await this.validateSessionService.validateAccessTokenFromRequest(req);
 
-      req.user = { userId: sessionUser.userId };
+      req.user = {
+        userId: sessionUser.userId,
+        jti: sessionUser.jti,
+      };
 
       return true;
     } catch {
@@ -60,4 +62,5 @@ export class AuthGuard implements CanActivate {
     }
   }
 }
+
 

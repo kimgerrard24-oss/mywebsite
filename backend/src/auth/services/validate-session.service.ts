@@ -7,7 +7,7 @@ import { RedisService } from '../../redis/redis.service';
 
 export interface SessionUser {
   userId: string;
-  jti: string; // ใช้สำหรับ session activity tracking
+  jti: string;
 }
 
 const ACCESS_TOKEN_COOKIE_NAME =
@@ -23,13 +23,12 @@ export class ValidateSessionService {
   ) {}
 
   /**
-   * Validate JWT + Redis pointer (jti)
+   * Validate JWT + Redis session pointer
    */
   async validateAccessTokenFromRequest(
     req: Request,
     rawToken?: string | null,
   ): Promise<SessionUser> {
-    // 1) Extract token from cookie or passed raw token
     const cookieToken = req.cookies?.[ACCESS_TOKEN_COOKIE_NAME];
     const token = rawToken || cookieToken;
 
@@ -39,31 +38,26 @@ export class ValidateSessionService {
     }
 
     try {
-      // 2) Verify JWT signature + expiry
+      // 1) Verify JWT (signature + exp)
       const payload = await this.authService.verifyAccessToken(token);
 
       if (!payload || typeof payload !== 'object') {
-        this.logger.warn('Invalid token payload: not an object');
+        this.logger.warn('Invalid token payload');
         throw new UnauthorizedException('Invalid token payload');
       }
 
-      // 3) Normalize sub + jti
-      const sub =
-        (payload as any).sub ??
-        (payload as any).userId ??
-        (payload as any)?.data?.sub;
-
+      // 2) Extract jti
       const jti =
         (payload as any).jti ??
         (payload as any).sessionId ??
         (payload as any)?.data?.jti;
 
-      if (!sub || !jti) {
-        this.logger.warn(`Invalid token payload: sub=${sub}, jti=${jti}`);
+      if (!jti) {
+        this.logger.warn('JWT missing jti');
         throw new UnauthorizedException('Invalid token payload');
       }
 
-      // 4) Load session from Redis
+      // 3) Load session from Redis
       const redisKey = `session:access:${jti}`;
       const sessionJson = await this.redisService.get(redisKey);
 
@@ -76,39 +70,35 @@ export class ValidateSessionService {
       try {
         session = JSON.parse(sessionJson);
       } catch {
-        this.logger.error(
-          `Failed to parse session data from Redis for jti: ${jti}`,
-        );
+        this.logger.error(`Failed to parse session JSON for jti: ${jti}`);
         throw new UnauthorizedException('Invalid session data');
       }
 
-      if (!session || !session.userId) {
+      // 4) Normalize userId (backward compatible)
+      const userId =
+        session.userId ??
+        session.payload?.userId ??
+        session.sub ??
+        session.id;
+
+      if (!userId) {
         this.logger.warn(`Invalid session data for jti: ${jti}`);
         throw new UnauthorizedException('Invalid session data');
       }
 
-      // 5) 🔹 Touch session (update lastSeenAt) — best effort
+      // 5) Touch session activity (NO TTL reset)
       this.touchSession(jti).catch(() => {});
 
-      return {
-        userId: session.userId,
-        jti,
-      };
-    } catch (err: unknown) {
-      const safeError =
-        err instanceof Error ? err.message : String(err);
-
-      this.logger.error(
-        `validateAccessTokenFromRequest failed: ${safeError}`,
-      );
-
-      throw new UnauthorizedException('Invalid or expired access token');
+      return { userId, jti };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : String(err);
+      this.logger.error(`validateAccessTokenFromRequest failed: ${msg}`);
+      throw new UnauthorizedException('Unauthorized');
     }
   }
 
   /**
-   * Update session lastSeenAt (best-effort)
-   * ใช้สำหรับ activity tracking / multi-device
+   * Update lastSeenAt (best-effort, no TTL reset)
    */
   async touchSession(jti: string): Promise<void> {
     const redisKey = `session:access:${jti}`;
@@ -126,6 +116,8 @@ export class ValidateSessionService {
 
       session.lastSeenAt = new Date().toISOString();
 
+      // ⚠️ IMPORTANT:
+      // Do NOT reset TTL — let Redis expiry handle access token lifetime
       await this.redisService.set(redisKey, JSON.stringify(session));
     } catch (err) {
       this.logger.warn(
