@@ -1,4 +1,5 @@
 // frontend/pages/account.tsx
+
 import React from "react";
 import type { GetServerSideProps } from "next";
 
@@ -35,12 +36,13 @@ export default function AccountPage({ user, valid }: Props) {
 }
 
 export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
-  const cookieHeader = ctx.req.headers.cookie || "";
+  const cookieHeader = ctx.req.headers.cookie ?? undefined;
 
   try {
-    const result = await sessionCheckServerSide(cookieHeader);
+    // 1) ตรวจสอบ session ก่อน
+    const sessionResult = await sessionCheckServerSide(cookieHeader);
 
-    if (!result || !result.valid) {
+    if (!sessionResult || !sessionResult.valid) {
       return {
         redirect: {
           destination: "/",
@@ -49,8 +51,42 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
       };
     }
 
-    const data = result as Record<string, any>;
-    const user = data.user ?? null;
+    // 2) session valid → ดึง user profile
+    const baseUrl =
+      process.env.NEXT_PUBLIC_BACKEND_URL ||
+      process.env.NEXT_PUBLIC_API_BASE_URL ||
+      process.env.NEXT_PUBLIC_API_BASE ||
+      "https://api.phlyphant.com";
+
+    const apiUrl = `${baseUrl.replace(/\/+$/, "")}/users/me`;
+
+    const res = await fetch(apiUrl, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        ...(cookieHeader ? { Cookie: cookieHeader } : {}),
+      },
+      credentials: "include",
+      cache: "no-store",
+    });
+
+    if (!res.ok) {
+      return {
+        redirect: {
+          destination: "/",
+          permanent: false,
+        },
+      };
+    }
+
+    const json = await res.json().catch(() => null);
+
+    let user = null;
+    if (json?.data && typeof json.data === "object") {
+      user = json.data;
+    } else if (json?.id) {
+      user = json;
+    }
 
     return {
       props: {
@@ -61,7 +97,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
   } catch {
     return {
       redirect: {
-        destination: "/feed",
+        destination: "/",
         permanent: false,
       },
     };

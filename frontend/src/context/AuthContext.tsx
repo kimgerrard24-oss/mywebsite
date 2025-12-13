@@ -2,7 +2,13 @@
 // frontend/context/AuthContext.tsx
 // ==============================
 
-import React, { createContext, useContext, useEffect, useRef, useState } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import type { Auth } from "firebase/auth";
 import { getFirebaseAuth } from "firebase/client";
 import { onAuthStateChanged } from "firebase/auth";
@@ -41,11 +47,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const profile = await getProfile();
       if (profile) {
         setUser(profile);
-      } else {
-        setUser(null);
       }
     } catch {
-      setUser(null);
+      // do NOT force setUser(null) here (avoid race with session creation)
     } finally {
       fetchingRef.current = false;
     }
@@ -73,7 +77,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     // ----------------------------------
-    // 1) Local Auth (primary source)
+    // 1) Local Session (PRIMARY SOURCE)
     // ----------------------------------
     (async () => {
       try {
@@ -84,12 +88,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })();
 
     // ----------------------------------
-    // 2) Firebase = enhancement layer
+    // 2) Firebase = enhancement layer ONLY
+    //    (Do not race session creation)
     // ----------------------------------
     if (!auth) return;
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (!firebaseUser) return;
+
+      // Delay to allow backend session cookie to be set
+      await new Promise((r) => setTimeout(r, 300));
 
       await fetchProfileSafely();
     });

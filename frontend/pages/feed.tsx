@@ -4,7 +4,6 @@
 
 import Head from "next/head";
 import { GetServerSideProps } from "next";
-import LogoutButton from "@/components/auth/LogoutButton";
 import { api } from "@/lib/api/api";
 import { useRouter } from "next/router";
 import { useCallback } from "react";
@@ -190,9 +189,10 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
     process.env.NEXT_PUBLIC_API_BASE ||
     "https://api.phlyphant.com";
 
-  const apiUrl = `${baseUrl.replace(/\/+$/, "")}/users/me`;
+  const apiBase = baseUrl.replace(/\/+$/, "");
 
-  const res = await fetch(apiUrl, {
+  // 1) Check session validity first (lightweight & stable)
+  const sessionRes = await fetch(`${apiBase}/auth/session-check`, {
     method: "GET",
     headers: {
       Accept: "application/json",
@@ -202,7 +202,7 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
     cache: "no-store",
   });
 
-  if (res.status === 401 || res.status === 403) {
+  if (!sessionRes.ok) {
     return {
       redirect: {
         destination: "/",
@@ -211,7 +211,37 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
     };
   }
 
-  const json = await res.json().catch(() => null);
+  const sessionJson = await sessionRes.json().catch(() => null);
+  if (!sessionJson || sessionJson.valid !== true) {
+    return {
+      redirect: {
+        destination: "/",
+        permanent: false,
+      },
+    };
+  }
+
+  // 2) Session valid → fetch user profile
+  const userRes = await fetch(`${apiBase}/users/me`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      ...(cookieHeader ? { Cookie: cookieHeader } : {}),
+    },
+    credentials: "include",
+    cache: "no-store",
+  });
+
+  if (!userRes.ok) {
+    return {
+      redirect: {
+        destination: "/",
+        permanent: false,
+      },
+    };
+  }
+
+  const json = await userRes.json().catch(() => null);
 
   let user = null;
   if (json?.data && typeof json.data === "object") {

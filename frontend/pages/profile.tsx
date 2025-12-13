@@ -1,4 +1,6 @@
+// ==============================
 // frontend/pages/profile.tsx
+// ==============================
 
 import React, { useEffect, useState } from "react";
 import Head from "next/head";
@@ -15,7 +17,9 @@ interface ProfilePageProps {
   isAuthenticated: boolean;
 }
 
-export const getServerSideProps: GetServerSideProps<ProfilePageProps> = async (ctx) => {
+export const getServerSideProps: GetServerSideProps<ProfilePageProps> = async (
+  ctx
+) => {
   const cookieHeader = ctx.req.headers.cookie ?? undefined;
 
   const baseUrl =
@@ -24,9 +28,10 @@ export const getServerSideProps: GetServerSideProps<ProfilePageProps> = async (c
     process.env.NEXT_PUBLIC_API_BASE ||
     "https://api.phlyphant.com";
 
-  const apiUrl = `${baseUrl.replace(/\/+$/, "")}/users/me`;
+  const apiBase = baseUrl.replace(/\/+$/, "");
 
-  const res = await fetch(apiUrl, {
+  // 1) Check session validity first (SSR-safe)
+  const sessionRes = await fetch(`${apiBase}/auth/session-check`, {
     method: "GET",
     headers: {
       Accept: "application/json",
@@ -36,7 +41,7 @@ export const getServerSideProps: GetServerSideProps<ProfilePageProps> = async (c
     cache: "no-store",
   });
 
-  if (res.status === 401 || res.status === 403) {
+  if (!sessionRes.ok) {
     return {
       redirect: {
         destination: "/",
@@ -45,7 +50,38 @@ export const getServerSideProps: GetServerSideProps<ProfilePageProps> = async (c
     };
   }
 
-  const json = await res.json().catch(() => null);
+  const sessionJson = await sessionRes.json().catch(() => null);
+
+  if (!sessionJson || sessionJson.valid !== true) {
+    return {
+      redirect: {
+        destination: "/",
+        permanent: false,
+      },
+    };
+  }
+
+  // 2) Session valid → fetch user profile
+  const userRes = await fetch(`${apiBase}/users/me`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      ...(cookieHeader ? { Cookie: cookieHeader } : {}),
+    },
+    credentials: "include",
+    cache: "no-store",
+  });
+
+  if (!userRes.ok) {
+    return {
+      redirect: {
+        destination: "/",
+        permanent: false,
+      },
+    };
+  }
+
+  const json = await userRes.json().catch(() => null);
 
   let profile: UserProfile | null = null;
   if (json?.data && typeof json.data === "object") {
@@ -160,10 +196,18 @@ const ProfilePage: NextPage<ProfilePageProps> = ({
             </Link>
 
             <div className="flex items-center gap-4">
-              <Link href="/feed" prefetch={false} className="text-sm hover:text-blue-600">
+              <Link
+                href="/feed"
+                prefetch={false}
+                className="text-sm hover:text-blue-600"
+              >
                 Feed
               </Link>
-              <Link href="/dashboard" prefetch={false} className="text-sm hover:text-blue-600">
+              <Link
+                href="/dashboard"
+                prefetch={false}
+                className="text-sm hover:text-blue-600"
+              >
                 Dashboard
               </Link>
             </div>
@@ -171,7 +215,11 @@ const ProfilePage: NextPage<ProfilePageProps> = ({
         </header>
 
         <div className="max-w-5xl mx-auto px-4 pt-4">
-          <Link href="/feed" prefetch={false} className="text-sm text-blue-600 hover:underline">
+          <Link
+            href="/feed"
+            prefetch={false}
+            className="text-sm text-blue-600 hover:underline"
+          >
             ← Back to feed
           </Link>
         </div>
@@ -179,7 +227,9 @@ const ProfilePage: NextPage<ProfilePageProps> = ({
         <div className="mx-auto max-w-5xl px-4 pb-12 pt-4 sm:px-6 lg:px-8">
           {loading && <ProfileSkeleton />}
           {!loading && error && <ProfileSkeleton errorMessage={error} />}
-          {!loading && !error && profile && <ProfileCard profile={profile} />}
+          {!loading && !error && profile && (
+            <ProfileCard profile={profile} />
+          )}
         </div>
       </main>
     </>

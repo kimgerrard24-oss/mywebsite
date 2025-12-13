@@ -1,27 +1,16 @@
-// src/middleware.ts
+// frontend/middleware.ts
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-const PROTECTED = [
-  "/home",
-  "/profile",
-  "/messages",
-  "/notifications",
-  "/settings",
-  "/suggested",
-];
-
-// Explicit public auth pages (must not be session-checked)
-const AUTH_PUBLIC_ROUTES = [
-  "/auth/complete",
-  "/auth/callback",
-  "/auth/local/login",
-];
+// ⚠️ IMPORTANT
+// With SessionService + Redis,
+// middleware MUST NOT decide authentication state.
+// Auth decision is handled by backend only.
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
-  // Whitelist static and framework paths
+  // Allow Next.js internals & static assets
   if (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/static") ||
@@ -31,27 +20,20 @@ export function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // Explicitly allow auth public routes (important for OAuth flow)
-  if (AUTH_PUBLIC_ROUTES.some((p) => pathname.startsWith(p))) {
+  // Allow all auth-related routes (OAuth flow safe)
+  if (pathname.startsWith("/auth")) {
     return NextResponse.next();
   }
 
-  // Protect pages
-  if (PROTECTED.some((p) => pathname.startsWith(p))) {
-    const sessionCookie = req.cookies.get("session")?.value;
-
-    if (!sessionCookie) {
-      const url = req.nextUrl.clone();
-      url.pathname = "/auth/local/login";
-      url.search = `?redirect=${encodeURIComponent(req.nextUrl.pathname)}`;
-      return NextResponse.redirect(url);
-    }
-  }
+  // DO NOT check cookies here
+  // DO NOT redirect based on auth here
+  // Protected pages must validate session
+  // via backend (SSR or client API)
 
   return NextResponse.next();
 }
 
-// BLOCK MIDDLEWARE from touching /socket.io
+// Block middleware from touching socket.io
 export const config = {
   matcher: [
     "/((?!socket\\.io).*)",

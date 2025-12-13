@@ -1,24 +1,12 @@
+// ==============================
 // frontend/pages/login.tsx
+// FINAL — SessionService + OAuth Compatible
+// ==============================
 
-import React, { useEffect } from "react";
+import React from "react";
 import Head from "next/head";
-import { useRouter } from "next/router";
 import dynamic from "next/dynamic";
-import axios from "axios";
-import Cookies from "js-cookie";
 import LoginForm from "@/components/auth/LoginForm";
-
-import {
-  getAuth,
-  signInWithCustomToken,
-  type User,
-} from "firebase/auth";
-import {
-  initializeApp,
-  getApps,
-  getApp,
-  type FirebaseApp,
-} from "firebase/app";
 
 const API_BASE = (
   process.env.NEXT_PUBLIC_API_BASE ||
@@ -26,108 +14,18 @@ const API_BASE = (
   "https://api.phlyphant.com"
 ).replace(/\/+$/, "");
 
-function createFirebaseApp(): FirebaseApp | null {
-  const firebaseConfig = {
-    apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-    authDomain: process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,
-    projectId: process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID,
-  };
-
-  if (!firebaseConfig.apiKey) {
-    console.error("Missing Firebase config env values");
-    return null;
-  }
-
-  try {
-    if (getApps().length > 0) return getApp();
-    return initializeApp(firebaseConfig);
-  } catch {
-    return null;
-  }
-}
-
 function LoginPageInner() {
-  const router = useRouter();
-
-  useEffect(() => {
-    const access = Cookies.get("phl_access");
-    const refresh = Cookies.get("phl_refresh");
-    const firebase = Cookies.get("__session");
-
-    if (!access && !refresh && !firebase) return;
-
-    let mounted = true;
-
-    (async () => {
-      try {
-        const res = await axios.get(`${API_BASE}/auth/session-check`, {
-          withCredentials: true,
-        });
-
-        if (!mounted) return;
-
-        if (res.data?.valid === true) {
-          router.replace("/feed");
-        }
-      } catch (err) {
-        console.warn("session-check failed:", err);
-      }
-    })();
-
-    return () => {
-      mounted = false;
-    };
-  }, [router]);
-
-  useEffect(() => {
-    const run = async () => {
-      try {
-        const url = new URL(window.location.href);
-        const customToken = url.searchParams.get("customToken");
-        if (!customToken) return;
-
-        const app = createFirebaseApp();
-        if (!app) return;
-
-        const auth = getAuth(app);
-
-        await signInWithCustomToken(auth, customToken);
-
-        const handleUser = async (u: User | null) => {
-          if (!u) return;
-
-          const idToken = await u.getIdToken(true);
-
-          await fetch(`${API_BASE}/auth/complete`, {
-            method: "POST",
-            credentials: "include",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ idToken }),
-          });
-
-          router.replace("/feed");
-        };
-
-        const currentUser = auth.currentUser;
-
-        if (!currentUser) {
-          auth.onAuthStateChanged(handleUser);
-          return;
-        }
-
-        await handleUser(currentUser);
-      } catch (err) {
-        console.error("Custom Token Login Error:", err);
-      }
-    };
-
-    run();
-  }, [router]);
-
   const SITE_ORIGIN =
     process.env.NEXT_PUBLIC_SITE_URL ||
     "https://www.phlyphant.com";
 
+  /**
+   * OAuth entry point only
+   * - No cookie check
+   * - No Firebase handling
+   * - No session decision here
+   * Social callback MUST be handled by /auth/complete
+   */
   const startOAuth = (provider: "google" | "facebook") => {
     window.location.href = `${API_BASE}/auth/${provider}?origin=${encodeURIComponent(
       SITE_ORIGIN
@@ -185,7 +83,6 @@ function LoginPageInner() {
 
             <LoginForm />
 
-            {/* Added: Forgot password link */}
             <div className="mt-4 text-center">
               <a
                 href="/auth/forgot-password"
@@ -194,14 +91,16 @@ function LoginPageInner() {
                 Forgot password?
               </a>
             </div>
+
             <div className="mt-4 text-center">
-                       <a
-                        href="/auth/register"
-                 className="block w-full border border-blue-600 text-blue-600 py-3 rounded-lg font-medium hover:bg-blue-50 transition mt-4 text-center"
-                            >
-                       Register
-                       </a>
-                   </div>
+              <a
+                href="/auth/register"
+                className="block w-full border border-blue-600 text-blue-600 py-3 rounded-lg font-medium hover:bg-blue-50 transition mt-4 text-center"
+              >
+                Register
+              </a>
+            </div>
+
             <section className="mt-8 space-y-4" aria-label="Social login options">
               <button
                 onClick={() => startOAuth("google")}
