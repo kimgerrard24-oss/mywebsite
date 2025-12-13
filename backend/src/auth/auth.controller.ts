@@ -167,10 +167,9 @@ export class AuthController {
   }
 
 // =========================================================
-// local login 
+// local login (CORRECT & SAFE)
 // =========================================================
 @Public()
-@RateLimit('login')
 @Post('login')
 @HttpCode(HttpStatus.OK)
 async login(
@@ -179,7 +178,7 @@ async login(
   @Res({ passthrough: true }) res: Response,
 ) {
   // -------------------------------------------------------
-  // 1) Extract real client IP (for audit only)
+  // 1) Extract real client IP (audit + rate-limit key)
   // -------------------------------------------------------
   const forwarded = req.headers['x-forwarded-for'];
   const rawIp =
@@ -193,29 +192,54 @@ async login(
   const userAgent = (req.headers['user-agent'] as string) || 'unknown';
 
   // -------------------------------------------------------
-  // 2) Validate credentials
-  //    (rate-limit is handled by Guard)
+  // 2) Stable rate-limit key (email + ip)
+  // -------------------------------------------------------
+  const rateLimitKey =
+    `${body.email}:${normalizedIp}`
+      .toLowerCase()
+      .replace(/[^a-z0-9_-]/g, '_') || 'unknown';
+
+  // -------------------------------------------------------
+  // 3) Validate credentials FIRST
   // -------------------------------------------------------
   const user = await this.authService.validateUser(
     body.email,
     body.password,
   );
 
+  // -------------------------------------------------------
+  // 4) Invalid credentials → consume rate-limit
+  //    (1–4 allow, 5 blocked by policy)
+  // -------------------------------------------------------
   if (!user) {
+    const rl = await this.rateLimitService.consume(
+      'login',
+      rateLimitKey,
+    );
+
     await this.audit.logLoginAttempt({
       email: body.email,
       ip: normalizedIp,
       userAgent,
       success: false,
-      reason: 'invalid_credentials',
+      reason: rl.blocked ? 'rate_limit_block' : 'invalid_credentials',
     });
+
+    if (rl.blocked) {
+      throw new HttpException(
+        `Too many attempts. Try again after ${rl.retryAfterSec} seconds`,
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
 
     throw new UnauthorizedException('Invalid email or password');
   }
 
   // -------------------------------------------------------
-  // 3) Successful login → audit
+  // 5) Login success → reset rate-limit counter
   // -------------------------------------------------------
+  await this.rateLimitService.reset('login', rateLimitKey);
+
   await this.audit.logLoginAttempt({
     userId: user.id,
     email: user.email,
@@ -225,7 +249,7 @@ async login(
   });
 
   // -------------------------------------------------------
-  // 4) Create session (JWT + Redis)
+  // 6) Create session (JWT + Redis)
   // -------------------------------------------------------
   const session = await this.authService.createSessionToken(user.id, {
     ip: normalizedIp,
@@ -241,7 +265,7 @@ async login(
     1000;
 
   // -------------------------------------------------------
-  // 5) Set cookies
+  // 7) Set cookies
   // -------------------------------------------------------
   res.cookie(
     process.env.ACCESS_TOKEN_COOKIE_NAME || 'phl_access',
@@ -272,7 +296,7 @@ async login(
   }
 
   // -------------------------------------------------------
-  // 6) Return safe response
+  // 8) Return safe response
   // -------------------------------------------------------
   return {
     success: true,
@@ -291,6 +315,7 @@ async login(
     },
   };
 }
+
 
 // =========================================================
 // Local Logout
