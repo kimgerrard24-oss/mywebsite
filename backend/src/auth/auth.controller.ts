@@ -167,7 +167,7 @@ export class AuthController {
   }
 
 // =========================================================
-// local login (RATE-LIMIT FIXED)
+// local login (RATE-LIMIT CORRECT & SAFE)
 // =========================================================
 @Public()
 @Post('login')
@@ -178,7 +178,7 @@ async login(
   @Res({ passthrough: true }) res: Response,
 ) {
   // -------------------------------------------------------
-  // 1) Extract real client IP (Cloudflare safe)
+  // 1) Extract real client IP
   // -------------------------------------------------------
   const forwarded = req.headers['x-forwarded-for'];
   const rawIp =
@@ -186,55 +186,54 @@ async login(
       ? forwarded.split(',')[0].trim()
       : req.ip || req.socket?.remoteAddress || 'unknown';
 
-  const normalizedIp = rawIp
-    .replace(/^::ffff:/, '')
-    .replace(/:\d+$/, '')
-    .trim() || 'unknown';
+  const normalizedIp =
+    rawIp.replace(/^::ffff:/, '').replace(/:\d+$/, '').trim() || 'unknown';
 
   // -------------------------------------------------------
-  // 2) User-Agent (bind to device/browser)
+  // 2) User-Agent (for audit only)
   // -------------------------------------------------------
   const userAgent = (req.headers['user-agent'] as string) || 'unknown';
 
-  // lightweight hash (avoid storing raw UA in Redis key)
-  const uaHash = Buffer.from(userAgent).toString('base64').slice(0, 16);
+  // -------------------------------------------------------
+  // 3) Rate-limit key (email + ip ONLY)
+  // -------------------------------------------------------
+  const rateLimitKey =
+    `${body.email}:${normalizedIp}`
+      .toLowerCase()
+      .replace(/[^a-z0-9_-]/g, '_') || 'unknown';
 
   // -------------------------------------------------------
-  // 3) Build rate-limit key (email + ip + ua)
-  // -------------------------------------------------------
-  const rateLimitKey = `${body.email}:${normalizedIp}:${uaHash}`
-    .replace(/[^a-zA-Z0-9_-]/g, '_')
-    .trim() || 'unknown';
-
-  // -------------------------------------------------------
-  // 4) Rate-limit BEFORE credential validation
-  // -------------------------------------------------------
-  const rlResult = await this.rateLimitService.consume('login', rateLimitKey);
-
-  if (rlResult.blocked) {
-    await this.audit.logLoginAttempt({
-      email: body.email,
-      ip: normalizedIp,
-      userAgent,
-      success: false,
-      reason: 'rate_limit_block',
-    });
-
-    throw new HttpException(
-      `Too many attempts. Try again after ${rlResult.retryAfterSec} seconds`,
-      HttpStatus.TOO_MANY_REQUESTS,
-    );
-  }
-
-  // -------------------------------------------------------
-  // 5) Validate credentials
+  // 4) Validate credentials FIRST
   // -------------------------------------------------------
   const user = await this.authService.validateUser(
     body.email,
     body.password,
   );
 
+  // -------------------------------------------------------
+  // 5) Login failed → consume rate-limit
+  // -------------------------------------------------------
   if (!user) {
+    const rlResult = await this.rateLimitService.consume(
+      'login',
+      rateLimitKey,
+    );
+
+    if (rlResult.blocked) {
+      await this.audit.logLoginAttempt({
+        email: body.email,
+        ip: normalizedIp,
+        userAgent,
+        success: false,
+        reason: 'rate_limit_block',
+      });
+
+      throw new HttpException(
+        `Too many attempts. Try again after ${rlResult.retryAfterSec} seconds`,
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
     await this.audit.logLoginAttempt({
       email: body.email,
       ip: normalizedIp,
@@ -247,7 +246,7 @@ async login(
   }
 
   // -------------------------------------------------------
-  // 6) Login success → reset rate-limit key
+  // 6) Login success → reset rate-limit
   // -------------------------------------------------------
   await this.rateLimitService.reset('login', rateLimitKey);
 
@@ -271,7 +270,8 @@ async login(
   const accessMaxAgeMs =
     (Number(process.env.ACCESS_TOKEN_TTL_SECONDS) || 15 * 60) * 1000;
   const refreshMaxAgeMs =
-    (Number(process.env.REFRESH_TOKEN_TTL_SECONDS) || 7 * 24 * 60 * 60) * 1000;
+    (Number(process.env.REFRESH_TOKEN_TTL_SECONDS) || 7 * 24 * 60 * 60) *
+    1000;
 
   res.cookie(
     process.env.ACCESS_TOKEN_COOKIE_NAME || 'phl_access',
@@ -323,6 +323,7 @@ async login(
     },
   };
 }
+
 
 
 // =========================================================
