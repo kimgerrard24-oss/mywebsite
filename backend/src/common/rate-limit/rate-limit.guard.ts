@@ -7,7 +7,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
-import { Request, Response } from 'express';
+  import { Request, Response } from 'express';
 import { RateLimitService } from './rate-limit.service';
 import { RATE_LIMIT_CONTEXT_KEY } from './rate-limit.decorator';
 import { RateLimitAction } from './rate-limit.policy';
@@ -42,37 +42,22 @@ export class RateLimitGuard implements CanActivate {
 
   private normalizeIp(ip: string): string {
     if (!ip) return 'unknown';
-    return (
-      ip
-        .trim()
-        .replace(/^::ffff:/, '')
-        .replace(/:\d+$/, '')
-        .replace(/[^a-zA-Z0-9_-]/g, '_')
-        .replace(/_+/g, '_') || 'unknown'
-    );
+    return ip
+      .trim()
+      .replace(/^::ffff:/, '')
+      .replace(/:\d+$/, '')
+      .replace(/[^a-zA-Z0-9_-]/g, '_')
+      .replace(/_+/g, '_') || 'unknown';
   }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const req = context.switchToHttp().getRequest<Request>();
     const res = context.switchToHttp().getResponse<Response>();
 
-    const method = req.method.toUpperCase();
-    const path = (req.originalUrl || req.path || '').toLowerCase();
+    let path = (req.path || '').toLowerCase();
+    if (path.endsWith('/')) path = path.slice(0, -1);
 
-    // -------------------------------------------------------
-    // ✅ HARD BYPASS — LOGIN MUST NEVER TOUCH RATE-LIMIT GUARD
-    // -------------------------------------------------------
-    if (
-      method === 'POST' &&
-      /\/auth\/local\/login(?:\/|$|\?)/.test(path)
-    ) {
-      return true;
-    }
-
-    // -------------------------------------------------------
-    // Basic bypasses
-    // -------------------------------------------------------
-    if (method === 'OPTIONS' || method === 'HEAD') return true;
+    if (req.method === 'OPTIONS' || req.method === 'HEAD') return true;
     if (path === '/favicon.ico') return true;
     if (path.startsWith('/_next') || path.startsWith('/static')) return true;
 
@@ -104,6 +89,17 @@ export class RateLimitGuard implements CanActivate {
       return true;
     }
 
+    if (
+      req.method === 'POST' &&
+      (
+        path.endsWith('/login') ||
+        path.includes('/auth/local/login') ||
+        path.includes('/auth/login')
+      )
+    ) {
+      return true;
+    }
+
     if (path.startsWith('/auth/local/register')) return true;
     if (path.startsWith('/auth/local/refresh')) return true;
 
@@ -111,47 +107,62 @@ export class RateLimitGuard implements CanActivate {
       RATE_LIMIT_CONTEXT_KEY,
       context.getHandler(),
     );
+    if (action === 'login') return true;
 
     if (!action) return true;
 
-    // -------------------------------------------------------
-    // Logout (custom handling)
-    // -------------------------------------------------------
+
     if (
-      method === 'POST' &&
-      /\/auth\/local\/logout(?:\/|$)/.test(path)
+      req.method === 'POST' &&
+      (
+        path === '/auth/local/logout' ||
+        path.endsWith('/auth/local/logout')
+      )
     ) {
       const rawIp = this.extractRealIp(req);
       const ipKey = this.normalizeIp(rawIp);
+      const key = `rl:logout:${ipKey}`;
 
       try {
-        const info = await this.rlService.consume('logout', ipKey);
+        const limit = 20;
+        const count = await this.rlService.consume('logout', key);
 
-        res.setHeader('X-RateLimit-Limit', String(info.limit));
-        res.setHeader('X-RateLimit-Remaining', String(info.remaining));
-        res.setHeader('X-RateLimit-Reset', String(info.reset));
+        res.setHeader('X-RateLimit-Limit', String(limit));
+        res.setHeader('X-RateLimit-Remaining', String(Math.max(limit - count.remaining, 0)));
+        res.setHeader('X-RateLimit-Reset', String(count.reset));
+
         return true;
       } catch (err: any) {
         const retry =
           typeof err?.retryAfterSec === 'number' ? err.retryAfterSec : 60;
 
         res.setHeader('Retry-After', String(retry));
+        res.setHeader('X-RateLimit-Limit', err?.limit ?? 0);
+        res.setHeader('X-RateLimit-Remaining', '0');
+        res.setHeader('X-RateLimit-Reset', String(retry));
+
+        this.logger.warn(
+          `Rate limit blocked: action="logout" key="rl:logout:${ipKey}" ip="${rawIp}" retryAfter=${retry}`,
+        );
+
         res.status(429).json({
           statusCode: 429,
           message: 'Too many requests. Please slow down.',
         });
+
         return false;
       }
     }
+    // -------------------------------------------------------------
 
-    // -------------------------------------------------------
-    // Default rate-limit handling
-    // -------------------------------------------------------
     const rawIp = this.extractRealIp(req);
     const ipKey = this.normalizeIp(rawIp);
 
     try {
-      const info = await this.rlService.consume(action, ipKey);
+      const info: RateLimitConsumeResult = await this.rlService.consume(
+        action,
+        ipKey,
+      );
 
       res.setHeader('X-RateLimit-Limit', String(info.limit));
       res.setHeader('X-RateLimit-Remaining', String(info.remaining));
@@ -162,10 +173,19 @@ export class RateLimitGuard implements CanActivate {
         typeof err?.retryAfterSec === 'number' ? err.retryAfterSec : 60;
 
       res.setHeader('Retry-After', String(retry));
+      res.setHeader('X-RateLimit-Limit', err?.limit ?? 0);
+      res.setHeader('X-RateLimit-Remaining', '0');
+      res.setHeader('X-RateLimit-Reset', String(retry));
+
+      this.logger.warn(
+        `Rate limit blocked: action="${action}" key="${ipKey}" ip="${rawIp}" retryAfter=${retry}`,
+      );
+
       res.status(429).json({
         statusCode: 429,
         message: 'Too many requests. Please slow down.',
       });
+
       return false;
     }
   }

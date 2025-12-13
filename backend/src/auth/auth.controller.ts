@@ -167,9 +167,10 @@ export class AuthController {
   }
 
 // =========================================================
-// local login (RATE-LIMIT FINAL & SAFE)
+// local login 
 // =========================================================
 @Public()
+@RateLimit('login')
 @Post('login')
 @HttpCode(HttpStatus.OK)
 async login(
@@ -178,7 +179,7 @@ async login(
   @Res({ passthrough: true }) res: Response,
 ) {
   // -------------------------------------------------------
-  // 1) Extract real client IP
+  // 1) Extract real client IP (for audit only)
   // -------------------------------------------------------
   const forwarded = req.headers['x-forwarded-for'];
   const rawIp =
@@ -192,68 +193,15 @@ async login(
   const userAgent = (req.headers['user-agent'] as string) || 'unknown';
 
   // -------------------------------------------------------
-  // 2) Stable rate-limit key (email + ip)
-  // -------------------------------------------------------
-  const rateLimitKey =
-    `${body.email}:${normalizedIp}`
-      .toLowerCase()
-      .replace(/[^a-z0-9_-]/g, '_') || 'unknown';
-
-  // -------------------------------------------------------
-  // 3) PRE-CHECK: already blocked?
-  // -------------------------------------------------------
-  const status = await this.rateLimitService.check(
-    'login',
-    rateLimitKey,
-  );
-
-  if (status.blocked) {
-    await this.audit.logLoginAttempt({
-      email: body.email,
-      ip: normalizedIp,
-      userAgent,
-      success: false,
-      reason: 'rate_limit_block',
-    });
-
-    throw new HttpException(
-      `Too many attempts. Try again after ${status.retryAfterSec} seconds`,
-      HttpStatus.TOO_MANY_REQUESTS,
-    );
-  }
-
-  // -------------------------------------------------------
-  // 4) Validate credentials
+  // 2) Validate credentials
+  //    (rate-limit is handled by Guard)
   // -------------------------------------------------------
   const user = await this.authService.validateUser(
     body.email,
     body.password,
   );
 
-  // -------------------------------------------------------
-  // 5) Invalid credentials → consume rate-limit
-  // -------------------------------------------------------
   if (!user) {
-    const rl = await this.rateLimitService.consume(
-      'login',
-      rateLimitKey,
-    );
-
-    if (rl.blocked) {
-      await this.audit.logLoginAttempt({
-        email: body.email,
-        ip: normalizedIp,
-        userAgent,
-        success: false,
-        reason: 'rate_limit_block',
-      });
-
-      throw new HttpException(
-        `Too many attempts. Try again after ${rl.retryAfterSec} seconds`,
-        HttpStatus.TOO_MANY_REQUESTS,
-      );
-    }
-
     await this.audit.logLoginAttempt({
       email: body.email,
       ip: normalizedIp,
@@ -266,10 +214,8 @@ async login(
   }
 
   // -------------------------------------------------------
-  // 6) Success → reset rate-limit
+  // 3) Successful login → audit
   // -------------------------------------------------------
-  await this.rateLimitService.reset('login', rateLimitKey);
-
   await this.audit.logLoginAttempt({
     userId: user.id,
     email: user.email,
@@ -279,7 +225,7 @@ async login(
   });
 
   // -------------------------------------------------------
-  // 7) Create session
+  // 4) Create session (JWT + Redis)
   // -------------------------------------------------------
   const session = await this.authService.createSessionToken(user.id, {
     ip: normalizedIp,
@@ -289,10 +235,14 @@ async login(
 
   const accessMaxAgeMs =
     (Number(process.env.ACCESS_TOKEN_TTL_SECONDS) || 15 * 60) * 1000;
+
   const refreshMaxAgeMs =
     (Number(process.env.REFRESH_TOKEN_TTL_SECONDS) || 7 * 24 * 60 * 60) *
     1000;
 
+  // -------------------------------------------------------
+  // 5) Set cookies
+  // -------------------------------------------------------
   res.cookie(
     process.env.ACCESS_TOKEN_COOKIE_NAME || 'phl_access',
     session.accessToken,
@@ -321,6 +271,9 @@ async login(
     );
   }
 
+  // -------------------------------------------------------
+  // 6) Return safe response
+  // -------------------------------------------------------
   return {
     success: true,
     data: {
@@ -338,7 +291,6 @@ async login(
     },
   };
 }
-
 
 // =========================================================
 // Local Logout

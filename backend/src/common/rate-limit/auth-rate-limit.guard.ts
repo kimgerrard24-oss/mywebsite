@@ -7,7 +7,6 @@ import {
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { Reflector } from '@nestjs/core';
-
 import { RateLimitService } from './rate-limit.service';
 import { RATE_LIMIT_CONTEXT_KEY } from './rate-limit.decorator';
 import { RateLimitAction } from './rate-limit.policy';
@@ -30,37 +29,25 @@ export class AuthRateLimitGuard implements CanActivate {
 
   private normalizeIp(ip: string): string {
     if (!ip) return 'unknown';
-    return (
-      ip
-        .trim()
-        .replace(/^::ffff:/, '')
-        .replace(/:\d+$/, '')
-        .replace(/[^a-zA-Z0-9_-]/g, '_')
-        .replace(/_+/g, '_') || 'unknown'
-    );
+    return ip
+      .trim()
+      .replace(/^::ffff:/, '')
+      .replace(/:\d+$/, '')
+      .replace(/[^a-zA-Z0-9_-]/g, '_')
+      .replace(/_+/g, '_') || 'unknown';
   }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const req = context.switchToHttp().getRequest<Request>();
     const res = context.switchToHttp().getResponse<Response>();
 
-    const method = req.method.toUpperCase();
-    const path = (req.originalUrl || req.path || '').toLowerCase();
-
-    // -------------------------------------------------------
-    // ✅ HARD BYPASS — LOGIN MUST NEVER TOUCH THIS GUARD
-    // -------------------------------------------------------
-    if (
-      method === 'POST' &&
-      /\/auth\/local\/login(?:\/|$|\?)/.test(path)
-    ) {
-      return true;
+    let path = (req.path || '').toLowerCase();
+    if (path.endsWith('/')) {
+      path = path.slice(0, -1);
     }
 
-    // -------------------------------------------------------
-    // Common bypasses
-    // -------------------------------------------------------
-    if (method === 'OPTIONS' || method === 'HEAD') return true;
+    // bypasses
+    if (req.method === 'OPTIONS' || req.method === 'HEAD') return true;
     if (path === '/favicon.ico') return true;
     if (path.startsWith('/_next') || path.startsWith('/static')) return true;
 
@@ -87,6 +74,18 @@ export class AuthRateLimitGuard implements CanActivate {
     if (path.startsWith('/auth/google')) return true;
     if (path.startsWith('/auth/facebook')) return true;
 
+    // FIX: bypass ALL login POST paths
+const isLoginPost =
+  req.method === 'POST' &&
+  (
+    path.endsWith('/login') ||
+    path.includes('/auth/local/login') ||
+    path.includes('/auth/login')
+  );
+
+if (isLoginPost) return true;
+
+
     if (path.startsWith('/auth/local/register')) return true;
     if (path.startsWith('/auth/local/refresh')) return true;
 
@@ -95,6 +94,8 @@ export class AuthRateLimitGuard implements CanActivate {
         RATE_LIMIT_CONTEXT_KEY,
         context.getHandler(),
       ) || null;
+
+    if (action === 'login') return true;
 
     if (!action) return true;
 
@@ -113,10 +114,10 @@ export class AuthRateLimitGuard implements CanActivate {
       const retry =
         typeof err?.retryAfterSec === 'number' ? err.retryAfterSec : 60;
 
-      res.setHeader('Retry-After', String(retry));
+      res.setHeader('Retry-After', retry);
       res.setHeader('X-RateLimit-Limit', err?.limit ?? 0);
       res.setHeader('X-RateLimit-Remaining', '0');
-      res.setHeader('X-RateLimit-Reset', String(retry));
+      res.setHeader('X-RateLimit-Reset', retry);
 
       res.status(429).json({
         statusCode: 429,
