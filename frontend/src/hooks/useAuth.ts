@@ -1,31 +1,21 @@
 // ==============================
 // src/hooks/useAuth.ts
-// FIXED — ปลอดภัย, ไม่ชนกับ AuthContext, ใช้ข้อมูลถูกต้อง
+// FIXED — แก้ auth state ชนกัน
+// ไม่กระทบ social login
 // ==============================
 "use client";
 
-import { useEffect, useState, useContext } from "react";
-import { api } from "@/lib/api/api";
-import type { User } from "@/types/index";
+import { useContext, useEffect, useState } from "react";
 import { AuthContext } from "@/context/AuthContext";
-
-// Normalize backend URL
-const rawBase =
-  process.env.NEXT_PUBLIC_BACKEND_URL ||
-  process.env.NEXT_PUBLIC_API_BASE ||
-  "https://api.phlyphant.com";
-
-const API_BASE = rawBase.replace(/\/+$/, "");
 
 // ========================================
 // Public hook → ใช้ AuthContext เป็นแหล่งข้อมูลหลัก
 // ========================================
 export function useAuth() {
-  const ctx = useContext(AuthContext);
-  return ctx;
+  return useContext(AuthContext);
 }
 
-// Internal type เพื่อรองรับ avatar ได้
+// Internal type สำหรับ UI เท่านั้น
 type InternalAuthUser = {
   id?: string;
   email?: string;
@@ -35,14 +25,16 @@ type InternalAuthUser = {
 };
 
 // ========================================
-// INTERNAL HOOK (Passive Mode)
-// ไม่ override AuthContext.user
-// ใช้เฉพาะเมื่อบางหน้าเลือกเรียกมันเองเท่านั้น
+// INTERNAL HOOK (Passive / UI Helper)
+// - ไม่ยิง API
+// - ไม่ตัดสิน auth
+// - ไม่ override AuthContext
+// - ไม่แตะ social login
 // ========================================
 export function useAuthInternal() {
   const authCtx = useContext(AuthContext);
 
-  // FIX: ป้องกันกรณี AuthContext undefined
+  // ป้องกันกรณีถูกเรียกนอก Provider
   if (!authCtx) {
     return {
       user: null,
@@ -52,118 +44,44 @@ export function useAuthInternal() {
     };
   }
 
-  // ถ้ามี AuthContext.user → ใช้ข้อมูลนั้นก่อน
-  const [user, setUser] = useState<InternalAuthUser | null>(
-    authCtx.user ? (authCtx.user as InternalAuthUser) : null
-  );
+  const [user, setUser] = useState<InternalAuthUser | null>(null);
 
-  const [loading, setLoading] = useState(true);
-
+  // sync state จาก AuthContext เท่านั้น
   useEffect(() => {
-    let mounted = true;
+    if (authCtx.loading) return;
 
-  async function load() {
-  // FIX: ป้องกัน TS — authCtx อาจเป็น undefined
-  if (!authCtx) {
-    setUser(null);
-    setLoading(false);
-    return;
-  }
-
-  // ถ้า AuthContext ยังโหลด → ห้ามยิงซ้ำ
-  if (authCtx.loading) {
-    setLoading(true);
-    return;
-  }
-
-  // ถ้า AuthContext มี user อยู่แล้ว → ใช้เลย
-  if (authCtx.user) {
-    setUser(authCtx.user as InternalAuthUser);
-    setLoading(false);
-    return;
-  }
-
-      try {
-        // ---------------------------------------------
-        // 1) LOCAL AUTH (JWT Cookie → Redis)
-        // ---------------------------------------------
-        const me = await api.get("/users/me", {
-          validateStatus: () => true,
-        });
-
-        if (!mounted) return;
-
-        if (me.status >= 200 && me.status < 300) {
-          // backend ส่ง user object ตรงๆ
-          const localUser = me.data || null;
-
-          setUser(localUser);
-          setLoading(false);
-          return;
-        }
-
-        // ---------------------------------------------
-        // 2) SOCIAL LOGIN FALLBACK
-        // ---------------------------------------------
-        const res = await api.get("/auth/session-check", {
-          validateStatus: () => true,
-        });
-
-        if (!mounted) return;
-
-        const data = res.data || {};
-        const valid = data.valid === true;
-
-        if (valid) {
-          const backendUser = data.user || {};
-
-          const builtUser: InternalAuthUser = {
-            id: backendUser.id,
-            email: backendUser.email,
-            username: backendUser.email
-              ? backendUser.email.split("@")[0]
-              : "unknown",
-            avatar:
-              backendUser.avatarUrl ||
-              backendUser.avatar ||
-              "/images/default-avatar.png",
-          };
-
-          setUser(builtUser);
-        } else {
-          setUser(null);
-        }
-      } catch {
-        if (mounted) setUser(null);
-      } finally {
-        if (mounted) setLoading(false);
-      }
+    if (authCtx.user) {
+      setUser({
+        ...authCtx.user,
+        username:
+          authCtx.user.email?.split("@")[0] ??
+          authCtx.user.displayName ??
+          "",
+      });
+    } else {
+      setUser(null);
     }
+  }, [authCtx.user, authCtx.loading]);
 
-    load();
+  // สำหรับ UI ที่ต้องปรับ state ชั่วคราว (เช่น preview avatar)
+  const updateUser = (u: InternalAuthUser | null) => {
+    setUser(u);
+  };
 
-    return () => {
-      mounted = false;
-    };
-  }, [authCtx.user, authCtx.loading, API_BASE]);
-
-  const updateUser = (u: InternalAuthUser | null) => setUser(u);
-
-  // logout → backend ลบ JWT cookies
+  // logout → เรียก backend เท่านั้น (ไม่ยุ่ง social login)
   const signOut = async () => {
     try {
-      await api.post("/auth/local/logout", {});
-    } catch (err) {
-      console.warn("Backend logout error:", err);
+      await fetch("/auth/local/logout", { method: "POST" });
+    } catch {
+      // ignore
     }
-
     setUser(null);
   };
 
   return {
     user,
     updateUser,
-    loading,
+    loading: authCtx.loading,
     signOut,
   };
 }
