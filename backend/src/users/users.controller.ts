@@ -1,4 +1,4 @@
-// file: backend/src/users/users.controller.ts
+// backend/src/users/users.controller.ts
 
 import { 
   Controller, 
@@ -8,7 +8,8 @@ import {
   Body, 
   Req, 
   UnauthorizedException,
-  ConflictException 
+  ConflictException,
+  Header,
 } from '@nestjs/common';
 import { Request } from 'express';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -28,20 +29,25 @@ export class UsersController {
 
   @Post()
   @UseGuards(AccessTokenCookieAuthGuard)
-  async create(@Body() dto: CreateUserDto, @CurrentUser() sessionUser: SessionUser) {
-
+  async create(
+    @Body() dto: CreateUserDto,
+    @CurrentUser() sessionUser: SessionUser,
+  ) {
     if (!sessionUser?.userId) {
       throw new UnauthorizedException('Authentication required');
     }
 
-    // Check if the email is already registered
     const existingUser = await this.usersService.findByEmail(dto.email);
     if (existingUser) {
       throw new ConflictException('Email already registered');
     }
 
     const hashedPassword = await this.authService.hashPassword(dto.password);
-    const newUser = await this.usersService.createUser(dto.email, hashedPassword, dto.displayName);
+    const newUser = await this.usersService.createUser(
+      dto.email,
+      hashedPassword,
+      dto.displayName,
+    );
 
     return {
       message: 'User created successfully',
@@ -49,12 +55,21 @@ export class UsersController {
     };
   }
 
+  // =====================================================
+  // GET /users/me
+  // IMPORTANT: MUST NEVER BE CACHED
+  // =====================================================
   @Get('me')
   @UseGuards(AccessTokenCookieAuthGuard)
+  @Header(
+    'Cache-Control',
+    'no-store, no-cache, must-revalidate, proxy-revalidate',
+  )
+  @Header('Pragma', 'no-cache')
+  @Header('Expires', '0')
   async getMe(
     @CurrentUser() sessionUser: SessionUser,
   ): Promise<UserProfileDto> {
-
     if (!sessionUser?.userId) {
       throw new UnauthorizedException('Authentication required');
     }
@@ -62,4 +77,3 @@ export class UsersController {
     return this.usersService.getMe(sessionUser.userId);
   }
 }
-

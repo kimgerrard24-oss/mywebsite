@@ -32,92 +32,98 @@ export class SessionController {
   // GET /auth/sessions
   // List all active sessions (multi-device)
   // =====================================================
+  @Get()
+  @Header(
+    'Cache-Control',
+    'no-store, no-cache, must-revalidate, proxy-revalidate',
+  )
+  @Header('Pragma', 'no-cache')
+  @Header('Expires', '0')
+  async listSessions(
+    @Req() req: Request,
+  ): Promise<{
+    success: true;
+    data: Array<{
+      jti: string;
+      deviceId: string | null;
+      userAgent: string | null;
+      ip: string | null;
+      createdAt: string | null;
+      lastSeenAt: string | null;
+    }>;
+  }> {
+    const user = (req as any).user;
+
+    if (!user?.userId) {
+      throw new UnauthorizedException('Invalid session user');
+    }
+
+    const sessions =
+      await this.sessionService.getSessionsByUser(user.userId);
+
+    return {
+      success: true,
+      data: sessions.map(({ jti, data }) => ({
+        jti,
+        deviceId: data?.deviceId ?? null,
+        userAgent: data?.userAgent ?? null,
+        ip: data?.ip ?? null,
+        createdAt: data?.createdAt
+          ? new Date(data.createdAt).toISOString()
+          : null,
+        lastSeenAt: data?.lastSeenAt
+          ? new Date(data.lastSeenAt).toISOString()
+          : null,
+      })),
+    };
+  }
+
   // =====================================================
-// GET /auth/sessions
-// List all active sessions (multi-device)
-// =====================================================
-@Get()
-@Header('Cache-Control', 'no-store')
-async listSessions(
-  @Req() req: Request,
-): Promise<{
-  success: true;
-  data: Array<{
-    jti: string;
-    deviceId: string | null;
-    userAgent: string | null;
-    ip: string | null;
-    createdAt: string | null;
-    lastSeenAt: string | null;
-  }>;
-}> {
-  const user = (req as any).user;
-
-  if (!user?.userId) {
-    throw new UnauthorizedException('Invalid session user');
-  }
-
-  const sessions =
-    await this.sessionService.getSessionsByUser(user.userId);
-
-  return {
-    success: true,
-    data: sessions.map(({ jti, data }) => ({
-      jti,
-      deviceId: data?.deviceId ?? null,
-      userAgent: data?.userAgent ?? null,
-      ip: data?.ip ?? null,
-      createdAt: data?.createdAt ?? null,
-      lastSeenAt: data?.lastSeenAt ?? null,
-    })),
-  };
-}
-
+  // POST /auth/sessions/:jti/revoke
+  // Revoke a specific device/session
   // =====================================================
-// POST /auth/sessions/:jti/revoke
-// Revoke a specific device/session
-// =====================================================
-@Post(':jti/revoke')
-@HttpCode(HttpStatus.OK)
-async revokeSession(
-  @Req() req: Request,
-  @Param('jti') jti: string,
-): Promise<{
-  success: true;
-  message: string;
-}> {
-  const user = (req as any).user;
+  @Post(':jti/revoke')
+  @HttpCode(HttpStatus.OK)
+  async revokeSession(
+    @Req() req: Request,
+    @Param('jti') jti: string,
+  ): Promise<{
+    success: true;
+    message: string;
+  }> {
+    const user = (req as any).user;
 
-  if (!user?.userId || !user?.jti) {
-    throw new UnauthorizedException('Invalid session user');
-  }
+    if (!user?.userId || !user?.jti) {
+      throw new UnauthorizedException('Invalid session user');
+    }
 
-  const normalizedJti = String(jti).trim();
+    const normalizedJti = String(jti).trim();
 
-  if (!normalizedJti) {
-    throw new BadRequestException('Invalid session id');
-  }
+    if (!normalizedJti) {
+      throw new BadRequestException('Invalid session id');
+    }
 
-  if (normalizedJti === user.jti) {
-    throw new BadRequestException(
-      'You cannot revoke the current active session',
+    if (normalizedJti === user.jti) {
+      throw new BadRequestException(
+        'You cannot revoke the current active session',
+      );
+    }
+
+    // ตรวจว่า session นี้เป็นของ user จริง
+    const owned = await this.redisService.sismember(
+      `session:user:${user.userId}`,
+      normalizedJti,
     );
+
+    if (!owned) {
+      throw new ForbiddenException('You cannot revoke this session');
+    }
+
+    await this.sessionService.revokeByJTI(normalizedJti);
+
+    return {
+      success: true,
+      message: 'Session revoked successfully',
+    };
   }
-
-  const owned = await this.redisService.sismember(
-    `session:user:${user.userId}`,
-    normalizedJti,
-  );
-
-  if (!owned) {
-    throw new ForbiddenException('You cannot revoke this session');
-  }
-
-  await this.sessionService.revokeByJTI(normalizedJti);
-
-  return {
-    success: true,
-    message: 'Session revoked successfully',
-  };
-}
 }
