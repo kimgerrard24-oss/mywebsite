@@ -16,7 +16,7 @@ import { MailModule } from '../mail/mail.module';
 
 import { AuthRepository } from './auth.repository';
 import { AuthLoggerService } from '../common/logging/auth-logger.service';
-
+import { SessionController } from './session.controller';
 import { JwtAuthGuard } from './jwt-auth.guard';
 import { FirebaseAuthGuard } from './firebase-auth.guard';
 import { AuthGuard } from './auth.guard';
@@ -84,6 +84,7 @@ import { SessionModule } from './session/session.module';
     AuthController,
     SocialAuthController,
     PasswordResetController,
+    SessionController,
   ],
 
   exports: [

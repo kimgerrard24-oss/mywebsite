@@ -61,43 +61,86 @@ export class SessionService implements OnModuleDestroy {
     return `${REFRESH_TOKEN_KEY_PREFIX}${refreshToken}`;
   }
 
+  private buildUserSessionKey(userId: string): string {
+    return `session:user:${userId}`;
+  }
+
   /**
-   * สร้าง session ใหม่ (ใช้ jti เท่านั้น)
+   * สร้าง session ใหม่ (รองรับหลายอุปกรณ์)
    */
   async createSession(
     payload: SessionPayload,
     jti: string,
     refreshToken: string,
-    meta?: { userAgent?: string | null; ip?: string | null },
+    meta?: {
+  deviceId?: string | null;
+  userAgent?: string | null;
+  ip?: string | null;
+  }
+
   ): Promise<void> {
     const refreshTokenHash = await argon2.hash(refreshToken);
 
-    // *** จุดที่แก้ไข ***
     const sessionData: StoredSessionData & { userId: string } = {
-      userId: payload.userId,             // ← เพิ่มเพื่อรองรับระบบใหม่
-      payload,                             // ← เก็บรูปแบบเดิมเพื่อ backward compatibility
+      userId: payload.userId,
+      deviceId: meta?.deviceId ?? 'unknown',
+      payload,
       refreshTokenHash,
       userAgent: meta?.userAgent ?? null,
       ip: meta?.ip ?? null,
       createdAt: new Date().toISOString(),
+      lastSeenAt: new Date().toISOString(), // ← เพิ่มพร้อมกัน
+
     };
 
     const accessKey = this.buildAccessKey(jti);
     const refreshKey = this.buildRefreshKey(refreshToken);
+    const userSessionKey = this.buildUserSessionKey(payload.userId);
     const serialized = JSON.stringify(sessionData);
 
     const pipeline = this.redis.pipeline();
 
-    // Set session data for access and refresh tokens with TTL
     pipeline.set(accessKey, serialized, 'EX', ACCESS_TOKEN_TTL_SECONDS);
     pipeline.set(refreshKey, serialized, 'EX', REFRESH_TOKEN_TTL_SECONDS);
 
-    // Execute Redis commands in a single batch
+    // 🔹 bind jti → user (multi-device support)
+    pipeline.sadd(userSessionKey, jti);
+    pipeline.expire(userSessionKey, REFRESH_TOKEN_TTL_SECONDS);
+
     try {
       await pipeline.exec();
     } catch (e) {
       this.logger.error('Error setting session in Redis', e);
     }
+  }
+
+  /**
+   * ดึง session ทั้งหมดของ user (ทุกอุปกรณ์)
+   */
+  async getSessionsByUser(userId: string): Promise<
+    Array<{ jti: string; data: StoredSessionData | null }>
+  > {
+    const userSessionKey = this.buildUserSessionKey(userId);
+    const jtis = await this.redis.smembers(userSessionKey);
+
+    const results: Array<{ jti: string; data: StoredSessionData | null }> = [];
+
+    for (const jti of jtis) {
+      const raw = await this.redis.get(this.buildAccessKey(jti));
+      if (!raw) {
+        // cleanup jti ที่หมดอายุแล้ว
+        await this.redis.srem(userSessionKey, jti);
+        continue;
+      }
+
+      try {
+        results.push({ jti, data: JSON.parse(raw) });
+      } catch {
+        results.push({ jti, data: null });
+      }
+    }
+
+    return results;
   }
 
   async getSessionByRefreshToken(
@@ -107,7 +150,6 @@ export class SessionService implements OnModuleDestroy {
     const raw = await this.redis.get(refreshKey);
 
     if (!raw) {
-      this.logger.warn('Session not found for refresh token:', refreshToken);
       return null;
     }
 
@@ -131,6 +173,51 @@ export class SessionService implements OnModuleDestroy {
     }
   }
 
+  /**
+   * revoke session เฉพาะ device (jti)
+   */
+  async revokeByJTI(jti: string): Promise<void> {
+    const accessKey = this.buildAccessKey(jti);
+
+    try {
+      const raw = await this.redis.get(accessKey);
+      if (raw) {
+        const parsed = JSON.parse(raw) as StoredSessionData & { userId?: string };
+        if (parsed?.userId) {
+          await this.redis.srem(this.buildUserSessionKey(parsed.userId), jti);
+        }
+      }
+
+      await this.redis.del(accessKey);
+    } catch (e) {
+      this.logger.error('Error revoking access token key', e);
+    }
+  }
+
+  /**
+   * revoke ทุก session ของ user (ใช้ตอน security incident / change password)
+   */
+  async revokeAllByUser(userId: string): Promise<void> {
+    const userSessionKey = this.buildUserSessionKey(userId);
+    const jtis = await this.redis.smembers(userSessionKey);
+
+    if (jtis.length === 0) return;
+
+    const pipeline = this.redis.pipeline();
+
+    for (const jti of jtis) {
+      pipeline.del(this.buildAccessKey(jti));
+    }
+
+    pipeline.del(userSessionKey);
+
+    try {
+      await pipeline.exec();
+    } catch (e) {
+      this.logger.error('Error revoking all sessions for user', e);
+    }
+  }
+
   async revokeByRefreshToken(refreshToken: string): Promise<void> {
     const refreshKey = this.buildRefreshKey(refreshToken);
     try {
@@ -139,15 +226,5 @@ export class SessionService implements OnModuleDestroy {
       this.logger.error('Error revoking refresh token key', e);
     }
   }
-
-  async revokeByJTI(jti: string): Promise<void> {
-    const accessKey = this.buildAccessKey(jti);
-    try {
-      await this.redis.del(accessKey);
-    } catch (e) {
-      this.logger.error('Error revoking access token key', e);
-    }
-  }
+  
 }
-
-

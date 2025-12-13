@@ -24,13 +24,13 @@ export interface SessionPayload {
  *   แต่ไม่ใช่ตัวกำหนด flow หลักใน validate-session-service
  */
 export interface StoredSessionData {
+  userId: string;
+  deviceId?: string;
   payload: SessionPayload;
-
-  // refresh token (opaque) hashed with argon2
   refreshTokenHash: string;
-
-  userAgent: string | null;
-  ip: string | null;
-
+  userAgent?: string | null;
+  ip?: string | null;
   createdAt: string;
+  lastSeenAt?: string;
 }
+

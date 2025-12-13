@@ -360,4 +360,10 @@ async deleteRefreshSession(refreshToken: string): Promise<void> {
   }
 }
 
+async sismember(key: string, member: string): Promise<boolean> {
+  const result = await this.client.sismember(key, member);
+  return result === 1;
+}
+
+
 }

@@ -11,6 +11,7 @@
 
     "emitDecoratorMetadata": true,
     "experimentalDecorators": true,
+    "useDefineForClassFields": false,
 
     "declaration": false,
     "sourceMap": true,
