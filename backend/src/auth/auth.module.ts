@@ -17,7 +17,6 @@ import { MailModule } from '../mail/mail.module';
 import { AuthRepository } from './auth.repository';
 import { AuthLoggerService } from '../common/logging/auth-logger.service';
 import { SessionController } from './session.controller';
-import { JwtAuthGuard } from './jwt-auth.guard';
 import { FirebaseAuthGuard } from './firebase-auth.guard';
 import { AuthGuard } from './auth.guard';
 import { RateLimitGuard } from '../common/rate-limit/rate-limit.guard';
@@ -62,7 +61,6 @@ import { SessionModule } from './session/session.module';
 
     AuthLoggerService,
 
-    JwtAuthGuard,
     FirebaseAuthGuard,
     AuthGuard,
     RateLimitGuard,
@@ -91,7 +89,6 @@ import { SessionModule } from './session/session.module';
     FirebaseAuthGuard,
     AuthService,
     AuditService,
-    JwtAuthGuard,
     ValidateSessionService,
     AccessTokenCookieAuthGuard,
   ],

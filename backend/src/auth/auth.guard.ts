@@ -28,6 +28,9 @@ export class AuthGuard implements CanActivate {
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
+    // --------------------------------------------------
+    // 1) Allow public routes
+    // --------------------------------------------------
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
       context.getClass(),
@@ -37,30 +40,30 @@ export class AuthGuard implements CanActivate {
       return true;
     }
 
+    // --------------------------------------------------
+    // 2) Validate session via single authority
+    //    (JWT + Redis handled inside service)
+    // --------------------------------------------------
     const req = context.switchToHttp().getRequest<AuthenticatedRequest>();
     if (!req) {
       throw new UnauthorizedException('Authentication required');
     }
 
-    try {
-      const accessToken = req.cookies?.['phl_access'];
-      if (!accessToken) {
-        throw new UnauthorizedException('Authentication required');
-      }
+    const sessionUser =
+      await this.validateSessionService.validateAccessTokenFromRequest(req);
 
-      const sessionUser =
-        await this.validateSessionService.validateAccessTokenFromRequest(req);
-
-      req.user = {
-        userId: sessionUser.userId,
-        jti: sessionUser.jti,
-      };
-
-      return true;
-    } catch {
+    if (!sessionUser?.userId || !sessionUser?.jti) {
       throw new UnauthorizedException('Authentication required');
     }
+
+    // --------------------------------------------------
+    // 3) Attach user context for downstream usage
+    // --------------------------------------------------
+    req.user = {
+      userId: sessionUser.userId,
+      jti: sessionUser.jti,
+    };
+
+    return true;
   }
 }
-
-

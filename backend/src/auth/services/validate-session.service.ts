@@ -30,7 +30,7 @@ export class ValidateSessionService {
     rawToken?: string | null,
   ): Promise<SessionUser> {
     const cookieToken = req.cookies?.[ACCESS_TOKEN_COOKIE_NAME];
-    const token = rawToken || cookieToken;
+    const token = rawToken ?? cookieToken;
 
     if (!token) {
       this.logger.warn('Access token cookie is missing');
@@ -66,9 +66,8 @@ export class ValidateSessionService {
         throw new UnauthorizedException('Session expired or revoked');
       }
 
-      // 4) Normalize session object (string | object)
+      // 4) Parse session
       let session: any;
-
       if (typeof rawSession === 'string') {
         try {
           session = JSON.parse(rawSession);
@@ -76,14 +75,11 @@ export class ValidateSessionService {
           this.logger.error(`Failed to parse session JSON for jti: ${jti}`);
           throw new UnauthorizedException('Invalid session data');
         }
-      } else if (typeof rawSession === 'object') {
-        session = rawSession;
       } else {
-        this.logger.error(`Unknown session type for jti: ${jti}`);
-        throw new UnauthorizedException('Invalid session data');
+        session = rawSession;
       }
 
-      // 5) Normalize userId (backward compatible)
+      // 5) Resolve userId
       const userId =
         session.userId ??
         session.payload?.userId ??
@@ -95,8 +91,8 @@ export class ValidateSessionService {
         throw new UnauthorizedException('Invalid session data');
       }
 
-      // 6) Touch session activity (best-effort, no TTL reset)
-      this.touchSession(jti).catch(() => {});
+      // 6) Best-effort touch (NO write back, NO TTL risk)
+      this.touchSession(jti, session).catch(() => {});
 
       return { userId, jti };
     } catch (err) {
@@ -107,45 +103,18 @@ export class ValidateSessionService {
   }
 
   /**
-   * Update lastSeenAt (best-effort, NO TTL reset)
+   * Update lastSeenAt in-memory only
+   * IMPORTANT:
+   * - Do NOT write back to Redis
+   * - Do NOT touch TTL
    */
-  async touchSession(jti: string): Promise<void> {
-    const redisKey = `session:access:${jti}`;
+  async touchSession(jti: string, session: any): Promise<void> {
+    if (!session || typeof session !== 'object') return;
 
     try {
-      const raw = await this.redisService.get(redisKey);
-      if (!raw) return;
-
-      let session: any;
-
-      if (typeof raw === 'string') {
-        try {
-          session = JSON.parse(raw);
-        } catch {
-          return;
-        }
-      } else if (typeof raw === 'object') {
-        session = raw;
-      } else {
-        return;
-      }
-
-      if (!session || typeof session !== 'object') {
-        return;
-      }
-
       session.lastSeenAt = new Date().toISOString();
-
-      // IMPORTANT:
-      // - Do NOT reset TTL
-      // - Assume RedisService.set(key, value) preserves TTL
-      await this.redisService.set(redisKey, JSON.stringify(session));
-    } catch (err) {
-      this.logger.warn(
-        `Failed to touch session for jti=${jti}: ${
-          err instanceof Error ? err.message : String(err)
-        }`,
-      );
+    } catch {
+      // best-effort only
     }
   }
 }

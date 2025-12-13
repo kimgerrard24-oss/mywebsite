@@ -2,7 +2,13 @@
 // file: src/redis/redis.module.ts
 // ==========================================
 
-import { Global, Module, Inject, OnApplicationShutdown, Logger } from '@nestjs/common';
+import {
+  Global,
+  Module,
+  Inject,
+  OnApplicationShutdown,
+  Logger,
+} from '@nestjs/common';
 import Redis from 'ioredis';
 import type { Redis as RedisClient, RedisOptions } from 'ioredis';
 
@@ -10,36 +16,34 @@ function getRedisConfig() {
   const url = process.env.REDIS_URL;
   const password = process.env.REDIS_PASSWORD;
 
-if (url && url.trim() !== '') {
-  const parsed = new URL(url);
+  if (url && url.trim() !== '') {
+    const parsed = new URL(url);
+    const host = parsed.hostname;
 
-  const host = parsed.hostname;
+    const envPort = Number(process.env.REDIS_PORT);
+    const defaultPort =
+      Number.isInteger(envPort) && envPort > 0 && envPort <= 65535
+        ? envPort
+        : undefined;
 
-  const envPort = Number(process.env.REDIS_PORT);
-  const defaultPort =
-    Number.isInteger(envPort) && envPort > 0 && envPort <= 65535
-      ? envPort
-      : undefined;
+    const port = parsed.port ? Number(parsed.port) : defaultPort;
 
-  const port = parsed.port ? Number(parsed.port) : defaultPort;
+    if (
+      port !== undefined &&
+      (!Number.isInteger(port) || port <= 0 || port > 65535)
+    ) {
+      throw new Error(`Invalid Redis port value: ${parsed.port || envPort}`);
+    }
 
-  if (
-    port !== undefined &&
-    (!Number.isInteger(port) || port <= 0 || port > 65535)
-  ) {
-    throw new Error(`Invalid Redis port value: ${parsed.port || envPort}`);
+    const finalPassword =
+      parsed.password?.trim() || password || undefined;
+
+    return {
+      host,
+      port,
+      password: finalPassword,
+    };
   }
-
-  const finalPassword =
-    parsed.password?.trim() || password || undefined;
-
-  return {
-    type: 'host' as const,
-    host,
-    port,
-    password: finalPassword,
-  };
-}
 
   const host = process.env.REDIS_HOST;
   const rawPort = process.env.REDIS_PORT;
@@ -55,7 +59,6 @@ if (url && url.trim() !== '') {
   }
 
   return {
-    type: 'host' as const,
     host,
     port,
     password: password || undefined,
@@ -68,7 +71,6 @@ if (url && url.trim() !== '') {
 function buildRedisOptions(): RedisOptions {
   return {
     enableReadyCheck: true,
-    lazyConnect: true,
     maxRetriesPerRequest: null,
     retryStrategy: (times: number) => {
       return Math.min(times * 100, 2000);
@@ -88,12 +90,18 @@ function buildRedisOptions(): RedisOptions {
 
         logger.log(`REDIS_CLIENT connecting to: ${cfg.host}:${cfg.port}`);
 
-        return new Redis({
+        const client = new Redis({
           host: cfg.host,
           port: cfg.port,
           password: cfg.password,
           ...options,
         });
+
+        client.connect().catch((err) => {
+          logger.error('REDIS_CLIENT initial connect failed', err);
+        });
+
+        return client;
       },
     },
 
@@ -101,9 +109,8 @@ function buildRedisOptions(): RedisOptions {
       provide: 'REDIS_PUB',
       inject: ['REDIS_CLIENT'],
       useFactory: (client: RedisClient): RedisClient => {
-        const options = buildRedisOptions();
         return client.duplicate({
-          ...options,
+          ...buildRedisOptions(),
           password: process.env.REDIS_PASSWORD || undefined,
         });
       },
@@ -113,9 +120,8 @@ function buildRedisOptions(): RedisOptions {
       provide: 'REDIS_SUB',
       inject: ['REDIS_CLIENT'],
       useFactory: (client: RedisClient): RedisClient => {
-        const options = buildRedisOptions();
         return client.duplicate({
-          ...options,
+          ...buildRedisOptions(),
           password: process.env.REDIS_PASSWORD || undefined,
         });
       },

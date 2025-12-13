@@ -361,9 +361,20 @@ async deleteRefreshSession(refreshToken: string): Promise<void> {
 }
 
 async sismember(key: string, member: string): Promise<boolean> {
-  const result = await this.client.sismember(key, member);
-  return result === 1;
-}
+  if (!this.client) {
+    this.logger.warn('Redis client not available - sismember returns false');
+    return false;
+  }
 
+  try {
+    const result = await this.client.sismember(key, member);
+    return result === 1;
+  } catch (err: any) {
+    this.logger.error(
+      `Redis sismember error for key=${key}: ${err?.message ?? String(err)}`
+    );
+    return false;
+  }
+}
 
 }

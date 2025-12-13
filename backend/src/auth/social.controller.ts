@@ -198,35 +198,31 @@ async googleCallback(@Req() req: Request, @Res() res: Response) {
       profile.picture,
     );
 
-    // 2) ดึง user จริงจาก DB (สำคัญ)
+    // 2) ดึง user จริงจาก DB
     const user = await this.auth.getUserByFirebaseUid(firebaseUid);
     if (!user) {
       throw new UnauthorizedException('User not found');
     }
 
-    // 3) สร้าง Firebase Custom Token ด้วย user จริง
+    // 3) สร้าง Firebase Custom Token
     const customToken = await this.auth.createFirebaseCustomToken(
       firebaseUid,
       user,
     );
 
-    const base =
+    // 4) Redirect กลับ frontend (ใช้ helper ป้องกัน path ซ้ำ)
+    const finalUrl = buildFinalUrl(
       process.env.GOOGLE_PROVIDER_REDIRECT_AFTER_LOGIN ||
-      'https://www.phlyphant.com';
-
-    const redirectBase = base.replace(/\/+$/, '');
-
-    return res.redirect(
-      `${redirectBase}/auth/complete?customToken=${encodeURIComponent(
-        customToken,
-      )}`,
+        'https://www.phlyphant.com',
+      customToken,
     );
+
+    return res.redirect(finalUrl);
   } catch (e: any) {
     this.logger.error('[googleCallback] ' + (e?.stack || e?.message || e));
     return res.status(500).send('Authentication error');
   }
 }
-
 
   /* ================================================================
    * FACEBOOK

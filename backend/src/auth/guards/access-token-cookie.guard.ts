@@ -19,29 +19,23 @@ export class AccessTokenCookieAuthGuard implements CanActivate {
     const req = context.switchToHttp().getRequest<Request>();
 
     try {
-      // 1) ตรวจ access token จาก cookie (คงเดิม)
+      // 1) Read access token from cookie
       const cookieToken = req.cookies?.['phl_access'];
-
       if (!cookieToken) {
         throw new UnauthorizedException('Access token cookie is missing');
       }
 
-      // 2) validate JWT + Redis session (คงเดิม)
+      // 2) Validate JWT + Redis session
       const sessionUser =
         await this.validateSessionService.validateAccessTokenFromRequest(req);
 
-      // 3) แนบ user เข้า request (คงเดิม)
+      // 3) Attach user to request (single source of truth)
       (req as any).user = sessionUser;
 
-      // 4) 🔐 อัปเดต lastSeenAt ของ session นี้ (NEW)
-      //     ไม่ throw error ถ้า update ไม่สำเร็จ (ไม่ให้ request พัง)
-      try {
-        if (sessionUser?.jti) {
-          await this.validateSessionService.touchSession(sessionUser.jti);
-        }
-      } catch {
-        // intentionally ignored
-      }
+      // IMPORTANT:
+      // - Guard must be READ-ONLY
+      // - Do NOT update session state here
+      // - No Redis write, no TTL mutation
 
       return true;
     } catch {

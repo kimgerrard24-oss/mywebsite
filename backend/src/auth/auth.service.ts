@@ -484,7 +484,8 @@ async findOrCreateUserFromFacebook(profile: any) {
 
   return user;
 }
- // ==========================================
+
+// ==========================================
 // Hybrid OAuth
 // ==========================================
 async getOrCreateOAuthUser(
@@ -494,20 +495,20 @@ async getOrCreateOAuthUser(
   name?: string,
   picture?: string,
 ): Promise<string> {
-  const safeEmail =
+  const normalizedEmail =
     email && email.trim().length > 0
       ? email.toLowerCase()
-      : `${provider}-${providerId}@placeholder.local`;
+      : null;
 
-  // 1️⃣ หา user จาก provider + providerId ก่อน
+  // 1️⃣ หา user จาก provider + providerId
   let user = await this.prisma.user.findFirst({
     where: { provider, providerId },
   });
 
-  // 2️⃣ ถ้าไม่เจอ → หา user จาก email (account linking)
-  if (!user && email) {
+  // 2️⃣ Account linking ด้วย email
+  if (!user && normalizedEmail) {
     const existingByEmail = await this.prisma.user.findUnique({
-      where: { email: safeEmail },
+      where: { email: normalizedEmail },
     });
 
     if (existingByEmail) {
@@ -521,7 +522,7 @@ async getOrCreateOAuthUser(
     }
   }
 
-  // 3️⃣ ถ้ายังไม่เจอ → create user ใหม่
+  // 3️⃣ Create user ใหม่
   if (!user) {
     let baseUsername = `${provider}_${providerId}`.toLowerCase();
     let username = baseUsername;
@@ -539,7 +540,9 @@ async getOrCreateOAuthUser(
 
     user = await this.prisma.user.create({
       data: {
-        email: safeEmail,
+        email:
+          normalizedEmail ??
+          `oauth-${provider}-${randomUUID()}@placeholder.local`,
         name: name || null,
         username,
         hashedPassword: placeholderPassword,
@@ -551,9 +554,9 @@ async getOrCreateOAuthUser(
     });
   }
 
-  // 4️⃣ Ensure firebaseUid (ทำครั้งเดียว)
+  // 4️⃣ Ensure firebaseUid (ครั้งเดียว)
   if (!user.firebaseUid) {
-    const firebaseUid = `oauth_${provider}_${user.id}`;
+    const firebaseUid = `oauth_${provider}_${user.id}_${randomUUID()}`;
 
     user = await this.prisma.user.update({
       where: { id: user.id },
@@ -562,20 +565,21 @@ async getOrCreateOAuthUser(
   }
 
   if (!user.firebaseUid) {
-  throw new Error('firebaseUid missing after OAuth linking');
-}
-
-return user.firebaseUid;
-
-}
-  // ==========================================
-  // ADDED FUNCTION (ตามคำขอ)
-  // ==========================================
-  async getUserByFirebaseUid(firebaseUid: string) {
-    return this.prisma.user.findUnique({
-      where: { firebaseUid },
-    });
+    throw new Error('firebaseUid missing after OAuth linking');
   }
+
+  return user.firebaseUid;
+}
+
+// ==========================================
+// User lookup
+// ==========================================
+async getUserByFirebaseUid(firebaseUid: string) {
+  return this.prisma.user.findUnique({
+    where: { firebaseUid },
+  });
+}
+
 
   // ==========================================
   // Firebase

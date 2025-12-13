@@ -1,15 +1,16 @@
 // backend/src/users/users.controller.ts
 
-import { 
-  Controller, 
+import {
+  Controller,
   Post,
   Get,
   UseGuards,
-  Body, 
-  Req, 
+  Body,
+  Req,
   UnauthorizedException,
   ConflictException,
   Header,
+  BadRequestException,
 } from '@nestjs/common';
 import { Request } from 'express';
 import { CreateUserDto } from './dto/create-user.dto';
@@ -57,7 +58,9 @@ export class UsersController {
 
   // =====================================================
   // GET /users/me
-  // IMPORTANT: MUST NEVER BE CACHED
+  // IMPORTANT:
+  // - Auth is already validated by guard (JWT + Redis)
+  // - This route MUST NOT be used to decide auth state
   // =====================================================
   @Get('me')
   @UseGuards(AccessTokenCookieAuthGuard)
@@ -74,6 +77,14 @@ export class UsersController {
       throw new UnauthorizedException('Authentication required');
     }
 
-    return this.usersService.getMe(sessionUser.userId);
+    try {
+      return await this.usersService.getMe(sessionUser.userId);
+    } catch (err) {
+      // Auth already valid at this point
+      // Any error here = data inconsistency, not auth failure
+      throw new BadRequestException(
+        'Authenticated user profile is not available',
+      );
+    }
   }
 }
