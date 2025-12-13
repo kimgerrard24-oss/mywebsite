@@ -26,91 +26,122 @@ export default function AuthCompletePage() {
   const REDIRECT_AFTER_LOGIN = "/feed";
 
   useEffect(() => {
-    if (!router.isReady) return;
+  if (!router.isReady) return;
 
-    const run = async () => {
-      try {
-        let customToken: string | null = null;
+  let cancelled = false;
 
-        if (typeof router.query.customToken === "string") {
-          customToken = router.query.customToken;
+  const run = async () => {
+    try {
+      let customToken: string | null = null;
+
+      // ----------------------------------
+      // 1) Read customToken from query
+      // ----------------------------------
+      if (typeof router.query.customToken === "string") {
+        customToken = router.query.customToken;
+      }
+
+      if (!customToken) {
+        if (typeof router.query.token === "string") {
+          customToken = router.query.token;
+        } else if (typeof router.query.t === "string") {
+          customToken = router.query.t;
         }
+      }
 
-        if (!customToken) {
-          if (typeof router.query.token === "string") {
-            customToken = router.query.token;
-          } else if (typeof router.query.t === "string") {
-            customToken = router.query.t;
-          }
+      // ----------------------------------
+      // 2) Read from hash (OAuth providers)
+      // ----------------------------------
+      if (!customToken && window.location.hash) {
+        const params = new URLSearchParams(window.location.hash.substring(1));
+        const hashToken = params.get("customToken");
+        if (hashToken) {
+          customToken = hashToken;
         }
+      }
 
-        if (!customToken && window.location.hash) {
-          const params = new URLSearchParams(window.location.hash.substring(1));
-          if (params.get("customToken")) {
-            customToken = params.get("customToken");
-          }
-        }
+      if (!customToken) {
+        setStatus("ERROR");
+        setMessage("ไม่พบ customToken จาก OAuth callback");
+        return;
+      }
 
-        if (!customToken) {
-          setStatus("ERROR");
-          setMessage("ไม่พบ customToken จาก OAuth callback");
-          return;
-        }
+      // ----------------------------------
+      // 3) Firebase sign-in
+      // ----------------------------------
+      setStatus("FIREBASE_LOGIN");
+      setMessage("กำลังเข้าสู่ระบบด้วย Firebase...");
 
-        setStatus("FIREBASE_LOGIN");
-        setMessage("กำลังเข้าสู่ระบบด้วย Firebase...");
+      const auth = getFirebaseAuth() as Auth;
+      await signInWithCustomToken(auth, customToken);
 
-        const auth = getFirebaseAuth() as Auth;
-        await signInWithCustomToken(auth, customToken);
+      let user: User | null = auth.currentUser;
 
-        let user: User | null = auth.currentUser;
-
-        if (!user) {
-          await new Promise<void>((resolve) => {
-            auth.onAuthStateChanged((u) => {
-              if (!u) return;
-              user = u;
-              resolve();
-            });
+      if (!user) {
+        await new Promise<void>((resolve) => {
+          const unsub = auth.onAuthStateChanged((u) => {
+            if (!u) return;
+            user = u;
+            unsub();
+            resolve();
           });
-        }
-
-        const safeUser = user as User;
-        const idToken = await safeUser.getIdToken(true);
-
-        setStatus("SETTING_SESSION");
-        setMessage("กำลังสร้าง session cookie...");
-
-        await api.post("/auth/complete", { idToken }, { withCredentials: true });
-
-        const verify = await api.get("/auth/session-check", {
-          withCredentials: true,
         });
+      }
 
-        setDetails(verify.data);
+      if (!user) {
+        throw new Error("Firebase user not resolved");
+      }
 
-       if (verify.data?.valid === true) {
-          setStatus("DONE");
-          setMessage("เข้าสู่ระบบสำเร็จ กำลังพาไปหน้าแรก...");
+      const idToken = await user.getIdToken(true);
 
-         await refreshUser(); 
+      // ----------------------------------
+      // 4) Create backend session (JWT + Redis)
+      // ----------------------------------
+      setStatus("SETTING_SESSION");
+      setMessage("กำลังสร้าง session cookie...");
 
-          setTimeout(() => {
-            router.replace(REDIRECT_AFTER_LOGIN);
-            }, 300);
-      } else {
-          setStatus("ERROR");
-          setMessage("Session cookie ไม่ถูกสร้าง");
+      await api.post(
+        "/auth/complete",
+        { idToken },
+        { withCredentials: true }
+      );
+
+      if (cancelled) return;
+
+      // ----------------------------------
+      // 5) Sync user state (single source of truth)
+      // ----------------------------------
+      await refreshUser();
+
+      if (cancelled) return;
+
+      // ----------------------------------
+      // 6) Done → redirect
+      // ----------------------------------
+      setStatus("DONE");
+      setMessage("เข้าสู่ระบบสำเร็จ กำลังพาไปหน้าแรก...");
+
+      setTimeout(() => {
+        if (!cancelled) {
+          router.replace(REDIRECT_AFTER_LOGIN);
         }
-      } catch (err) {
-        console.error(err);
+      }, 300);
+    } catch (err) {
+      console.error("[auth/complete]", err);
+
+      if (!cancelled) {
         setStatus("ERROR");
         setMessage("เกิดข้อผิดพลาดระหว่างสร้าง session");
       }
-    };
+    }
+  };
 
-    run();
-  }, [router.isReady, refreshUser]);
+  run();
+
+  return () => {
+    cancelled = true;
+  };
+}, [router.isReady, refreshUser]);
 
   const StatusIcon =
     status === "DONE" ? (

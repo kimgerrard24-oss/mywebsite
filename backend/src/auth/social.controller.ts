@@ -8,6 +8,9 @@ import {
   Res,
   Body,
   Logger,
+  BadRequestException,
+  UnauthorizedException,
+  Header,
   UseGuards,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
@@ -19,6 +22,7 @@ import { AuthService } from './auth.service';
 import { AuthRateLimitGuard } from '../common/rate-limit/auth-rate-limit.guard';
 import { RateLimit } from '../common/rate-limit/rate-limit.decorator';
 import { RateLimitContext } from '../common/rate-limit/rate-limit.decorator';
+import { AccessTokenCookieAuthGuard } from '../auth/guards/access-token-cookie.guard';
 
 const redis = process.env.REDIS_URL
   ? new IORedis(process.env.REDIS_URL, {
@@ -330,77 +334,109 @@ export class SocialAuthController {
     }
   }
 
-  /* ================================================================
-   * COMPLETE → HYBRID SESSION (JWT + REDIS)
-   * ================================================================ */
-  @Post('complete')
-  async complete(@Body() body: any, @Req() req: Request, @Res() res: Response) {
-    const idToken = body?.idToken as string | undefined;
-    if (!idToken) {
-      return res.status(400).json({ error: 'Missing idToken' });
-    }
+/* ================================================================
+ * COMPLETE → HYBRID SESSION (JWT + REDIS)
+ * Social Login Final Step
+ * ================================================================ */
+@Post('complete')
+async complete(
+  @Body() body: any,
+  @Req() req: Request,
+  @Res({ passthrough: true }) res: Response,
+) {
+  const idToken = body?.idToken as string | undefined;
 
-    try {
-      const decoded = await this.auth.verifyIdToken(idToken);
-      const user = await this.auth.getUserByFirebaseUid(decoded.uid);
-      if (!user) {
-        return res.status(401).json({ error: 'User not found' });
-      }
-
-      const session = await this.auth.createSessionToken(user.id);
-
-      const isProd = process.env.NODE_ENV === 'production';
-      const cookieDomain = process.env.COOKIE_DOMAIN || '.phlyphant.com';
-
-      res.cookie(
-        process.env.ACCESS_TOKEN_COOKIE_NAME || 'phl_access',
-        session.accessToken,
-        {
-          httpOnly: true,
-          secure: isProd,
-          sameSite: 'none',
-          domain: cookieDomain,
-          path: '/',
-          maxAge: session.expiresIn * 1000,
-        },
-      );
-
-      res.cookie(
-        process.env.REFRESH_TOKEN_COOKIE_NAME || 'phl_refresh',
-        session.refreshToken,
-        {
-          httpOnly: true,
-          secure: isProd,
-          sameSite: 'none',
-          domain: cookieDomain,
-          path: '/',
-          maxAge:
-            (Number(process.env.REFRESH_TOKEN_TTL_SECONDS) ||
-              60 * 60 * 24 * 7) * 1000,
-        },
-      );
-
-      return res.json({ ok: true });
-    } catch (e: any) {
-      this.logger.error('[complete] ' + String(e));
-      return res.status(401).json({ error: 'social_session_failed' });
-    }
+  if (!idToken) {
+    throw new BadRequestException('Missing idToken');
   }
 
-  /* ================================================================
-   * SESSION CHECK (JWT + REDIS)
-   * ================================================================ */
-  @Get('session-check')
-  async sessionCheck(@Req() req: Request, @Res() res: Response) {
-    try {
-      const payload = await this.auth.verifyAccessToken(
-        req.cookies?.[
-          process.env.ACCESS_TOKEN_COOKIE_NAME || 'phl_access'
-        ],
-      );
-      return res.json({ valid: true, userId: payload.sub });
-    } catch {
-      return res.status(401).json({ valid: false });
+  try {
+    // 1) Verify Firebase ID Token
+    const decoded = await this.auth.verifyIdToken(idToken);
+
+    // 2) Map Firebase UID → Local User
+    const user = await this.auth.getUserByFirebaseUid(decoded.uid);
+    if (!user) {
+      throw new UnauthorizedException('User not found');
     }
+
+    // 3) Collect device meta
+    const forwarded = req.headers['x-forwarded-for'];
+    const ip =
+      typeof forwarded === 'string'
+        ? forwarded.split(',')[0].trim()
+        : req.ip || req.socket?.remoteAddress || 'unknown';
+
+    const userAgent = req.headers['user-agent'] || null;
+
+    // 4) Create Session (JWT + Redis)
+    const session = await this.auth.createSessionToken(user.id, {
+      ip,
+      userAgent,
+      deviceId: body?.deviceId ?? null,
+    });
+
+    const isProd = process.env.NODE_ENV === 'production';
+    const cookieDomain = process.env.COOKIE_DOMAIN || '.phlyphant.com';
+
+    // 5) Access Token Cookie
+    res.cookie(
+      process.env.ACCESS_TOKEN_COOKIE_NAME || 'phl_access',
+      session.accessToken,
+      {
+        httpOnly: true,
+        secure: isProd,
+        sameSite: 'none',
+        domain: cookieDomain,
+        path: '/',
+        maxAge: session.expiresIn * 1000,
+      },
+    );
+
+    // 6) Refresh Token Cookie
+    res.cookie(
+      process.env.REFRESH_TOKEN_COOKIE_NAME || 'phl_refresh',
+      session.refreshToken,
+      {
+        httpOnly: true,
+        secure: isProd,
+        sameSite: 'none',
+        domain: cookieDomain,
+        path: '/',
+        maxAge:
+          (Number(process.env.REFRESH_TOKEN_TTL_SECONDS) ||
+            60 * 60 * 24 * 7) * 1000,
+      },
+    );
+
+    return { ok: true };
+  } catch (err: any) {
+    this.logger.error(
+      `[auth/complete] ${err?.message || String(err)}\n${err?.stack || ''}`,
+    );
+    throw new UnauthorizedException('social_session_failed');
   }
+}
+
+
+/* ================================================================
+ * SESSION CHECK (JWT + REDIS)
+ * Used by frontend (SSR / CSR)
+ * ================================================================ */
+@UseGuards(AccessTokenCookieAuthGuard)
+@Get('session-check')
+@Header('Cache-Control', 'no-store')
+async sessionCheck(@Req() req: Request) {
+  const user = (req as any).user;
+
+  if (!user?.userId) {
+    throw new UnauthorizedException();
+  }
+
+  return {
+    valid: true,
+    userId: user.userId,
+  };
+}
+
 }

@@ -51,6 +51,12 @@ interface AccessTokenPayload {
   exp?: number;
 }
 
+type SessionMeta = {
+  ip?: string | null;
+  userAgent?: string | null;
+  deviceId?: string | null;
+};
+
 const ACCESS_TOKEN_TTL = Number(process.env.ACCESS_TOKEN_TTL_SECONDS) || 60 * 15;
 const REFRESH_TOKEN_TTL = Number(process.env.REFRESH_TOKEN_TTL_SECONDS) || 60 * 60 * 24 * 30;
 const ACCESS_TOKEN_COOKIE_NAME = process.env.ACCESS_TOKEN_COOKIE_NAME || 'phl_access';
@@ -169,15 +175,16 @@ async validateUser(email: string, password: string) {
 // -------------------------------------------------------
 // Create Session Token (NEW SYSTEM: use SessionService for Redis)
 // -------------------------------------------------------
-async createSessionToken(userId: string) {
+async createSessionToken(
+  userId: string,
+  meta?: SessionMeta,
+) {
   const accessTTL = Number(process.env.ACCESS_TOKEN_TTL_SECONDS) || 60 * 15;
   const refreshTTL =
     Number(process.env.REFRESH_TOKEN_TTL_SECONDS) || 60 * 60 * 24 * 7;
 
-  // jti for session:access:<jti>
   const jti = randomUUID();
 
-  // JWT payload
   const payload: AccessTokenPayload = {
     sub: userId,
     jti,
@@ -185,23 +192,21 @@ async createSessionToken(userId: string) {
 
   const secret = process.env.JWT_ACCESS_SECRET as string;
 
-  // 1) Create JWT access token
   const accessToken = jwt.sign(payload, secret, {
     expiresIn: accessTTL,
     algorithm: 'HS256',
   });
 
-  // 2) Create refresh token
   const refreshToken = randomBytes(48).toString('hex');
 
-  // 3) Store session in Redis using SessionService (NEW STANDARD)
   await this.sessionService.createSession(
-    { userId }, // SessionPayload
-    jti, // NEW: we use jti as access key
-    refreshToken, // raw refresh token (SessionService hashes it)
+    { userId },
+    jti,
+    refreshToken,
     {
-      ip: null,
-      userAgent: null,
+      ip: meta?.ip ?? null,
+      userAgent: meta?.userAgent ?? null,
+      deviceId: meta?.deviceId ?? null,
     }
   );
 
@@ -211,6 +216,7 @@ async createSessionToken(userId: string) {
     expiresIn: accessTTL,
   };
 }
+
 
 
 // -------------------------------------------------------
