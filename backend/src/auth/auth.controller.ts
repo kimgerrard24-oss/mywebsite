@@ -178,7 +178,7 @@ async login(
   @Res({ passthrough: true }) res: Response,
 ) {
   // -------------------------------------------------------
-  // 1) Extract real client IP
+  // 1) Extract real client IP (Cloudflare / Proxy safe)
   // -------------------------------------------------------
   const forwarded = req.headers['x-forwarded-for'];
   const rawIp =
@@ -190,12 +190,13 @@ async login(
     rawIp.replace(/^::ffff:/, '').replace(/:\d+$/, '').trim() || 'unknown';
 
   // -------------------------------------------------------
-  // 2) User-Agent (for audit only)
+  // 2) User-Agent (audit only, NOT for rate-limit key)
   // -------------------------------------------------------
   const userAgent = (req.headers['user-agent'] as string) || 'unknown';
 
   // -------------------------------------------------------
-  // 3) Rate-limit key (email + ip ONLY)
+  // 3) Rate-limit key (STABLE)
+  //    email + ip ONLY
   // -------------------------------------------------------
   const rateLimitKey =
     `${body.email}:${normalizedIp}`
@@ -212,6 +213,7 @@ async login(
 
   // -------------------------------------------------------
   // 5) Login failed → consume rate-limit
+  //    (1–4 = allow, 5 = block by policy)
   // -------------------------------------------------------
   if (!user) {
     const rlResult = await this.rateLimitService.consume(
@@ -246,7 +248,7 @@ async login(
   }
 
   // -------------------------------------------------------
-  // 6) Login success → reset rate-limit
+  // 6) Login success → reset rate-limit counter
   // -------------------------------------------------------
   await this.rateLimitService.reset('login', rateLimitKey);
 
@@ -323,8 +325,6 @@ async login(
     },
   };
 }
-
-
 
 // =========================================================
 // Local Logout
