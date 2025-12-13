@@ -9,17 +9,16 @@ import { api } from "@/lib/api/api";
 import { getFirebaseAuth } from "firebase/client";
 import { signInWithCustomToken, Auth, User } from "firebase/auth";
 import { Loader2, CheckCircle, XCircle } from "lucide-react";
+import { useAuthContext } from "@/context/AuthContext";
 
 type Status = "LOADING" | "FIREBASE_LOGIN" | "SETTING_SESSION" | "DONE" | "ERROR";
 
 export default function AuthCompletePage() {
   const router = useRouter();
+  const { refreshUser } = useAuthContext();
   const [status, setStatus] = useState<Status>("LOADING");
   const [message, setMessage] = useState("กำลังตรวจสอบข้อมูลจาก OAuth...");
   const [details, setDetails] = useState<any>(null);
-
-  const API_BASE =
-    process.env.NEXT_PUBLIC_API_BASE || "https://api.phlyphant.com";
 
   const SITE_URL =
     process.env.NEXT_PUBLIC_SITE_URL || "https://www.phlyphant.com";
@@ -90,13 +89,16 @@ export default function AuthCompletePage() {
 
         setDetails(verify.data);
 
-        if (verify.data?.valid === true) {
+       if (verify.data?.valid === true) {
           setStatus("DONE");
           setMessage("เข้าสู่ระบบสำเร็จ กำลังพาไปหน้าแรก...");
+
+         await refreshUser(); 
+
           setTimeout(() => {
             router.replace(REDIRECT_AFTER_LOGIN);
-          }, 1000);
-        } else {
+            }, 300);
+      } else {
           setStatus("ERROR");
           setMessage("Session cookie ไม่ถูกสร้าง");
         }
@@ -108,7 +110,7 @@ export default function AuthCompletePage() {
     };
 
     run();
-  }, [router]);
+  }, [router.isReady, refreshUser]);
 
   const StatusIcon =
     status === "DONE" ? (

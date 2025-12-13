@@ -21,6 +21,7 @@ interface UserProfile {
 interface AuthContextValue {
   user: UserProfile | null;
   loading: boolean;
+  refreshUser: () => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | undefined>(undefined);
@@ -28,6 +29,22 @@ const AuthContext = createContext<AuthContextValue | undefined>(undefined);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // ----------------------------------
+  // Exposed helper for post-login sync
+  // ----------------------------------
+  const refreshUser = async () => {
+    try {
+      const profile = await getProfile();
+      if (profile) {
+        setUser(profile);
+      } else {
+        setUser(null);
+      }
+    } catch {
+      setUser(null);
+    }
+  };
 
   useEffect(() => {
     if (typeof window === "undefined") {
@@ -68,7 +85,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     if (!auth) return;
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      // ถ้าไม่มี firebaseUser → ไม่กระทบ Local Auth
       if (!firebaseUser) return;
 
       try {
@@ -77,7 +93,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           setUser(profile);
         }
       } catch {
-        // ไม่ overwrite Local Auth state
+        // intentionally do nothing
       }
     });
 
@@ -89,7 +105,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, loading }}>
+    <AuthContext.Provider value={{ user, loading, refreshUser }}>
       {children}
     </AuthContext.Provider>
   );
