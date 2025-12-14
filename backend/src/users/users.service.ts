@@ -6,10 +6,14 @@ import {
 } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { UserProfileDto } from "./dto/user-profile.dto";
+import { UsersRepository } from './users.repository';
+import { PublicUserProfileDto } from './dto/public-user-profile.dto';
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(private readonly prisma: PrismaService,
+              private readonly repo: UsersRepository
+  ) {}
 
   async findByEmail(email: string) {
     return this.prisma.user.findUnique({ where: { email } });
@@ -169,5 +173,29 @@ export class UsersService {
     }
 
     return user as UserProfileDto;
+  }
+
+  async getPublicProfile(params: {
+    targetUserId: string;
+    viewerUserId: string | null;
+  }): Promise<PublicUserProfileDto | null> {
+    const { targetUserId, viewerUserId } = params;
+
+    const user = await this.repo.findPublicUserById(targetUserId);
+    if (!user) return null;
+
+    let isSelf = false;
+    if (viewerUserId && viewerUserId === user.id) {
+      isSelf = true;
+    }
+
+    return {
+      id: user.id,
+      displayName: user.displayName,
+      avatarUrl: user.avatarUrl,
+      bio: user.bio,
+      createdAt: user.createdAt,
+      isSelf,
+    };
   }
 }

@@ -23,19 +23,12 @@ import { RateLimitGuard } from '../common/rate-limit/rate-limit.guard';
 
 import { AuditService } from './audit.service';
 import { RedisService } from '../redis/redis.service';
-
-import { LocalRefreshModule } from './dto/local/local-refresh.module';
-
 import { PasswordResetController } from './password-reset.controller';
 import { PasswordResetService } from './password-reset.service';
 import { PasswordResetTokenRepository } from './password-reset-token.repository';
 import { PasswordResetMailService } from '../mail/password-reset-mail.service';
-
-import { UsersService } from '../users/users.service';
-
 import { ValidateSessionService } from './services/validate-session.service';
 import { AccessTokenCookieAuthGuard } from './guards/access-token-cookie.guard';
-
 import { SessionModule } from './session/session.module';
 
 @Module({
@@ -46,9 +39,7 @@ import { SessionModule } from './session/session.module';
     RedisModule,
     RateLimitModule,
     MailModule,
-    LocalRefreshModule,
     SessionModule,
-    
   ],
 
   providers: [
@@ -63,7 +54,6 @@ import { SessionModule } from './session/session.module';
     PasswordResetService,
     PasswordResetTokenRepository,
     PasswordResetMailService,
-    UsersService,
     ValidateSessionService,
     AccessTokenCookieAuthGuard,
   ],

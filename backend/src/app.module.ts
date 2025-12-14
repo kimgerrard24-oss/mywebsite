@@ -20,6 +20,7 @@ import { R2Module } from './r2/r2.module';
 import { RateLimitModule } from './common/rate-limit/rate-limit.module';
 import { TestRateModule } from './modules/test/test.module';
 import { UsersModule } from './users/users.module';
+import { LocalRefreshModule } from './auth/dto/local/local-refresh.module';
 
 @Module({
   imports: [
@@ -32,16 +33,11 @@ import { UsersModule } from './users/users.module';
       cache: true,
     }),
 
-    // ---- Core System Dependencies ----
     SecretsModule,
     FirebaseAdminModule,
     PrismaModule,
     RedisModule,
-
-    // ---- Auth (needs Prisma + Redis ready) ----
     AuthModule,
-
-    // ---- Rest ----
     AwsModule,
     R2Module,
     RateLimitModule,
@@ -50,6 +46,7 @@ import { UsersModule } from './users/users.module';
     QueueModule,
     TestRateModule,
     UsersModule,
+    LocalRefreshModule,
     SentryModule.forRoot(),
 
     ThrottlerModule.forRoot({

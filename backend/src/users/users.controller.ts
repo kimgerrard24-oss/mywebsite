@@ -6,10 +6,12 @@ import {
   Get,
   UseGuards,
   Body,
+  Param,
   Req,
   UnauthorizedException,
   ConflictException,
   Header,
+  NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
 import { Request } from 'express';
@@ -20,6 +22,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { SessionUser } from '../auth/services/validate-session.service';
 import { UsersService } from './users.service';
 import { AuthService } from '../auth/auth.service';
+import { ParseUserIdPipe } from './pipes/parse-user-id.pipe';
 
 @Controller('users')
 export class UsersController {
@@ -56,12 +59,6 @@ export class UsersController {
     };
   }
 
-  // =====================================================
-  // GET /users/me
-  // IMPORTANT:
-  // - Auth is already validated by guard (JWT + Redis)
-  // - This route MUST NOT be used to decide auth state
-  // =====================================================
   @Get('me')
   @UseGuards(AccessTokenCookieAuthGuard)
   @Header(
@@ -80,11 +77,28 @@ export class UsersController {
     try {
       return await this.usersService.getMe(sessionUser.userId);
     } catch (err) {
-      // Auth already valid at this point
-      // Any error here = data inconsistency, not auth failure
       throw new BadRequestException(
         'Authenticated user profile is not available',
       );
     }
+  }
+
+  @Get(':id')
+  async getPublicProfile(
+    @Param('id', ParseUserIdPipe) userId: string,
+    @Req() req: Request,
+  ) {
+    const viewer = req.user ?? null;
+
+    const profile = await this.usersService.getPublicProfile({
+      targetUserId: userId,
+      viewerUserId: viewer?.userId ?? null,
+    });
+
+    if (!profile) {
+      throw new NotFoundException('User not found');
+    }
+
+    return profile;
   }
 }
