@@ -36,7 +36,6 @@ import { RateLimitService } from '../common/rate-limit/rate-limit.service';
 import { AuthGuard } from './auth.guard';
 import { UserProfileDto } from './dto/user-profile.dto';
 import { AccessTokenCookieAuthGuard } from './guards/access-token-cookie.guard';
-import { SkipThrottle } from '@nestjs/throttler';
 
 interface JwtUserPayload {
   // ปรับตาม payload จริงของคุณ
@@ -171,7 +170,6 @@ export class AuthController {
 // local login (CORRECT & SAFE)
 // =========================================================
 @Public()
-@SkipThrottle()
 @Post('login')
 @HttpCode(HttpStatus.OK)
 async login(
@@ -193,13 +191,15 @@ async login(
 
   const userAgent = (req.headers['user-agent'] as string) || 'unknown';
 
-  // -------------------------------------------------------
-  // 2) Stable rate-limit key (email + ip)
-  // -------------------------------------------------------
+// -------------------------------------------------------
+// 2) Stable rate-limit key (normalized email + ip)
+// -------------------------------------------------------
+  const normalizedEmail = body.email.trim().toLowerCase();
+
   const rateLimitKey =
-    `${body.email}:${normalizedIp}`
-      .toLowerCase()
-      .replace(/[^a-z0-9_-]/g, '_') || 'unknown';
+  `${normalizedEmail}:${normalizedIp}`
+    .replace(/[^a-z0-9_-]/g, '_');
+
 
   // -------------------------------------------------------
   // 3) Validate credentials FIRST

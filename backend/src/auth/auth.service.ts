@@ -107,69 +107,55 @@ constructor(
 }
 
 // -------------------------------------------------------
-// Local Login
+// Local Login (Validate Credentials Only)
 // -------------------------------------------------------
 async validateUser(email: string, password: string) {
-  const user = await this.repo.findUserByEmail(email);
+  
+  // 1) Normalize email (single source of truth)
+  const normalizedEmail = email.trim().toLowerCase();
+
+  // 2) Find user by email
+  const user = await this.repo.findUserByEmail(normalizedEmail);
   if (!user) {
-    await this.audit.logLoginAttempt({ email, success: false, reason: 'user_not_found' });
+    // invalid credential (controller decides rate-limit & audit)
     return null;
   }
 
+  // 3) Disabled account = hard stop
   if (user.isDisabled) {
-    await this.audit.logLoginAttempt({
-      userId: user.id,
-      email,
-      success: false,
-      reason: 'account_disabled',
-    });
+    // business rule → exception is correct
     throw new ForbiddenException('Account disabled');
   }
 
+  // 4) Local login requires password hash
   if (!user.hashedPassword || typeof user.hashedPassword !== 'string') {
-    await this.audit.logLoginAttempt({
-      userId: user.id,
-      email,
-      success: false,
-      reason: 'missing_password_hash',
-    });
     return null;
   }
 
-  let ok = false;
+  // 5) Verify password (argon2)
+  let passwordMatched = false;
   try {
-    ok = await argon2.verify(user.hashedPassword, password);
-  } catch (err) {
-    await this.audit.logLoginAttempt({
-      userId: user.id,
-      email,
-      success: false,
-      reason: 'password_verify_error',
-    });
+    passwordMatched = await argon2.verify(
+      user.hashedPassword,
+      password,
+    );
+  } catch {
+    // treat argon2 error as invalid credential
     return null;
   }
 
-  if (!ok) {
-    await this.audit.logLoginAttempt({
-      userId: user.id,
-      email,
-      success: false,
-      reason: 'invalid_password',
-    });
+  if (!passwordMatched) {
     return null;
   }
 
+  // 6) Success → update last login
   await this.repo.updateLastLogin(user.id);
-  await this.audit.logLoginAttempt({
-    userId: user.id,
-    email,
-    success: true,
-  });
 
-  const safe: any = { ...user };
-  delete safe.hashedPassword;
+  // 7) Return safe user object (remove password hash)
+  const safeUser: any = { ...user };
+  delete safeUser.hashedPassword;
 
-  return safe;
+  return safeUser;
 }
 
 // -------------------------------------------------------
