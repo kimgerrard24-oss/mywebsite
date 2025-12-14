@@ -39,10 +39,10 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
   const cookieHeader = ctx.req.headers.cookie ?? undefined;
 
   try {
-    // 1) ตรวจสอบ session ก่อน
+    // 1) Session check = AUTHORITY
     const sessionResult = await sessionCheckServerSide(cookieHeader);
 
-    if (!sessionResult || !sessionResult.valid) {
+    if (!sessionResult || sessionResult.valid !== true) {
       return {
         redirect: {
           destination: "/",
@@ -51,7 +51,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
       };
     }
 
-    // 2) session valid → ดึง user profile
+    // 2) Session valid → try fetch user (FAIL-SOFT)
     const baseUrl =
       process.env.NEXT_PUBLIC_BACKEND_URL ||
       process.env.NEXT_PUBLIC_API_BASE_URL ||
@@ -60,32 +60,30 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
 
     const apiUrl = `${baseUrl.replace(/\/+$/, "")}/users/me`;
 
-    const res = await fetch(apiUrl, {
-      method: "GET",
-      headers: {
-        Accept: "application/json",
-        ...(cookieHeader ? { Cookie: cookieHeader } : {}),
-      },
-      credentials: "include",
-      cache: "no-store",
-    });
+    let user: any | null = null;
 
-    if (!res.ok) {
-      return {
-        redirect: {
-          destination: "/",
-          permanent: false,
+    try {
+      const res = await fetch(apiUrl, {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+          ...(cookieHeader ? { Cookie: cookieHeader } : {}),
         },
-      };
-    }
+        credentials: "include",
+        cache: "no-store",
+      });
 
-    const json = await res.json().catch(() => null);
+      if (res.ok) {
+        const json = await res.json().catch(() => null);
 
-    let user = null;
-    if (json?.data && typeof json.data === "object") {
-      user = json.data;
-    } else if (json?.id) {
-      user = json;
+        if (json?.data && typeof json.data === "object") {
+          user = json.data;
+        } else if (json?.id) {
+          user = json;
+        }
+      }
+    } catch {
+      // ignore — page can render without full profile
     }
 
     return {

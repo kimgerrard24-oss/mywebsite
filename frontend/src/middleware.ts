@@ -2,10 +2,25 @@
 import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
-// ⚠️ IMPORTANT
-// With SessionService + Redis,
-// middleware MUST NOT decide authentication state.
-// Auth decision is handled by backend only.
+/**
+ * IMPORTANT — AUTH ARCHITECTURE NOTE
+ *
+ * This middleware is a PASS-THROUGH only.
+ *
+ * ❌ MUST NOT:
+ * - Read or validate cookies
+ * - Decide authentication state
+ * - Redirect based on login/session
+ *
+ * ✅ Authentication authority lives in BACKEND ONLY:
+ * - JWT + Redis
+ * - Firebase Admin (OAuth)
+ * - /auth/session-check
+ *
+ * Protected pages must validate session via:
+ * - getServerSideProps (SSR)
+ * - or client API call
+ */
 
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
@@ -25,17 +40,12 @@ export function middleware(req: NextRequest) {
     return NextResponse.next();
   }
 
-  // DO NOT check cookies here
-  // DO NOT redirect based on auth here
-  // Protected pages must validate session
-  // via backend (SSR or client API)
-
+  // Intentionally do nothing else
+  // Auth decisions are handled by backend
   return NextResponse.next();
 }
 
-// Block middleware from touching socket.io
+// Exclude socket.io completely
 export const config = {
-  matcher: [
-    "/((?!socket\\.io).*)",
-  ],
+  matcher: ["/((?!socket\\.io).*)"],
 };

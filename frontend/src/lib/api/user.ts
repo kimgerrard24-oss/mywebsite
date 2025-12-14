@@ -41,7 +41,15 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
-export async function fetchMyProfileClient(): Promise<UserProfile | null> {
+/**
+ * return:
+ *   UserProfile  → success
+ *   null         → definitely not logged in (401)
+ *   undefined    → session may exist but resource not ready (5xx / race)
+ */
+export async function fetchMyProfileClient(): Promise<
+  UserProfile | null | undefined
+> {
   try {
     const response = await apiClient.get("/users/me");
     const data = response.data;
@@ -56,21 +64,21 @@ export async function fetchMyProfileClient(): Promise<UserProfile | null> {
       return data;
     }
 
-    return null;
+    return undefined;
   } catch (err) {
     const error = err as AxiosError;
 
-    // 401 = not logged in yet (normal case)
+    // 401 = definitely not logged in
     if (error.response?.status === 401) {
       return null;
     }
 
-    // Other errors: silent log for non-production
+    // 5xx / network / timing issue
     if (process.env.NODE_ENV !== "production") {
-      console.warn("[fetchMyProfileClient] unexpected error", error);
+      console.warn("[fetchMyProfileClient] transient error", error);
     }
 
-    return null;
+    return undefined;
   }
 }
 
@@ -79,40 +87,58 @@ export async function fetchMyProfileClient(): Promise<UserProfile | null> {
 // ==============================
 export async function fetchMyProfileServer(
   cookieHeader: string | undefined
-): Promise<{ profile: UserProfile | null; status: number }> {
+): Promise<{
+  profile: UserProfile | null | undefined;
+  status: number;
+}> {
   const baseUrl = normalizeBaseUrl(PUBLIC_API_BASE_URL);
 
-  const response = await fetch(`${baseUrl}/users/me`, {
-    method: "GET",
-    headers: {
-      Accept: "application/json",
-      ...(cookieHeader ? { Cookie: cookieHeader } : {}),
-    },
-    credentials: "include",
-    cache: "no-store",
-  });
+  try {
+    const response = await fetch(`${baseUrl}/users/me`, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        ...(cookieHeader ? { Cookie: cookieHeader } : {}),
+      },
+      credentials: "include",
+      cache: "no-store",
+    });
 
-  const status = response.status;
+    const status = response.status;
 
-  if (status >= 200 && status < 300) {
-    const json = await response.json().catch(() => null);
-
-    if (!json) {
+    // 401 = definitely not logged in
+    if (status === 401) {
       return { profile: null, status };
     }
 
-    // backend format 1: { data: {...} }
-    if (json.data && typeof json.data === "object") {
-      return { profile: json.data, status };
+    // 2xx = try parse profile
+    if (status >= 200 && status < 300) {
+      const json = await response.json().catch(() => null);
+
+      if (!json) {
+        return { profile: undefined, status };
+      }
+
+      // backend format 1
+      if (json.data && typeof json.data === "object") {
+        return { profile: json.data, status };
+      }
+
+      // backend format 2
+      if (json.id) {
+        return { profile: json, status };
+      }
+
+      return { profile: undefined, status };
     }
 
-    // backend format 2: object user directly returned
-    if (json.id) {
-      return { profile: json, status };
+    // 5xx / other
+    return { profile: undefined, status };
+  } catch (err) {
+    if (process.env.NODE_ENV !== "production") {
+      console.warn("[fetchMyProfileServer] fetch error", err);
     }
 
-    return { profile: null, status };
+    return { profile: undefined, status: 0 };
   }
-
-  return { profile: null, status };
 }

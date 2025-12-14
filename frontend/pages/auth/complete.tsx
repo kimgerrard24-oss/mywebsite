@@ -32,6 +32,16 @@ export default function AuthCompletePage() {
     if (!router.isReady) return;
     if (loading) return;
     if (hasRunRef.current) return;
+
+    // ต้องรอ query พร้อมจริง ๆ
+    const hasQueryToken =
+      typeof router.query.customToken === "string" ||
+      typeof router.query.token === "string" ||
+      typeof router.query.t === "string" ||
+      typeof window !== "undefined";
+
+    if (!hasQueryToken && !user) return;
+
     hasRunRef.current = true;
 
     // ถ้ามี session อยู่แล้ว → redirect ทันที
@@ -58,10 +68,12 @@ export default function AuthCompletePage() {
         }
 
         // ----------------------------------
-        // 2) Read from hash (OAuth providers)
+        // 2) Read from hash
         // ----------------------------------
-        if (!customToken && window.location.hash) {
-          const params = new URLSearchParams(window.location.hash.substring(1));
+        if (!customToken && typeof window !== "undefined" && window.location.hash) {
+          const params = new URLSearchParams(
+            window.location.hash.substring(1)
+          );
           const hashToken = params.get("customToken");
           if (hashToken) {
             customToken = hashToken;
@@ -80,19 +92,29 @@ export default function AuthCompletePage() {
         setStatus("FIREBASE_LOGIN");
         setMessage("กำลังเข้าสู่ระบบด้วย Firebase...");
 
-        const auth = getFirebaseAuth() as Auth;
+        const auth = getFirebaseAuth() as Auth | null;
+        if (!auth) {
+          throw new Error("Firebase auth not initialized");
+        }
+
         await signInWithCustomToken(auth, customToken);
 
         let firebaseUser: User | null = auth.currentUser;
 
         if (!firebaseUser) {
-          await new Promise<void>((resolve) => {
+          await new Promise<void>((resolve, reject) => {
             const unsub = auth.onAuthStateChanged((u) => {
               if (!u) return;
               firebaseUser = u;
               unsub();
               resolve();
             });
+
+            // safety timeout
+            setTimeout(() => {
+              unsub();
+              reject(new Error("Firebase user resolve timeout"));
+            }, 5000);
           });
         }
 
@@ -103,43 +125,36 @@ export default function AuthCompletePage() {
         const idToken = await firebaseUser.getIdToken(true);
 
         // ----------------------------------
-        // 4) Create backend session (JWT + Redis)
+        // 4) Create backend session
         // ----------------------------------
         setStatus("SETTING_SESSION");
         setMessage("กำลังสร้าง session cookie...");
 
-        await api.post(
-          "/auth/complete",
-          { idToken },
-          { withCredentials: true }
-        );
+        await api.post("/auth/complete", { idToken });
 
         if (cancelled) return;
 
         // ----------------------------------
-        // 5) Sync user state (single source of truth)
+        // 5) Sync user state
         // ----------------------------------
         await refreshUser();
 
         if (cancelled) return;
 
         // ----------------------------------
-        // 6) Done → redirect
+        // 6) Clean URL + redirect
         // ----------------------------------
         setStatus("DONE");
         setMessage("เข้าสู่ระบบสำเร็จ กำลังพาไปหน้าแรก...");
 
-        setTimeout(() => {
-          if (!cancelled) {
-            router.replace(REDIRECT_AFTER_LOGIN);
-          }
-        }, 300);
+        router.replace(REDIRECT_AFTER_LOGIN);
       } catch (err) {
         console.error("[auth/complete]", err);
 
         if (!cancelled) {
           setStatus("ERROR");
           setMessage("เกิดข้อผิดพลาดระหว่างสร้าง session");
+          setDetails(err);
         }
       }
     };
@@ -149,7 +164,14 @@ export default function AuthCompletePage() {
     return () => {
       cancelled = true;
     };
-  }, [router.isReady, loading]);
+  }, [
+    router.isReady,
+    router.query,
+    loading,
+    user,
+    refreshUser,
+    router,
+  ]);
 
   const StatusIcon =
     status === "DONE" ? (
@@ -172,15 +194,7 @@ export default function AuthCompletePage() {
       </Head>
 
       <main className="min-h-screen flex items-center justify-center p-6 bg-linear-to-br from-slate-100 via-white to-slate-200">
-        <section
-          className="
-            max-w-lg w-full 
-            bg-white/80 backdrop-blur-xl 
-            shadow-2xl rounded-2xl border 
-            p-8 sm:p-10
-            text-center
-          "
-        >
+        <section className="max-w-lg w-full bg-white/80 backdrop-blur-xl shadow-2xl rounded-2xl border p-8 sm:p-10 text-center">
           <div className="flex justify-center mb-6">{StatusIcon}</div>
 
           <h1 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-4">
@@ -198,13 +212,7 @@ export default function AuthCompletePage() {
           {status === "ERROR" && (
             <button
               onClick={() => (window.location.href = `${SITE_URL}/login`)}
-              className="
-                mt-6 px-6 py-3 
-                bg-red-600 text-white 
-                rounded-xl font-medium 
-                hover:bg-red-700 
-                transition-all
-              "
+              className="mt-6 px-6 py-3 bg-red-600 text-white rounded-xl font-medium hover:bg-red-700 transition-all"
             >
               กลับไปหน้าล็อกอิน
             </button>

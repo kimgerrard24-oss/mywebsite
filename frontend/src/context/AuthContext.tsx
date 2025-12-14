@@ -13,6 +13,7 @@ import type { Auth } from "firebase/auth";
 import { getFirebaseAuth } from "firebase/client";
 import { onAuthStateChanged } from "firebase/auth";
 import { getProfile } from "@/lib/api/auth";
+import { api } from "@/lib/api/api";
 
 interface UserProfile {
   id: string;
@@ -39,6 +40,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Prevent concurrent profile fetch
   const fetchingRef = useRef(false);
 
+  /**
+   * Check backend session authority FIRST
+   */
+  const checkSession = async (): Promise<boolean> => {
+    try {
+      const res = await api.get("/auth/session-check");
+      return Boolean(res?.data?.valid);
+    } catch {
+      return false;
+    }
+  };
+
   const fetchProfileSafely = async () => {
     if (fetchingRef.current) return;
 
@@ -49,7 +62,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         setUser(profile);
       }
     } catch {
-      // do NOT force setUser(null) here (avoid race with session creation)
+      // IMPORTANT:
+      // Do NOT set user = null here
+      // Resource failure !== session invalid
     } finally {
       fetchingRef.current = false;
     }
@@ -59,6 +74,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // Exposed helper for post-login sync
   // ----------------------------------
   const refreshUser = async () => {
+    const hasSession = await checkSession();
+    if (!hasSession) return;
+
     await fetchProfileSafely();
   };
 
@@ -77,11 +95,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
 
     // ----------------------------------
-    // 1) Local Session (PRIMARY SOURCE)
+    // 1) Backend session = source of truth
     // ----------------------------------
     (async () => {
       try {
-        await fetchProfileSafely();
+        const hasSession = await checkSession();
+        if (hasSession) {
+          await fetchProfileSafely();
+        }
       } finally {
         setLoading(false);
       }
@@ -89,15 +110,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     // ----------------------------------
     // 2) Firebase = enhancement layer ONLY
-    //    (Do not race session creation)
     // ----------------------------------
     if (!auth) return;
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (!firebaseUser) return;
 
-      // Delay to allow backend session cookie to be set
+      // Allow time for backend cookies/session
       await new Promise((r) => setTimeout(r, 300));
+
+      const hasSession = await checkSession();
+      if (!hasSession) return;
 
       await fetchProfileSafely();
     });

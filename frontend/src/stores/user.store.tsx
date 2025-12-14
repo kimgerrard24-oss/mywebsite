@@ -19,7 +19,7 @@ export type User = {
 type UserContextValue = {
   user: User | null;
   isAuthenticated: boolean;
-  loading: boolean; 
+  loading: boolean;
   logout: () => Promise<void>;
 };
 
@@ -47,13 +47,14 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         id: authUser.id,
         email: authUser.email,
         username,
-        avatar: authUser.avatarUrl || "/images/default-avatar.png"
+        avatar: authUser.avatarUrl || "/images/default-avatar.png",
       });
 
       setLoading(false);
       return;
     }
 
+    // auth resolved แต่ไม่มี user
     setUser(null);
     setLoading(false);
   }, [authUser, authLoading]);
@@ -71,9 +72,10 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
 
   const value: UserContextValue = {
     user,
-    isAuthenticated: Boolean(user),
+    // ❗ สำคัญ: auth decision ต้องอิง AuthContext + loading
+    isAuthenticated: !loading && Boolean(authUser),
     loading,
-    logout
+    logout,
   };
 
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
@@ -90,7 +92,7 @@ export function useUserStore() {
       user: null,
       isAuthenticated: false,
       loading: true,
-      logout: async () => {}
+      logout: async () => {},
     };
   }
 

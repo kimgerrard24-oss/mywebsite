@@ -191,7 +191,7 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
 
   const apiBase = baseUrl.replace(/\/+$/, "");
 
-  // 1) Check session validity first (lightweight & stable)
+  // 1) Session check = AUTHORITY
   const sessionRes = await fetch(`${apiBase}/auth/session-check`, {
     method: "GET",
     headers: {
@@ -221,33 +221,31 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
     };
   }
 
-  // 2) Session valid → fetch user profile
-  const userRes = await fetch(`${apiBase}/users/me`, {
-    method: "GET",
-    headers: {
-      Accept: "application/json",
-      ...(cookieHeader ? { Cookie: cookieHeader } : {}),
-    },
-    credentials: "include",
-    cache: "no-store",
-  });
+  // 2) Session valid → try fetch user (FAIL-SOFT)
+  let user: any | null = null;
 
-  if (!userRes.ok) {
-    return {
-      redirect: {
-        destination: "/",
-        permanent: false,
+  try {
+    const userRes = await fetch(`${apiBase}/users/me`, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        ...(cookieHeader ? { Cookie: cookieHeader } : {}),
       },
-    };
-  }
+      credentials: "include",
+      cache: "no-store",
+    });
 
-  const json = await userRes.json().catch(() => null);
+    if (userRes.ok) {
+      const json = await userRes.json().catch(() => null);
 
-  let user = null;
-  if (json?.data && typeof json.data === "object") {
-    user = json.data;
-  } else if (json?.id) {
-    user = json;
+      if (json?.data && typeof json.data === "object") {
+        user = json.data;
+      } else if (json?.id) {
+        user = json;
+      }
+    }
+  } catch {
+    // ignore — feed can render without full profile
   }
 
   return {

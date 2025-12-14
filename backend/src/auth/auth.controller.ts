@@ -36,6 +36,7 @@ import { RateLimitService } from '../common/rate-limit/rate-limit.service';
 import { AuthGuard } from './auth.guard';
 import { UserProfileDto } from './dto/user-profile.dto';
 import { AccessTokenCookieAuthGuard } from './guards/access-token-cookie.guard';
+import { SkipThrottle } from '@nestjs/throttler';
 
 interface JwtUserPayload {
   // ปรับตาม payload จริงของคุณ
@@ -170,6 +171,7 @@ export class AuthController {
 // local login (CORRECT & SAFE)
 // =========================================================
 @Public()
+@SkipThrottle()
 @Post('login')
 @HttpCode(HttpStatus.OK)
 async login(

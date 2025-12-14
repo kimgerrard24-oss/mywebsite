@@ -46,11 +46,7 @@ import { SessionModule } from './session/session.module';
     RedisModule,
     RateLimitModule,
     MailModule,
-
-    // Local refresh token system
     LocalRefreshModule,
-
-    // Our JWT + Redis jti session layer
     SessionModule,
     
   ],
@@ -58,22 +54,16 @@ import { SessionModule } from './session/session.module';
   providers: [
     AuthService,
     AuthRepository,
-
     AuthLoggerService,
-
     FirebaseAuthGuard,
     AuthGuard,
     RateLimitGuard,
-
     AuditService,
     RedisService,
-
     PasswordResetService,
     PasswordResetTokenRepository,
     PasswordResetMailService,
-
     UsersService,
-
     ValidateSessionService,
     AccessTokenCookieAuthGuard,
   ],

@@ -3,10 +3,12 @@
 // FINAL — SessionService + OAuth Compatible
 // ==============================
 
-import React from "react";
+import React, { useEffect } from "react";
 import Head from "next/head";
 import dynamic from "next/dynamic";
+import { useRouter } from "next/router";
 import LoginForm from "@/components/auth/LoginForm";
+import { sessionCheckClient } from "@/lib/api/api";
 
 const API_BASE = (
   process.env.NEXT_PUBLIC_API_BASE ||
@@ -15,9 +17,37 @@ const API_BASE = (
 ).replace(/\/+$/, "");
 
 function LoginPageInner() {
+  const router = useRouter();
+
   const SITE_ORIGIN =
     process.env.NEXT_PUBLIC_SITE_URL ||
     "https://www.phlyphant.com";
+
+  /**
+   * Guard:
+   * - If session already valid → redirect away from login
+   * - Do NOT decide auth here, rely on /auth/session-check only
+   */
+  useEffect(() => {
+    let mounted = true;
+
+    const checkSession = async () => {
+      try {
+        const res = await sessionCheckClient();
+        if (mounted && res?.valid === true) {
+          router.replace("/feed");
+        }
+      } catch {
+        // ignore — user not logged in
+      }
+    };
+
+    void checkSession();
+
+    return () => {
+      mounted = false;
+    };
+  }, [router]);
 
   /**
    * OAuth entry point only

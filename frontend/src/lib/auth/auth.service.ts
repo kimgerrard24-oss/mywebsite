@@ -29,9 +29,10 @@ export async function login(payload: {
 
 // ==============================
 // FETCH CURRENT USER
-// Must handle both backend formats:
-// 1) { data: {...} }
-// 2) { id, email, ... }
+// return:
+//   user object → success
+//   null        → definitely not authenticated (401)
+//   undefined   → session may exist but resource not ready (5xx / race)
 // ==============================
 export async function fetchCurrentUser() {
   try {
@@ -48,22 +49,22 @@ export async function fetchCurrentUser() {
       return body;
     }
 
-    return null;
+    return undefined;
   } catch (err: any) {
-    // 401 = not authenticated yet (normal case)
+    // 401 = definitely not authenticated
     if (err?.response?.status === 401) {
       return null;
     }
 
-    // Other errors: silent log for non-production
+    // 5xx / network / race condition
     if (process.env.NODE_ENV !== "production") {
       console.warn(
-        "[fetchCurrentUser] unexpected error",
+        "[fetchCurrentUser] transient error",
         err?.message || err
       );
     }
 
-    return null;
+    return undefined;
   }
 }
 

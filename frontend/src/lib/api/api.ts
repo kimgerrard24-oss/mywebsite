@@ -26,7 +26,11 @@ function apiPath(path: string): string {
 // ==============================
 // Generic JSON Fetch (SSR/CSR Safe)
 // ==============================
-async function jsonFetch<T>(input: string, init: RequestInit = {}): Promise<T> {
+async function jsonFetch<T>(
+  input: string,
+  init: RequestInit = {},
+  options?: { softFail?: boolean }
+): Promise<T> {
   const hasBody = typeof init.body !== "undefined";
 
   const res = await fetch(input, {
@@ -40,11 +44,16 @@ async function jsonFetch<T>(input: string, init: RequestInit = {}): Promise<T> {
   });
 
   if (!res.ok) {
+    if (options?.softFail) {
+      return null as T;
+    }
+
     const errText = await res.text().catch(() => "");
     let errBody: any = errText;
     try {
       errBody = JSON.parse(errText);
     } catch {}
+
     const err: any = new Error(`HTTP ${res.status}`);
     err.status = res.status;
     err.body = errBody;
@@ -87,7 +96,10 @@ api.interceptors.request.use((cfg) => {
 // ==============================
 // Public API Wrapper
 // ==============================
-export async function apiGet<T = any>(path: string, config: any = {}): Promise<T> {
+export async function apiGet<T = any>(
+  path: string,
+  config: any = {}
+): Promise<T> {
   const res = await api.get(path, config);
   return res.data;
 }
@@ -157,23 +169,20 @@ export async function sessionCheckServerSide(cookieHeader?: string) {
     Accept: "application/json",
   };
 
-  const cookieToSend =
-    cookieHeader && cookieHeader.trim().length > 0 ? cookieHeader : undefined;
-
-  if (cookieToSend) {
-    headers["Cookie"] = cookieToSend;
+  if (cookieHeader && cookieHeader.trim().length > 0) {
+    headers["Cookie"] = cookieHeader;
   }
 
-  const res = await fetch(apiPath("/auth/session-check"), {
-    method: "GET",
-    headers,
-    credentials: "include",
-    cache: "no-store",
-  });
-
-  if (!res.ok) return { valid: false };
-
   try {
+    const res = await fetch(apiPath("/auth/session-check"), {
+      method: "GET",
+      headers,
+      credentials: "include",
+      cache: "no-store",
+    });
+
+    if (!res.ok) return { valid: false };
+
     const data = await res.json().catch(() => null);
     return { valid: data?.valid === true, ...data };
   } catch {
@@ -189,8 +198,11 @@ export async function sessionCheckClient() {
     apiPath("/auth/session-check"),
     {
       credentials: "include",
-    }
+    },
+    { softFail: true }
   );
+
+  if (!data) return { valid: false };
 
   return { valid: data.valid === true, ...data };
 }

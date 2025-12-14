@@ -73,6 +73,16 @@ export function useAuthInternal() {
 
   // logout → revoke backend session + reset UI state
   const signOut = async () => {
+    // ❗ Guard: อย่า logout ระหว่าง auth resolving
+    if (authCtx.loading) {
+      return;
+    }
+
+    // ❗ Guard: ถ้าไม่มี user จริง อย่า force redirect
+    if (!authCtx.user) {
+      return;
+    }
+
     try {
       await fetch("/auth/local/logout", {
         method: "POST",
@@ -85,7 +95,7 @@ export function useAuthInternal() {
     // reset internal UI state
     setUser(null);
 
-    // force re-evaluate AuthContext (source of truth)
+    // redirect หลัง logout จริงเท่านั้น
     window.location.href = "/login";
   };
 

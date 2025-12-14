@@ -129,16 +129,17 @@ export async function resetPassword(
 }
 
 // ==================================================
-// GET PROFILE (HARDENED)
-// Backend might return:
-// 1) { data: { ...user } }
-// 2) { id, email, ... }
+// GET PROFILE (HARDENED FOR HYBRID AUTH)
+// return:
+//   UserProfile   → success
+//   null          → definitely not logged in (401)
+//   undefined     → session may exist but resource not ready
 // ==================================================
 export async function getProfile() {
   try {
     const res = await client.get("/users/me");
 
-    if (!res.data) return null;
+    if (!res.data) return undefined;
 
     if (typeof res.data === "object") {
       // Backend v1
@@ -152,20 +153,21 @@ export async function getProfile() {
       }
     }
 
-    return null;
+    return undefined;
   } catch (err) {
     const error = err as AxiosError;
 
-    // 401 = not logged in yet (normal case)
+    // 401 = definitely not logged in
     if (error.response?.status === 401) {
       return null;
     }
 
-    // Other errors: log silently for debugging
+    // 5xx / network / race condition
+    // Do NOT treat as logout
     if (process.env.NODE_ENV !== "production") {
-      console.warn("[getProfile] unexpected error", error);
+      console.warn("[getProfile] transient error", error);
     }
 
-    return null;
+    return undefined;
   }
 }

@@ -1,5 +1,5 @@
 // ==============================
-// files frontend/firebase/client 
+// files frontend/firebase/client
 // ==============================
 
 import {
@@ -28,7 +28,18 @@ function clean(value?: string) {
 function initFirebase(): void {
   if (typeof window === "undefined") return; // SSR safe
 
-  if (initializing) return;
+  // If already initialized → nothing to do
+  if (appInstance && authInstance) return;
+
+  // If another call is initializing → wait (spin-safe, very short)
+  if (initializing) {
+    let attempts = 0;
+    while (!appInstance && attempts < 50) {
+      attempts++;
+    }
+    return;
+  }
+
   initializing = true;
 
   try {
@@ -37,25 +48,25 @@ function initFirebase(): void {
       authDomain: clean(process.env.NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN),
       projectId: clean(process.env.NEXT_PUBLIC_FIREBASE_PROJECT_ID),
       storageBucket: clean(process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET),
-      messagingSenderId: clean(process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID),
+      messagingSenderId: clean(
+        process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID
+      ),
       appId: clean(process.env.NEXT_PUBLIC_FIREBASE_APP_ID),
     };
 
-    // Important required keys
+    // Required keys
     const required = ["apiKey", "authDomain", "projectId", "appId"] as const;
 
     for (const k of required) {
       if (!config[k]) {
-        initializing = false;
         throw new Error(
           `Firebase missing config: NEXT_PUBLIC_FIREBASE_${String(k).toUpperCase()}`
         );
       }
     }
 
-    // Check existing instance
-    const existing = getApps();
-    if (existing.length > 0) {
+    // Reuse existing app if present
+    if (getApps().length > 0) {
       try {
         appInstance = getApp();
       } catch {
@@ -65,7 +76,6 @@ function initFirebase(): void {
       appInstance = initializeApp(config as any);
     }
 
-    // Auth singleton
     authInstance = getAuth(appInstance);
     authInstance.useDeviceLanguage();
   } catch (err) {

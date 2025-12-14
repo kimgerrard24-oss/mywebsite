@@ -13,7 +13,7 @@ let failedQueue: Array<{
   reject: (reason?: any) => void;
 }> = [];
 
-// ปลอดภัยกว่า: resolve(value) เพื่อบอกว่า refresh สำเร็จ
+// resolve(value) เพื่อบอกว่า refresh สำเร็จหรือไม่
 function processQueue(error: any, value: boolean = false) {
   failedQueue.forEach((prom) => {
     if (error) prom.reject(error);
@@ -36,8 +36,26 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
+    // ไม่มี response → network error
+    if (!error.response || !originalRequest) {
+      return Promise.reject(error);
+    }
+
+    const status = error.response.status;
+    const url: string = originalRequest.url || "";
+
     // ไม่ใช่ 401 → ปล่อยผ่าน
-    if (error.response?.status !== 401 || originalRequest._retry) {
+    if (status !== 401) {
+      return Promise.reject(error);
+    }
+
+    // ❗ ห้าม refresh บน auth endpoints
+    if (url.startsWith("/auth")) {
+      return Promise.reject(error);
+    }
+
+    // กัน loop
+    if (originalRequest._retry) {
       return Promise.reject(error);
     }
 
@@ -46,7 +64,8 @@ api.interceptors.response.use(
       return new Promise<boolean>((resolve, reject) => {
         failedQueue.push({ resolve, reject });
       })
-        .then(() => {
+        .then((ok) => {
+          if (!ok) return Promise.reject(error);
           originalRequest._retry = true;
           return api(originalRequest);
         })
@@ -62,7 +81,7 @@ api.interceptors.response.use(
       isRefreshing = false;
 
       if (!refreshed) {
-        processQueue(new Error("Failed to refresh token"), false);
+        processQueue(null, false);
         return Promise.reject(error);
       }
 
@@ -72,8 +91,8 @@ api.interceptors.response.use(
       return api(originalRequest);
     } catch (err) {
       isRefreshing = false;
-      processQueue(err, false);
-      return Promise.reject(err);
+      processQueue(null, false);
+      return Promise.reject(error);
     }
   }
 );

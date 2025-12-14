@@ -14,6 +14,7 @@ import { ProfileSkeleton } from "@/components/profile/ProfileSkeleton";
 
 interface ProfilePageProps {
   initialProfile: UserProfile | null;
+  // IMPORTANT: this now means "session valid", not "profile exists"
   isAuthenticated: boolean;
 }
 
@@ -30,7 +31,7 @@ export const getServerSideProps: GetServerSideProps<ProfilePageProps> = async (
 
   const apiBase = baseUrl.replace(/\/+$/, "");
 
-  // 1) Check session validity first (SSR-safe)
+  // 1) Check session validity (ONLY auth decision)
   const sessionRes = await fetch(`${apiBase}/auth/session-check`, {
     method: "GET",
     headers: {
@@ -61,39 +62,38 @@ export const getServerSideProps: GetServerSideProps<ProfilePageProps> = async (
     };
   }
 
-  // 2) Session valid → fetch user profile
-  const userRes = await fetch(`${apiBase}/users/me`, {
-    method: "GET",
-    headers: {
-      Accept: "application/json",
-      ...(cookieHeader ? { Cookie: cookieHeader } : {}),
-    },
-    credentials: "include",
-    cache: "no-store",
-  });
-
-  if (!userRes.ok) {
-    return {
-      redirect: {
-        destination: "/",
-        permanent: false,
-      },
-    };
-  }
-
-  const json = await userRes.json().catch(() => null);
-
+  // 2) Session valid → try fetch profile (FAIL-SOFT)
   let profile: UserProfile | null = null;
-  if (json?.data && typeof json.data === "object") {
-    profile = json.data;
-  } else if (json?.id) {
-    profile = json;
+
+  try {
+    const userRes = await fetch(`${apiBase}/users/me`, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        ...(cookieHeader ? { Cookie: cookieHeader } : {}),
+      },
+      credentials: "include",
+      cache: "no-store",
+    });
+
+    if (userRes.ok) {
+      const json = await userRes.json().catch(() => null);
+
+      if (json?.data && typeof json.data === "object") {
+        profile = json.data;
+      } else if (json?.id) {
+        profile = json;
+      }
+    }
+  } catch {
+    // ignore → CSR will load profile later
   }
 
   return {
     props: {
       initialProfile: profile,
-      isAuthenticated: Boolean(profile),
+      // session already verified
+      isAuthenticated: true,
     },
   };
 };
@@ -105,12 +105,12 @@ const ProfilePage: NextPage<ProfilePageProps> = ({
   const router = useRouter();
   const [profile, setProfile] = useState<UserProfile | null>(initialProfile);
   const [loading, setLoading] = useState<boolean>(
-    !initialProfile && isAuthenticated
+    isAuthenticated && !initialProfile
   );
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    if (initialProfile) return;
+    if (initialProfile || !isAuthenticated) return;
 
     let isMounted = true;
 
@@ -155,13 +155,22 @@ const ProfilePage: NextPage<ProfilePageProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [initialProfile]);
+  }, [initialProfile, isAuthenticated]);
 
+  // Redirect ONLY when:
+  // - session invalid (SSR already handles this normally)
+  // - CSR profile loading finished
   useEffect(() => {
-    if (!isAuthenticated && !profile && !loading) {
+    if (!isAuthenticated) {
+      void router.replace("/");
+      return;
+    }
+
+    if (!loading && !profile) {
+      // session valid แต่ profile โหลดไม่ได้จริง ๆ
       void router.replace("/");
     }
-  }, [isAuthenticated, profile, loading, router]);
+  }, [isAuthenticated, loading, profile, router]);
 
   const siteUrl =
     process.env.NEXT_PUBLIC_SITE_URL || "https://www.phlyphant.com";
