@@ -42,7 +42,7 @@ export async function updateUserAvatar(file: File) {
   const formData = new FormData();
   formData.append('avatar', file);
 
-  const res = await api.post('/users/update-avatar', formData, {
+  const res = await api.put('/users/update-avatar', formData, {
     withCredentials: true,
   });
 
