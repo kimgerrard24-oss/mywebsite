@@ -130,27 +130,46 @@ jobs:
         run: npm run build
 
       # -----------------------------------------------------------
-      # Build + Push images
+      # 5) Build + Push Frontend Docker image
       # -----------------------------------------------------------
       - name: Build frontend Docker image
-        run: docker build --no-cache -t ghcr.io/${{ secrets.GHCR_USERNAME }}/mywebsite-frontend:latest frontend
+        run: |
+          docker build \
+            --no-cache \
+            -t ghcr.io/${{ secrets.GHCR_USERNAME }}/mywebsite-frontend:latest \
+            frontend
 
       - name: Push frontend Docker image
         run: docker push ghcr.io/${{ secrets.GHCR_USERNAME }}/mywebsite-frontend:latest
 
+      # -----------------------------------------------------------
+      # 6) Build + Push Backend Docker image
+      # -----------------------------------------------------------
       - name: Build backend Docker image
-        run: docker build --no-cache -t ghcr.io/${{ secrets.GHCR_USERNAME }}/mywebsite-backend:latest backend
+        run: |
+          docker build \
+            --no-cache \
+            -t ghcr.io/${{ secrets.GHCR_USERNAME }}/mywebsite-backend:latest \
+            backend
 
       - name: Push backend image to GHCR
         run: docker push ghcr.io/${{ secrets.GHCR_USERNAME }}/mywebsite-backend:latest
 
       # -----------------------------------------------------------
-      # Capture image digests
+      # 6.1) Capture pushed image digests
       # -----------------------------------------------------------
       - name: Capture image digests
         run: |
-          FRONT_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' ghcr.io/${{ secrets.GHCR_USERNAME }}/mywebsite-frontend:latest || true)
-          BACK_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' ghcr.io/${{ secrets.GHCR_USERNAME }}/mywebsite-backend:latest || true)
+          FRONT_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' ghcr.io/${{ secrets.GHCR_USERNAME }}/mywebsite-frontend:latest 2>/dev/null || true)
+          BACK_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' ghcr.io/${{ secrets.GHCR_USERNAME }}/mywebsite-backend:latest 2>/dev/null || true)
+
+          if [ -z "$FRONT_DIGEST" ]; then
+            FRONT_DIGEST="ghcr.io/${{ secrets.GHCR_USERNAME }}/mywebsite-frontend:latest"
+          fi
+          if [ -z "$BACK_DIGEST" ]; then
+            BACK_DIGEST="ghcr.io/${{ secrets.GHCR_USERNAME }}/mywebsite-backend:latest"
+          fi
+
           echo "FRONTEND_DIGEST=$FRONT_DIGEST" >> $GITHUB_ENV
           echo "BACKEND_DIGEST=$BACK_DIGEST" >> $GITHUB_ENV
 
@@ -159,6 +178,7 @@ jobs:
       # -----------------------------------------------------------
       - name: Deploy to Linode
         uses: appleboy/ssh-action@v1.0.3
+
         env:
           GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
           GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
@@ -167,6 +187,7 @@ jobs:
           BACKEND_DIGEST: ${{ env.BACKEND_DIGEST }}
           FRONTEND_ENV_PRODUCTION: ${{ secrets.FRONTEND_ENV_PRODUCTION }}
           BACKEND_ENV_PRODUCTION: ${{ secrets.BACKEND_ENV_PRODUCTION }}
+
         with:
           host: ${{ secrets.LINODE_HOST }}
           username: root
@@ -174,17 +195,14 @@ jobs:
           port: 22
           script_stop: false
           use_insecure_cipher: true
+          allenvs: true
+          envs: GHCR_USERNAME,GHCR_TOKEN,INTERNAL_HEALTH_TOKEN,FRONTEND_DIGEST,BACKEND_DIGEST,FRONTEND_ENV_PRODUCTION,BACKEND_ENV_PRODUCTION
+
           script: |
             set -euo pipefail
 
-            # FIX: export env ให้ shell ใช้งาน
-            export GHCR_USERNAME
-            export GHCR_TOKEN
-            export INTERNAL_HEALTH_TOKEN
-            export FRONTEND_DIGEST
-            export BACKEND_DIGEST
-            export FRONTEND_ENV_PRODUCTION
-            export BACKEND_ENV_PRODUCTION
+            : "${GHCR_USERNAME:?GHCR_USERNAME is not set}"
+            : "${GHCR_TOKEN:?GHCR_TOKEN is not set}"
 
             cd /var/www/phlyphant/mywebsite
 
@@ -198,11 +216,19 @@ jobs:
             printf '%s' "$FRONTEND_ENV_PRODUCTION" > frontend/.env.production
             printf '%s' "$BACKEND_ENV_PRODUCTION" > backend/.env.production
 
-            docker pull "$BACKEND_DIGEST"
-            docker tag "$BACKEND_DIGEST" ghcr.io/$GHCR_USERNAME/mywebsite-backend:latest
+            if [[ "${BACKEND_DIGEST:-}" == *"@"* ]]; then
+              docker pull "$BACKEND_DIGEST"
+              docker tag "$BACKEND_DIGEST" "ghcr.io/$GHCR_USERNAME/mywebsite-backend:latest" || true
+            else
+              docker pull "ghcr.io/$GHCR_USERNAME/mywebsite-backend:latest" || true
+            fi
 
-            docker pull "$FRONTEND_DIGEST"
-            docker tag "$FRONTEND_DIGEST" ghcr.io/$GHCR_USERNAME/mywebsite-frontend:latest
+            if [[ "${FRONTEND_DIGEST:-}" == *"@"* ]]; then
+              docker pull "$FRONTEND_DIGEST"
+              docker tag "$FRONTEND_DIGEST" "ghcr.io/$GHCR_USERNAME/mywebsite-frontend:latest" || true
+            else
+              docker pull "ghcr.io/$GHCR_USERNAME/mywebsite-frontend:latest" || true
+            fi
 
             docker compose up -d --remove-orphans --force-recreate
 
