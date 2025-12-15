@@ -10,12 +10,16 @@ import { UsersRepository } from './users.repository';
 import { PublicUserProfileDto } from './dto/public-user-profile.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserProfileAudit } from './audit/user-profile.audit';
+import { AuditLogService } from './audit/audit-log.service';
+import { AvatarService } from './avatar/avatar.service';
 
 @Injectable()
 export class UsersService {
   constructor(private readonly prisma: PrismaService,
               private readonly repo: UsersRepository,
               private readonly audit: UserProfileAudit,
+              private readonly avatarService: AvatarService,
+              private readonly auditLogService: AuditLogService,
   ) {}
 
   async findByEmail(email: string) {
@@ -212,6 +216,27 @@ export class UsersService {
     });
 
     return updated;
+  }
+  
+  async updateAvatar(params: {
+     userId: string;
+     file: Express.Multer.File;
+  }) {
+    const { userId, file } = params;
+
+    const { avatarUrl } = await this.avatarService.processAndUpload({
+      userId,
+      file,
+    });
+
+   await this.repo.updateAvatar(userId, avatarUrl);
+   await this.auditLogService.log({
+      userId,
+      action: 'USER_UPDATE_AVATAR',
+      success: true,
+   });
+
+  return { success: true, avatarUrl };
   }
   
 }

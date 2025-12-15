@@ -6,7 +6,6 @@ import { R2Service } from './r2.service';
 
 @Module({
   imports: [
-    // FIXED: ให้ R2Service ใช้ ENV อย่างถูกต้อง
     ConfigModule,
   ],
 

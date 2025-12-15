@@ -1,7 +1,7 @@
 // src/r2/r2.service.ts
 
 import { Injectable, Logger } from '@nestjs/common';
-import { S3Client } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
 
 @Injectable()
 export class R2Service {
@@ -13,9 +13,8 @@ export class R2Service {
     const accessKey = process.env.R2_ACCESS_KEY_ID;
     const secretKey = process.env.R2_SECRET_ACCESS_KEY;
 
-    // FIXED: AWS SDK v3 requires a valid region
     this.client = new S3Client({
-      region: 'us-east-1', // FIXED
+      region: 'us-east-1', // required by AWS SDK v3
       endpoint,
       credentials: {
         accessKeyId: accessKey || '',
@@ -24,21 +23,32 @@ export class R2Service {
     });
   }
 
-  // FIXED: ไม่ยิง HeadBucketCommand (production R2 มักเป็น private)
-  // ตรวจเฉพาะ ENV ที่จำเป็น แค่นี้เพียงพอสำหรับ health check
   async healthCheck(): Promise<boolean> {
-    try {
-      const required = [
-        process.env.R2_ENDPOINT,
-        process.env.R2_ACCESS_KEY_ID,
-        process.env.R2_SECRET_ACCESS_KEY,
-        process.env.R2_BUCKET_NAME,
-      ];
+    const required = [
+      process.env.R2_ENDPOINT,
+      process.env.R2_ACCESS_KEY_ID,
+      process.env.R2_SECRET_ACCESS_KEY,
+      process.env.R2_BUCKET_NAME,
+    ];
 
-      const ok = required.every(Boolean);
-      return ok;
-    } catch {
-      return false;
-    }
+    return required.every(Boolean);
+  }
+
+  async upload(params: {
+    path: string;
+    buffer: Buffer;
+    contentType: string;
+  }) {
+    await this.client.send(
+      new PutObjectCommand({
+        Bucket: process.env.R2_BUCKET_NAME!,
+        Key: params.path,
+        Body: params.buffer,
+        ContentType: params.contentType,
+      }),
+    );
+
+    return `${process.env.R2_PUBLIC_BASE_URL}/${params.path}`;
   }
 }
+

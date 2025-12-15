@@ -12,6 +12,9 @@ import {
   UnauthorizedException,
   ConflictException,
   Header,
+  UseInterceptors,
+  UploadedFile,
+  HttpCode,
   NotFoundException,
   BadRequestException,
 } from '@nestjs/common';
@@ -27,6 +30,9 @@ import { ParseUserIdPipe } from './pipes/parse-user-id.pipe';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserResponseDto } from './dto/user-response.dto';
 import { UpdateUserPolicyPipe } from './pipes/update-user-policy.pipe';
+import { ImageValidationPipe } from './upload/image-validation.pipe';
+import { avatarMulterConfig } from './upload/multer-avatar.config';
+import { FileInterceptor } from '@nestjs/platform-express';
 
 @Controller('users')
 export class UsersController {
@@ -118,4 +124,21 @@ export class UsersController {
 
     return UserResponseDto.fromUser(user);
   }
+
+  @UseGuards(AccessTokenCookieAuthGuard)
+@Put('update-avatar')
+@HttpCode(200)
+@UseInterceptors(FileInterceptor('avatar', avatarMulterConfig))
+async updateAvatar(
+@UploadedFile(new ImageValidationPipe()) file: Express.Multer.File,
+@Req() req: Request,
+) {
+const user = req.user as { userId: string; jti: string };
+
+
+return this.usersService.updateAvatar({
+userId: user.userId,
+file,
+});
+}
 }

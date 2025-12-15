@@ -95,6 +95,28 @@ export class UsersRepository {
       },
     });
   }
+  
+  async updateAvatar(userId: string, avatarUrl: string) {
+  return this.prisma.user.update({
+   where: { id: userId },
+  data: { avatarUrl },
+  });
+  }
+
+  // =====================================================
+// Minimal user state (for policy / auth decision)
+// =====================================================
+async findUserStateById(userId: string) {
+  return this.prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      isDisabled: true,
+      active: true,
+    },
+  });
+}
+
 
 }
 
