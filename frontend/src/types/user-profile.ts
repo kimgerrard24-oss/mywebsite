@@ -1,3 +1,4 @@
+// frontend/src/types/user-profile.ts
 export interface PublicUserProfile {
   id: string;
   displayName: string | null;

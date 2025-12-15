@@ -2,16 +2,18 @@
 import { PipeTransform, BadRequestException } from '@nestjs/common';
 import { fileTypeFromBuffer } from 'file-type';
 
-export class ImageValidationPipe implements PipeTransform {
+export class ImageValidationPipe
+  implements PipeTransform<Express.Multer.File | undefined>
+{
   async transform(
-    file: Express.Multer.File,
+    file: Express.Multer.File | undefined,
   ): Promise<Express.Multer.File> {
-    // 1️⃣ ต้องมี buffer
+    // 1) ต้องมีไฟล์และ buffer
     if (!file?.buffer) {
       throw new BadRequestException('Invalid image content');
     }
 
-    // 2️⃣ ตรวจ magic bytes (ไม่ trust mimetype จาก client)
+    // 2) ตรวจ magic bytes (ไม่ trust mimetype จาก client)
     let type;
     try {
       type = await fileTypeFromBuffer(file.buffer);
@@ -24,7 +26,7 @@ export class ImageValidationPipe implements PipeTransform {
     }
 
     /**
-     * 3️⃣ อนุญาต image formats เท่านั้น
+     * 3) อนุญาต image formats เท่านั้น
      * NOTE:
      * - HEIC / HEIF อนุญาตให้ผ่าน
      * - การ decode / convert จะทำใน transformImage (sharp)
@@ -33,7 +35,6 @@ export class ImageValidationPipe implements PipeTransform {
       throw new BadRequestException('Invalid image content');
     }
 
-    // ผ่าน validation → ส่งต่อให้ service
     return file;
   }
 }

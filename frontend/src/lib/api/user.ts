@@ -40,10 +40,10 @@ export interface PublicUserProfile {
 
 export async function updateUserAvatar(file: File) {
   const formData = new FormData();
-  formData.append('avatar', file); 
+  formData.append('avatar', file);
 
-  const res = await api.put('/users/update-avatar', formData, {
-    withCredentials: true, 
+  const res = await api.post('/users/update-avatar', formData, {
+    withCredentials: true,
   });
 
   return res.data as {
@@ -51,6 +51,7 @@ export async function updateUserAvatar(file: File) {
     avatarUrl: string;
   };
 }
+
 
 // ==============================
 // CSR axios client

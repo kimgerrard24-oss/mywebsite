@@ -1,3 +1,4 @@
+// backend/src/users/pipes/update-user-policy.pipe.ts
 import {
   BadRequestException,
   Injectable,
@@ -19,8 +20,16 @@ export class UpdateUserPolicyPipe
       'bio',
     ];
 
-    for (const key of Object.keys(value)) {
-      if (!allowedKeys.includes(key as any)) {
+    const entries = Object.entries(value).filter(
+      ([, v]) => v !== undefined,
+    );
+
+    if (entries.length === 0) {
+      throw new BadRequestException('No fields to update');
+    }
+
+    for (const [key] of entries) {
+      if (!allowedKeys.includes(key as keyof UpdateUserDto)) {
         throw new BadRequestException(`Field not allowed: ${key}`);
       }
     }
@@ -28,3 +37,4 @@ export class UpdateUserPolicyPipe
     return value;
   }
 }
+

@@ -6,6 +6,25 @@ export function AvatarUploader() {
   const inputRef = useRef<HTMLInputElement>(null);
   const { upload, loading, error } = useAvatarUpload();
 
+  async function handleFileChange(
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      await upload(file);
+    } finally {
+      /**
+       * สำคัญมาก:
+       * reset value เพื่อให้เลือกไฟล์เดิมซ้ำได้
+       */
+      if (inputRef.current) {
+        inputRef.current.value = "";
+      }
+    }
+  }
+
   return (
     <div className="flex flex-col gap-2">
       <input
@@ -13,10 +32,7 @@ export function AvatarUploader() {
         type="file"
         accept="image/*"
         hidden
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) upload(file);
-        }}
+        onChange={handleFileChange}
       />
 
       <button
@@ -33,7 +49,7 @@ export function AvatarUploader() {
           disabled:cursor-not-allowed
         "
       >
-      {loading ? "กำลังอัปโหลดรูปโปรไฟล์…" : "เปลี่ยนรูปโปรไฟล์"}
+        {loading ? "กำลังอัปโหลดรูปโปรไฟล์…" : "เปลี่ยนรูปโปรไฟล์"}
       </button>
 
       {error && (
@@ -44,4 +60,3 @@ export function AvatarUploader() {
     </div>
   );
 }
-

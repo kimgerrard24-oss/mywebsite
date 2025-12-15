@@ -13,11 +13,19 @@ export function useAvatarUpload() {
       validateAvatarFile(file);
 
       setLoading(true);
-      await updateUserAvatar(file);
 
-      window.location.reload();
+      const result = await updateUserAvatar(file);
+
+      if (!result?.success || !result.avatarUrl) {
+        throw new Error('Upload failed');
+      }
+
+      // ปล่อยให้ caller หรือ AuthContext / ProfileContext
+      // เป็นคน update avatarUrl เอง
+      return result.avatarUrl;
     } catch (err: any) {
-      setError(err.message ?? 'Upload failed');
+      setError(err?.message ?? 'Upload failed');
+      throw err;
     } finally {
       setLoading(false);
     }

@@ -17,10 +17,11 @@ export const avatarMulterConfig: FileInterceptorOptions = {
     /**
      * NOTE:
      * - ห้าม throw HttpException ที่นี่
-     * - ใช้ Error ธรรมดาเท่านั้น (multer / express layer)
+     * - อย่าส่ง Error ถ้าไม่จำเป็น
+     * - ให้ controller เป็นคนจัดการกรณี file === undefined
      */
     if (!file.mimetype.startsWith('image/')) {
-      callback(new Error('Only image files are allowed'), false);
+      callback(null, false);
       return;
     }
 

@@ -1,5 +1,4 @@
 // backend/src/users/upload/image-transform.util.ts
-import { BadRequestException } from '@nestjs/common';
 import sharp from 'sharp';
 
 /**
@@ -10,11 +9,16 @@ import sharp from 'sharp';
  * - convert เป็น webp
  * - ป้องกัน image bomb / malformed image
  *
- * ⚠️ ใช้กับ avatar เท่านั้น (ไม่เหมาะกับ cover / original upload)
+ * ใช้กับ avatar เท่านั้น
  */
 export async function transformImage(
   input: Buffer,
 ): Promise<Buffer> {
+  // defensive guard (utility-level)
+  if (!input || !Buffer.isBuffer(input)) {
+    throw new Error('Invalid image buffer');
+  }
+
   try {
     return await sharp(input, {
       // ป้องกัน image bomb (ค่า default = 268M pixels)
@@ -36,8 +40,11 @@ export async function transformImage(
       })
 
       .toBuffer();
- } catch {
-  
-    throw new BadRequestException('Invalid image content');
+  } catch (error) {
+    // อย่า throw HttpException ที่ utility layer
+    // ให้ service layer เป็นคน map error
+    throw error instanceof Error
+      ? error
+      : new Error('Image transform failed');
   }
 }

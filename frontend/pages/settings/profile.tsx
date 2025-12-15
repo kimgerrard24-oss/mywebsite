@@ -16,6 +16,17 @@ export default function ProfileSettingsPage({ user }: Props) {
     return null;
   }
 
+  /**
+   * Avatar cache-busting
+   * - ใช้ updatedAt ถ้ามี
+   * - fallback เป็น timestamp เพื่อกัน CDN cache
+   */
+  const avatarUrl = user.avatarUrl
+    ? `${user.avatarUrl}?v=${encodeURIComponent(
+        user.updatedAt ?? Date.now().toString(),
+      )}`
+    : null;
+
   return (
     <>
       <Head>
@@ -28,15 +39,15 @@ export default function ProfileSettingsPage({ user }: Props) {
 
       <main className="mx-auto max-w-2xl px-4 py-8">
         {/* Back to profile */}
-       <div className="mb-6 relative z-10">
-  <Link
-    href="/profile"
-    prefetch={false}
-    className="text-sm text-blue-600 hover:underline"
-  >
-    ← Back to profile
-  </Link>
-</div>
+        <div className="mb-6 relative z-10">
+          <Link
+            href="/profile"
+            prefetch={false}
+            className="text-sm text-blue-600 hover:underline"
+          >
+            ← Back to profile
+          </Link>
+        </div>
 
         <section>
           <h1 className="text-2xl font-semibold">Edit profile</h1>
@@ -45,21 +56,20 @@ export default function ProfileSettingsPage({ user }: Props) {
           </p>
         </section>
 
-    {/* ================================
-    Avatar Section (NEW)
-    ไม่กระทบ ProfileForm เดิม
-   ================================ */}
-<section className="mt-6 flex items-center gap-4">
-  <AvatarPreview avatarUrl={user.avatarUrl} />
-  <AvatarUploader />
-</section>
+        {/* ================================
+            Avatar Section
+           ================================ */}
+        <section className="mt-6 flex items-center gap-4">
+          <AvatarPreview avatarUrl={avatarUrl} />
+          <AvatarUploader />
+        </section>
 
-{/* ================================
-    Existing Profile Form
-   ================================ */}
-<section className="mt-8">
-  <ProfileForm user={user} />
-</section>
+        {/* ================================
+            Existing Profile Form
+           ================================ */}
+        <section className="mt-8">
+          <ProfileForm user={user} />
+        </section>
       </main>
     </>
   );
