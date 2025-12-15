@@ -13,24 +13,28 @@ export class R2Service {
     const accessKey = process.env.R2_ACCESS_KEY_ID;
     const secretKey = process.env.R2_SECRET_ACCESS_KEY;
 
+    if (!endpoint || !accessKey || !secretKey) {
+      throw new Error('R2 credentials or endpoint not configured');
+    }
+
     this.client = new S3Client({
       region: 'us-east-1', 
+      endpoint,            
       credentials: {
-        accessKeyId: accessKey || '',
-        secretAccessKey: secretKey || '',
+        accessKeyId: accessKey,
+        secretAccessKey: secretKey,
       },
     });
   }
 
   async healthCheck(): Promise<boolean> {
-    const required = [
-      process.env.R2_ENDPOINT,
-      process.env.R2_ACCESS_KEY_ID,
-      process.env.R2_SECRET_ACCESS_KEY,
-      process.env.R2_BUCKET_NAME,
-    ];
-
-    return required.every(Boolean);
+    return Boolean(
+      process.env.R2_ENDPOINT &&
+      process.env.R2_ACCESS_KEY_ID &&
+      process.env.R2_SECRET_ACCESS_KEY &&
+      process.env.R2_BUCKET_NAME &&
+      process.env.R2_PUBLIC_BASE_URL
+    );
   }
 
   async upload(params: {
@@ -50,4 +54,3 @@ export class R2Service {
     return `${process.env.R2_PUBLIC_BASE_URL}/${params.path}`;
   }
 }
-
