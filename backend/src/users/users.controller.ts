@@ -126,6 +126,7 @@ export class UsersController {
   }
 
  @Put('update-avatar')
+ @Post('update-avatar')
 @HttpCode(200)
 @UseInterceptors(FileInterceptor('avatar', avatarMulterConfig))
 async updateAvatar(
