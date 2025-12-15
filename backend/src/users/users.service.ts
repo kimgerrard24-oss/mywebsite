@@ -8,11 +8,14 @@ import { PrismaService } from "../prisma/prisma.service";
 import { UserProfileDto } from "./dto/user-profile.dto";
 import { UsersRepository } from './users.repository';
 import { PublicUserProfileDto } from './dto/public-user-profile.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
+import { UserProfileAudit } from './audit/user-profile.audit';
 
 @Injectable()
 export class UsersService {
   constructor(private readonly prisma: PrismaService,
-              private readonly repo: UsersRepository
+              private readonly repo: UsersRepository,
+              private readonly audit: UserProfileAudit,
   ) {}
 
   async findByEmail(email: string) {
@@ -198,6 +201,17 @@ export class UsersService {
       isSelf,
     };
   }
+  
+   async updateProfile(userId: string, dto: UpdateUserDto) {
+    const updated = await this.repo.updateProfile(userId, dto);
 
+    // fire-and-forget audit (do not block request)
+    this.audit.logProfileUpdate({
+      userId,
+      fields: Object.keys(dto),
+    });
+
+    return updated;
+  }
   
 }

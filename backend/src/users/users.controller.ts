@@ -7,6 +7,7 @@ import {
   UseGuards,
   Body,
   Param,
+  Put,
   Req,
   UnauthorizedException,
   ConflictException,
@@ -23,6 +24,9 @@ import type { SessionUser } from '../auth/services/validate-session.service';
 import { UsersService } from './users.service';
 import { AuthService } from '../auth/auth.service';
 import { ParseUserIdPipe } from './pipes/parse-user-id.pipe';
+import { UpdateUserDto } from './dto/update-user.dto';
+import { UserResponseDto } from './dto/user-response.dto';
+import { UpdateUserPolicyPipe } from './pipes/update-user-policy.pipe';
 
 @Controller('users')
 export class UsersController {
@@ -100,5 +104,18 @@ export class UsersController {
     }
 
     return profile;
+  }
+
+  @Put('update')
+  @UseGuards(AccessTokenCookieAuthGuard)
+  async updateProfile(
+    @Req() req: Request,
+    @Body(new UpdateUserPolicyPipe()) dto: UpdateUserDto,
+  ): Promise<UserResponseDto> {
+    const userId = req.user!.userId;
+
+    const user = await this.usersService.updateProfile(userId, dto);
+
+    return UserResponseDto.fromUser(user);
   }
 }

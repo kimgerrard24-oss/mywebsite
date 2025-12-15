@@ -4,6 +4,8 @@
 // ==============================
 
 import axios, { AxiosInstance, AxiosError } from "axios";
+import type { UpdateUserPayload } from "@/types/user-profile";
+import { api } from "./api";
 
 function normalizeBaseUrl(url: string): string {
   return url.replace(/\/+$/, "");
@@ -47,6 +49,12 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
+export async function updateUserProfile(
+  payload: UpdateUserPayload,
+): Promise<UserProfile> {
+  const res = await api.put("/users/update", payload);
+  return res.data;
+}
 
 export async function fetchMyProfileClient(): Promise<
   UserProfile | null | undefined
@@ -229,5 +237,7 @@ export async function fetchPublicUserProfileServer(
 
     return { profile: null, status: 0 };
   }
+
+  
 }
 

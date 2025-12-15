@@ -5,6 +5,7 @@ import { UsersService } from './users.service';
 import { UsersRepository } from './users.repository';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AuthModule } from '../auth/auth.module';
+import { UserProfileAudit } from './audit/user-profile.audit';
 
 @Module({
   imports: [PrismaModule, AuthModule],
@@ -12,6 +13,7 @@ import { AuthModule } from '../auth/auth.module';
   providers: [
     UsersService,  
     UsersRepository,
+    UserProfileAudit,
   ],
   exports: [UsersService],
 })
