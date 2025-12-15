@@ -126,19 +126,19 @@ export class UsersController {
   }
 
   @UseGuards(AccessTokenCookieAuthGuard)
-@Put('update-avatar')
-@HttpCode(200)
-@UseInterceptors(FileInterceptor('avatar', avatarMulterConfig))
-async updateAvatar(
-@UploadedFile(new ImageValidationPipe()) file: Express.Multer.File,
-@Req() req: Request,
-) {
-const user = req.user as { userId: string; jti: string };
+ @Put('update-avatar')
+ @HttpCode(200)
+ @UseInterceptors(FileInterceptor('avatar', avatarMulterConfig))
+ async updateAvatar(
+ @UploadedFile(new ImageValidationPipe()) file: Express.Multer.File,
+ @Req() req: Request,
+      ) {
+ const user = req.user as { userId: string; jti: string };
 
 
-return this.usersService.updateAvatar({
-userId: user.userId,
-file,
-});
-}
+ return this.usersService.updateAvatar({
+    userId: user.userId,
+ file,
+ });
+ }
 }

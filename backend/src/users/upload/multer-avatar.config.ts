@@ -1,5 +1,6 @@
 // backend/src/users/upload/multer-avatar.config.ts
 import type { Request } from 'express';
+import { BadRequestException } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 
 type FileInterceptorOptions = Parameters<typeof FileInterceptor>[1];
@@ -15,15 +16,13 @@ export const avatarMulterConfig: FileInterceptorOptions = {
     callback: (error: Error | null, acceptFile: boolean) => void,
   ) {
     if (!file.mimetype.startsWith('image/')) {
-      callback(new Error('Invalid file type'), false);
+      callback(
+        new BadRequestException('Only image files are allowed'),
+        false,
+      );
       return;
     }
 
     callback(null, true);
   },
 };
-
-
-
-
-

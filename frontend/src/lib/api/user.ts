@@ -38,14 +38,12 @@ export interface PublicUserProfile {
   isSelf: boolean;
 }
 
- export async function updateUserAvatar(file: File) {
+export async function updateUserAvatar(file: File) {
   const formData = new FormData();
-  formData.append('avatar', file);
+  formData.append('avatar', file); 
 
   const res = await api.put('/users/update-avatar', formData, {
-    headers: {
-      'Content-Type': 'multipart/form-data',
-    },
+    withCredentials: true, 
   });
 
   return res.data as {
