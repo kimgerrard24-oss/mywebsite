@@ -174,73 +174,58 @@ jobs:
           echo "BACKEND_DIGEST=$BACK_DIGEST" >> $GITHUB_ENV
 
      # -----------------------------------------------------------
-     # 7) Deploy to Linode
-     # -----------------------------------------------------------
-      - name: Deploy to Linode
-        uses: appleboy/ssh-action@v1.0.3
+# 7) Deploy to Linode
+# -----------------------------------------------------------
+- name: Deploy to Linode
+  uses: appleboy/ssh-action@v1.0.3
 
-        with:
-         host: ${{ secrets.LINODE_HOST }}
-         username: root
-         key: ${{ secrets.LINODE_SSH_KEY }}
-         port: 22
-         script_stop: false
-         use_insecure_cipher: true
+  env:
+    GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
+    GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
+    INTERNAL_HEALTH_TOKEN: ${{ secrets.INTERNAL_HEALTH_TOKEN }}
+    FRONTEND_DIGEST: ${{ env.FRONTEND_DIGEST }}
+    BACKEND_DIGEST: ${{ env.BACKEND_DIGEST }}
+    FRONTEND_ENV_PRODUCTION: ${{ secrets.FRONTEND_ENV_PRODUCTION }}
+    BACKEND_ENV_PRODUCTION: ${{ secrets.BACKEND_ENV_PRODUCTION }}
 
-        envs: |
-          GHCR_USERNAME=${{ secrets.GHCR_USERNAME }}
-          GHCR_TOKEN=${{ secrets.GHCR_TOKEN }}
-          INTERNAL_HEALTH_TOKEN=${{ secrets.INTERNAL_HEALTH_TOKEN }}
-          FRONTEND_DIGEST=${{ env.FRONTEND_DIGEST }}
-          BACKEND_DIGEST=${{ env.BACKEND_DIGEST }}
-          FRONTEND_ENV_PRODUCTION=${{ secrets.FRONTEND_ENV_PRODUCTION }}
-          BACKEND_ENV_PRODUCTION=${{ secrets.BACKEND_ENV_PRODUCTION }}
+  with:
+    host: ${{ secrets.LINODE_HOST }}
+    username: root
+    key: ${{ secrets.LINODE_SSH_KEY }}
+    port: 22
+    script_stop: false
+    use_insecure_cipher: true
 
-        script: |
-          set -euo pipefail
+    script: |
+      set -euo pipefail
 
-          cd /var/www/phlyphant/mywebsite
+      cd /var/www/phlyphant/mywebsite
 
-          git fetch --all
-          git reset --hard origin/main
+      git fetch --all
+      git reset --hard origin/main
 
-          docker compose down
+      docker compose down
 
-          echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
+      echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
 
-          # Overwrite .env files on the server from secrets
-          printf '%s' "$FRONTEND_ENV_PRODUCTION" > frontend/.env.production
-          printf '%s' "$BACKEND_ENV_PRODUCTION" > backend/.env.production
+      printf '%s' "$FRONTEND_ENV_PRODUCTION" > frontend/.env.production
+      printf '%s' "$BACKEND_ENV_PRODUCTION" > backend/.env.production
 
-          if [[ "${BACKEND_DIGEST:-}" == *"@"* ]]; then
-            echo "Pulling backend by digest: $BACKEND_DIGEST"
-            docker pull "$BACKEND_DIGEST"
-            docker tag "$BACKEND_DIGEST" "ghcr.io/$GHCR_USERNAME/mywebsite-backend:latest" || true
-          else
-            echo "Pulling backend by tag: ghcr.io/$GHCR_USERNAME/mywebsite-backend:latest"
-            docker pull "ghcr.io/$GHCR_USERNAME/mywebsite-backend:latest" || true
-          fi
+      docker pull "$BACKEND_DIGEST"
+      docker tag "$BACKEND_DIGEST" "ghcr.io/$GHCR_USERNAME/mywebsite-backend:latest"
 
-          if [[ "${FRONTEND_DIGEST:-}" == *"@"* ]]; then
-            echo "Pulling frontend by digest: $FRONTEND_DIGEST"
-            docker pull "$FRONTEND_DIGEST"
-            docker tag "$FRONTEND_DIGEST" "ghcr.io/$GHCR_USERNAME/mywebsite-frontend:latest" || true
-          else
-            echo "Pulling frontend by tag: ghcr.io/$GHCR_USERNAME/mywebsite-frontend:latest"
-            docker pull "ghcr.io/$GHCR_USERNAME/mywebsite-frontend:latest" || true
-          fi
+      docker pull "$FRONTEND_DIGEST"
+      docker tag "$FRONTEND_DIGEST" "ghcr.io/$GHCR_USERNAME/mywebsite-frontend:latest"
 
-          docker compose up -d --remove-orphans --force-recreate
+      docker compose up -d --remove-orphans --force-recreate
 
-          sleep 5
+      sleep 5
 
-          HEALTH_URL="http://localhost:4001/system-check"
-          if curl -s --fail -H "X-Internal-Health: $INTERNAL_HEALTH_TOKEN" "$HEALTH_URL" > /dev/null; then
-            echo "Health check OK"
-          else
-            echo "Health check FAILED but container is running."
-          fi
+      curl -s --fail \
+        -H "X-Internal-Health: $INTERNAL_HEALTH_TOKEN" \
+        http://localhost:4001/system-check
 
-          docker image prune -af || true
+      docker image prune -af || true
 
-          echo "Deployment successful."
+      echo "Deployment successful."
+
