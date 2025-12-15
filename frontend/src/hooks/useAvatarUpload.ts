@@ -1,3 +1,4 @@
+// frontend/src/hooks/useAvatarUpload.ts
 import { useState } from 'react';
 import { updateUserAvatar } from '@/lib/api/user';
 import { validateAvatarFile } from '@/lib/upload/avatar-upload';
@@ -14,7 +15,6 @@ export function useAvatarUpload() {
       setLoading(true);
       await updateUserAvatar(file);
 
-      // Reload page to sync session-safe profile
       window.location.reload();
     } catch (err: any) {
       setError(err.message ?? 'Upload failed');

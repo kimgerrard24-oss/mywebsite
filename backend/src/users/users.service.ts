@@ -12,6 +12,7 @@ import { UpdateUserDto } from './dto/update-user.dto';
 import { UserProfileAudit } from './audit/user-profile.audit';
 import { AuditLogService } from './audit/audit-log.service';
 import { AvatarService } from './avatar/avatar.service';
+import { UserAvatarPolicy } from './avatar/user-avatar.policy';
 
 @Injectable()
 export class UsersService {
@@ -218,25 +219,37 @@ export class UsersService {
     return updated;
   }
   
-  async updateAvatar(params: {
-     userId: string;
-     file: Express.Multer.File;
-  }) {
-    const { userId, file } = params;
 
-    const { avatarUrl } = await this.avatarService.processAndUpload({
-      userId,
-      file,
-    });
+async updateAvatar(params: {
+  userId: string;
+  file: Express.Multer.File;
+}) {
+  const { userId, file } = params;
 
-   await this.repo.updateAvatar(userId, avatarUrl);
-   await this.auditLogService.log({
-      userId,
-      action: 'USER_UPDATE_AVATAR',
-      success: true,
-   });
+  const user = await this.repo.findUserStateById(userId);
+  if (!user) {
+    throw new NotFoundException('User not found');
+  }
+
+  UserAvatarPolicy.assertCanUpdateAvatar({
+    isDisabled: user.isDisabled,
+    isActive: user.active,
+  });
+
+  const { avatarUrl } = await this.avatarService.processAndUpload({
+    userId,
+    file,
+  });
+
+  await this.repo.updateAvatar(userId, avatarUrl);
+
+  await this.auditLogService.log({
+    userId,
+    action: 'USER_UPDATE_AVATAR',
+    success: true,
+  });
 
   return { success: true, avatarUrl };
-  }
-  
+}
+
 }

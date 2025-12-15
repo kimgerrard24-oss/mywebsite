@@ -7,18 +7,17 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { AuthModule } from '../auth/auth.module';
 import { UserProfileAudit } from './audit/user-profile.audit';
 import { AuditLogService } from './audit/audit-log.service';
-import { R2Service } from '../r2/r2.service';
 import { AvatarService } from './avatar/avatar.service';
+import { R2Module } from '../r2/r2.module';
 
 @Module({
-  imports: [PrismaModule, AuthModule],
+  imports: [PrismaModule, AuthModule, R2Module, ],
   controllers: [UsersController],
   providers: [
     UsersService,  
     UsersRepository,
     UserProfileAudit,
     AvatarService,
-    R2Service,
     AuditLogService,
   ],
   exports: [UsersService],

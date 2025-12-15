@@ -1,3 +1,4 @@
+// backend/src/users/avatar/user-avatar.policy.ts
 /**
  * User Avatar Policy
  *

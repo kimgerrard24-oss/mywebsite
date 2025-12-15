@@ -1,3 +1,4 @@
+// frontend/src/lib/upload/avatar-upload.ts
 export function validateAvatarFile(file: File) {
   const MAX_SIZE = 2 * 1024 * 1024;
 
@@ -9,3 +10,4 @@ export function validateAvatarFile(file: File) {
     throw new Error('Avatar must be smaller than 2MB');
   }
 }
+

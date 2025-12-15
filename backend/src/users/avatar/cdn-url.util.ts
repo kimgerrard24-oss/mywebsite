@@ -1,3 +1,4 @@
+// backend/src/users/avatar/cdn-url.util.ts
 /**
  * Build public CDN URL for user assets (avatar / cover)
  *

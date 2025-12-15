@@ -1,3 +1,4 @@
+// backend/src/users/guards/optional-auth.guard.ts
 import { Injectable } from '@nestjs/common';
 import { AccessTokenCookieAuthGuard } from '../../auth/guards/access-token-cookie.guard';
 
