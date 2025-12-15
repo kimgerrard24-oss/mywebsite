@@ -232,9 +232,22 @@ jobs:
 
             docker compose up -d --remove-orphans --force-recreate
 
-            sleep 5
+            HEALTH_URL="http://localhost:4001/system-check"
 
-            curl -s --fail -H "X-Internal-Health: $INTERNAL_HEALTH_TOKEN" http://localhost:4001/system-check
+            for i in {1..10}; do
+              if curl -s --fail -H "X-Internal-Health: $INTERNAL_HEALTH_TOKEN" "$HEALTH_URL" > /dev/null; then
+                echo "Health check OK"
+                break
+              fi
+
+              echo "Health check not ready yet ($i/10), waiting..."
+              sleep 3
+
+              if [ "$i" -eq 10 ]; then
+                echo "Health check FAILED after retries"
+                exit 1
+              fi
+            done
 
             docker image prune -af || true
 
