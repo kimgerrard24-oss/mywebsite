@@ -81,11 +81,15 @@ api.interceptors.request.use((cfg) => {
   const method = cfg.method?.toLowerCase();
   cfg.headers = cfg.headers ?? {};
 
+  if (cfg.data instanceof FormData) {
+    delete cfg.headers["Content-Type"];
+    return cfg;
+  }
+
   if (
     ["post", "put", "patch"].includes(method ?? "") &&
     cfg.data &&
-    typeof cfg.data === "object" &&
-    !(cfg.data instanceof FormData)
+    typeof cfg.data === "object"
   ) {
     cfg.headers["Content-Type"] = "application/json";
   }
