@@ -90,6 +90,7 @@ function buildRedisOptions(): RedisOptions {
 
         logger.log(`REDIS_CLIENT connecting to: ${cfg.host}:${cfg.port}`);
 
+        // ioredis auto-connects — do NOT call connect() manually
         const client = new Redis({
           host: cfg.host,
           port: cfg.port,
@@ -97,55 +98,25 @@ function buildRedisOptions(): RedisOptions {
           ...options,
         });
 
-        client.connect().catch((err) => {
-          logger.error('REDIS_CLIENT initial connect failed', err);
-        });
-
         return client;
       },
     },
-
-    {
-      provide: 'REDIS_PUB',
-      inject: ['REDIS_CLIENT'],
-      useFactory: (client: RedisClient): RedisClient => {
-        return client.duplicate({
-          ...buildRedisOptions(),
-          password: process.env.REDIS_PASSWORD || undefined,
-        });
-      },
-    },
-
-    {
-      provide: 'REDIS_SUB',
-      inject: ['REDIS_CLIENT'],
-      useFactory: (client: RedisClient): RedisClient => {
-        return client.duplicate({
-          ...buildRedisOptions(),
-          password: process.env.REDIS_PASSWORD || undefined,
-        });
-      },
-    },
   ],
-  exports: ['REDIS_CLIENT', 'REDIS_PUB', 'REDIS_SUB'],
+  exports: ['REDIS_CLIENT'],
 })
 export class RedisModule implements OnApplicationShutdown {
   private readonly logger = new Logger(RedisModule.name);
 
   constructor(
     @Inject('REDIS_CLIENT') private readonly client: RedisClient,
-    @Inject('REDIS_PUB') private readonly pubClient: RedisClient,
-    @Inject('REDIS_SUB') private readonly subClient: RedisClient,
   ) {}
 
   async onApplicationShutdown() {
     try {
       await this.client.quit();
-      await this.pubClient.quit();
-      await this.subClient.quit();
-      this.logger.log('All Redis clients closed gracefully');
+      this.logger.log('Redis client closed gracefully');
     } catch {
-      this.logger.warn('Redis clients quit() failed silently');
+      this.logger.warn('Redis client quit() failed silently');
     }
   }
 }

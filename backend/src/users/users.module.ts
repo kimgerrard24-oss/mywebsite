@@ -7,7 +7,7 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { AuthModule } from '../auth/auth.module';
 
 @Module({
-  imports: [AuthModule, PrismaModule],
+  imports: [PrismaModule, AuthModule],
   controllers: [UsersController],
   providers: [
     UsersService,  

@@ -27,9 +27,15 @@ export interface UserProfile {
   updatedAt?: string;
 }
 
-// ==============================
-// CSR (Browser)
-// ==============================
+export interface PublicUserProfile {
+  id: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  bio: string | null;
+  createdAt: string;
+  isSelf: boolean;
+}
+
 const apiClient: AxiosInstance = axios.create({
   baseURL: PUBLIC_API_BASE_URL,
   withCredentials: true,
@@ -41,12 +47,7 @@ apiClient.interceptors.request.use((config) => {
   return config;
 });
 
-/**
- * return:
- *   UserProfile  → success
- *   null         → definitely not logged in (401)
- *   undefined    → session may exist but resource not ready (5xx / race)
- */
+
 export async function fetchMyProfileClient(): Promise<
   UserProfile | null | undefined
 > {
@@ -142,3 +143,91 @@ export async function fetchMyProfileServer(
     return { profile: undefined, status: 0 };
   }
 }
+
+// ==============================
+// CSR — Public User Profile
+// ==============================
+export async function fetchPublicUserProfileClient(
+  userId: string
+): Promise<PublicUserProfile | null> {
+  try {
+    const response = await apiClient.get(`/users/${userId}`);
+    const data = response.data;
+
+    if (data && typeof data === "object" && data.id) {
+      return data as PublicUserProfile;
+    }
+
+    return null;
+  } catch (err) {
+    const error = err as AxiosError;
+
+    // 404 = user not found (valid)
+    if (error.response?.status === 404) {
+      return null;
+    }
+
+    // other errors → fail-soft
+    if (process.env.NODE_ENV !== "production") {
+      console.warn(
+        "[fetchPublicUserProfileClient] error",
+        error.response?.status
+      );
+    }
+
+    return null;
+  }
+}
+
+// ==============================
+// SSR — Public User Profile
+// ==============================
+export async function fetchPublicUserProfileServer(
+  userId: string,
+  cookieHeader?: string
+): Promise<{
+  profile: PublicUserProfile | null;
+  status: number;
+}> {
+  const baseUrl = normalizeBaseUrl(PUBLIC_API_BASE_URL);
+
+  try {
+    const response = await fetch(`${baseUrl}/users/${userId}`, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        ...(cookieHeader ? { Cookie: cookieHeader } : {}),
+      },
+      credentials: "include",
+      cache: "no-store",
+    });
+
+    const status = response.status;
+
+    if (status === 404) {
+      return { profile: null, status };
+    }
+
+    if (status >= 200 && status < 300) {
+      const json = await response.json().catch(() => null);
+
+      if (json && json.id) {
+        return {
+          profile: json as PublicUserProfile,
+          status,
+        };
+      }
+
+      return { profile: null, status };
+    }
+
+    return { profile: null, status };
+  } catch (err) {
+    if (process.env.NODE_ENV !== "production") {
+      console.warn("[fetchPublicUserProfileServer] error", err);
+    }
+
+    return { profile: null, status: 0 };
+  }
+}
+

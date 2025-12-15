@@ -24,4 +24,10 @@ export class UserProfileDto {
     this.createdAt = user.createdAt;
     this.updatedAt = user.updatedAt;
   }
-}
+    static fromUser(user: any): UserProfileDto {
+    return new UserProfileDto(user);
+  }
+
+
+  }
+

@@ -15,17 +15,17 @@ function requireEnv(name: string): string | null {
 @Injectable()
 export class RedisService {
   private readonly logger = new Logger(RedisService.name);
-
-  // Flags to avoid re-attaching listeners
+  private readonly pubClient: RedisClient;
+  private readonly subClient: RedisClient;
   private static errorHandlersAttached = false;
   private static connectionHandlersAttached = false;
 
   constructor(
     @Inject('REDIS_CLIENT') private readonly client: RedisClient,
-    @Inject('REDIS_PUB') private readonly pubClient: RedisClient,
-    @Inject('REDIS_SUB') private readonly subClient: RedisClient,
   ) {
     this.validateEnv();
+    this.pubClient = this.client.duplicate();
+    this.subClient = this.client.duplicate();
     this.setupErrorHandling();
     this.setupConnectionHandlers();
   }

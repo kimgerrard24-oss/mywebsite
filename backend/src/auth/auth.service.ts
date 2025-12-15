@@ -28,7 +28,6 @@ import { AuditService } from './audit.service';
 import { Redis } from 'ioredis';
 import { RedisService } from '../redis/redis.service';
 import { UserProfileDto } from './dto/user-profile.dto';
-import { UsersService } from '../users/users.service';
 import * as jwt from 'jsonwebtoken';
 import { SessionService } from './session/session.service';
 
@@ -74,7 +73,6 @@ constructor(
   private readonly _mailService: MailService,
   private readonly audit: AuditService,
   private readonly redisService: RedisService,
-  private readonly userService: UsersService,
   private readonly sessionService: SessionService,
     @Inject('REDIS_CLIENT')
     private readonly redis: Redis,
@@ -288,13 +286,6 @@ async logout(req: any, res: any) {
 
   return { success: true };
 }
-
-// Get user/me Profile
-  async getProfile(userId: string): Promise<UserProfileDto> {
-    const user = await this.userService.findSafeProfileById(userId);
-    if (!user) throw new NotFoundException('User not found');
-    return UserProfileDto.fromUser(user);
-  }
 
  async hashPassword(password: string): Promise<string> {
     return await argon2.hash(password);  
