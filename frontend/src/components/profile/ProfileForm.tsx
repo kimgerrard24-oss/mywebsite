@@ -4,12 +4,20 @@ import type { UserProfile, UpdateUserPayload } from "@/types/user-profile";
 import { updateUserProfile } from "@/lib/api/user";
 
 type Props = {
-  user: UserProfile;
+  user: UserProfile | null;
 };
 
 export default function ProfileForm({ user }: Props) {
-  const [displayName, setDisplayName] = useState(user.displayName ?? "");
-  const [bio, setBio] = useState(user.bio ?? "");
+  if (!user) {
+    return null;
+  }
+
+  const currentUser = user;
+
+  const [displayName, setDisplayName] = useState(
+    currentUser.displayName ?? ""
+  );
+  const [bio, setBio] = useState(currentUser.bio ?? "");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -20,8 +28,14 @@ export default function ProfileForm({ user }: Props) {
     setSuccess(false);
 
     const payload: UpdateUserPayload = {};
-    if (displayName !== user.displayName) payload.displayName = displayName;
-    if (bio !== user.bio) payload.bio = bio;
+
+    if (displayName !== currentUser.displayName) {
+      payload.displayName = displayName;
+    }
+
+    if (bio !== currentUser.bio) {
+      payload.bio = bio;
+    }
 
     if (Object.keys(payload).length === 0) {
       setError("Nothing to update");
@@ -35,7 +49,7 @@ export default function ProfileForm({ user }: Props) {
     } catch (err: any) {
       setError(
         err?.response?.data?.message ??
-          "Failed to update profile",
+          "Failed to update profile"
       );
     } finally {
       setLoading(false);

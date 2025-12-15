@@ -4,7 +4,7 @@ import Link from "next/link";
 import type { UserProfile } from "@/lib/api/user";
 
 export interface ProfileCardProps {
-  profile: UserProfile;
+  profile: UserProfile | null;
 }
 
 const formatDate = (iso: string) => {
@@ -18,6 +18,10 @@ const formatDate = (iso: string) => {
 };
 
 export const ProfileCard: React.FC<ProfileCardProps> = ({ profile }) => {
+  if (!profile) {
+    return null;
+  }
+
   const displayName =
     profile.displayName && profile.displayName.trim().length > 0
       ? profile.displayName
@@ -37,7 +41,6 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ profile }) => {
           <div className="flex items-end gap-4">
             <div className="h-20 w-20 shrink-0 overflow-hidden rounded-full border-4 border-white bg-gray-100">
               {profile.avatarUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
                 <img
                   src={profile.avatarUrl}
                   alt={displayName}
@@ -87,7 +90,6 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ profile }) => {
             <dt className="font-medium text-gray-700">เข้าร่วมเมื่อ</dt>
             <dd>{formatDate(profile.createdAt)}</dd>
           </div>
-          {/* เผื่อใส่ข้อมูลอื่นในอนาคต เช่น จำนวนโพสต์, followers */}
         </dl>
       </div>
     </section>

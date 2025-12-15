@@ -1,6 +1,6 @@
 // ==============================
 // frontend/lib/api/user.ts
-// FIXED — Hardened for CSR/SSR consistency
+// Hardened for CSR / SSR (Production-safe)
 // ==============================
 
 import axios, { AxiosInstance, AxiosError } from "axios";
@@ -38,23 +38,34 @@ export interface PublicUserProfile {
   isSelf: boolean;
 }
 
+// ==============================
+// CSR axios client
+// ==============================
+
 const apiClient: AxiosInstance = axios.create({
   baseURL: PUBLIC_API_BASE_URL,
   withCredentials: true,
 });
 
-// Ensure credentials are always sent (auth safety)
 apiClient.interceptors.request.use((config) => {
   config.withCredentials = true;
   return config;
 });
 
+// ==============================
+// UPDATE PROFILE
+// ==============================
+
 export async function updateUserProfile(
-  payload: UpdateUserPayload,
+  payload: UpdateUserPayload
 ): Promise<UserProfile> {
   const res = await api.put("/users/update", payload);
   return res.data;
 }
+
+// ==============================
+// CSR — My Profile
+// ==============================
 
 export async function fetchMyProfileClient(): Promise<
   UserProfile | null | undefined
@@ -63,12 +74,10 @@ export async function fetchMyProfileClient(): Promise<
     const response = await apiClient.get("/users/me");
     const data = response.data;
 
-    // backend format 1: { data: {...} }
     if (data && typeof data === "object" && data.data) {
       return data.data;
     }
 
-    // backend format 2: { id, email, ... }
     if (data && typeof data === "object" && data.id) {
       return data;
     }
@@ -77,12 +86,10 @@ export async function fetchMyProfileClient(): Promise<
   } catch (err) {
     const error = err as AxiosError;
 
-    // 401 = definitely not logged in
     if (error.response?.status === 401) {
       return null;
     }
 
-    // 5xx / network / timing issue
     if (process.env.NODE_ENV !== "production") {
       console.warn("[fetchMyProfileClient] transient error", error);
     }
@@ -92,15 +99,18 @@ export async function fetchMyProfileClient(): Promise<
 }
 
 // ==============================
-// SSR (Node Runtime)
+// SSR — My Profile (IMPORTANT FIX)
 // ==============================
+
 export async function fetchMyProfileServer(
   cookieHeader: string | undefined
 ): Promise<{
   profile: UserProfile | null | undefined;
   status: number;
 }> {
-  const baseUrl = normalizeBaseUrl(PUBLIC_API_BASE_URL);
+  const baseUrl = normalizeBaseUrl(
+    process.env.INTERNAL_BACKEND_URL || PUBLIC_API_BASE_URL
+  );
 
   try {
     const response = await fetch(`${baseUrl}/users/me`, {
@@ -115,12 +125,10 @@ export async function fetchMyProfileServer(
 
     const status = response.status;
 
-    // 401 = definitely not logged in
     if (status === 401) {
       return { profile: null, status };
     }
 
-    // 2xx = try parse profile
     if (status >= 200 && status < 300) {
       const json = await response.json().catch(() => null);
 
@@ -128,12 +136,10 @@ export async function fetchMyProfileServer(
         return { profile: undefined, status };
       }
 
-      // backend format 1
       if (json.data && typeof json.data === "object") {
         return { profile: json.data, status };
       }
 
-      // backend format 2
       if (json.id) {
         return { profile: json, status };
       }
@@ -141,7 +147,6 @@ export async function fetchMyProfileServer(
       return { profile: undefined, status };
     }
 
-    // 5xx / other
     return { profile: undefined, status };
   } catch (err) {
     if (process.env.NODE_ENV !== "production") {
@@ -153,8 +158,9 @@ export async function fetchMyProfileServer(
 }
 
 // ==============================
-// CSR — Public User Profile
+// CSR — Public Profile
 // ==============================
+
 export async function fetchPublicUserProfileClient(
   userId: string
 ): Promise<PublicUserProfile | null> {
@@ -170,12 +176,10 @@ export async function fetchPublicUserProfileClient(
   } catch (err) {
     const error = err as AxiosError;
 
-    // 404 = user not found (valid)
     if (error.response?.status === 404) {
       return null;
     }
 
-    // other errors → fail-soft
     if (process.env.NODE_ENV !== "production") {
       console.warn(
         "[fetchPublicUserProfileClient] error",
@@ -188,8 +192,9 @@ export async function fetchPublicUserProfileClient(
 }
 
 // ==============================
-// SSR — Public User Profile
+// SSR — Public Profile
 // ==============================
+
 export async function fetchPublicUserProfileServer(
   userId: string,
   cookieHeader?: string
@@ -197,7 +202,9 @@ export async function fetchPublicUserProfileServer(
   profile: PublicUserProfile | null;
   status: number;
 }> {
-  const baseUrl = normalizeBaseUrl(PUBLIC_API_BASE_URL);
+  const baseUrl = normalizeBaseUrl(
+    process.env.INTERNAL_BACKEND_URL || PUBLIC_API_BASE_URL
+  );
 
   try {
     const response = await fetch(`${baseUrl}/users/${userId}`, {
@@ -220,10 +227,7 @@ export async function fetchPublicUserProfileServer(
       const json = await response.json().catch(() => null);
 
       if (json && json.id) {
-        return {
-          profile: json as PublicUserProfile,
-          status,
-        };
+        return { profile: json as PublicUserProfile, status };
       }
 
       return { profile: null, status };
@@ -237,7 +241,4 @@ export async function fetchPublicUserProfileServer(
 
     return { profile: null, status: 0 };
   }
-
-  
 }
-

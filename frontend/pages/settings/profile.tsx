@@ -2,14 +2,17 @@
 import Head from "next/head";
 import type { GetServerSideProps } from "next";
 import ProfileForm from "@/components/profile/ProfileForm";
-import { sessionCheckServerSide } from "@/lib/api/api";
 import type { UserProfile } from "@/types/user-profile";
 
 type Props = {
-  user: UserProfile;
+  user: UserProfile | null;
 };
 
 export default function ProfileSettingsPage({ user }: Props) {
+  if (!user) {
+    return null;
+  }
+
   return (
     <>
       <Head>
@@ -22,9 +25,7 @@ export default function ProfileSettingsPage({ user }: Props) {
 
       <main className="mx-auto max-w-2xl px-4 py-8">
         <section>
-          <h1 className="text-2xl font-semibold">
-            Edit profile
-          </h1>
+          <h1 className="text-2xl font-semibold">Edit profile</h1>
           <p className="mt-1 text-sm text-gray-600">
             Update your public information
           </p>
@@ -38,10 +39,10 @@ export default function ProfileSettingsPage({ user }: Props) {
   );
 }
 
-export const getServerSideProps: GetServerSideProps = async (ctx) => {
-  const session = await sessionCheckServerSide(ctx.req.headers.cookie);
+export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
+  const cookieHeader = ctx.req.headers.cookie;
 
-  if (!session.valid) {
+  if (!cookieHeader) {
     return {
       redirect: {
         destination: "/feed",
@@ -50,11 +51,67 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
     };
   }
 
+  const base =
+    process.env.INTERNAL_BACKEND_URL ??
+    process.env.NEXT_PUBLIC_BACKEND_URL ??
+    "https://api.phlyphant.com";
+
+  // 1) Check session validity (AUTH ONLY)
+  const sessionRes = await fetch(`${base}/auth/session-check`, {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      Cookie: cookieHeader,
+    },
+    credentials: "include",
+    cache: "no-store",
+  });
+
+  if (!sessionRes.ok) {
+    return {
+      redirect: {
+        destination: "/feed",
+        permanent: false,
+      },
+    };
+  }
+
+  const session = await sessionRes.json().catch(() => null);
+
+  if (!session || session.valid !== true) {
+    return {
+      redirect: {
+        destination: "/feed",
+        permanent: false,
+      },
+    };
+  }
+
+  // 2) Fetch profile (FAIL-SOFT)
+  let user: UserProfile | null = null;
+
+  try {
+    const userRes = await fetch(`${base}/users/me`, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        Cookie: cookieHeader,
+      },
+      credentials: "include",
+      cache: "no-store",
+    });
+
+    if (userRes.ok) {
+      const json = await userRes.json().catch(() => null);
+      user = json?.data ?? json ?? null;
+    }
+  } catch {
+    user = null;
+  }
+
   return {
     props: {
-      user: session.user,
+      user,
     },
   };
 };
-
-
