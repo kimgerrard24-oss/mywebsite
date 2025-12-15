@@ -162,7 +162,7 @@ export async function logout() {
 }
 
 // ==============================
-// SESSION CHECK (SSR)
+// SESSION CHECK (SSR) - FIXED
 // ==============================
 export async function sessionCheckServerSide(cookieHeader?: string) {
   const headers: Record<string, string> = {
@@ -173,8 +173,13 @@ export async function sessionCheckServerSide(cookieHeader?: string) {
     headers["Cookie"] = cookieHeader;
   }
 
+  const base =
+    process.env.INTERNAL_BACKEND_URL ??
+    process.env.NEXT_PUBLIC_BACKEND_URL ??
+    "https://api.phlyphant.com";
+
   try {
-    const res = await fetch(apiPath("/auth/session-check"), {
+    const res = await fetch(`${base}/auth/session-check`, {
       method: "GET",
       headers,
       credentials: "include",

@@ -38,13 +38,13 @@ export default function ProfileSettingsPage({ user }: Props) {
   );
 }
 
-export const getServerSideProps: GetServerSideProps = async () => {
-  const session = await sessionCheckServerSide();
+export const getServerSideProps: GetServerSideProps = async (ctx) => {
+  const session = await sessionCheckServerSide(ctx.req.headers.cookie);
 
   if (!session.valid) {
     return {
       redirect: {
-        destination: "/",
+        destination: "/feed",
         permanent: false,
       },
     };
@@ -56,4 +56,5 @@ export const getServerSideProps: GetServerSideProps = async () => {
     },
   };
 };
+
 
