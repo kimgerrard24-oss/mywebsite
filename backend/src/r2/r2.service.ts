@@ -1,4 +1,4 @@
-// src/r2/r2.service.ts
+// backend/src/r2/r2.service.ts
 
 import { Injectable, Logger } from '@nestjs/common';
 import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
@@ -14,8 +14,7 @@ export class R2Service {
     const secretKey = process.env.R2_SECRET_ACCESS_KEY;
 
     this.client = new S3Client({
-      region: 'us-east-1', // required by AWS SDK v3
-      endpoint,
+      region: 'us-east-1', 
       credentials: {
         accessKeyId: accessKey || '',
         secretAccessKey: secretKey || '',
