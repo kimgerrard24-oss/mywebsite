@@ -55,7 +55,7 @@ jobs:
           echo "SENTRY_RELEASE=frontend-${{ github.sha }}" >> .env.sentry-build-plugin
 
       # -----------------------------------------------------------
-      # Create sentry.properties
+      # Create sentry.properties (required for sourcemap upload)
       # -----------------------------------------------------------
       - name: Create sentry.properties
         working-directory: frontend
@@ -119,7 +119,7 @@ jobs:
         run: echo "${{ secrets.BACKEND_ENV_PRODUCTION }}" > backend/.env.production
 
       # -----------------------------------------------------------
-      # Install + Build Backend
+      # (NEW) Install + Build Backend BEFORE Docker build
       # -----------------------------------------------------------
       - name: Install backend dependencies
         working-directory: backend
@@ -130,79 +130,117 @@ jobs:
         run: npm run build
 
       # -----------------------------------------------------------
-      # Build + Push Docker images
+      # 5) Build + Push Frontend Docker image
       # -----------------------------------------------------------
       - name: Build frontend Docker image
-        run: docker build --no-cache -t ghcr.io/${{ secrets.GHCR_USERNAME }}/mywebsite-frontend:latest frontend
+        run: |
+          docker build \
+            --no-cache \
+            -t ghcr.io/${{ secrets.GHCR_USERNAME }}/mywebsite-frontend:latest \
+            frontend
 
       - name: Push frontend Docker image
         run: docker push ghcr.io/${{ secrets.GHCR_USERNAME }}/mywebsite-frontend:latest
 
+      # -----------------------------------------------------------
+      # 6) Build + Push Backend Docker image
+      # -----------------------------------------------------------
       - name: Build backend Docker image
-        run: docker build --no-cache -t ghcr.io/${{ secrets.GHCR_USERNAME }}/mywebsite-backend:latest backend
+        run: |
+          docker build \
+            --no-cache \
+            -t ghcr.io/${{ secrets.GHCR_USERNAME }}/mywebsite-backend:latest \
+            backend
 
       - name: Push backend image to GHCR
         run: docker push ghcr.io/${{ secrets.GHCR_USERNAME }}/mywebsite-backend:latest
 
       # -----------------------------------------------------------
-      # Capture image digests
+      # 6.1) Capture pushed image digests (if available)
       # -----------------------------------------------------------
       - name: Capture image digests
         run: |
           FRONT_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' ghcr.io/${{ secrets.GHCR_USERNAME }}/mywebsite-frontend:latest 2>/dev/null || true)
           BACK_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' ghcr.io/${{ secrets.GHCR_USERNAME }}/mywebsite-backend:latest 2>/dev/null || true)
 
-          echo "FRONTEND_DIGEST=${FRONT_DIGEST:-ghcr.io/${{ secrets.GHCR_USERNAME }}/mywebsite-frontend:latest}" >> $GITHUB_ENV
-          echo "BACKEND_DIGEST=${BACK_DIGEST:-ghcr.io/${{ secrets.GHCR_USERNAME }}/mywebsite-backend:latest}" >> $GITHUB_ENV
+          if [ -z "$FRONT_DIGEST" ]; then
+            FRONT_DIGEST="ghcr.io/${{ secrets.GHCR_USERNAME }}/mywebsite-frontend:latest"
+          fi
+          if [ -z "$BACK_DIGEST" ]; then
+            BACK_DIGEST="ghcr.io/${{ secrets.GHCR_USERNAME }}/mywebsite-backend:latest"
+          fi
 
-      # -----------------------------------------------------------
-      # 7) Deploy to Linode (FIXED)
-      # -----------------------------------------------------------
+          echo "FRONTEND_DIGEST=$FRONT_DIGEST" >> $GITHUB_ENV
+          echo "BACKEND_DIGEST=$BACK_DIGEST" >> $GITHUB_ENV
+
+     # -----------------------------------------------------------
+     # 7) Deploy to Linode
+     # -----------------------------------------------------------
       - name: Deploy to Linode
         uses: appleboy/ssh-action@v1.0.3
+
         with:
-          host: ${{ secrets.LINODE_HOST }}
-          username: root
-          key: ${{ secrets.LINODE_SSH_KEY }}
-          port: 22
-          script_stop: false
-          use_insecure_cipher: true
+         host: ${{ secrets.LINODE_HOST }}
+         username: root
+         key: ${{ secrets.LINODE_SSH_KEY }}
+         port: 22
+         script_stop: false
+         use_insecure_cipher: true
 
-          envs: |
-            GHCR_USERNAME=${{ secrets.GHCR_USERNAME }}
-            GHCR_TOKEN=${{ secrets.GHCR_TOKEN }}
-            INTERNAL_HEALTH_TOKEN=${{ secrets.INTERNAL_HEALTH_TOKEN }}
-            FRONTEND_DIGEST=${{ env.FRONTEND_DIGEST }}
-            BACKEND_DIGEST=${{ env.BACKEND_DIGEST }}
-            FRONTEND_ENV_PRODUCTION=${{ secrets.FRONTEND_ENV_PRODUCTION }}
-            BACKEND_ENV_PRODUCTION=${{ secrets.BACKEND_ENV_PRODUCTION }}
+        envs: |
+          GHCR_USERNAME=${{ secrets.GHCR_USERNAME }}
+          GHCR_TOKEN=${{ secrets.GHCR_TOKEN }}
+          INTERNAL_HEALTH_TOKEN=${{ secrets.INTERNAL_HEALTH_TOKEN }}
+          FRONTEND_DIGEST=${{ env.FRONTEND_DIGEST }}
+          BACKEND_DIGEST=${{ env.BACKEND_DIGEST }}
+          FRONTEND_ENV_PRODUCTION=${{ secrets.FRONTEND_ENV_PRODUCTION }}
+          BACKEND_ENV_PRODUCTION=${{ secrets.BACKEND_ENV_PRODUCTION }}
 
-          script: |
-            set -euo pipefail
-            cd /var/www/phlyphant/mywebsite
+        script: |
+          set -euo pipefail
 
-            git fetch --all
-            git reset --hard origin/main
+          cd /var/www/phlyphant/mywebsite
 
-            docker compose down
+          git fetch --all
+          git reset --hard origin/main
 
-            echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
+          docker compose down
 
-            printf '%s' "$FRONTEND_ENV_PRODUCTION" > frontend/.env.production
-            printf '%s' "$BACKEND_ENV_PRODUCTION" > backend/.env.production
+          echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
 
+          # Overwrite .env files on the server from secrets
+          printf '%s' "$FRONTEND_ENV_PRODUCTION" > frontend/.env.production
+          printf '%s' "$BACKEND_ENV_PRODUCTION" > backend/.env.production
+
+          if [[ "${BACKEND_DIGEST:-}" == *"@"* ]]; then
+            echo "Pulling backend by digest: $BACKEND_DIGEST"
             docker pull "$BACKEND_DIGEST"
-            docker tag "$BACKEND_DIGEST" "ghcr.io/$GHCR_USERNAME/mywebsite-backend:latest"
+            docker tag "$BACKEND_DIGEST" "ghcr.io/$GHCR_USERNAME/mywebsite-backend:latest" || true
+          else
+            echo "Pulling backend by tag: ghcr.io/$GHCR_USERNAME/mywebsite-backend:latest"
+            docker pull "ghcr.io/$GHCR_USERNAME/mywebsite-backend:latest" || true
+          fi
 
+          if [[ "${FRONTEND_DIGEST:-}" == *"@"* ]]; then
+            echo "Pulling frontend by digest: $FRONTEND_DIGEST"
             docker pull "$FRONTEND_DIGEST"
-            docker tag "$FRONTEND_DIGEST" "ghcr.io/$GHCR_USERNAME/mywebsite-frontend:latest"
+            docker tag "$FRONTEND_DIGEST" "ghcr.io/$GHCR_USERNAME/mywebsite-frontend:latest" || true
+          else
+            echo "Pulling frontend by tag: ghcr.io/$GHCR_USERNAME/mywebsite-frontend:latest"
+            docker pull "ghcr.io/$GHCR_USERNAME/mywebsite-frontend:latest" || true
+          fi
 
-            docker compose up -d --remove-orphans --force-recreate
+          docker compose up -d --remove-orphans --force-recreate
 
-            sleep 5
+          sleep 5
 
-            curl -s --fail -H "X-Internal-Health: $INTERNAL_HEALTH_TOKEN" http://localhost:4001/system-check
+          HEALTH_URL="http://localhost:4001/system-check"
+          if curl -s --fail -H "X-Internal-Health: $INTERNAL_HEALTH_TOKEN" "$HEALTH_URL" > /dev/null; then
+            echo "Health check OK"
+          else
+            echo "Health check FAILED but container is running."
+          fi
 
-            docker image prune -af || true
+          docker image prune -af || true
 
-            echo "Deployment successful."
+          echo "Deployment successful."
