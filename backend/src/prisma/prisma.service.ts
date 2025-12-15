@@ -25,7 +25,7 @@ export class PrismaService
           : ['query', 'error', 'warn', 'info'],
     });
   }
-
+  
   async onModuleInit() {
     const maxRetries = parseInt(process.env.PRISMA_CONNECT_RETRIES || '5', 10);
     let attempts = 0;
