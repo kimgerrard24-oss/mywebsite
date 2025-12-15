@@ -155,7 +155,7 @@ jobs:
           echo "BACKEND_DIGEST=$BACK_DIGEST" >> $GITHUB_ENV
 
       # -----------------------------------------------------------
-      # 7) Deploy to Linode (FIXED POSITION)
+      # 7) Deploy to Linode
       # -----------------------------------------------------------
       - name: Deploy to Linode
         uses: appleboy/ssh-action@v1.0.3
@@ -176,19 +176,40 @@ jobs:
           use_insecure_cipher: true
           script: |
             set -euo pipefail
+
+            # FIX: export env ให้ shell ใช้งาน
+            export GHCR_USERNAME
+            export GHCR_TOKEN
+            export INTERNAL_HEALTH_TOKEN
+            export FRONTEND_DIGEST
+            export BACKEND_DIGEST
+            export FRONTEND_ENV_PRODUCTION
+            export BACKEND_ENV_PRODUCTION
+
             cd /var/www/phlyphant/mywebsite
+
             git fetch --all
             git reset --hard origin/main
+
             docker compose down
+
             echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
+
             printf '%s' "$FRONTEND_ENV_PRODUCTION" > frontend/.env.production
             printf '%s' "$BACKEND_ENV_PRODUCTION" > backend/.env.production
+
             docker pull "$BACKEND_DIGEST"
             docker tag "$BACKEND_DIGEST" ghcr.io/$GHCR_USERNAME/mywebsite-backend:latest
+
             docker pull "$FRONTEND_DIGEST"
             docker tag "$FRONTEND_DIGEST" ghcr.io/$GHCR_USERNAME/mywebsite-frontend:latest
+
             docker compose up -d --remove-orphans --force-recreate
+
             sleep 5
+
             curl -s --fail -H "X-Internal-Health: $INTERNAL_HEALTH_TOKEN" http://localhost:4001/system-check
+
             docker image prune -af || true
+
             echo "Deployment successful."
