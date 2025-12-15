@@ -3,6 +3,9 @@ import Head from "next/head";
 import type { GetServerSideProps } from "next";
 import ProfileForm from "@/components/profile/ProfileForm";
 import type { UserProfile } from "@/types/user-profile";
+import Link from "next/link";
+import { AvatarUploader } from "@/components/profile/AvatarUploader";
+import { AvatarPreview } from "@/components/profile/AvatarPreview";
 
 type Props = {
   user: UserProfile | null;
@@ -24,6 +27,17 @@ export default function ProfileSettingsPage({ user }: Props) {
       </Head>
 
       <main className="mx-auto max-w-2xl px-4 py-8">
+        {/* Back to profile */}
+       <div className="mb-6 relative z-10">
+  <Link
+    href="/profile"
+    prefetch={false}
+    className="text-sm text-blue-600 hover:underline"
+  >
+    ← Back to profile
+  </Link>
+</div>
+
         <section>
           <h1 className="text-2xl font-semibold">Edit profile</h1>
           <p className="mt-1 text-sm text-gray-600">
@@ -31,9 +45,21 @@ export default function ProfileSettingsPage({ user }: Props) {
           </p>
         </section>
 
-        <section className="mt-6">
-          <ProfileForm user={user} />
-        </section>
+    {/* ================================
+    Avatar Section (NEW)
+    ไม่กระทบ ProfileForm เดิม
+   ================================ */}
+<section className="mt-6 flex items-center gap-4">
+  <AvatarPreview avatarUrl={user.avatarUrl} />
+  <AvatarUploader />
+</section>
+
+{/* ================================
+    Existing Profile Form
+   ================================ */}
+<section className="mt-8">
+  <ProfileForm user={user} />
+</section>
       </main>
     </>
   );

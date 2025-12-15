@@ -1,0 +1,9 @@
+.avatar-uploader .btn {
+  padding: 0.5rem 1rem;
+  border-radius: 9999px;
+}
+
+.avatar-uploader .error {
+  color: red;
+  margin-top: 0.5rem;
+}

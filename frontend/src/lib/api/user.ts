@@ -38,10 +38,25 @@ export interface PublicUserProfile {
   isSelf: boolean;
 }
 
+ export async function updateUserAvatar(file: File) {
+  const formData = new FormData();
+  formData.append('avatar', file);
+
+  const res = await api.put('/users/update-avatar', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  });
+
+  return res.data as {
+    success: boolean;
+    avatarUrl: string;
+  };
+}
+
 // ==============================
 // CSR axios client
 // ==============================
-
 const apiClient: AxiosInstance = axios.create({
   baseURL: PUBLIC_API_BASE_URL,
   withCredentials: true,
