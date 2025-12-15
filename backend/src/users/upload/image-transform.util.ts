@@ -1,3 +1,5 @@
+// backend/src/users/upload/image-transform.util.ts
+import { BadRequestException } from '@nestjs/common';
 import sharp from 'sharp';
 
 /**
@@ -34,9 +36,8 @@ export async function transformImage(
       })
 
       .toBuffer();
-  } catch (err) {
-    // อย่า throw error raw จาก sharp ออกไป
-    // เพื่อไม่ leak internal detail
-    throw new Error('Invalid image content');
+ } catch {
+  
+    throw new BadRequestException('Invalid image content');
   }
 }

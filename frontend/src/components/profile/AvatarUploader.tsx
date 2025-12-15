@@ -1,13 +1,13 @@
 // frontend/src/components/profile/AvatarUploader.tsx
-import { useRef } from 'react';
-import { useAvatarUpload } from '@/hooks/useAvatarUpload';
+import { useRef } from "react";
+import { useAvatarUpload } from "@/hooks/useAvatarUpload";
 
 export function AvatarUploader() {
   const inputRef = useRef<HTMLInputElement>(null);
   const { upload, loading, error } = useAvatarUpload();
 
   return (
-    <div className="avatar-uploader">
+    <div className="flex flex-col gap-2">
       <input
         ref={inputRef}
         type="file"
@@ -16,7 +16,6 @@ export function AvatarUploader() {
         onChange={(e) => {
           const file = e.target.files?.[0];
           if (file) upload(file);
-          e.currentTarget.value = '';
         }}
       />
 
@@ -24,12 +23,25 @@ export function AvatarUploader() {
         type="button"
         disabled={loading}
         onClick={() => inputRef.current?.click()}
-        className="btn"
+        className="
+          inline-flex items-center justify-center
+          rounded-md border border-gray-300
+          bg-white px-4 py-2
+          text-sm font-medium text-gray-700
+          hover:bg-gray-50
+          disabled:opacity-60
+          disabled:cursor-not-allowed
+        "
       >
-        {loading ? 'Uploading…' : 'Change avatar'}
+      {loading ? "กำลังอัปโหลดรูปโปรไฟล์…" : "เปลี่ยนรูปโปรไฟล์"}
       </button>
 
-      {error && <p className="error">{error}</p>}
+      {error && (
+        <p className="text-sm text-red-600">
+          {error}
+        </p>
+      )}
     </div>
   );
 }
+
