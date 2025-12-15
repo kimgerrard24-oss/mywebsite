@@ -137,9 +137,9 @@ async updateAvatar(
     throw new BadRequestException('Avatar file is required');
   }
 
-  const user = req.user as { userId: string };
+   const user = req.user as { userId: string };
 
-  return this.usersService.updateAvatar({
+   return this.usersService.updateAvatar({
     userId: user.userId,
     file,
   });
