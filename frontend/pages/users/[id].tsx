@@ -1,15 +1,14 @@
 // frontend/pages/users/[id].tsx
 import { GetServerSideProps } from "next";
 import ProfileLayout from "@/components/layout/ProfileLayout";
-import UserProfileHeader from "@/components/profile/UserProfileHeader";
-import UserProfileStats from "@/components/profile/UserProfileStats";
 import ProfileMeta from "@/components/seo/ProfileMeta";
+import PublicUserProfile from "@/components/profile/PublicUserProfile";
 import { fetchPublicUserProfileServer } from "@/lib/api/user";
 
-import type { PublicUserProfile } from "@/lib/api/user";
+import type { PublicUserProfile as PublicUserProfileType } from "@/lib/api/user";
 
 type Props = {
-  profile: PublicUserProfile;
+  profile: PublicUserProfileType;
 };
 
 export default function UserProfilePage({ profile }: Props) {
@@ -18,10 +17,7 @@ export default function UserProfilePage({ profile }: Props) {
       <ProfileMeta profile={profile} />
       <ProfileLayout>
         <main>
-          <article>
-            <UserProfileHeader profile={profile} />
-            <UserProfileStats profile={profile} />
-          </article>
+          <PublicUserProfile profile={profile} />
         </main>
       </ProfileLayout>
     </>

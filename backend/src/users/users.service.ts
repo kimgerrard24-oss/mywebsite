@@ -174,6 +174,7 @@ export class UsersService {
         username: true,
         name: true,
         avatarUrl: true,
+        coverUrl: true,
         bio: true,
         createdAt: true,
         updatedAt: true,

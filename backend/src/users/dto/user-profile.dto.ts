@@ -8,6 +8,7 @@ export class UserProfileDto {
   name: string | null;
   displayName: string | null;
   avatarUrl: string | null;
+  coverUrl: string | null;
   bio: string | null;
   createdAt: Date;
   updatedAt: Date;
@@ -16,18 +17,17 @@ export class UserProfileDto {
     this.id = user.id;
     this.email = user.email;
     this.username = user.username;
-    this.firebaseUid = user.firebaseUid;
-    this.name = user.name;
-    this.displayName = user.displayName;
-    this.avatarUrl = user.avatarUrl;
-    this.bio = user.bio;
+    this.firebaseUid = user.firebaseUid ?? null;
+    this.name = user.name ?? null;
+    this.displayName = user.displayName ?? null;
+    this.avatarUrl = user.avatarUrl ?? null;
+    this.coverUrl = user.coverUrl ?? null;
+    this.bio = user.bio ?? null;
     this.createdAt = user.createdAt;
     this.updatedAt = user.updatedAt;
   }
-    static fromUser(user: any): UserProfileDto {
+
+  static fromUser(user: any): UserProfileDto {
     return new UserProfileDto(user);
   }
-
-
-  }
-
+}
