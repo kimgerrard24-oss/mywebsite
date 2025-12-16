@@ -10,6 +10,7 @@ import { AuditLogService } from './audit/audit-log.service';
 import { AvatarService } from './avatar/avatar.service';
 import { R2Module } from '../r2/r2.module';
 import { CoverService } from './cover/cover.service';
+import { UserSearchPolicy } from './policies/user-search.policy';
 
 @Module({
   imports: [PrismaModule, AuthModule, R2Module, ],
@@ -21,6 +22,7 @@ import { CoverService } from './cover/cover.service';
     AvatarService,
     CoverService,
     AuditLogService,
+    UserSearchPolicy,
   ],
   exports: [UsersService],
 })

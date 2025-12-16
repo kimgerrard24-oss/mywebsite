@@ -58,7 +58,7 @@ export async function updateCover(file: File) {
   const formData = new FormData();
   formData.append('file', file);
 
-  const res = await api.put('/users/update-cover', formData, {
+  const res = await api.post('/users/update-cover', formData, {
     withCredentials: true,
   });
 

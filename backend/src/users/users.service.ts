@@ -16,6 +16,8 @@ import { AvatarService } from './avatar/avatar.service';
 import { UserAvatarPolicy } from './avatar/user-avatar.policy';
 import { CoverService } from './cover/cover.service';
 import { UserCoverPolicy } from './cover/user-cover.policy';
+import { PublicUserSearchDto } from './dto/public-user-search.dto';
+import { UserSearchPolicy } from './policies/user-search.policy';
 
 @Injectable()
 export class UsersService {
@@ -293,6 +295,29 @@ async updateAvatar(params: {
     await this.repo.updateCover(userId, coverUrl);
 
     return { coverUrl };
+  }
+
+  async searchUsers(params: {
+    query: string;
+    limit: number;
+    viewerUserId: string;
+  }): Promise<PublicUserSearchDto[]> {
+    const { query, limit, viewerUserId } = params;
+
+    const users = await this.repo.searchUsers({
+      query,
+      limit,
+    });
+
+    // policy layer (สำคัญมาก)
+    const visibleUsers = users.filter(user =>
+      UserSearchPolicy.canView({
+        target: user,
+        viewerUserId,
+      }),
+    );
+
+    return visibleUsers.map(PublicUserSearchDto.fromEntity);
   }
 }
 

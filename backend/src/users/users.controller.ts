@@ -8,6 +8,7 @@ import {
   Body,
   Param,
   Put,
+  Query,
   Req,
   UnauthorizedException,
   ConflictException,
@@ -33,8 +34,9 @@ import { UpdateUserPolicyPipe } from './pipes/update-user-policy.pipe';
 import { ImageValidationPipe } from './upload/image-validation.pipe';
 import { avatarMulterConfig } from './upload/multer-avatar.config';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { avatarMulterConfig as coverMulterConfig } 
-  from './upload/multer-cover.config';
+import { avatarMulterConfig as coverMulterConfig } from './upload/multer-cover.config';
+import { SearchUsersQueryDto } from './dto/search-users.query.dto';
+import { PublicUserSearchDto } from './dto/public-user-search.dto';
 
 @Controller('users')
 export class UsersController {
@@ -184,5 +186,19 @@ async updateAvatar(
       success: true,
       coverUrl: result.coverUrl,
     };
+  }
+
+   @Get('search')
+  async searchUsers(
+    @Query() query: SearchUsersQueryDto,
+    @Req() req: Request,
+  ): Promise<PublicUserSearchDto[]> {
+    const viewerUserId = (req.user as any)?.userId;
+
+    return this.usersService.searchUsers({
+      query: query.query,
+      limit: query.limit,
+      viewerUserId,
+    });
   }
 }

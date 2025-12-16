@@ -139,7 +139,48 @@ export class UsersRepository {
   });
   }
 
+  async searchUsers(params: {
+    query: string;
+    limit: number;
+  }) {
+    const { query, limit } = params;
 
+    return this.prisma.user.findMany({
+      where: {
+        AND: [
+          { isDisabled: false },
+          {
+            OR: [
+              {
+                username: {
+                  contains: query,
+                  mode: 'insensitive',
+                },
+              },
+              {
+                displayName: {
+                  contains: query,
+                  mode: 'insensitive',
+                },
+              },
+            ],
+          },
+        ],
+      },
+      take: limit,
+      orderBy: {
+        createdAt: 'desc',
+      },
+      select: {
+        id: true,
+        username: true,
+        displayName: true,
+        avatarUrl: true,
+        createdAt: true,
+        isDisabled: true,
+      },
+    });
+  }
 }
 
 
