@@ -6,6 +6,7 @@ import type { UserProfile } from "@/types/user-profile";
 import Link from "next/link";
 import { AvatarUploader } from "@/components/profile/AvatarUploader";
 import { AvatarPreview } from "@/components/profile/AvatarPreview";
+import CoverUploader from "@/components/profile/CoverUploader";
 
 type Props = {
   user: UserProfile | null;
@@ -16,13 +17,16 @@ export default function ProfileSettingsPage({ user }: Props) {
     return null;
   }
 
-  /**
-   * Avatar cache-busting
-   * - ใช้ updatedAt ถ้ามี
-   * - fallback เป็น timestamp เพื่อกัน CDN cache
-   */
+ 
   const avatarUrl = user.avatarUrl
     ? `${user.avatarUrl}?v=${encodeURIComponent(
+        user.updatedAt ?? Date.now().toString(),
+      )}`
+    : null;
+
+  
+  const coverUrl = user.coverUrl
+    ? `${user.coverUrl}?v=${encodeURIComponent(
         user.updatedAt ?? Date.now().toString(),
       )}`
     : null;
@@ -57,7 +61,14 @@ export default function ProfileSettingsPage({ user }: Props) {
         </section>
 
         {/* ================================
-            Avatar Section
+            NEW: Cover Photo Section
+           ================================ */}
+        <section className="mt-6">
+          <CoverUploader currentCoverUrl={coverUrl} />
+        </section>
+
+        {/* ================================
+            Avatar Section (EXISTING)
            ================================ */}
         <section className="mt-6 flex items-center gap-4">
           <AvatarPreview avatarUrl={avatarUrl} />
@@ -75,6 +86,9 @@ export default function ProfileSettingsPage({ user }: Props) {
   );
 }
 
+/* =====================================================
+   SSR LOGIC (EXISTING – DO NOT TOUCH)
+   ===================================================== */
 export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
   const cookieHeader = ctx.req.headers.cookie;
 

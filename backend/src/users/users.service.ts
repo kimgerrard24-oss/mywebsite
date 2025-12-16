@@ -14,6 +14,8 @@ import { UserProfileAudit } from './audit/user-profile.audit';
 import { AuditLogService } from './audit/audit-log.service';
 import { AvatarService } from './avatar/avatar.service';
 import { UserAvatarPolicy } from './avatar/user-avatar.policy';
+import { CoverService } from './cover/cover.service';
+import { UserCoverPolicy } from './cover/user-cover.policy';
 
 @Injectable()
 export class UsersService {
@@ -22,6 +24,7 @@ export class UsersService {
               private readonly audit: UserProfileAudit,
               private readonly avatarService: AvatarService,
               private readonly auditLogService: AuditLogService,
+              private readonly coverService: CoverService,
   ) {}
 
   async findByEmail(email: string) {
@@ -262,7 +265,35 @@ async updateAvatar(params: {
   });
 
   return { success: true, avatarUrl };
+   }
+
+   async updateCover(params: {
+    userId: string;
+    file: Express.Multer.File;
+  }) {
+    const { userId, file } = params;
+
+    const user = await this.repo.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+
+    UserCoverPolicy.assertCanUpdateCover({
+      isActive: user.active,
+      isDisabled: user.isDisabled,
+      file,
+    });
+
+    const { coverUrl } = await this.coverService.processAndUpload({
+      userId,
+      file,
+      previousCoverUrl: user.coverUrl ?? null,
+    });
+
+    await this.repo.updateCover(userId, coverUrl);
+
+    return { coverUrl };
+  }
 }
 
 
-}

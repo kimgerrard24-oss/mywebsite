@@ -104,9 +104,9 @@ export class UsersRepository {
   }
 
   // =====================================================
-// Minimal user state (for policy / auth decision)
-// =====================================================
-async findUserStateById(userId: string) {
+  // Minimal user state (for policy / auth decision)
+  // =====================================================
+ async findUserStateById(userId: string) {
   return this.prisma.user.findUnique({
     where: { id: userId },
     select: {
@@ -115,7 +115,29 @@ async findUserStateById(userId: string) {
       active: true,
     },
   });
-}
+ }
+ 
+ async findById(userId: string) {
+  return this.prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      active: true,
+      isDisabled: true,
+      coverUrl: true,
+    },
+  });
+  }
+  
+  async updateCover(userId: string, coverUrl: string) {
+  await this.prisma.user.update({
+    where: { id: userId },
+    data: {
+      coverUrl,
+      updatedAt: new Date(),
+    },
+  });
+  }
 
 
 }

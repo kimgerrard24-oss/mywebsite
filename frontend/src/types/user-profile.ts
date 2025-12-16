@@ -13,9 +13,11 @@ export interface UserProfile {
   email: string;
   displayName: string | null;
   avatarUrl: string | null;
+  coverUrl?: string | null;
   bio: string | null;
   createdAt: string;
   updatedAt?: string;
+  name: string | null;
 }
 
 export interface UpdateUserPayload {

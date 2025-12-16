@@ -33,6 +33,8 @@ import { UpdateUserPolicyPipe } from './pipes/update-user-policy.pipe';
 import { ImageValidationPipe } from './upload/image-validation.pipe';
 import { avatarMulterConfig } from './upload/multer-avatar.config';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { avatarMulterConfig as coverMulterConfig } 
+  from './upload/multer-cover.config';
 
 @Controller('users')
 export class UsersController {
@@ -135,13 +137,6 @@ async updateAvatar(
   @Req() req: Request,
 ) {
   
-  // 🔥 DEBUG LOG (ชั่วคราว)
-  console.log('🔥 update-avatar HIT', {
-    hasFile: !!file,
-    bodyKeys: Object.keys((req as any).body ?? {}),
-    contentType: req.headers['content-type'],
-  });
-
   if (!file) {
     throw new BadRequestException('Avatar file is required');
   }
@@ -158,5 +153,36 @@ async updateAvatar(
   });
 }
 
+   @Post('update-cover')
+  @HttpCode(200)
+  @UseGuards(AccessTokenCookieAuthGuard)
+  @UseInterceptors(FileInterceptor('file', coverMulterConfig))
+  async updateCover(
+    @UploadedFile() file: Express.Multer.File | undefined,
+    @Req() req: Request & { user?: { userId: string } },
+  ) {
 
+    // 🔥 DEBUG LOG (ชั่วคราว)
+  console.log('🔥 update-avatar HIT', {
+    hasFile: !!file,
+    bodyKeys: Object.keys((req as any).body ?? {}),
+    contentType: req.headers['content-type'],
+  });
+
+    if (!file) {
+      throw new BadRequestException('Cover image is required');
+    }
+
+    const userId = req.user!.userId;
+
+    const result = await this.usersService.updateCover({
+      userId,
+      file,
+    });
+
+    return {
+      success: true,
+      coverUrl: result.coverUrl,
+    };
+  }
 }

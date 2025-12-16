@@ -76,3 +76,55 @@ export async function transformImage(
   }
 }
 
+/* =====================================================================
+ * NEW: Generic image transformer (cover / banner / media)
+ * =====================================================================
+ * - Reuse same security guarantees as avatar
+ * - Allow dynamic size
+ * - Still safe for public upload API
+ * - DOES NOT affect existing transformImage()
+ */
+
+export async function transformImageWithOptions(
+  input: Buffer,
+  options: {
+    width: number;
+    height: number;
+    fit?: 'cover' | 'contain' | 'fill' | 'inside' | 'outside';
+    quality?: number;
+  },
+): Promise<Buffer> {
+  if (!input || !Buffer.isBuffer(input)) {
+    throw new Error('Invalid image buffer');
+  }
+
+  const {
+    width,
+    height,
+    fit = 'cover',
+    quality = 85,
+  } = options;
+
+  try {
+    return await sharp(input, {
+      limitInputPixels: 20_000_000, // same hard limit as avatar
+    })
+      .rotate()
+
+      .resize(width, height, {
+        fit,
+        withoutEnlargement: true,
+      })
+
+      .toFormat('webp', {
+        quality,
+        effort: 4,
+      })
+
+      .toBuffer();
+  } catch (error) {
+    throw error instanceof Error
+      ? error
+      : new Error('Image transform failed');
+  }
+}

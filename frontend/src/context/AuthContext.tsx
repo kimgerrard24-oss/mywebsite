@@ -139,12 +139,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+/**
+ * EXISTING hook (DO NOT TOUCH)
+ */
 export function useAuthContext() {
   const ctx = useContext(AuthContext);
   if (!ctx) {
     throw new Error("useAuthContext must be used inside AuthProvider");
   }
   return ctx;
+}
+
+/**
+ * ================================
+ * NEW: Alias hook (ADDITIVE ONLY)
+ * ================================
+ * - Convenience for new components
+ * - Backward compatible
+ * - No behavior change
+ */
+export function useAuth() {
+  return useAuthContext();
 }
 
 export { AuthContext };

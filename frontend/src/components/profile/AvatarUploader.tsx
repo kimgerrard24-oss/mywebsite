@@ -14,6 +14,8 @@ export function AvatarUploader() {
 
     try {
       await upload(file);
+
+      window.location.reload();
     } finally {
       /**
        * สำคัญมาก:
@@ -60,3 +62,4 @@ export function AvatarUploader() {
     </div>
   );
 }
+

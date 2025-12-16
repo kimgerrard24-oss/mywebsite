@@ -9,6 +9,7 @@ import { UserProfileAudit } from './audit/user-profile.audit';
 import { AuditLogService } from './audit/audit-log.service';
 import { AvatarService } from './avatar/avatar.service';
 import { R2Module } from '../r2/r2.module';
+import { CoverService } from './cover/cover.service';
 
 @Module({
   imports: [PrismaModule, AuthModule, R2Module, ],
@@ -18,6 +19,7 @@ import { R2Module } from '../r2/r2.module';
     UsersRepository,
     UserProfileAudit,
     AvatarService,
+    CoverService,
     AuditLogService,
   ],
   exports: [UsersService],

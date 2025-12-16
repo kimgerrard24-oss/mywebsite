@@ -24,9 +24,11 @@ export interface UserProfile {
   email: string;
   displayName: string | null;
   avatarUrl: string | null;
+  coverUrl?: string | null;
   bio: string | null;
   createdAt: string;
   updatedAt?: string;
+  name: string | null;
 }
 
 export interface PublicUserProfile {
@@ -49,6 +51,20 @@ export async function updateUserAvatar(file: File) {
   return res.data as {
     success: boolean;
     avatarUrl: string;
+  };
+}
+
+export async function updateCover(file: File) {
+  const formData = new FormData();
+  formData.append('file', file);
+
+  const res = await api.put('/users/update-cover', formData, {
+    withCredentials: true,
+  });
+
+  return res.data as {
+    success: boolean;
+    coverUrl: string;
   };
 }
 
