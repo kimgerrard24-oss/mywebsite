@@ -29,12 +29,14 @@ export class AuthRateLimitGuard implements CanActivate {
 
   private normalizeIp(ip: string): string {
     if (!ip) return 'unknown';
-    return ip
-      .trim()
-      .replace(/^::ffff:/, '')
-      .replace(/:\d+$/, '')
-      .replace(/[^a-zA-Z0-9_-]/g, '_')
-      .replace(/_+/g, '_') || 'unknown';
+    return (
+      ip
+        .trim()
+        .replace(/^::ffff:/, '')
+        .replace(/:\d+$/, '')
+        .replace(/[^a-zA-Z0-9_-]/g, '_')
+        .replace(/_+/g, '_') || 'unknown'
+    );
   }
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -42,11 +44,9 @@ export class AuthRateLimitGuard implements CanActivate {
     const res = context.switchToHttp().getResponse<Response>();
 
     let path = (req.path || '').toLowerCase();
-    if (path.endsWith('/')) {
-      path = path.slice(0, -1);
-    }
+    if (path.endsWith('/')) path = path.slice(0, -1);
 
-    // bypasses
+    // ---------------- bypasses ----------------
     if (req.method === 'OPTIONS' || req.method === 'HEAD') return true;
     if (path === '/favicon.ico') return true;
     if (path.startsWith('/_next') || path.startsWith('/static')) return true;
@@ -74,20 +74,17 @@ export class AuthRateLimitGuard implements CanActivate {
     if (path.startsWith('/auth/google')) return true;
     if (path.startsWith('/auth/facebook')) return true;
 
-    // FIX: bypass ALL login POST paths
-const isLoginPost =
-  req.method === 'POST' &&
-  (
-    path.endsWith('/login') ||
-    path.includes('/auth/local/login') ||
-    path.includes('/auth/login')
-  );
+    const isLoginPost =
+      req.method === 'POST' &&
+      (path.endsWith('/login') ||
+        path.includes('/auth/local/login') ||
+        path.includes('/auth/login'));
 
-if (isLoginPost) return true;
-
+    if (isLoginPost) return true;
 
     if (path.startsWith('/auth/local/register')) return true;
     if (path.startsWith('/auth/local/refresh')) return true;
+    // ------------------------------------------
 
     const action =
       this.reflector.get<RateLimitAction>(
@@ -96,35 +93,26 @@ if (isLoginPost) return true;
       ) || null;
 
     if (action === 'login') return true;
-
     if (!action) return true;
 
     const rawIp = this.extractRealIp(req);
     const ipKey = this.normalizeIp(rawIp);
 
-    try {
-      const info = await this.rlService.consume(action, ipKey);
+    const info = await this.rlService.consume(action, ipKey);
 
+    // 🔴 FIX: เช็ค blocked โดยตรง
+    if (info.blocked) {
+      res.setHeader('Retry-After', String(info.retryAfterSec));
       res.setHeader('X-RateLimit-Limit', String(info.limit));
-      res.setHeader('X-RateLimit-Remaining', String(info.remaining));
-      res.setHeader('X-RateLimit-Reset', String(info.reset));
-
-      return true;
-    } catch (err: any) {
-      const retry =
-        typeof err?.retryAfterSec === 'number' ? err.retryAfterSec : 60;
-
-      res.setHeader('Retry-After', retry);
-      res.setHeader('X-RateLimit-Limit', err?.limit ?? 0);
       res.setHeader('X-RateLimit-Remaining', '0');
-      res.setHeader('X-RateLimit-Reset', retry);
-
-      res.status(429).json({
-        statusCode: 429,
-        message: 'Too many requests. Please slow down.',
-      });
-
+      res.setHeader('X-RateLimit-Reset', String(info.reset));
       return false;
     }
+
+    res.setHeader('X-RateLimit-Limit', String(info.limit));
+    res.setHeader('X-RateLimit-Remaining', String(info.remaining));
+    res.setHeader('X-RateLimit-Reset', String(info.reset));
+
+    return true;
   }
 }
