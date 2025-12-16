@@ -1,11 +1,10 @@
+// frontend/pages/users/[id].tsx
 import { GetServerSideProps } from "next";
 import ProfileLayout from "@/components/layout/ProfileLayout";
 import UserProfileHeader from "@/components/profile/UserProfileHeader";
 import UserProfileStats from "@/components/profile/UserProfileStats";
 import ProfileMeta from "@/components/seo/ProfileMeta";
-import {
-  fetchPublicUserProfileServer,
-} from "@/lib/api/user";
+import { fetchPublicUserProfileServer } from "@/lib/api/user";
 
 import type { PublicUserProfile } from "@/lib/api/user";
 
@@ -30,21 +29,28 @@ export default function UserProfilePage({ profile }: Props) {
 }
 
 export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
-  const userId = ctx.params?.id as string | undefined;
-  if (!userId) {
+  const param = ctx.params?.id;
+
+  // guard: id ต้องเป็น string เท่านั้น
+  if (typeof param !== "string") {
     return { notFound: true };
   }
 
-  const { profile } = await fetchPublicUserProfileServer(
-    userId,
-    ctx.req.headers.cookie
-  );
+  try {
+    const { profile } = await fetchPublicUserProfileServer(
+      param,
+      ctx.req.headers.cookie
+    );
 
-  if (!profile) {
+    if (!profile) {
+      return { notFound: true };
+    }
+
+    return {
+      props: { profile },
+    };
+  } catch {
+    // fail-soft: backend error / network error
     return { notFound: true };
   }
-
-  return {
-    props: { profile },
-  };
 };

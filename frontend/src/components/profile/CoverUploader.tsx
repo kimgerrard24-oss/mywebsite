@@ -1,5 +1,5 @@
 // frontend/components/profile/CoverUploader.tsx
-import { useState, ChangeEvent } from 'react';
+import { useState, ChangeEvent, useEffect } from 'react';
 import { updateCover } from '@/lib/api/user';
 import UploadProgress from '@/components/ui/UploadProgress';
 import { useAuth } from '@/context/AuthContext';
@@ -11,10 +11,24 @@ type Props = {
 export default function CoverUploader({ currentCoverUrl }: Props) {
   const { refreshUser } = useAuth();
 
-  const [preview, setPreview] = useState<string | null>(null);
+  // preview เฉพาะ blob URL ระหว่าง upload
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  // cover URL จริงจาก backend (source of truth)
+  const [coverUrl, setCoverUrl] = useState<string | null>(
+    currentCoverUrl ?? null,
+  );
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
+
+  // sync เมื่อ props เปลี่ยน (เช่น refreshUser เสร็จ)
+  useEffect(() => {
+    if (currentCoverUrl) {
+      setCoverUrl(currentCoverUrl);
+    }
+  }, [currentCoverUrl]);
 
   const onFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -30,20 +44,21 @@ export default function CoverUploader({ currentCoverUrl }: Props) {
     setLoading(true);
 
     const objectUrl = URL.createObjectURL(file);
-    setPreview(objectUrl);
+    setPreviewUrl(objectUrl);
 
     try {
       const res = await updateCover(file);
 
-      // ใช้ coverUrl ที่ backend ส่งกลับมาเป็น source ทันที
       if (res?.coverUrl) {
-        setPreview(res.coverUrl);
+        // ใช้ coverUrl จาก backend เป็นตัวจริง
+        setCoverUrl(res.coverUrl);
       }
 
-      // sync user context
-      await refreshUser();
+      // sync user context แบบไม่ block UI
+      refreshUser().catch(() => null);
 
       setSuccess(true);
+      setPreviewUrl(null);
     } catch (err: any) {
       setError(err?.message ?? 'Upload failed');
     } finally {
@@ -52,6 +67,8 @@ export default function CoverUploader({ currentCoverUrl }: Props) {
       e.target.value = '';
     }
   };
+
+  const imageSrc = previewUrl ?? coverUrl;
 
   return (
     <article aria-labelledby="cover-heading">
@@ -64,10 +81,10 @@ export default function CoverUploader({ currentCoverUrl }: Props) {
       </p>
 
       <div className="mt-4 overflow-hidden rounded-lg border">
-        {preview || currentCoverUrl ? (
+        {imageSrc ? (
           <img
-            src={preview ?? currentCoverUrl ?? ''}
-            alt="Cover preview"
+            src={imageSrc}
+            alt="Cover image"
             className="h-48 w-full object-cover"
           />
         ) : (
