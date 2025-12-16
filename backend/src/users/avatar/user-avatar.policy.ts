@@ -3,13 +3,15 @@
 /**
  * User Avatar Policy
  *
- * รวม business rule + security rule
+ * Business + Security rules
  * สำหรับการเปลี่ยน avatar เท่านั้น
+ *
+ * ❗ ไม่ผูกกับ HTTP / NestJS
+ * ❗ ไม่ throw HttpException
  */
 
 /**
  * Policy error สำหรับ avatar
- * (ไม่ผูกกับ HTTP layer)
  */
 export class UserAvatarPolicyError extends Error {
   constructor(message: string) {
@@ -22,7 +24,9 @@ export class UserAvatarPolicy {
   /**
    * ตรวจสอบว่าผู้ใช้สามารถเปลี่ยน avatar ได้หรือไม่
    *
-   * @throws UserAvatarPolicyError เมื่อไม่ผ่าน policy
+   * Business rules:
+   * - account ต้อง active
+   * - account ต้องไม่ถูก disable
    */
   static assertCanUpdateAvatar(params: {
     isDisabled: boolean;
@@ -41,15 +45,40 @@ export class UserAvatarPolicy {
 
   /**
    * Validate avatar upload file metadata
-   * (เป็น layer เสริมจาก multer + pipe)
+   *
+   * IMPORTANT:
+   * - เป็น "policy layer" (business limit)
+   * - ไม่ใช่ transport limit (multer)
+   * - ใช้ซ้ำได้ใน future (mobile / worker / batch)
    */
   static assertValidAvatarFile(file: {
     size: number;
   }): void {
-    const MAX_SIZE = 2 * 1024 * 1024; // 2MB
+    /**
+     * Avatar max size (raw upload)
+     *
+     * Rationale:
+     * - Mobile photos often 3–6MB
+     * - Screenshots can exceed 2MB
+     * - Sharp will resize & compress later
+     *
+     * 8MB = Social Media standard
+     */
+    const MAX_SIZE = 8 * 1024 * 1024; // 8MB
+
+    if (!file || typeof file.size !== 'number') {
+      throw new UserAvatarPolicyError('Invalid avatar file');
+    }
+
+    if (file.size <= 0) {
+      throw new UserAvatarPolicyError('Invalid avatar file');
+    }
 
     if (file.size > MAX_SIZE) {
-      throw new UserAvatarPolicyError('Avatar file is too large');
+      throw new UserAvatarPolicyError(
+        'Avatar file is too large (max 8MB)',
+      );
     }
   }
 }
+

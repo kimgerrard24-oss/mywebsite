@@ -4,47 +4,75 @@ import sharp from 'sharp';
 /**
  * Transform & normalize avatar image
  *
- * - resize ให้เป็นขนาดคงที่
- * - strip metadata ทั้งหมด
- * - convert เป็น webp
- * - ป้องกัน image bomb / malformed image
+ * Standards (Social Media):
+ * - Accept high-resolution input (mobile / camera / screenshot)
+ * - Enforce hard pixel limit to prevent image bomb
+ * - Normalize orientation (EXIF)
+ * - Resize to fixed square avatar
+ * - Strip metadata (privacy)
+ * - Convert to efficient format (webp)
  *
- * ใช้กับ avatar เท่านั้น
+ * NOTE:
+ * - This utility MUST NOT throw HttpException
+ * - Service layer is responsible for mapping errors
  */
 export async function transformImage(
   input: Buffer,
 ): Promise<Buffer> {
-  // defensive guard (utility-level)
+  // --------------------------------------------------
+  // Defensive guard (utility-level)
+  // --------------------------------------------------
   if (!input || !Buffer.isBuffer(input)) {
     throw new Error('Invalid image buffer');
   }
 
   try {
     return await sharp(input, {
-      // ป้องกัน image bomb (ค่า default = 268M pixels)
-      limitInputPixels: 512 * 512,
+      /**
+       * HARD SECURITY LIMIT
+       * ------------------------------------------------
+       * Default sharp = 268M pixels (too high for API)
+       *
+       * 20MP is safe for:
+       * - iPhone / Android photos (12–16MP)
+       * - Large screenshots
+       * - While still preventing image bomb attacks
+       */
+      limitInputPixels: 20_000_000, // ~20 megapixels
     })
-      // normalize orientation จาก EXIF
+      /**
+       * Normalize orientation from EXIF
+       * (prevents rotated avatars)
+       */
       .rotate()
 
-      // resize แบบครอบ (avatar square)
+      /**
+       * Resize to square avatar
+       * - cover: crop center
+       * - withoutEnlargement: prevent upscaling
+       */
       .resize(512, 512, {
         fit: 'cover',
         withoutEnlargement: true,
       })
 
-      // strip metadata + convert format
+      /**
+       * Strip metadata + convert to modern format
+       */
       .toFormat('webp', {
-        quality: 85,
-        effort: 4,
+        quality: 85, // balanced quality / size
+        effort: 4,   // reasonable CPU cost for API
       })
 
       .toBuffer();
   } catch (error) {
-    // อย่า throw HttpException ที่ utility layer
-    // ให้ service layer เป็นคน map error
+    /**
+     * DO NOT throw HttpException here
+     * Let service layer decide how to map error
+     */
     throw error instanceof Error
       ? error
       : new Error('Image transform failed');
   }
 }
+
