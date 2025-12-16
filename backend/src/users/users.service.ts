@@ -3,6 +3,7 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  InternalServerErrorException,
 } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { UserProfileDto } from "./dto/user-profile.dto";
@@ -236,10 +237,21 @@ async updateAvatar(params: {
     isActive: user.active,
   });
 
-  const { avatarUrl } = await this.avatarService.processAndUpload({
-    userId,
-    file,
-  });
+  let avatarUrl: string;
+
+  try {
+    const result = await this.avatarService.processAndUpload({
+      userId,
+      file,
+    });
+
+    avatarUrl = result.avatarUrl;
+  } catch (err) {
+    // สำคัญ: แยก infra error ออกจาก business error
+    throw new InternalServerErrorException(
+      'Failed to process or upload avatar',
+    );
+  }
 
   await this.repo.updateAvatar(userId, avatarUrl);
 
@@ -251,5 +263,6 @@ async updateAvatar(params: {
 
   return { success: true, avatarUrl };
 }
+
 
 }

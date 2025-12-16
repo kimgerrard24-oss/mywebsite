@@ -40,7 +40,7 @@ export interface PublicUserProfile {
 
 export async function updateUserAvatar(file: File) {
   const formData = new FormData();
-  formData.append('avatar', file);
+  formData.append('file', file);
 
   const res = await api.post('/users/update-avatar', formData, {
     withCredentials: true,
