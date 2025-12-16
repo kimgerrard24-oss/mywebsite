@@ -10,9 +10,11 @@ type Props = {
 
 export default function CoverUploader({ currentCoverUrl }: Props) {
   const { refreshUser } = useAuth();
+
   const [preview, setPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState(false);
 
   const onFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -23,23 +25,42 @@ export default function CoverUploader({ currentCoverUrl }: Props) {
       return;
     }
 
-    setPreview(URL.createObjectURL(file));
-    setLoading(true);
+    // reset states
     setError(null);
+    setSuccess(false);
+    setLoading(true);
+
+    // preview ทันที
+    const objectUrl = URL.createObjectURL(file);
+    setPreview(objectUrl);
 
     try {
       await updateCover(file);
+
+      // refresh user context (source of truth)
       await refreshUser();
+
+      // UX success
+      setSuccess(true);
+
+      // clear preview หลังสำเร็จ (ใช้ cover จาก user แทน)
+      setPreview(null);
     } catch (err: any) {
       setError(err?.message ?? 'Upload failed');
     } finally {
       setLoading(false);
+      // cleanup object URL
+      URL.revokeObjectURL(objectUrl);
+      e.target.value = '';
     }
   };
 
   return (
-    <article>
-      <h2 className="text-lg font-medium">Cover photo</h2>
+    <article aria-labelledby="cover-heading">
+      <h2 id="cover-heading" className="text-lg font-medium">
+        Cover photo
+      </h2>
+
       <p className="mt-1 text-sm text-gray-600">
         This image appears at the top of your profile
       </p>
@@ -59,15 +80,26 @@ export default function CoverUploader({ currentCoverUrl }: Props) {
       </div>
 
       <div className="mt-4 flex items-center gap-4">
-        <label className="cursor-pointer rounded-md bg-black px-4 py-2 text-sm text-white">
-          Change cover
+        <label
+          className={`cursor-pointer rounded-md px-4 py-2 text-sm text-white ${
+            loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-black'
+          }`}
+        >
+          {loading ? 'Uploading…' : 'Change cover'}
           <input
             type="file"
             accept="image/*"
             className="hidden"
             onChange={onFileChange}
+            disabled={loading}
           />
         </label>
+
+        {success && (
+          <span className="text-sm text-green-600">
+            Cover updated successfully
+          </span>
+        )}
       </div>
 
       <UploadProgress loading={loading} error={error} />

@@ -5,7 +5,6 @@ import UserSearchInput from "./UserSearchInput";
 import UserSearchList from "./UserSearchList";
 import type { PublicUserSearch } from "@/types/user-search";
 
-
 type Props = {
   /**
    * ใช้ควบคุม UX
@@ -21,6 +20,8 @@ type Props = {
   onResultCountChange?: (count: number) => void;
 };
 
+const MIN_QUERY_LENGTH = 2;
+
 export default function UserSearchPanel({
   variant = "page",
   onResultCountChange,
@@ -30,48 +31,57 @@ export default function UserSearchPanel({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const handleSearch = useCallback(async (value: string) => {
-    setQuery(value);
+  const handleSearch = useCallback(
+    async (value: string) => {
+      setQuery(value);
 
-    if (!value) {
-      setUsers([]);
-      onResultCountChange?.(0);
-      return;
-    }
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      const res = await fetch(
-        `${process.env.NEXT_PUBLIC_API_BASE}/users/search?query=${encodeURIComponent(
-          value,
-        )}`,
-        {
-          method: "GET",
-          credentials: "include", // 🔐 HttpOnly cookie
-        },
-      );
-
-      if (res.status === 429) {
-        // rate-limit UX (fail-soft)
-        setError("You are searching too fast. Please try again shortly.");
+      // reset state เมื่อยังพิมพ์ไม่พอ
+      if (!value || value.trim().length < MIN_QUERY_LENGTH) {
+        setUsers([]);
+        setError(null);
+        onResultCountChange?.(0);
         return;
       }
 
-      if (!res.ok) {
-        throw new Error("Search request failed");
-      }
+      setLoading(true);
+      setError(null);
 
-      const data = (await res.json()) as PublicUserSearch[];
-      setUsers(data);
-      onResultCountChange?.(data.length);
-    } catch {
-      setError("Unable to search users at the moment");
-    } finally {
-      setLoading(false);
-    }
-  }, [onResultCountChange]);
+      try {
+        const res = await fetch(
+          `${process.env.NEXT_PUBLIC_API_BASE}/users/search?query=${encodeURIComponent(
+            value.trim(),
+          )}`,
+          {
+            method: "GET",
+            credentials: "include",
+          },
+        );
+
+        if (res.status === 429) {
+          // rate-limit UX (fail-soft)
+          if (variant === "page") {
+            setError("You are searching too fast. Please try again shortly.");
+          }
+          return;
+        }
+
+        if (!res.ok) {
+          throw new Error("Search request failed");
+        }
+
+        const data = (await res.json()) as PublicUserSearch[];
+        setUsers(data);
+        onResultCountChange?.(data.length);
+      } catch {
+        if (variant === "page") {
+          setError("Unable to search users at the moment");
+        }
+      } finally {
+        setLoading(false);
+      }
+    },
+    [onResultCountChange, variant],
+  );
 
   return (
     <div

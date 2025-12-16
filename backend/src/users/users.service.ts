@@ -268,34 +268,53 @@ async updateAvatar(params: {
 
   return { success: true, avatarUrl };
    }
+ 
 
-   async updateCover(params: {
-    userId: string;
-    file: Express.Multer.File;
+ async updateCover(params: {
+  userId: string;
+  file: Express.Multer.File;
   }) {
-    const { userId, file } = params;
+  const { userId, file } = params;
 
-    const user = await this.repo.findById(userId);
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
+  const user = await this.repo.findUserStateWithCoverById(userId);
+  if (!user) {
+    throw new NotFoundException('User not found');
+  }
 
-    UserCoverPolicy.assertCanUpdateCover({
-      isActive: user.active,
-      isDisabled: user.isDisabled,
-      file,
-    });
+  UserCoverPolicy.assertCanUpdateCover({
+    isActive: user.active,
+    isDisabled: user.isDisabled,
+  });
 
-    const { coverUrl } = await this.coverService.processAndUpload({
+  UserCoverPolicy.assertValidCoverFile(file);
+
+  let coverUrl: string;
+
+  try {
+    const result = await this.coverService.processAndUpload({
       userId,
       file,
       previousCoverUrl: user.coverUrl ?? null,
     });
 
-    await this.repo.updateCover(userId, coverUrl);
-
-    return { coverUrl };
+    coverUrl = result.coverUrl;
+  } catch {
+    throw new InternalServerErrorException(
+      'Failed to process or upload cover',
+    );
   }
+
+  await this.repo.updateCover(userId, coverUrl);
+
+  await this.auditLogService.log({
+    userId,
+    action: 'USER_UPDATE_COVER',
+    success: true,
+  });
+
+  return { success: true, coverUrl };
+ }
+
 
   async searchUsers(params: {
     query: string;

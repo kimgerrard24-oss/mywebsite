@@ -1,18 +1,29 @@
 // backend/src/users/upload/multer-cover.config.ts
+
 import type { Request } from 'express';
 import { FileInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 
 type FileInterceptorOptions = Parameters<typeof FileInterceptor>[1];
 
-export const avatarMulterConfig: FileInterceptorOptions = {
+export const coverMulterConfig: FileInterceptorOptions = {
+  /**
+   * Use memory storage
+   * --------------------------------------------------
+   * - Required for image transform (sharp)
+   * - Required for direct upload to R2 / S3
+   * - Consistent with avatar upload
+   */
+  storage: memoryStorage(),
+
+  /**
+   * Social Media Production Standard
+   * --------------------------------------------------
+   * - รองรับภาพจากมือถือยุคใหม่ (12–48MP)
+   * - รองรับ JPEG / PNG / WEBP / HEIC (ถ้า sharp รองรับ)
+   * - จำกัดขนาดเพื่อป้องกัน abuse
+   */
   limits: {
-    /**
-     * Social Media Production Standard
-     * --------------------------------------------------
-     * - รองรับภาพจากมือถือยุคใหม่ (12–48MP)
-     * - รองรับ HEIC / large JPEG
-     * - ปลอดภัยร่วมกับ sharp limitInputPixels
-     */
     fileSize: 20 * 1024 * 1024, // 20MB
   },
 
@@ -22,11 +33,13 @@ export const avatarMulterConfig: FileInterceptorOptions = {
     callback: (error: Error | null, acceptFile: boolean) => void,
   ) {
     /**
-     * NOTE:
+     * IMPORTANT:
+     * --------------------------------------------------
      * - ห้าม throw HttpException ที่นี่
-     * - ให้ controller/service เป็นคนจัดการกรณี file === undefined
+     * - ให้ controller / service เป็นคนตัดสิน
+     * - ถ้าไม่ใช่ image → acceptFile = false
      */
-    if (!file.mimetype.startsWith('image/')) {
+    if (!file.mimetype || !file.mimetype.startsWith('image/')) {
       callback(null, false);
       return;
     }
@@ -34,4 +47,3 @@ export const avatarMulterConfig: FileInterceptorOptions = {
     callback(null, true);
   },
 };
-

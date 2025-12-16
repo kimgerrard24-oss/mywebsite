@@ -181,6 +181,27 @@ export class UsersRepository {
       },
     });
   }
+
+ async findUserStateWithCoverById(
+  userId: string,
+): Promise<{
+  id: string;
+  active: boolean;
+  isDisabled: boolean;
+  coverUrl: string | null;
+} | null> {
+  return this.prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      active: true,
+      isDisabled: true,
+      coverUrl: true,
+    },
+  });
+}
+
+
 }
 
 
