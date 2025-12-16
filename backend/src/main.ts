@@ -216,9 +216,6 @@ async function bootstrap(): Promise<void> {
     expressApp.set('trust proxy', true as any);
   }
 
-  expressApp.use(json({ limit: '10mb' }));
-  expressApp.use(urlencoded({ extended: true }));
-
   await nestApp.init();
 
   const httpServer = createServer(expressApp);
