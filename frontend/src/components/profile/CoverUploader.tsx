@@ -3,6 +3,7 @@ import { useState, ChangeEvent, useEffect } from 'react';
 import { updateCover } from '@/lib/api/user';
 import UploadProgress from '@/components/ui/UploadProgress';
 import { useAuth } from '@/context/AuthContext';
+import { validateCoverFile } from '@/lib/upload/cover-upload';
 
 type Props = {
   currentCoverUrl: string | null;
@@ -11,17 +12,13 @@ type Props = {
 export default function CoverUploader({ currentCoverUrl }: Props) {
   const { refreshUser } = useAuth();
 
-  // blob preview ระหว่าง upload เท่านั้น
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-
-  // cover จริงจาก backend
   const [coverUrl, setCoverUrl] = useState<string | null>(currentCoverUrl);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
-  // sync source of truth จาก parent ทุกครั้งที่เปลี่ยน
   useEffect(() => {
     setCoverUrl(currentCoverUrl);
   }, [currentCoverUrl]);
@@ -30,8 +27,10 @@ export default function CoverUploader({ currentCoverUrl }: Props) {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (!file.type.startsWith('image/')) {
-      setError('Please select an image file');
+    try {
+      validateCoverFile(file);
+    } catch (err: any) {
+      setError(err?.message ?? 'Invalid cover file');
       return;
     }
 
@@ -46,11 +45,9 @@ export default function CoverUploader({ currentCoverUrl }: Props) {
       const res = await updateCover(file);
 
       if (res && typeof res.coverUrl === 'string') {
-        // update local state ทันทีจาก backend response
         setCoverUrl(res.coverUrl);
       }
 
-      // refresh context แบบไม่ block UI
       refreshUser().catch(() => null);
 
       setSuccess(true);

@@ -1,0 +1,37 @@
+/* frontend/styles/cover-upload.css */
+
+.cover-uploader {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.cover-uploader .preview {
+  width: 100%;
+  height: 12rem;
+  object-fit: cover;
+  border-radius: 0.75rem;
+  border: 1px solid #e5e7eb;
+}
+
+.cover-uploader .btn {
+  padding: 0.5rem 1rem;
+  border-radius: 9999px;
+  font-size: 0.875rem;
+  cursor: pointer;
+}
+
+.cover-uploader .btn.disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.cover-uploader .error {
+  color: #dc2626;
+  font-size: 0.875rem;
+}
+
+.cover-uploader .success {
+  color: #16a34a;
+  font-size: 0.875rem;
+}

@@ -1,7 +1,9 @@
+//  backend/src/users/dto/public-user-profile.dto.ts
 export class PublicUserProfileDto {
   id!: string;
   displayName!: string | null;
   avatarUrl!: string | null;
+  coverUrl!: string | null;
   bio!: string | null;
   createdAt!: Date;
 
