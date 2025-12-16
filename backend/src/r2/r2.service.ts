@@ -18,8 +18,8 @@ export class R2Service {
     }
 
     this.client = new S3Client({
-      region: 'us-east-1', 
-      endpoint,            
+      region: 'auto', // สำคัญ: Cloudflare R2 ต้องใช้ auto
+      endpoint,
       credentials: {
         accessKeyId: accessKey,
         secretAccessKey: secretKey,
@@ -42,14 +42,29 @@ export class R2Service {
     buffer: Buffer;
     contentType: string;
   }) {
-    await this.client.send(
-      new PutObjectCommand({
-        Bucket: process.env.R2_BUCKET_NAME!,
-        Key: params.path,
-        Body: params.buffer,
-        ContentType: params.contentType,
-      }),
-    );
+    const bucket = process.env.R2_BUCKET_NAME;
+
+    if (!bucket) {
+      this.logger.error('R2_BUCKET_NAME is not configured');
+      throw new Error('R2 bucket not configured');
+    }
+
+    try {
+      await this.client.send(
+        new PutObjectCommand({
+          Bucket: bucket,
+          Key: params.path,
+          Body: params.buffer,
+          ContentType: params.contentType,
+        }),
+      );
+    } catch (err) {
+      this.logger.error(
+        `R2 upload failed (bucket=${bucket}, key=${params.path})`,
+        err as any,
+      );
+      throw err;
+    }
 
     return `${process.env.R2_PUBLIC_BASE_URL}/${params.path}`;
   }
