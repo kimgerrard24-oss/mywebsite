@@ -5,29 +5,25 @@ import UploadProgress from '@/components/ui/UploadProgress';
 import { useAuth } from '@/context/AuthContext';
 
 type Props = {
-  currentCoverUrl?: string | null;
+  currentCoverUrl: string | null;
 };
 
 export default function CoverUploader({ currentCoverUrl }: Props) {
   const { refreshUser } = useAuth();
 
-  // preview เฉพาะ blob URL ระหว่าง upload
+  // blob preview ระหว่าง upload เท่านั้น
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
-  // cover URL จริงจาก backend (source of truth)
-  const [coverUrl, setCoverUrl] = useState<string | null>(
-    currentCoverUrl ?? null,
-  );
+  // cover จริงจาก backend
+  const [coverUrl, setCoverUrl] = useState<string | null>(currentCoverUrl);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
-  // sync เมื่อ props เปลี่ยน (เช่น refreshUser เสร็จ)
+  // sync source of truth จาก parent ทุกครั้งที่เปลี่ยน
   useEffect(() => {
-    if (currentCoverUrl) {
-      setCoverUrl(currentCoverUrl);
-    }
+    setCoverUrl(currentCoverUrl);
   }, [currentCoverUrl]);
 
   const onFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
@@ -49,12 +45,12 @@ export default function CoverUploader({ currentCoverUrl }: Props) {
     try {
       const res = await updateCover(file);
 
-      if (res?.coverUrl) {
-        // ใช้ coverUrl จาก backend เป็นตัวจริง
+      if (res && typeof res.coverUrl === 'string') {
+        // update local state ทันทีจาก backend response
         setCoverUrl(res.coverUrl);
       }
 
-      // sync user context แบบไม่ block UI
+      // refresh context แบบไม่ block UI
       refreshUser().catch(() => null);
 
       setSuccess(true);

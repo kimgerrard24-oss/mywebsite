@@ -36,6 +36,7 @@ export interface PublicUserProfile {
   id: string;
   displayName: string | null;
   avatarUrl: string | null;
+  coverUrl: string | null;
   bio: string | null;
   createdAt: string;
   isSelf: boolean;
