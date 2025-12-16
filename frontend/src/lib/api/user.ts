@@ -6,6 +6,7 @@
 import axios, { AxiosInstance, AxiosError } from "axios";
 import type { UpdateUserPayload } from "@/types/user-profile";
 import { api } from "./api";
+import type { PublicUserSearch } from "@/types/user-search";
 
 function normalizeBaseUrl(url: string): string {
   return url.replace(/\/+$/, "");
@@ -271,4 +272,22 @@ export async function fetchPublicUserProfileServer(
 
     return { profile: null, status: 0 };
   }
+
+}
+
+export async function searchUsers(params: {
+  query: string;
+  limit?: number;
+}): Promise<PublicUserSearch[]> {
+  const { query, limit = 10 } = params;
+
+  const res = await api.get<PublicUserSearch[]>("/users/search", {
+    params: {
+      query,
+      limit,
+    },
+    withCredentials: true,
+  });
+
+  return res.data;
 }

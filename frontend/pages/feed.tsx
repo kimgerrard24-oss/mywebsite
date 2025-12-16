@@ -8,6 +8,7 @@ import { api } from "@/lib/api/api";
 import { useRouter } from "next/router";
 import { useCallback } from "react";
 import Link from "next/link";
+import UserSearchPanel from "@/components/users/UserSearchPanel";
 
 type FeedProps = {
   user: any | null;
@@ -58,7 +59,7 @@ export default function FeedPage({ user }: FeedProps) {
               >
                 Dashboard
               </a>
-
+              
               <Link
                 href="/profile"
                 className="text-sm font-medium hover:text-blue-600 transition"
@@ -83,6 +84,10 @@ export default function FeedPage({ user }: FeedProps) {
           </nav>
         </header>
 
+          <section className="max-w-3xl mx-auto px-4 py-6">
+          <UserSearchPanel variant="feed" />
+        </section>
+        
         <section
           className="max-w-3xl mx-auto px-4 py-8 flex flex-col gap-6"
           aria-label="User feed"
@@ -157,7 +162,7 @@ function PostCard({ post }: { post: Post }) {
     </article>
   );
 }
-
+        
 const MOCK_POSTS: Post[] = [
   {
     id: 1,

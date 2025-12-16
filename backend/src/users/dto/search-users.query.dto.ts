@@ -1,8 +1,8 @@
 // backend/src/users/dto/search-users.query.dto.ts
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsInt,
-  IsNotEmpty,
+  IsOptional,
   IsString,
   Max,
   MaxLength,
@@ -11,15 +11,16 @@ import {
 
 export class SearchUsersQueryDto {
   @IsString()
-  @IsNotEmpty()
   @MaxLength(50)
   @Transform(({ value }) => value.trim())
   query!: string;
 
+  @IsOptional()
+  @Type(() => Number)
   @IsInt()
   @Min(1)
   @Max(20)
-  @Transform(({ value }) => Number(value ?? 10))
   limit: number = 10;
 }
+
 

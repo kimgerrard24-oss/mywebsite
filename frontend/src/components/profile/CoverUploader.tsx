@@ -25,31 +25,29 @@ export default function CoverUploader({ currentCoverUrl }: Props) {
       return;
     }
 
-    // reset states
     setError(null);
     setSuccess(false);
     setLoading(true);
 
-    // preview ทันที
     const objectUrl = URL.createObjectURL(file);
     setPreview(objectUrl);
 
     try {
-      await updateCover(file);
+      const res = await updateCover(file);
 
-      // refresh user context (source of truth)
+      // ใช้ coverUrl ที่ backend ส่งกลับมาเป็น source ทันที
+      if (res?.coverUrl) {
+        setPreview(res.coverUrl);
+      }
+
+      // sync user context
       await refreshUser();
 
-      // UX success
       setSuccess(true);
-
-      // clear preview หลังสำเร็จ (ใช้ cover จาก user แทน)
-      setPreview(null);
     } catch (err: any) {
       setError(err?.message ?? 'Upload failed');
     } finally {
       setLoading(false);
-      // cleanup object URL
       URL.revokeObjectURL(objectUrl);
       e.target.value = '';
     }
