@@ -25,19 +25,28 @@ export async function getPublicFeed(params: {
   cursor?: string;
   limit?: number;
 }): Promise<PostFeedResponse> {
-  const res = await api.get<PostFeedResponse>(
-    '/posts',
-    {
-      params: {
-        cursor: params.cursor,
-        limit: params.limit,
+  try {
+    const res = await api.get<PostFeedResponse>(
+      "/posts",
+      {
+        params: {
+          cursor: params.cursor,
+          limit: params.limit,
+        },
+        headers: {
+          // SSR-safe: ส่ง cookie ให้ backend เป็น authority
+          Cookie: params.cookie,
+        },
+        withCredentials: true,
       },
-      headers: {
-        cookie: params.cookie,
-      },
-      withCredentials: true,
-    },
-  );
+    );
 
-  return res.data;
+    return res.data;
+  } catch {
+    
+    return {
+      items: [],
+      nextCursor: null,
+    };
+  }
 }
