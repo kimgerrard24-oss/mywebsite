@@ -13,13 +13,14 @@ const nextConfig: NextConfig = {
   },
 
   images: {
-    remotePatterns: [
-      {
-        protocol: "https",
-        hostname: "*.r2.dev",
-      },
-    ],
-  },
+  remotePatterns: [
+    {
+      protocol: "https",
+      hostname: "pub-b9bb0a87a2e40369cc862892a346306.r2.dev",
+    },
+  ],
+},
+
 
   async rewrites() {
     if (!isProd) {
