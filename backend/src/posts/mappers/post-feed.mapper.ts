@@ -3,18 +3,19 @@ import { PostFeedItemDto } from '../dto/post-feed-item.dto';
 
 export class PostFeedMapper {
   static toDto(row: any): PostFeedItemDto {
+    const author = row.author ?? null;
+
     return {
       id: row.id,
       content: row.content,
       createdAt: row.createdAt.toISOString(),
 
       author: {
-        id: row.author.id,
-        displayName: row.author.displayName,
-        avatarUrl: row.author.avatarUrl,
+        id: author?.id ?? 'unknown',
+        displayName: author?.displayName ?? null,
+        avatarUrl: author?.avatarUrl ?? null,
       },
 
-      // ✅ counter-based (ตรง schema + เร็ว + production-grade)
       stats: {
         likeCount: row.likeCount,
         commentCount: row.commentCount,
@@ -22,4 +23,3 @@ export class PostFeedMapper {
     };
   }
 }
-

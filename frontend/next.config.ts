@@ -13,13 +13,21 @@ const nextConfig: NextConfig = {
   },
 
   images: {
-  remotePatterns: [
-    {
-      protocol: "https",
-      hostname: "cdn.phlyphant.com",
-      pathname: "/**",
-    },
-   ],
+    remotePatterns: [
+      // Production CDN
+      {
+        protocol: "https",
+        hostname: "cdn.phlyphant.com",
+        pathname: "/**",
+      },
+
+      // Cloudflare R2 (legacy / cached / dev objects)
+      {
+        protocol: "https",
+        hostname: "*.r2.dev",
+        pathname: "/**",
+      },
+    ],
   },
 
   async rewrites() {

@@ -24,35 +24,41 @@ export class PostsRepository {
   }
 
   async findPublicFeed(params: {
-  limit?: number;
-  cursor?: string;
-  viewerUserId: string | null;
-}) {
-  const limit = params.limit ?? 20; 
+    limit?: number;
+    cursor?: string;
+    viewerUserId: string | null;
+  }) {
+    const limit = params.limit ?? 20;
 
-  return this.prisma.post.findMany({
-    take: limit,
-    ...(params.cursor && {
-      skip: 1,
-      cursor: { id: params.cursor },
-    }),
-    orderBy: {
-      createdAt: 'desc',
-    },
-    where: {
-      isPublished: true,
-      isDeleted: false,
-      isHidden: false,
-    },
-    select: {
-      id: true,
-      authorId: true,
-      content: true,
-      createdAt: true,
-      likeCount: true,
-      commentCount: true,
-    },
-  });
- }
+    return this.prisma.post.findMany({
+      take: limit,
+      ...(params.cursor && {
+        skip: 1,
+        cursor: { id: params.cursor },
+      }),
+      orderBy: {
+        createdAt: 'desc',
+      },
+      where: {
+        isPublished: true,
+        isDeleted: false,
+        isHidden: false,
+      },
+      select: {
+        id: true,
+        content: true,
+        createdAt: true,
+        likeCount: true,
+        commentCount: true,
 
+        author: {
+          select: {
+            id: true,
+            displayName: true,
+            avatarUrl: true,
+          },
+        },
+      },
+    });
+  }
 }
