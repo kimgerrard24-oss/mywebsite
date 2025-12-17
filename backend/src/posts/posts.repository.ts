@@ -1,0 +1,60 @@
+// backend/src/posts/posts.repository.ts
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+
+@Injectable()
+export class PostsRepository {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async create(params: {
+    authorId: string;
+    content: string;
+  }) {
+    return this.prisma.post.create({
+      data: {
+        authorId: params.authorId,
+        content: params.content,
+      },
+      select: {
+        id: true,
+        authorId: true,
+        createdAt: true,
+      },
+    });
+  }
+
+  async findPublicFeed(params: {
+  limit: number;
+  cursor?: string;
+  viewerUserId: string | null;
+}) {
+  const { limit, cursor } = params;
+
+  return this.prisma.post.findMany({
+    take: limit,
+    ...(cursor && {
+      skip: 1,
+      cursor: { id: cursor },
+    }),
+    orderBy: {
+      createdAt: 'desc',
+    },
+    where: {
+      isPublished: true,
+      isDeleted: false,
+      isHidden: false,
+    },
+    select: {
+      id: true,
+      authorId: true, 
+      content: true,
+      createdAt: true,
+
+      likeCount: true,
+      commentCount: true,
+    },
+  });
+}
+
+
+}

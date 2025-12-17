@@ -3,8 +3,10 @@
 // ==============================
 
 import Head from "next/head";
-import { GetServerSideProps } from "next";
+import type { GetServerSideProps } from "next";
 import { api } from "@/lib/api/api";
+import { getPublicFeed } from "@/lib/api/posts";
+import type { PostFeedItem } from "@/types/post-feed";
 import { useRouter } from "next/router";
 import { useCallback } from "react";
 import Link from "next/link";
@@ -12,9 +14,10 @@ import UserSearchPanel from "@/components/users/UserSearchPanel";
 
 type FeedProps = {
   user: any | null;
+  feedItems: PostFeedItem[];
 };
 
-export default function FeedPage({ user }: FeedProps) {
+export default function FeedPage({ user, feedItems }: FeedProps) {
   const router = useRouter();
 
   const handleLogout = useCallback(async () => {
@@ -43,6 +46,7 @@ export default function FeedPage({ user }: FeedProps) {
       </Head>
 
       <main className="min-h-screen bg-gray-50 text-gray-900">
+        {/* ================= Header ================= */}
         <header className="w-full bg-white shadow-sm sticky top-0 z-20">
           <nav className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
             <a
@@ -59,7 +63,7 @@ export default function FeedPage({ user }: FeedProps) {
               >
                 Dashboard
               </a>
-              
+
               <Link
                 href="/profile"
                 className="text-sm font-medium hover:text-blue-600 transition"
@@ -84,10 +88,12 @@ export default function FeedPage({ user }: FeedProps) {
           </nav>
         </header>
 
-          <section className="max-w-3xl mx-auto px-4 py-6">
+        {/* ================= Search ================= */}
+        <section className="max-w-3xl mx-auto px-4 py-6">
           <UserSearchPanel variant="feed" />
         </section>
-        
+
+        {/* ================= Feed ================= */}
         <section
           className="max-w-3xl mx-auto px-4 py-8 flex flex-col gap-6"
           aria-label="User feed"
@@ -101,8 +107,39 @@ export default function FeedPage({ user }: FeedProps) {
             </p>
           </article>
 
-          {MOCK_POSTS.map((post) => (
-            <PostCard key={post.id} post={post} />
+          {feedItems.length === 0 && (
+            <p className="text-center text-gray-500">
+              ยังไม่มีโพสต์ในตอนนี้
+            </p>
+          )}
+
+          {feedItems.map((post) => (
+            <article
+              key={post.id}
+              className="bg-white shadow-sm border rounded-2xl p-5 flex flex-col gap-4"
+              aria-label="Post"
+            >
+              <header>
+                <h3 className="font-semibold text-sm">
+                  ผู้ใช้ {post.authorId}
+                </h3>
+                <time
+                  className="text-gray-500 text-xs"
+                  dateTime={post.createdAt}
+                >
+                  {new Date(post.createdAt).toLocaleString()}
+                </time>
+              </header>
+
+              <p className="text-gray-800 leading-relaxed whitespace-pre-wrap">
+                {post.content}
+              </p>
+
+              <footer className="flex items-center gap-6 text-sm text-gray-600">
+                <span>❤️ {post.stats.likeCount}</span>
+                <span>💬 {post.stats.commentCount}</span>
+              </footer>
+            </article>
           ))}
         </section>
       </main>
@@ -110,83 +147,8 @@ export default function FeedPage({ user }: FeedProps) {
   );
 }
 
-type Post = {
-  id: number;
-  user: {
-    name: string;
-    avatar: string;
-  };
-  content: string;
-  image?: string;
-  timestamp: string;
-};
-
-function PostCard({ post }: { post: Post }) {
-  return (
-    <article
-      className="bg-white shadow-sm border rounded-2xl p-5 flex flex-col gap-4"
-      aria-label="Post"
-    >
-      <header className="flex items-center gap-4">
-        <img
-          src={post.user.avatar}
-          alt={post.user.name}
-          className="w-12 h-12 rounded-full object-cover"
-        />
-        <div>
-          <h3 className="font-semibold text-lg">{post.user.name}</h3>
-          <time className="text-gray-500 text-sm">{post.timestamp}</time>
-        </div>
-      </header>
-
-      <p className="text-gray-800 leading-relaxed">{post.content}</p>
-
-      {post.image && (
-        <figure>
-          <img
-            src={post.image}
-            alt="Post media"
-            className="w-full rounded-xl object-cover max-h-[450px]"
-          />
-        </figure>
-      )}
-
-      <footer className="flex items-center justify-between pt-2">
-        <button className="text-gray-600 hover:text-blue-600 font-medium transition">
-          ถูกใจ
-        </button>
-        <button className="text-gray-600 hover:text-blue-600 font-medium transition">
-          แสดงความคิดเห็น
-        </button>
-      </footer>
-    </article>
-  );
-}
-        
-const MOCK_POSTS: Post[] = [
-  {
-    id: 1,
-    user: {
-      name: "Sophia Ch.",
-      avatar: "/images/default-avatar.png",
-    },
-    content: "เริ่มต้นวันใหม่กับโปรเจกต์ PhlyPhant",
-    image: "/images/social-hero.svg",
-    timestamp: "1 ชั่วโมงที่ผ่านมา",
-  },
-  {
-    id: 2,
-    user: {
-      name: "Michael T.",
-      avatar: "/images/default-avatar.png",
-    },
-    content: "วันนี้อากาศดีมากครับ ออกไปเดินเล่นกันไหม",
-    timestamp: "3 ชั่วโมงที่ผ่านมา",
-  },
-];
-
 export const getServerSideProps: GetServerSideProps = async (ctx) => {
-  const cookieHeader = ctx.req.headers.cookie ?? undefined;
+  const cookieHeader = ctx.req.headers.cookie ?? "";
 
   const baseUrl =
     process.env.NEXT_PUBLIC_BACKEND_URL ||
@@ -196,7 +158,7 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
 
   const apiBase = baseUrl.replace(/\/+$/, "");
 
-  // 1) Session check = AUTHORITY
+  // 1️⃣ Session check (AUTHORITY)
   const sessionRes = await fetch(`${apiBase}/auth/session-check`, {
     method: "GET",
     headers: {
@@ -226,7 +188,12 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
     };
   }
 
-  // 2) Session valid → try fetch user (FAIL-SOFT)
+  // 2️⃣ Load feed (PUBLIC + COOKIE)
+  const feed = await getPublicFeed({
+    cookie: cookieHeader,
+  });
+
+  // 3️⃣ Load user (FAIL-SOFT)
   let user: any | null = null;
 
   try {
@@ -242,7 +209,6 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
 
     if (userRes.ok) {
       const json = await userRes.json().catch(() => null);
-
       if (json?.data && typeof json.data === "object") {
         user = json.data;
       } else if (json?.id) {
@@ -250,12 +216,13 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
       }
     }
   } catch {
-    // ignore — feed can render without full profile
+    // fail-soft
   }
 
   return {
     props: {
       user,
+      feedItems: feed.items,
     },
   };
 };

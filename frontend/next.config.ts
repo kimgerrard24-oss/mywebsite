@@ -8,10 +8,17 @@ const nextConfig: NextConfig = {
   output: "standalone",
 
   experimental: {
-    
     useLightningcss: false,
     optimizeCss: false,
+  },
 
+  images: {
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "*.r2.dev",
+      },
+    ],
   },
 
   async rewrites() {
@@ -34,7 +41,6 @@ export default withSentryConfig(nextConfig, {
   silent: !process.env.CI,
 
   widenClientFileUpload: true,
-
 
   automaticVercelMonitors: false,
 

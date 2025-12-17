@@ -24,8 +24,20 @@ export class PrismaService
           ? ['error', 'warn']
           : ['query', 'error', 'warn', 'info'],
     });
+
+    /**
+     * ✅ ADDED (Prisma v6 Safe Shutdown)
+     * ใช้ process signal แทน $on('beforeExit')
+     */
+    process.on('SIGTERM', async () => {
+      await this.gracefulShutdown('SIGTERM');
+    });
+
+    process.on('SIGINT', async () => {
+      await this.gracefulShutdown('SIGINT');
+    });
   }
-  
+
   async onModuleInit() {
     const maxRetries = parseInt(process.env.PRISMA_CONNECT_RETRIES || '5', 10);
     let attempts = 0;
@@ -59,13 +71,17 @@ export class PrismaService
   }
 
   async onModuleDestroy() {
+    await this.gracefulShutdown('moduleDestroy');
+  }
+
+  private async gracefulShutdown(source: string) {
     try {
-      this.logger.log('Disconnecting Prisma from PostgreSQL');
+      this.logger.log(`Gracefully shutting down Prisma (${source})`);
       await this.$disconnect();
       this.logger.log('Prisma disconnected successfully');
     } catch (err) {
       this.logger.error(
-        `Error during Prisma disconnect: ${(err as Error).message}`,
+        `Error during Prisma shutdown (${source}): ${(err as Error).message}`,
       );
     }
   }

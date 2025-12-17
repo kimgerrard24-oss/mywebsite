@@ -123,3 +123,65 @@ model PasswordResetToken {
   @@index([userId])
   @@index([expiresAt])
 }
+
+// ======================================================
+// Social Media Models (Post / Comment / Tag)
+// ======================================================
+
+model Post {
+
+  id           String   @id @default(uuid())
+  authorId     String
+  content      String
+  isPublished  Boolean  @default(true)
+  publishedAt  DateTime @default(now())
+  isEdited     Boolean  @default(false)
+  editedAt     DateTime?
+  isDeleted    Boolean  @default(false)
+  deletedAt    DateTime?
+  isHidden     Boolean  @default(false)
+  hiddenAt     DateTime?
+  commentCount Int @default(0)
+  likeCount    Int @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  comments  Comment[]
+  tags      PostTag[]
+
+  @@index([authorId, publishedAt])
+  @@index([isPublished, isDeleted, isHidden, publishedAt])
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  postId    String
+  authorId  String
+  content   String
+  isDeleted Boolean  @default(false)
+  deletedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId, createdAt])
+}
+
+model Tag {
+  id        String   @id @default(uuid())
+  name      String   @unique
+  createdAt DateTime @default(now())
+  posts PostTag[]
+
+  @@index([name])
+}
+
+model PostTag {
+  postId String
+  tagId  String
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([postId, tagId])
+  @@index([tagId])
+}
