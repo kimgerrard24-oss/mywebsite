@@ -1,4 +1,3 @@
-// frontend/components/profile/ProfileCard.tsx
 import React from "react";
 import Link from "next/link";
 import type { UserProfile } from "@/lib/api/user";
@@ -32,8 +31,20 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ profile }) => {
       aria-labelledby="profile-heading"
       className="mx-auto mt-8 max-w-3xl rounded-2xl border border-gray-200 bg-white shadow-sm"
     >
-      {/* Cover */}
-      <div className="h-32 w-full rounded-t-2xl bg-gradient-to-r from-sky-500/70 to-indigo-500/80" />
+      {/* =========================
+          Cover
+         ========================= */}
+      <div
+        className="h-32 w-full rounded-t-2xl bg-gray-200"
+        style={{
+          backgroundImage: profile.coverUrl
+            ? `url(${profile.coverUrl})`
+            : undefined,
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }}
+        aria-label="Profile cover image"
+      />
 
       <div className="px-6 pb-6">
         {/* Avatar + name + edit button */}

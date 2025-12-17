@@ -84,7 +84,33 @@ async function bootstrap(): Promise<void> {
 
   expressApp.set('trust proxy', true);
 
-  expressApp.use(helmet());
+ expressApp.use(
+  helmet({
+    contentSecurityPolicy: {
+      directives: {
+        defaultSrc: ["'self'"],
+        baseUri: ["'self'"],
+        objectSrc: ["'none'"],
+
+        scriptSrc: ["'self'"],
+        styleSrc: ["'self'", "'unsafe-inline'"],
+
+        imgSrc: [
+          "'self'",
+          "data:",
+          "https://*.r2.dev",
+          process.env.R2_PUBLIC_BASE_URL!,
+        ],
+
+        fontSrc: ["'self'", "https:", "data:"],
+        connectSrc: ["'self'", "https:"],
+        frameAncestors: ["'self'"],
+        formAction: ["'self'"],
+        upgradeInsecureRequests: [],
+      },
+    },
+  }),
+);
 
   expressApp.use(cookieParser());
 
