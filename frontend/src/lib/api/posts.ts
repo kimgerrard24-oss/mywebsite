@@ -26,24 +26,30 @@ export async function getPublicFeed(params: {
   limit?: number;
 }): Promise<PostFeedResponse> {
   try {
-    const res = await api.get<PostFeedResponse>(
-      "/posts",
-      {
-        params: {
-          cursor: params.cursor,
-          limit: params.limit,
-        },
-        headers: {
-          // SSR-safe: ส่ง cookie ให้ backend เป็น authority
-          Cookie: params.cookie,
-        },
-        withCredentials: true,
-      },
-    );
+    const base =
+      process.env.INTERNAL_BACKEND_URL ??
+      process.env.NEXT_PUBLIC_API_BASE_URL ??
+      "https://api.phlyphant.com";
 
-    return res.data;
+    const qs = new URLSearchParams();
+    if (params.cursor) qs.set("cursor", params.cursor);
+    if (params.limit) qs.set("limit", String(params.limit));
+
+    const res = await fetch(`${base}/posts?${qs.toString()}`, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        Cookie: params.cookie,
+      },
+      cache: "no-store",
+    });
+
+    if (!res.ok) {
+      throw new Error("Failed to fetch feed");
+    }
+
+    return (await res.json()) as PostFeedResponse;
   } catch {
-    
     return {
       items: [],
       nextCursor: null,

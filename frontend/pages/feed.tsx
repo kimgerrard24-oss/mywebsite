@@ -150,25 +150,39 @@ export default function FeedPage({ user, feedItems }: FeedProps) {
               className="bg-white shadow-sm border rounded-2xl p-5 flex flex-col gap-4"
               aria-label="Post"
             >
-              <header>
-                <h3 className="font-semibold text-sm">
-                  ผู้ใช้ {post.authorId}
-                </h3>
-                <time
-                  className="text-gray-500 text-xs"
-                  dateTime={post.createdAt}
-                >
-                  {new Date(post.createdAt).toLocaleString()}
-                </time>
-              </header>
+              <header className="flex items-center gap-3">
+  {post.author.avatarUrl ? (
+    <img
+      src={post.author.avatarUrl}
+      alt={post.author.displayName ?? "User avatar"}
+      className="h-8 w-8 rounded-full object-cover"
+    />
+  ) : (
+    <div className="h-8 w-8 rounded-full bg-gray-300" />
+  )}
+
+  <div>
+    <h3 className="font-semibold text-sm">
+      {post.author.displayName ?? "ผู้ใช้"}
+    </h3>
+
+    <time
+      className="text-gray-500 text-xs"
+      dateTime={post.createdAt}
+    >
+      {new Date(post.createdAt).toLocaleString()}
+    </time>
+  </div>
+</header>
+
 
               <p className="text-gray-800 leading-relaxed whitespace-pre-wrap">
                 {post.content}
               </p>
 
               <footer className="flex items-center gap-6 text-sm text-gray-600">
-                <span>❤️ {post.likeCount}</span>
-                <span>💬 {post.commentCount}</span>
+                  <span>❤️ {post.stats.likeCount}</span>
+                  <span>💬 {post.stats.commentCount}</span>
               </footer>
             </article>
           ))}

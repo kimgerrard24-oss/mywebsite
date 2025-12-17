@@ -38,20 +38,33 @@ export class PostsController {
     });
   }
 
-   @Get()
+  @Get()
   async getFeed(
     @Query() query: GetPostsQueryDto,
     @Req() req: Request,
   ) {
-    const viewerUserId =
-      typeof (req as any).user?.userId === 'string'
-        ? (req as any).user.userId
-        : null;
+    // -----------------------------------------
+    // SAFE: extract viewer userId (fail-soft)
+    // -----------------------------------------
+    let viewerUserId: string | null = null;
+
+    const user = (req as any)?.user;
+    if (user && typeof user === 'object' && typeof user.userId === 'string') {
+      viewerUserId = user.userId;
+    }
+
+    // -----------------------------------------
+    // SAFE: normalize limit
+    // -----------------------------------------
+    const limit =
+      typeof query.limit === 'number' && Number.isFinite(query.limit)
+        ? Math.min(query.limit, 50)
+        : 20;
 
     return this.postsService.getPublicFeed({
       viewerUserId,
-      limit: query.limit,
-      cursor: query.cursor,
+      limit,
+      cursor: query.cursor ?? undefined,
     });
   }
 }
