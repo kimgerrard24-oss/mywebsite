@@ -8,13 +8,9 @@ import { api } from "@/lib/api/api";
 import { getPublicFeed } from "@/lib/api/posts";
 import type { PostFeedItem } from "@/types/post-feed";
 import { useRouter } from "next/router";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 import Link from "next/link";
 import UserSearchPanel from "@/components/users/UserSearchPanel";
-
-/* ============================== */
-/* ✅ ADD: Post Composer import   */
-/* ============================== */
 import PostComposer from "@/components/posts/PostComposer";
 
 type FeedProps = {
@@ -25,6 +21,12 @@ type FeedProps = {
 export default function FeedPage({ user, feedItems }: FeedProps) {
   const router = useRouter();
 
+  /* ============================== */
+  /* ✅ ADD: client-side feed state */
+  /* ============================== */
+  const [items, setItems] = useState<PostFeedItem[]>(feedItems);
+  const [refreshing, setRefreshing] = useState(false);
+
   const handleLogout = useCallback(async () => {
     try {
       await api.post("/auth/local/logout", {});
@@ -34,6 +36,29 @@ export default function FeedPage({ user, feedItems }: FeedProps) {
 
     router.replace("/");
   }, [router]);
+
+  /* ======================================= */
+  /* ✅ ADD: refresh feed without page reload */
+  /* ======================================= */
+  const refreshFeed = useCallback(async () => {
+    if (refreshing) return;
+
+    try {
+      setRefreshing(true);
+      const res = await api.get<{ items: PostFeedItem[] }>("/posts", {
+        withCredentials: true,
+      });
+
+      if (Array.isArray(res.data?.items)) {
+        setItems(res.data.items);
+      }
+    } catch (err) {
+      console.error("Refresh feed failed:", err);
+      // fail-soft: ไม่กระทบ UX หลัก
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refreshing]);
 
   return (
     <>
@@ -103,15 +128,8 @@ export default function FeedPage({ user, feedItems }: FeedProps) {
           className="max-w-3xl mx-auto px-4 py-8 flex flex-col gap-6"
           aria-label="User feed"
         >
-          {/* ============================== */}
-          {/* ✅ ADD: Create Post Composer   */}
-          {/* ============================== */}
-          <PostComposer
-            onPostCreated={() => {
-              // SSR-safe & production-safe refresh
-              window.location.reload();
-            }}
-          />
+          {/* ================= Create Post ================= */}
+          <PostComposer onPostCreated={refreshFeed} />
 
           <article className="bg-white p-6 rounded-2xl shadow border">
             <h2 className="text-xl font-semibold">
@@ -122,13 +140,13 @@ export default function FeedPage({ user, feedItems }: FeedProps) {
             </p>
           </article>
 
-          {feedItems.length === 0 && (
+          {items.length === 0 && (
             <p className="text-center text-gray-500">
               ยังไม่มีโพสต์ในตอนนี้
             </p>
           )}
 
-          {feedItems.map((post) => (
+          {items.map((post) => (
             <article
               key={post.id}
               className="bg-white shadow-sm border rounded-2xl p-5 flex flex-col gap-4"
@@ -173,7 +191,6 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
 
   const apiBase = baseUrl.replace(/\/+$/, "");
 
-  // 1️⃣ Session check (AUTHORITY)
   const sessionRes = await fetch(`${apiBase}/auth/session-check`, {
     method: "GET",
     headers: {
@@ -186,29 +203,19 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
 
   if (!sessionRes.ok) {
     return {
-      redirect: {
-        destination: "/",
-        permanent: false,
-      },
+      redirect: { destination: "/", permanent: false },
     };
   }
 
   const sessionJson = await sessionRes.json().catch(() => null);
   if (!sessionJson || sessionJson.valid !== true) {
     return {
-      redirect: {
-        destination: "/",
-        permanent: false,
-      },
+      redirect: { destination: "/", permanent: false },
     };
   }
 
-  // 2️⃣ Load feed (PUBLIC + COOKIE)
-  const feed = await getPublicFeed({
-    cookie: cookieHeader,
-  });
+  const feed = await getPublicFeed({ cookie: cookieHeader });
 
-  // 3️⃣ Load user (FAIL-SOFT)
   let user: any | null = null;
 
   try {

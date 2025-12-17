@@ -13,14 +13,8 @@ const nextConfig: NextConfig = {
   },
 
   images: {
-  remotePatterns: [
-    {
-      protocol: "https",
-      hostname: "pub-b9bb0a87a2e40369cc862892a346306.r2.dev",
-    },
-  ],
-},
-
+    domains: ["cdn.phlyphant.com"],
+  },
 
   async rewrites() {
     if (!isProd) {
@@ -40,10 +34,7 @@ export default withSentryConfig(nextConfig, {
   org: "phlyphant",
   project: "javascript-nextjs",
   silent: !process.env.CI,
-
   widenClientFileUpload: true,
-
   automaticVercelMonitors: false,
-
   disableLogger: true,
 });
