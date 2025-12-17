@@ -37,28 +37,26 @@ export default function FeedPage({ user, feedItems }: FeedProps) {
     router.replace("/");
   }, [router]);
 
-  /* ======================================= */
-  /* ✅ ADD: refresh feed without page reload */
-  /* ======================================= */
-  const refreshFeed = useCallback(async () => {
-    if (refreshing) return;
+ const refreshFeed = useCallback(async () => {
+  if (refreshing) return;
 
-    try {
-      setRefreshing(true);
-      const res = await api.get<{ items: PostFeedItem[] }>("/posts", {
-        withCredentials: true,
-      });
+  try {
+    setRefreshing(true);
+    const res = await api.get<{ items: PostFeedItem[] }>("/posts", {
+      params: { limit: 20 },
+      withCredentials: true,
+    });
 
-      if (Array.isArray(res.data?.items)) {
-        setItems(res.data.items);
-      }
-    } catch (err) {
-      console.error("Refresh feed failed:", err);
-      // fail-soft: ไม่กระทบ UX หลัก
-    } finally {
-      setRefreshing(false);
+    if (Array.isArray(res.data?.items)) {
+      setItems(res.data.items);
     }
-  }, [refreshing]);
+  } catch (err) {
+    console.error("Refresh feed failed:", err);
+  } finally {
+    setRefreshing(false);
+  }
+}, [refreshing]);
+
 
   return (
     <>
@@ -169,8 +167,8 @@ export default function FeedPage({ user, feedItems }: FeedProps) {
               </p>
 
               <footer className="flex items-center gap-6 text-sm text-gray-600">
-                <span>❤️ {post.stats.likeCount}</span>
-                <span>💬 {post.stats.commentCount}</span>
+                <span>❤️ {post.likeCount}</span>
+                <span>💬 {post.commentCount}</span>
               </footer>
             </article>
           ))}

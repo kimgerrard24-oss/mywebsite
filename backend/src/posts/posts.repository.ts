@@ -24,17 +24,17 @@ export class PostsRepository {
   }
 
   async findPublicFeed(params: {
-  limit: number;
+  limit?: number;
   cursor?: string;
   viewerUserId: string | null;
 }) {
-  const { limit, cursor } = params;
+  const limit = params.limit ?? 20; 
 
   return this.prisma.post.findMany({
     take: limit,
-    ...(cursor && {
+    ...(params.cursor && {
       skip: 1,
-      cursor: { id: cursor },
+      cursor: { id: params.cursor },
     }),
     orderBy: {
       createdAt: 'desc',
@@ -46,15 +46,13 @@ export class PostsRepository {
     },
     select: {
       id: true,
-      authorId: true, 
+      authorId: true,
       content: true,
       createdAt: true,
-
       likeCount: true,
       commentCount: true,
     },
   });
-}
-
+ }
 
 }

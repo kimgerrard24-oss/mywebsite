@@ -1,14 +1,20 @@
 // frontend/components/posts/PostComposer.tsx
+'use client';
+
 import { useState, useCallback } from "react";
 import { createPost } from "@/lib/api/posts";
 
 type Props = {
   onPostCreated?: () => void;
+  onPosted?: () => void; // ✅ compatibility with legacy Composer
 };
 
 const MAX_LENGTH = 500;
 
-export default function PostComposer({ onPostCreated }: Props) {
+export default function PostComposer({
+  onPostCreated,
+  onPosted,
+}: Props) {
   const [content, setContent] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,14 +41,18 @@ export default function PostComposer({ onPostCreated }: Props) {
       await createPost({ content });
 
       setContent("");
-      onPostCreated?.(); // refresh feed (SSR-safe / simple)
+
+      // ✅ call both (safe, no side effects)
+      onPostCreated?.();
+      onPosted?.();
+
     } catch (err) {
       console.error("Create post failed:", err);
       setError("ไม่สามารถโพสต์ได้ กรุณาลองใหม่");
     } finally {
       setSubmitting(false);
     }
-  }, [content, submitting, onPostCreated]);
+  }, [content, submitting, onPostCreated, onPosted]);
 
   return (
     <section

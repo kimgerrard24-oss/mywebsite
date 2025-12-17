@@ -13,7 +13,13 @@ const nextConfig: NextConfig = {
   },
 
   images: {
-    domains: ["cdn.phlyphant.com"],
+  remotePatterns: [
+    {
+      protocol: "https",
+      hostname: "cdn.phlyphant.com",
+      pathname: "/**",
+    },
+   ],
   },
 
   async rewrites() {

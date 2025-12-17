@@ -31,9 +31,9 @@ export default function FeedItem({ post }: Props) {
       </p>
 
       <footer className="mt-3 flex gap-4 text-xs text-gray-600">
-        <span>❤️ {post.stats.likeCount}</span>
-        <span>💬 {post.stats.commentCount}</span>
-      </footer>
+  <span>❤️ {post.likeCount}</span>
+  <span>💬 {post.commentCount}</span>
+</footer>
     </article>
   );
 }

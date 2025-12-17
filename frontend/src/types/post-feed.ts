@@ -3,14 +3,12 @@ export type PostFeedItem = {
   id: string;
   content: string;
   createdAt: string;
-
   authorId: string;
 
-  stats: {
-    likeCount: number;
-    commentCount: number;
-  };
+  likeCount: number;
+  commentCount: number;
 };
+
 
 export type PostFeedResponse = {
   items: PostFeedItem[];

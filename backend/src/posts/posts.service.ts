@@ -20,22 +20,18 @@ export class PostsService {
   }) {
     const { authorId, content } = params;
 
-    // 1️⃣ Policy check (ไม่สน profile fail-soft)
     PostCreatePolicy.assertCanCreatePost();
 
-    // 2️⃣ Persist
     const post = await this.repo.create({
       authorId,
       content,
     });
 
-    // 3️⃣ Audit (fire & forget)
     this.audit.logPostCreated({
       postId: post.id,
       authorId,
     });
 
-    // 4️⃣ Event (future feed / notify)
     this.event.emit(post);
 
     return {
