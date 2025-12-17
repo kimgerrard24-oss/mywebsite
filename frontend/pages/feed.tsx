@@ -12,6 +12,11 @@ import { useCallback } from "react";
 import Link from "next/link";
 import UserSearchPanel from "@/components/users/UserSearchPanel";
 
+/* ============================== */
+/* ✅ ADD: Post Composer import   */
+/* ============================== */
+import PostComposer from "@/components/posts/PostComposer";
+
 type FeedProps = {
   user: any | null;
   feedItems: PostFeedItem[];
@@ -98,6 +103,16 @@ export default function FeedPage({ user, feedItems }: FeedProps) {
           className="max-w-3xl mx-auto px-4 py-8 flex flex-col gap-6"
           aria-label="User feed"
         >
+          {/* ============================== */}
+          {/* ✅ ADD: Create Post Composer   */}
+          {/* ============================== */}
+          <PostComposer
+            onPostCreated={() => {
+              // SSR-safe & production-safe refresh
+              window.location.reload();
+            }}
+          />
+
           <article className="bg-white p-6 rounded-2xl shadow border">
             <h2 className="text-xl font-semibold">
               สวัสดี {user?.displayName || user?.email || "ผู้ใช้"}
