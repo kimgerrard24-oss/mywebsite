@@ -37,6 +37,7 @@ services:
     image: ghcr.io/kimgerrard24-oss/mywebsite-frontend:latest
     container_name: phlyphant-frontend
     restart: unless-stopped
+    command: ["node", "server.js"]
     env_file:
       - ./frontend/.env.production
     read_only: true
