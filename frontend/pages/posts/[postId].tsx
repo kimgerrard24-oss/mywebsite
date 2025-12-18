@@ -1,4 +1,4 @@
-// frontend/pages/posts/[id].tsx
+// frontend/pages/posts/[postId].tsx
 import Head from "next/head";
 import type { GetServerSideProps } from "next";
 import PostDetail from "@/components/posts/PostDetail";
@@ -11,7 +11,6 @@ type Props = {
 };
 
 export default function PostDetailPage({ post }: Props) {
-  
   return (
     <>
       <Head>
@@ -35,23 +34,27 @@ export default function PostDetailPage({ post }: Props) {
   );
 }
 
-export const getServerSideProps: GetServerSideProps<Props> =
-  async (ctx) => {
- const postId = ctx.params?.postId as string;
+export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
+  const postId = ctx.params?.postId;
 
-    await requireSessionSSR(ctx, { optional: true });
+  // guard: postId ต้องเป็น string เท่านั้น
+  if (typeof postId !== "string") {
+    return { notFound: true };
+  }
 
-    try {
-      const post = await getPostById(postId, ctx);
+  await requireSessionSSR(ctx, { optional: true });
 
-      if (!post) {
-        return { notFound: true };
-      }
+  try {
+    const post = await getPostById(postId, ctx);
 
-      return {
-        props: { post },
-      };
-    } catch {
+    if (!post) {
       return { notFound: true };
     }
-  };
+
+    return {
+      props: { post },
+    };
+  } catch {
+    return { notFound: true };
+  }
+};

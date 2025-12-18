@@ -1,3 +1,6 @@
+-- CreateEnum
+CREATE TYPE "PostVisibility" AS ENUM ('PUBLIC', 'PRIVATE');
+
 -- CreateTable
 CREATE TABLE "User" (
     "id" TEXT NOT NULL,
@@ -125,6 +128,7 @@ CREATE TABLE "Post" (
     "likeCount" INTEGER NOT NULL DEFAULT 0,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "visibility" "PostVisibility" NOT NULL DEFAULT 'PUBLIC',
 
     CONSTRAINT "Post_pkey" PRIMARY KEY ("id")
 );

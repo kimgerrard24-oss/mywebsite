@@ -40,7 +40,7 @@ export class PostsRepository {
         createdAt: 'desc',
       },
       where: {
-        isPublished: true,
+        visibility: 'PUBLIC',
         isDeleted: false,
         isHidden: false,
       },
@@ -50,7 +50,6 @@ export class PostsRepository {
         createdAt: true,
         likeCount: true,
         commentCount: true,
-
         author: {
           select: {
             id: true,
@@ -62,30 +61,30 @@ export class PostsRepository {
     });
   }
 
-   async findPostById(postId: string) {
+  async findPostById(postId: string) {
     return this.prisma.post.findUnique({
       where: { id: postId },
       select: {
-          id: true,
-          content: true,
- 
-          isPublished: true,
-          isDeleted: true,
-          isHidden: true,
+        id: true,
+        content: true,
 
-           createdAt: true,
-           authorId: true,
+        isPublished: true,
+        isDeleted: true,
+        isHidden: true,
+        visibility: true,
 
-       media: {
-             select: {
-             id: true,
+        createdAt: true,
+        authorId: true,
+
+        media: {
+          select: {
+            id: true,
             type: true,
-           r2Key: true,
-           cdnUrl: true,
-         },
+            r2Key: true,
+            cdnUrl: true,
+          },
         },
-       },
-
+      },
     });
   }
 }

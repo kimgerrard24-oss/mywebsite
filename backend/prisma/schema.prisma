@@ -128,6 +128,11 @@ model PasswordResetToken {
 
 // Social Media Models (Post / Comment / Tag)
 
+enum PostVisibility {
+  PUBLIC
+  PRIVATE
+} 
+
 model Post {
 
   id           String   @id @default(uuid())
@@ -153,7 +158,7 @@ model Post {
   updatedAt    DateTime @updatedAt
   media        PostMedia[]
   author       User     @relation(fields: [authorId], references: [id], onDelete: Restrict)
-
+  visibility   PostVisibility @default(PUBLIC)
   comments     Comment[]
   tags         PostTag[]
 

@@ -71,30 +71,45 @@ export class PostsService {
     };
   }
 
- async getPostDetail(params: {
+async getPostDetail(params: {
   postId: string;
   viewer: { userId: string; jti: string } | null;
 }): Promise<PostDetailDto | null> {
   const { postId, viewer } = params;
 
+  // --------------------------------------------------
+  // 1) Public cache (viewer === null เท่านั้น)
+  // --------------------------------------------------
   if (!viewer) {
     const cached = await this.cache.get(postId);
     if (cached) return cached;
   }
 
+  // --------------------------------------------------
+  // 2) Load post
+  // --------------------------------------------------
   const post = await this.repo.findPostById(postId);
   if (!post) return null;
 
+  // --------------------------------------------------
+  // 3) Visibility / permission check
+  // --------------------------------------------------
   const canView = await this.visibility.canViewPost({
     post,
     viewer,
   });
   if (!canView) return null;
 
+  // --------------------------------------------------
+  // 4) Map to DTO
+  // --------------------------------------------------
   const dto = PostDetailDto.from(post);
 
+  // --------------------------------------------------
+  // 5) Cache only PUBLIC + anonymous
+  // --------------------------------------------------
   const isPublicPost =
-    post.isPublished === true &&
+    post.visibility === 'PUBLIC' &&
     post.isDeleted === false &&
     post.isHidden === false;
 
@@ -103,6 +118,6 @@ export class PostsService {
   }
 
   return dto;
- }
+}
 
 }
