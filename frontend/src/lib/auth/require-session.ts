@@ -16,7 +16,7 @@ export function requireSession(): GetServerSideProps {
     } catch {
       return {
         redirect: {
-          destination: '/login',
+          destination: '/',
           permanent: false,
         },
       };

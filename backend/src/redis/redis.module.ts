@@ -12,6 +12,9 @@ import {
 import Redis from 'ioredis';
 import type { Redis as RedisClient, RedisOptions } from 'ioredis';
 
+// ✅ เพิ่ม (จำเป็นสำหรับ DI)
+import { RedisService } from './redis.service';
+
 function getRedisConfig() {
   const url = process.env.REDIS_URL;
   const password = process.env.REDIS_PASSWORD;
@@ -101,8 +104,14 @@ function buildRedisOptions(): RedisOptions {
         return client;
       },
     },
+
+    RedisService,
   ],
-  exports: ['REDIS_CLIENT'],
+  exports: [
+    'REDIS_CLIENT',
+
+    RedisService,
+  ],
 })
 export class RedisModule implements OnApplicationShutdown {
   private readonly logger = new Logger(RedisModule.name);

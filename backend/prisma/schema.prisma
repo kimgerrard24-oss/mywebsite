@@ -34,6 +34,7 @@ model User {
   createdAt                 DateTime             @default(now())
   updatedAt                 DateTime             @updatedAt
   posts                     Post[]
+  comments                  Comment[]
   oauthAccounts             OAuthAccount[]
   refreshTokens             RefreshToken[]
   sessions                  Session[]
@@ -125,9 +126,7 @@ model PasswordResetToken {
   @@index([expiresAt])
 }
 
-// ======================================================
 // Social Media Models (Post / Comment / Tag)
-// ======================================================
 
 model Post {
 
@@ -152,7 +151,7 @@ model Post {
 
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
-
+  media        PostMedia[]
   author       User     @relation(fields: [authorId], references: [id], onDelete: Restrict)
 
   comments     Comment[]
@@ -160,6 +159,28 @@ model Post {
 
   @@index([authorId, publishedAt])
   @@index([isPublished, isDeleted, isHidden, publishedAt])
+}
+
+model PostMedia {
+
+  id        String   @id @default(uuid())
+  postId    String
+
+  type      String
+
+  r2Key     String
+
+  cdnUrl    String
+
+  width     Int?
+  height    Int?
+  duration  Int?
+
+  createdAt DateTime @default(now())
+
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId])
 }
 
 model Comment {
@@ -172,6 +193,8 @@ model Comment {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
   post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Restrict)
 
   @@index([postId, createdAt])
 }

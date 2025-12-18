@@ -375,6 +375,14 @@ async sismember(key: string, member: string): Promise<boolean> {
     );
     return false;
   }
-}
+ }
+
+  async setWithTTL(
+  key: string,
+  value: string,
+  ttlSeconds: number,
+  ): Promise<void> {
+  await this.set(key, value, ttlSeconds);
+  }
 
 }

@@ -61,4 +61,31 @@ export class PostsRepository {
       },
     });
   }
+
+   async findPostById(postId: string) {
+    return this.prisma.post.findUnique({
+      where: { id: postId },
+      select: {
+          id: true,
+          content: true,
+ 
+          isPublished: true,
+          isDeleted: true,
+          isHidden: true,
+
+           createdAt: true,
+           authorId: true,
+
+       media: {
+             select: {
+             id: true,
+            type: true,
+           r2Key: true,
+           cdnUrl: true,
+         },
+        },
+       },
+
+    });
+  }
 }

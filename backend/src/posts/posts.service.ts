@@ -5,6 +5,9 @@ import { PostCreatePolicy } from './policy/post-create.policy';
 import { PostAudit } from './audit/post.audit';
 import { PostCreatedEvent } from './events/post-created.event';
 import { PostFeedMapper } from './mappers/post-feed.mapper';
+import { PostVisibilityService } from './services/post-visibility.service';
+import { PostCacheService } from './cache/post-cache.service';
+import { PostDetailDto } from './dto/post-detail.dto';
 
 @Injectable()
 export class PostsService {
@@ -12,6 +15,8 @@ export class PostsService {
     private readonly repo: PostsRepository,
     private readonly audit: PostAudit,
     private readonly event: PostCreatedEvent,
+    private readonly visibility: PostVisibilityService,
+    private readonly cache: PostCacheService,
   ) {}
 
   async createPost(params: {
@@ -65,4 +70,39 @@ export class PostsService {
       nextCursor,
     };
   }
+
+ async getPostDetail(params: {
+  postId: string;
+  viewer: { userId: string; jti: string } | null;
+}): Promise<PostDetailDto | null> {
+  const { postId, viewer } = params;
+
+  if (!viewer) {
+    const cached = await this.cache.get(postId);
+    if (cached) return cached;
+  }
+
+  const post = await this.repo.findPostById(postId);
+  if (!post) return null;
+
+  const canView = await this.visibility.canViewPost({
+    post,
+    viewer,
+  });
+  if (!canView) return null;
+
+  const dto = PostDetailDto.from(post);
+
+  const isPublicPost =
+    post.isPublished === true &&
+    post.isDeleted === false &&
+    post.isHidden === false;
+
+  if (isPublicPost && !viewer) {
+    await this.cache.set(postId, dto);
+  }
+
+  return dto;
+ }
+
 }

@@ -1,7 +1,9 @@
 // frontend/src/lib/api/posts.ts
 import { api } from './api';
+import type { GetServerSidePropsContext } from "next";
 import type { CreatePostPayload } from '@/types/post';
 import type { PostFeedResponse } from '@/types/post-feed';
+import type { PostDetail } from "@/types/post-detail";
 
 const API_BASE =
   process.env.INTERNAL_BACKEND_URL ??
@@ -54,5 +56,30 @@ export async function getPublicFeed(params: {
       items: [],
       nextCursor: null,
     };
+  }
+}
+
+export async function getPostById(
+  postId: string,
+  ctx?: GetServerSidePropsContext,
+): Promise<PostDetail | null> {
+  try {
+    const res = await api.get<PostDetail>(
+      `/posts/${postId}`,
+      ctx
+        ? {
+            headers: {
+              cookie: ctx.req.headers.cookie || "",
+            },
+            withCredentials: true,
+          }
+        : {
+            withCredentials: true,
+          },
+    );
+
+    return res.data;
+  } catch {
+    return null;
   }
 }

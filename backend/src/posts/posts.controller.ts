@@ -5,15 +5,19 @@ import {
   HttpCode,
   Post,
   Req,
+  Param,
   Get,
   Query,
   UseGuards,
+  NotFoundException, 
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { PostsService } from './posts.service';
 import { CreatePostDto } from './dto/create-post.dto';
 import { AccessTokenCookieAuthGuard } from '../auth/guards/access-token-cookie.guard';
 import { GetPostsQueryDto } from './dto/get-posts.query.dto';
+import { ParsePostIdPipe } from './pipes/parse-post-id.pipe';
+import { OptionalAuthGuard } from './guards/optional-auth.guard';
 
 @Controller('posts')
 export class PostsController {
@@ -66,5 +70,31 @@ export class PostsController {
       limit,
       cursor: query.cursor ?? undefined,
     });
+  }
+
+  @Get(':id')
+  @UseGuards(OptionalAuthGuard)
+  async getPostById(
+    @Param('id', ParsePostIdPipe) postId: string,
+    @Req() req: Request,
+  ) {
+    const viewer =
+      req.user && typeof req.user === 'object'
+      ? {
+        userId: (req.user as any).userId,
+        jti: (req.user as any).jti,
+      }
+      : null;
+
+    const post = await this.postsService.getPostDetail({
+      postId,
+      viewer,
+    });
+
+    if (!post) {
+      throw new NotFoundException('Post not found');
+    }
+
+    return post;
   }
 }
