@@ -14,7 +14,7 @@ import cookie from "cookie";
 
 import UserSearchPanel from "@/components/users/UserSearchPanel";
 import PostComposer from "@/components/posts/PostComposer";
-import LanguageSwitcher from "@/components/common/LanguageSwitcher"; // ✅ ADD
+import LanguageSwitcher from "@/components/common/LanguageSwitcher";
 
 import { getDictionary, type Lang } from "@/lib/i18n";
 
@@ -83,7 +83,6 @@ export default function FeedPage({ user, feedItems, lang }: FeedProps) {
             </Link>
 
             <div className="flex items-center gap-4">
-              {/* ✅ Language Switcher (UI only) */}
               <LanguageSwitcher currentLang={lang} />
 
               <Link
@@ -180,9 +179,15 @@ export default function FeedPage({ user, feedItems, lang }: FeedProps) {
                 </div>
               </header>
 
-              <p className="text-gray-800 leading-relaxed whitespace-pre-wrap">
-                {post.content}
-              </p>
+              {/* ================= CLICK TO POST DETAIL ================= */}
+              <Link
+                href={`/posts/${post.id}`}
+                className="block"
+              >
+                <p className="text-gray-800 leading-relaxed whitespace-pre-wrap hover:underline cursor-pointer">
+                  {post.content}
+                </p>
+              </Link>
 
               <footer className="flex items-center gap-6 text-sm text-gray-600">
                 <span>
@@ -273,4 +278,3 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
     },
   };
 };
-

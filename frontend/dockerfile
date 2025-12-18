@@ -7,7 +7,6 @@ ENV NODE_OPTIONS="--max-old-space-size=4096"
 
 COPY package*.json ./
 
-# เพิ่ม registry fallback ป้องกัน npm ci ล้มเหลว
 RUN npm set registry https://registry.npmmirror.com \
     && npm set fetch-retries 5 \
     && npm set fetch-retry-factor 10
@@ -15,12 +14,10 @@ RUN npm set registry https://registry.npmmirror.com \
 RUN --mount=type=cache,target=/root/.npm \
     npm ci
 
-# เพื่อให้ next build ทำงานได้
 RUN chmod +x node_modules/.bin/next
 
 COPY . .
 
-# จุดแก้ไขสำคัญ: ต้อง COPY หลัง COPY . .
 COPY .env.production .env.production
 
 RUN --mount=type=cache,target=/root/.npm \
@@ -39,14 +36,12 @@ RUN apt-get update -y \
     && apt-get install -y --no-install-recommends openssl curl \
     && rm -rf /var/lib/apt/lists/*
 
-COPY package*.json ./
-COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/.next/standalone ./
+COPY --from=build /app/.next/static ./.next/static
 COPY --from=build /app/public ./public
-COPY --from=build /app/.next ./.next
 
-# ใช้ env.production จาก Build stage
 COPY --from=build /app/.env.production ./.env.production
 
 EXPOSE 3000
 
-CMD ["npm", "run", "start"]
+CMD ["node", "server.js"]
