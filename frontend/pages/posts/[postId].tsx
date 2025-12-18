@@ -11,6 +11,7 @@ type Props = {
 };
 
 export default function PostDetailPage({ post }: Props) {
+  
   return (
     <>
       <Head>

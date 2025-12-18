@@ -11,7 +11,9 @@ type Props = {
   profile: PublicUserProfileType;
 };
 
+
 export default function UserProfilePage({ profile }: Props) {
+  
   return (
     <>
       <ProfileMeta profile={profile} />
