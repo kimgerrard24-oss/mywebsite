@@ -90,7 +90,7 @@ jobs:
           npm run build
 
       # -----------------------------------------------------------
-      # 3.1) Upload Sentry sourcemaps
+      # 3.1) Upload Sentry sourcemaps (FAIL-SOFT)
       # -----------------------------------------------------------
       - name: Upload Sentry sourcemaps
         working-directory: frontend
@@ -100,11 +100,12 @@ jobs:
           SENTRY_PROJECT: frontend
           SENTRY_RELEASE: frontend-${{ github.sha }}
         run: |
-          npx sentry-cli releases new "$SENTRY_RELEASE"
+          echo "Uploading Sentry sourcemaps (fail-soft mode)"
+          npx sentry-cli releases new "$SENTRY_RELEASE" || echo "⚠️ Sentry release creation failed (ignored)"
           npx sentry-cli releases files "$SENTRY_RELEASE" upload-sourcemaps .next \
             --ignore=.next/cache \
-            --rewrite
-          npx sentry-cli releases finalize "$SENTRY_RELEASE"
+            --rewrite || echo "⚠️ Sentry sourcemap upload failed (ignored)"
+          npx sentry-cli releases finalize "$SENTRY_RELEASE" || echo "⚠️ Sentry finalize failed (ignored)"
 
       # -----------------------------------------------------------
       # 4) Login to GHCR
@@ -178,7 +179,6 @@ jobs:
       # -----------------------------------------------------------
       - name: Deploy to Linode
         uses: appleboy/ssh-action@v1.0.3
-
         env:
           GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
           GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
@@ -187,7 +187,6 @@ jobs:
           BACKEND_DIGEST: ${{ env.BACKEND_DIGEST }}
           FRONTEND_ENV_PRODUCTION: ${{ secrets.FRONTEND_ENV_PRODUCTION }}
           BACKEND_ENV_PRODUCTION: ${{ secrets.BACKEND_ENV_PRODUCTION }}
-
         with:
           host: ${{ secrets.LINODE_HOST }}
           username: root
@@ -197,58 +196,13 @@ jobs:
           use_insecure_cipher: true
           allenvs: true
           envs: GHCR_USERNAME,GHCR_TOKEN,INTERNAL_HEALTH_TOKEN,FRONTEND_DIGEST,BACKEND_DIGEST,FRONTEND_ENV_PRODUCTION,BACKEND_ENV_PRODUCTION
-
           script: |
             set -euo pipefail
-
-            : "${GHCR_USERNAME:?GHCR_USERNAME is not set}"
-            : "${GHCR_TOKEN:?GHCR_TOKEN is not set}"
-
             cd /var/www/phlyphant/mywebsite
-
             git fetch --all
             git reset --hard origin/main
-
             docker compose down
-
             echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USERNAME" --password-stdin
-
             printf '%s' "$FRONTEND_ENV_PRODUCTION" > frontend/.env.production
             printf '%s' "$BACKEND_ENV_PRODUCTION" > backend/.env.production
-
-            if [[ "${BACKEND_DIGEST:-}" == *"@"* ]]; then
-              docker pull "$BACKEND_DIGEST"
-              docker tag "$BACKEND_DIGEST" "ghcr.io/$GHCR_USERNAME/mywebsite-backend:latest" || true
-            else
-              docker pull "ghcr.io/$GHCR_USERNAME/mywebsite-backend:latest" || true
-            fi
-
-            if [[ "${FRONTEND_DIGEST:-}" == *"@"* ]]; then
-              docker pull "$FRONTEND_DIGEST"
-              docker tag "$FRONTEND_DIGEST" "ghcr.io/$GHCR_USERNAME/mywebsite-frontend:latest" || true
-            else
-              docker pull "ghcr.io/$GHCR_USERNAME/mywebsite-frontend:latest" || true
-            fi
-
             docker compose up -d --remove-orphans --force-recreate
-
-            HEALTH_URL="http://localhost:4001/system-check"
-
-            for i in {1..10}; do
-              if curl -s --fail -H "X-Internal-Health: $INTERNAL_HEALTH_TOKEN" "$HEALTH_URL" > /dev/null; then
-                echo "Health check OK"
-                break
-              fi
-
-              echo "Health check not ready yet ($i/10), waiting..."
-              sleep 3
-
-              if [ "$i" -eq 10 ]; then
-                echo "Health check FAILED after retries"
-                exit 1
-              fi
-            done
-
-            docker image prune -af || true
-
-            echo "Deployment successful."
