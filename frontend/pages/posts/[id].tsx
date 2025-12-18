@@ -36,7 +36,7 @@ export default function PostDetailPage({ post }: Props) {
 
 export const getServerSideProps: GetServerSideProps<Props> =
   async (ctx) => {
-    const postId = ctx.params?.id as string;
+ const postId = ctx.params?.postId as string;
 
     await requireSessionSSR(ctx, { optional: true });
 

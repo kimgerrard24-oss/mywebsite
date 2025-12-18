@@ -21,7 +21,8 @@ export default function UserSearchPage() {
           >
             Search users
           </h1>
-
+  
+  
           <p className="mt-1 text-sm text-gray-600">
             Find people by username or display name
           </p>

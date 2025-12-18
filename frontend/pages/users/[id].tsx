@@ -1,4 +1,4 @@
-// frontend/pages/users/[id].tsx
+// frontend/pages/users/[userId].tsx
 import { GetServerSideProps } from "next";
 import ProfileLayout from "@/components/layout/ProfileLayout";
 import ProfileMeta from "@/components/seo/ProfileMeta";
@@ -25,16 +25,16 @@ export default function UserProfilePage({ profile }: Props) {
 }
 
 export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
-  const param = ctx.params?.id;
+  const userId = ctx.params?.userId;
 
-  // guard: id ต้องเป็น string เท่านั้น
-  if (typeof param !== "string") {
+  // guard: userId ต้องเป็น string เท่านั้น
+  if (typeof userId !== "string") {
     return { notFound: true };
   }
 
   try {
     const { profile } = await fetchPublicUserProfileServer(
-      param,
+      userId,
       ctx.req.headers.cookie
     );
 
