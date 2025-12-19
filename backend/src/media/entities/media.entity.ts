@@ -11,5 +11,6 @@ export class MediaEntity {
   height!: number | null;
   duration!: number | null;
   createdAt!: Date;
+  
 }
 
