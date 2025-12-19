@@ -46,25 +46,24 @@ export class PostsController {
     });
   }
 
-  @Get()
-@UseGuards(OptionalAuthGuard)
-async getFeed(
+ @Get()
+ @UseGuards(OptionalAuthGuard)
+ async getFeed(
   @Query() query: GetPostsQueryDto,
   @Req() req: Request,
-) {
-  // -----------------------------------------
+ ) {
   // SAFE: extract viewer userId (fail-soft)
-  // -----------------------------------------
   let viewerUserId: string | null = null;
 
-  const user = (req as any)?.user;
-  if (user && typeof user === 'object' && typeof user.userId === 'string') {
+  const user = req.user as
+    | { userId: string; jti: string }
+    | undefined;
+
+  if (user && typeof user.userId === 'string') {
     viewerUserId = user.userId;
   }
 
-  // -----------------------------------------
   // SAFE: normalize limit
-  // -----------------------------------------
   const limit =
     typeof query.limit === 'number' && Number.isFinite(query.limit)
       ? Math.min(query.limit, 50)
