@@ -15,7 +15,7 @@ import cookie from "cookie";
 import UserSearchPanel from "@/components/users/UserSearchPanel";
 import PostComposer from "@/components/posts/PostComposer";
 import LanguageSwitcher from "@/components/common/LanguageSwitcher";
-
+import PostActionMenu from "@/components/posts/PostActionMenu";
 import { getDictionary, type Lang } from "@/lib/i18n";
 
 type FeedProps = {
@@ -151,39 +151,50 @@ export default function FeedPage({ user, feedItems, lang }: FeedProps) {
               aria-label={t.feed.post.aria}
             >
               {/* ===== Header: โปรไฟล์ผู้เขียน (คลิกได้) ===== */}
-              <header className="flex items-center gap-3">
-                <Link
-                  href={`/users/${post.author.id}`}
-                  className="flex items-center gap-3 hover:underline"
-                >
-                  {post.author.avatarUrl ? (
-                    <img
-                      src={post.author.avatarUrl}
-                      alt={
-                        post.author.displayName ??
-                        t.feed.post.authorFallback
-                      }
-                      className="h-8 w-8 rounded-full object-cover"
-                    />
-                  ) : (
-                    <div className="h-8 w-8 rounded-full bg-gray-300" />
-                  )}
+              <header className="flex items-start justify-between gap-3">
+  <div className="flex items-center gap-3">
+    {/* ===== คลิกได้เฉพาะ รูป + ชื่อ ===== */}
+    <Link
+      href={`/users/${post.author.id}`}
+      className="flex items-center gap-3 hover:underline"
+    >
+      {post.author.avatarUrl ? (
+        <img
+          src={post.author.avatarUrl}
+          alt={
+            post.author.displayName ??
+            t.feed.post.authorFallback
+          }
+          className="h-8 w-8 rounded-full object-cover"
+        />
+      ) : (
+        <div className="h-8 w-8 rounded-full bg-gray-300" />
+      )}
 
-                  <div>
-                    <h3 className="font-semibold text-sm">
-                      {post.author.displayName ??
-                        t.feed.post.authorFallback}
-                    </h3>
+      <h3 className="font-semibold text-sm">
+        {post.author.displayName ??
+          t.feed.post.authorFallback}
+      </h3>
+    </Link>
 
-                    <time
-                      className="text-gray-500 text-xs"
-                      dateTime={post.createdAt}
-                    >
-                      {new Date(post.createdAt).toLocaleString()}
-                    </time>
-                  </div>
-                </Link>
-              </header>
+    {/* ===== เวลา: ไม่เป็นลิงก์ ===== */}
+    <time
+      className="text-gray-500 text-xs"
+      dateTime={post.createdAt}
+    >
+      {new Date(post.createdAt).toLocaleString()}
+    </time>
+  </div>
+
+  {/* ===== Post Action Menu (dropdown ⋯) ===== */}
+  <PostActionMenu
+    postId={post.id}
+    canDelete={post.canDelete}
+    canEdit={post.canDelete}
+    canReport={!post.canDelete}
+  />
+</header>
+
 
               {/* ================= CLICK TO POST DETAIL ================= */}
               <Link

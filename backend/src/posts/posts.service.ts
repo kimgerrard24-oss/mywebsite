@@ -106,6 +106,11 @@ async getPostDetail(params: {
   // --------------------------------------------------
   const dto = PostDetailDto.from(post);
 
+  // ===== แก้ตรงนี้จุดเดียว =====
+  dto.canDelete =
+    !!viewer && viewer.userId === post.author.id;
+  // ===== จบ =====
+
   // --------------------------------------------------
   // 5) Cache only PUBLIC + anonymous
   // --------------------------------------------------
@@ -119,27 +124,29 @@ async getPostDetail(params: {
   }
 
   return dto;
+ }
+
+
+ async deletePost(params: { postId: string; actorUserId: string }) {
+  const { postId, actorUserId } = params;
+
+  const post = await this.repo.findById(postId);
+  if (!post || post.isDeleted) {
+    throw new NotFoundException('Post not found');
   }
 
-
-  async deletePost(params: { postId: string; actorUserId: string }) {
-    const { postId, actorUserId } = params;
-    const post = await this.repo.findById(postId);
-   if (!post || post.isDeleted) {
-   throw new NotFoundException('Post not found');
-   }
-
-   PostDeletePolicy.assertCanDelete({
-   actorUserId,
-   ownerUserId: post.authorId,
+  PostDeletePolicy.assertCanDelete({
+    actorUserId,
+    ownerUserId: post.authorId,
   });
 
   await this.repo.softDelete(postId);
 
   await this.audit.logDeleted({
-   postId,
-   actorUserId,
+    postId,
+    actorUserId,
   });
-  }
+ }
+
 
 }
