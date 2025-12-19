@@ -4,12 +4,30 @@ import {
   CanActivate,
   ExecutionContext,
 } from '@nestjs/common';
+import type { Request } from 'express';
+import { ValidateSessionService } from '../../auth/services/validate-session.service';
 
 @Injectable()
 export class OptionalAuthGuard implements CanActivate {
-  canActivate(context: ExecutionContext): boolean {
-    const req = context.switchToHttp().getRequest();
-    // req.user จะถูก attach ถ้ามี session (โดย middleware หลักของคุณ)
+  constructor(
+    private readonly validateSession: ValidateSessionService,
+  ) {}
+
+  async canActivate(context: ExecutionContext): Promise<boolean> {
+    const req = context.switchToHttp().getRequest<Request>();
+
+    try {
+      const user =
+        await this.validateSession.validateAccessTokenFromRequest(req);
+
+      // attach user เมื่อ session valid
+      if (user) {
+        req.user = user; // { userId, jti }
+      }
+    } catch {
+
+    }
+
     return true;
   }
 }
