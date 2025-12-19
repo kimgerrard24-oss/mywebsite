@@ -2,7 +2,10 @@
 import { PostFeedItemDto } from '../dto/post-feed-item.dto';
 
 export class PostFeedMapper {
-  static toDto(row: any): PostFeedItemDto {
+  static toDto(
+    row: any,
+    viewerUserId: string | null,
+  ): PostFeedItemDto {
     const author = row.author ?? null;
 
     return {
@@ -21,7 +24,11 @@ export class PostFeedMapper {
         commentCount: row.commentCount,
       },
 
-      canDelete: false,
+      canDelete:
+        !!viewerUserId &&
+        !!author &&
+        row.isDeleted === false &&
+        viewerUserId === author.id,
     };
   }
 }

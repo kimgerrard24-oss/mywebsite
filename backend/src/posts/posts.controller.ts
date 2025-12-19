@@ -47,34 +47,35 @@ export class PostsController {
   }
 
   @Get()
-  async getFeed(
-    @Query() query: GetPostsQueryDto,
-    @Req() req: Request,
-  ) {
-    // -----------------------------------------
-    // SAFE: extract viewer userId (fail-soft)
-    // -----------------------------------------
-    let viewerUserId: string | null = null;
+@UseGuards(OptionalAuthGuard)
+async getFeed(
+  @Query() query: GetPostsQueryDto,
+  @Req() req: Request,
+) {
+  // -----------------------------------------
+  // SAFE: extract viewer userId (fail-soft)
+  // -----------------------------------------
+  let viewerUserId: string | null = null;
 
-    const user = (req as any)?.user;
-    if (user && typeof user === 'object' && typeof user.userId === 'string') {
-      viewerUserId = user.userId;
-    }
-
-    // -----------------------------------------
-    // SAFE: normalize limit
-    // -----------------------------------------
-    const limit =
-      typeof query.limit === 'number' && Number.isFinite(query.limit)
-        ? Math.min(query.limit, 50)
-        : 20;
-
-    return this.postsService.getPublicFeed({
-      viewerUserId,
-      limit,
-      cursor: query.cursor ?? undefined,
-    });
+  const user = (req as any)?.user;
+  if (user && typeof user === 'object' && typeof user.userId === 'string') {
+    viewerUserId = user.userId;
   }
+
+  // -----------------------------------------
+  // SAFE: normalize limit
+  // -----------------------------------------
+  const limit =
+    typeof query.limit === 'number' && Number.isFinite(query.limit)
+      ? Math.min(query.limit, 50)
+      : 20;
+
+  return this.postsService.getPublicFeed({
+    viewerUserId,
+    limit,
+    cursor: query.cursor ?? undefined,
+  });
+ }
 
   @Get(':id')
   @UseGuards(OptionalAuthGuard)

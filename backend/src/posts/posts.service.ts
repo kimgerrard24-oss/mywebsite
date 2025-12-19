@@ -47,7 +47,7 @@ export class PostsService {
     };
   }
 
-  async getPublicFeed(params: {
+ async getPublicFeed(params: {
   viewerUserId: string | null;
   limit: number;
   cursor?: string;
@@ -60,16 +60,9 @@ export class PostsService {
     viewerUserId,
   });
 
-  const items = rows.map((post) => {
-    const dto = PostFeedMapper.toDto(post);
-
-    return {
-      ...dto,
-      canDelete:
-        !!viewerUserId &&
-        viewerUserId === post.author.id,
-    };
-  });
+  const items = rows.map((post) =>
+    PostFeedMapper.toDto(post, viewerUserId),
+  );
 
   const nextCursor =
     items.length === limit

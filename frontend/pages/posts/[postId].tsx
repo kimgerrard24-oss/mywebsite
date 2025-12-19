@@ -2,9 +2,9 @@
 
 import Head from "next/head";
 import type { GetServerSideProps } from "next";
-import { useRouter } from "next/router"; 
+import { useRouter } from "next/router";
 import PostDetail from "@/components/posts/PostDetail";
-import DeletePostButton from "@/components/posts/DeletePostButton"; 
+import DeletePostButton from "@/components/posts/DeletePostButton";
 import { getPostById } from "@/lib/api/posts";
 import { requireSessionSSR } from "@/lib/auth/require-session-ssr";
 import type { PostDetail as PostDetailType } from "@/types/post-detail";
@@ -14,7 +14,8 @@ type Props = {
 };
 
 export default function PostDetailPage({ post }: Props) {
-  const router = useRouter(); 
+  const router = useRouter();
+
   return (
     <>
       <Head>
@@ -33,16 +34,18 @@ export default function PostDetailPage({ post }: Props) {
         <article>
           <PostDetail post={post} />
 
-          {/* ✅ เพิ่มเฉพาะส่วนนี้ (ไม่กระทบของเดิม) */}
-          <footer className="mt-4">
-            <DeletePostButton
-              postId={post.id}
-              onDeleted={() => {
-                // SEO-safe redirect (no flicker, no client auth logic)
-                router.replace("/");
-              }}
-            />
-          </footer>
+          {/* ===== แก้เฉพาะจุดนี้ ===== */}
+          {post.canDelete && (
+            <footer className="mt-4">
+              <DeletePostButton
+                postId={post.id}
+                onDeleted={() => {
+                  router.replace("/");
+                }}
+              />
+            </footer>
+          )}
+          {/* ===== จบการแก้ไข ===== */}
         </article>
       </main>
     </>
