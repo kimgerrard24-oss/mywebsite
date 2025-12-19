@@ -150,57 +150,54 @@ export default function FeedPage({ user, feedItems, lang }: FeedProps) {
               className="bg-white shadow-sm border rounded-2xl p-4 sm:p-5 flex flex-col gap-4"
               aria-label={t.feed.post.aria}
             >
-              {/* ===== Header: โปรไฟล์ผู้เขียน (คลิกได้) ===== */}
+              {/* ===== Header: โปรไฟล์ผู้เขียน ===== */}
               <header className="flex items-start justify-between gap-3">
-  <div className="flex items-center gap-3">
-    {/* ===== คลิกได้เฉพาะ รูป + ชื่อ ===== */}
-    <Link
-      href={`/users/${post.author.id}`}
-      className="flex items-center gap-3 hover:underline"
-    >
-      {post.author.avatarUrl ? (
-        <img
-          src={post.author.avatarUrl}
-          alt={
-            post.author.displayName ??
-            t.feed.post.authorFallback
-          }
-          className="h-8 w-8 rounded-full object-cover"
-        />
-      ) : (
-        <div className="h-8 w-8 rounded-full bg-gray-300" />
-      )}
+                <div className="flex items-start gap-3">
+                  {/* Avatar */}
+                  <Link href={`/users/${post.author.id}`}>
+                    {post.author.avatarUrl ? (
+                      <img
+                        src={post.author.avatarUrl}
+                        alt={
+                          post.author.displayName ??
+                          t.feed.post.authorFallback
+                        }
+                        className="h-8 w-8 rounded-full object-cover"
+                      />
+                    ) : (
+                      <div className="h-8 w-8 rounded-full bg-gray-300" />
+                    )}
+                  </Link>
 
-      <h3 className="font-semibold text-sm">
-        {post.author.displayName ??
-          t.feed.post.authorFallback}
-      </h3>
-    </Link>
+                  {/* Name + Time */}
+                  <div className="flex flex-col leading-tight">
+                    <Link
+                      href={`/users/${post.author.id}`}
+                      className="font-semibold text-sm hover:underline"
+                    >
+                      {post.author.displayName ??
+                        t.feed.post.authorFallback}
+                    </Link>
 
-    {/* ===== เวลา: ไม่เป็นลิงก์ ===== */}
-    <time
-      className="text-gray-500 text-xs"
-      dateTime={post.createdAt}
-    >
-      {new Date(post.createdAt).toLocaleString()}
-    </time>
-  </div>
+                    <time
+                      className="text-gray-500 text-xs mt-0.5"
+                      dateTime={post.createdAt}
+                    >
+                      {new Date(post.createdAt).toLocaleString()}
+                    </time>
+                  </div>
+                </div>
 
-  {/* ===== Post Action Menu (dropdown ⋯) ===== */}
-  <PostActionMenu
-    postId={post.id}
-    canDelete={post.canDelete}
-    canEdit={post.canDelete}
-    canReport={!post.canDelete}
-  />
-</header>
-
+                <PostActionMenu
+                  postId={post.id}
+                  canDelete={post.canDelete}
+                  canEdit={post.canDelete}
+                  canReport={!post.canDelete}
+                />
+              </header>
 
               {/* ================= CLICK TO POST DETAIL ================= */}
-              <Link
-                href={`/posts/${post.id}`}
-                className="block"
-              >
+              <Link href={`/posts/${post.id}`} className="block">
                 <p className="text-gray-800 leading-relaxed whitespace-pre-wrap hover:underline cursor-pointer">
                   {post.content}
                 </p>
@@ -226,8 +223,6 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
   const cookieHeader = ctx.req.headers.cookie ?? "";
   const cookies = cookie.parse(cookieHeader);
   const lang = (cookies.lang as Lang) ?? "th";
-
-  /* ===== auth / feed logic เดิม ไม่เปลี่ยน ===== */
 
   const baseUrl =
     process.env.NEXT_PUBLIC_BACKEND_URL ||
@@ -283,9 +278,7 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
         user = json;
       }
     }
-  } catch {
-    // fail-soft
-  }
+  } catch {}
 
   return {
     props: {

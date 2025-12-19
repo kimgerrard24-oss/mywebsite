@@ -42,14 +42,27 @@ export default function PostActionMenu({
     <div ref={ref} className="relative">
       {/* Trigger */}
       <button
-        type="button"
-        aria-haspopup="menu"
-        aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
-        className="rounded-full p-1 text-gray-500 hover:bg-gray-100"
-      >
-        ⋯
-      </button>
+  type="button"
+  aria-haspopup="menu"
+  aria-expanded={open}
+  onClick={() => setOpen((v) => !v)}
+  className="
+    inline-flex items-center justify-center
+    h-9 w-9
+    rounded-full
+    text-gray-700
+    hover:bg-gray-100
+    hover:text-gray-900
+    focus:outline-none
+    focus-visible:ring-2
+    focus-visible:ring-blue-500
+    transition
+  "
+  title="Post actions"
+>
+  <span className="text-lg leading-none">⋯</span>
+</button>
+
 
       {/* Dropdown */}
       {open && (

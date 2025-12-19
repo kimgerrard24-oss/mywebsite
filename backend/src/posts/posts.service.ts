@@ -78,42 +78,32 @@ async getPostDetail(params: {
 }): Promise<PostDetailDto | null> {
   const { postId, viewer } = params;
 
-  // --------------------------------------------------
   // 1) Public cache (viewer === null เท่านั้น)
-  // --------------------------------------------------
   if (!viewer) {
     const cached = await this.cache.get(postId);
     if (cached) return cached;
   }
 
-  // --------------------------------------------------
   // 2) Load post
-  // --------------------------------------------------
   const post = await this.repo.findPostById(postId);
   if (!post) return null;
 
-  // --------------------------------------------------
   // 3) Visibility / permission check
-  // --------------------------------------------------
   const canView = await this.visibility.canViewPost({
     post,
     viewer,
   });
   if (!canView) return null;
 
-  // --------------------------------------------------
   // 4) Map to DTO
-  // --------------------------------------------------
   const dto = PostDetailDto.from(post);
 
-  // ===== แก้ตรงนี้จุดเดียว =====
   dto.canDelete =
-    !!viewer && viewer.userId === post.author.id;
-  // ===== จบ =====
+    !!viewer &&
+    post.isDeleted === false &&
+    viewer.userId === post.author.id;
 
-  // --------------------------------------------------
   // 5) Cache only PUBLIC + anonymous
-  // --------------------------------------------------
   const isPublicPost =
     post.visibility === 'PUBLIC' &&
     post.isDeleted === false &&
@@ -124,8 +114,7 @@ async getPostDetail(params: {
   }
 
   return dto;
- }
-
+}
 
  async deletePost(params: { postId: string; actorUserId: string }) {
   const { postId, actorUserId } = params;
