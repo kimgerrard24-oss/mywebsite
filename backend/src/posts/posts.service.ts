@@ -1,5 +1,5 @@
 // backend/src/posts/posts.service.ts
-import { Injectable } from '@nestjs/common';
+import { Injectable,NotFoundException } from '@nestjs/common';
 import { PostsRepository } from './posts.repository';
 import { PostCreatePolicy } from './policy/post-create.policy';
 import { PostAudit } from './audit/post.audit';
@@ -8,6 +8,7 @@ import { PostFeedMapper } from './mappers/post-feed.mapper';
 import { PostVisibilityService } from './services/post-visibility.service';
 import { PostCacheService } from './cache/post-cache.service';
 import { PostDetailDto } from './dto/post-detail.dto';
+import { PostDeletePolicy } from './policy/post-delete.policy';
 
 @Injectable()
 export class PostsService {
@@ -118,6 +119,27 @@ async getPostDetail(params: {
   }
 
   return dto;
-}
+  }
+
+
+  async deletePost(params: { postId: string; actorUserId: string }) {
+    const { postId, actorUserId } = params;
+    const post = await this.repo.findById(postId);
+   if (!post || post.isDeleted) {
+   throw new NotFoundException('Post not found');
+   }
+
+   PostDeletePolicy.assertCanDelete({
+   actorUserId,
+   ownerUserId: post.authorId,
+  });
+
+  await this.repo.softDelete(postId);
+
+  await this.audit.logDeleted({
+   postId,
+   actorUserId,
+  });
+  }
 
 }

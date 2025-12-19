@@ -13,4 +13,13 @@ export class PostAudit {
       `post_created postId=${params.postId} authorId=${params.authorId}`,
     );
   }
+
+  async logDeleted(params: {
+   postId: string;
+   actorUserId: string;
+   }) {
+    this.logger.log(
+ `POST_DELETED postId=${params.postId} actor=${params.actorUserId}`,
+   );
+  }
 }

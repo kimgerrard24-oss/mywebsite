@@ -5,6 +5,7 @@ import {
   HttpCode,
   Post,
   Req,
+  Delete,
   Param,
   Get,
   Query,
@@ -18,6 +19,7 @@ import { AccessTokenCookieAuthGuard } from '../auth/guards/access-token-cookie.g
 import { GetPostsQueryDto } from './dto/get-posts.query.dto';
 import { ParsePostIdPipe } from './pipes/parse-post-id.pipe';
 import { OptionalAuthGuard } from './guards/optional-auth.guard';
+import { DeletePostParamsDto } from './dto/delete-post.params.dto';
 
 @Controller('posts')
 export class PostsController {
@@ -97,4 +99,25 @@ export class PostsController {
 
     return post;
   }
+
+
+
+  @Delete(':id')
+  @HttpCode(204)
+  @UseGuards(AccessTokenCookieAuthGuard)
+
+    async deletePost(
+
+    @Param() params: DeletePostParamsDto,
+
+      // req.user ถูก attach จาก ValidateSessionService
+    @Req() req: any,
+     ): Promise<void> {
+
+      await this.postsService.deletePost({
+       postId: params.id,
+       actorUserId: req.user.userId,
+     });
+  }
+
 }

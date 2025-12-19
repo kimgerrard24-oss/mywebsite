@@ -1,7 +1,10 @@
 // frontend/pages/posts/[postId].tsx
+
 import Head from "next/head";
 import type { GetServerSideProps } from "next";
+import { useRouter } from "next/router"; 
 import PostDetail from "@/components/posts/PostDetail";
+import DeletePostButton from "@/components/posts/DeletePostButton"; 
 import { getPostById } from "@/lib/api/posts";
 import { requireSessionSSR } from "@/lib/auth/require-session-ssr";
 import type { PostDetail as PostDetailType } from "@/types/post-detail";
@@ -11,6 +14,7 @@ type Props = {
 };
 
 export default function PostDetailPage({ post }: Props) {
+  const router = useRouter(); 
   return (
     <>
       <Head>
@@ -28,6 +32,17 @@ export default function PostDetailPage({ post }: Props) {
       <main className="mx-auto max-w-2xl px-4 py-6">
         <article>
           <PostDetail post={post} />
+
+          {/* ✅ เพิ่มเฉพาะส่วนนี้ (ไม่กระทบของเดิม) */}
+          <footer className="mt-4">
+            <DeletePostButton
+              postId={post.id}
+              onDeleted={() => {
+                // SEO-safe redirect (no flicker, no client auth logic)
+                router.replace("/");
+              }}
+            />
+          </footer>
         </article>
       </main>
     </>
@@ -37,7 +52,6 @@ export default function PostDetailPage({ post }: Props) {
 export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
   const postId = ctx.params?.postId;
 
-  // guard: postId ต้องเป็น string เท่านั้น
   if (typeof postId !== "string") {
     return { notFound: true };
   }

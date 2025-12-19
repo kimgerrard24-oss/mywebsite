@@ -87,4 +87,31 @@ export class PostsRepository {
       },
     });
   }
+
+  async findById(postId: string): Promise<{
+  id: string;
+  authorId: string;
+  isDeleted: boolean;
+ } | null> {
+  return this.prisma.post.findUnique({
+    where: { id: postId },
+    select: {
+      id: true,
+      authorId: true,
+      isDeleted: true,
+    },
+  });
+ }
+
+  
+  async softDelete(postId: string) {
+    await this.prisma.post.update({
+     where: { id: postId },
+     data: {
+     isDeleted: true,
+     deletedAt: new Date(),
+     },
+   });
+  }
+
 }

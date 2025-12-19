@@ -1,13 +1,10 @@
 // ==============================
 // frontend/lib/api.ts
-// Unified API Client (FINAL FIXED)
 // ==============================
 
 import axios from "axios";
 
-// ==============================
 // BASE URL
-// ==============================
 const rawBase =
   process.env.NEXT_PUBLIC_BACKEND_URL ??
   process.env.NEXT_PUBLIC_API_BASE ??
@@ -15,17 +12,13 @@ const rawBase =
 
 export const API_BASE = rawBase.replace(/\/+$/, "");
 
-// ==============================
 // Normalize path
-// ==============================
 function apiPath(path: string): string {
   if (!path.startsWith("/")) return `${API_BASE}/${path}`;
   return `${API_BASE}${path}`;
 }
 
-// ==============================
 // Generic JSON Fetch (SSR/CSR Safe)
-// ==============================
 async function jsonFetch<T>(
   input: string,
   init: RequestInit = {},
@@ -68,9 +61,14 @@ async function jsonFetch<T>(
   return (await res.json()) as T;
 }
 
-// ==============================
+// deletePost
+export async function deletePost(postId: string): Promise<void> {
+  await axios.delete(apiPath(`/posts/${postId}`), {
+      withCredentials: true, 
+  });
+ }
+
 // AXIOS INSTANCE (CSR Only)
-// ==============================
 export const api = axios.create({
   baseURL: API_BASE,
   withCredentials: true,
@@ -97,9 +95,7 @@ api.interceptors.request.use((cfg) => {
   return cfg;
 });
 
-// ==============================
 // Public API Wrapper
-// ==============================
 export async function apiGet<T = any>(
   path: string,
   config: any = {}
@@ -134,9 +130,7 @@ export async function apiDelete<T = any>(
   return res.data;
 }
 
-// ==============================
 // Client Fetch Wrapper (CSR)
-// ==============================
 export const client = {
   get: <T = any>(path: string) =>
     jsonFetch<T>(apiPath(path), {
@@ -154,9 +148,7 @@ export const client = {
     }),
 };
 
-// ==============================
 // AUTH / SESSION
-// ==============================
 export async function createSessionCookie(idToken: string) {
   return client.post("/auth/complete", { idToken });
 }
@@ -165,9 +157,7 @@ export async function logout() {
   return client.post("/auth/logout");
 }
 
-// ==============================
 // SESSION CHECK (SSR) - FIXED
-// ==============================
 export async function sessionCheckServerSide(cookieHeader?: string) {
   const headers: Record<string, string> = {
     Accept: "application/json",
@@ -199,9 +189,7 @@ export async function sessionCheckServerSide(cookieHeader?: string) {
   }
 }
 
-// ==============================
 // SESSION CHECK (Client)
-// ==============================
 export async function sessionCheckClient() {
   const data = await jsonFetch<Record<string, any>>(
     apiPath("/auth/session-check"),
@@ -216,16 +204,12 @@ export async function sessionCheckClient() {
   return { valid: data.valid === true, ...data };
 }
 
-// ==============================
 // VERIFY EMAIL
-// ==============================
 export async function verifyEmail(token: string, uid: string) {
   return client.get(`/auth/verify-email?token=${token}&uid=${uid}`);
 }
 
-// ==============================
 // REFRESH TOKEN
-// ==============================
 export async function refreshAccessToken(): Promise<boolean> {
   try {
     await api.post("/auth/local/refresh", {});
@@ -233,4 +217,6 @@ export async function refreshAccessToken(): Promise<boolean> {
   } catch {
     return false;
   }
+  
+  
 }
