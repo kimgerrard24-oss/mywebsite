@@ -19,9 +19,7 @@ export default function PostActionMenu({
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
 
-  // ----------------------------------
   // Close dropdown when click outside
-  // ----------------------------------
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
       if (ref.current && !ref.current.contains(e.target as Node)) {
