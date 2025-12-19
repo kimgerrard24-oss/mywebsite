@@ -122,4 +122,26 @@ export class PostsRepository {
    });
   }
 
+  async updateContent(params: {
+  postId: string;
+  content: string;
+ }) {
+  const { postId, content } = params;
+
+  return this.prisma.post.update({
+    where: { id: postId },
+    data: {
+      content,
+      isEdited: true,
+      editedAt: new Date(),
+    },
+    select: {
+      id: true,
+      content: true,
+      editedAt: true,
+    },
+  });
+ }
+
+
 }

@@ -22,4 +22,14 @@ export class PostAudit {
  `POST_DELETED postId=${params.postId} actor=${params.actorUserId}`,
    );
   }
+
+  async logUpdated(params: {
+  postId: string;
+  actorUserId: string;
+ }) {
+  // production: persist or publish
+  this.logger.log(
+    `Post updated: postId=${params.postId} actor=${params.actorUserId}`,
+  );
+ }
 }

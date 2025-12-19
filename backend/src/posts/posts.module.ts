@@ -9,6 +9,8 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { AuthModule } from '../auth/auth.module';
 import { PostVisibilityService } from './services/post-visibility.service';
 import { PostCacheService } from './cache/post-cache.service';
+import { PostDeletePolicy } from './policy/post-delete.policy';
+import { PostUpdatePolicy } from './policy/post-update.policy';
 
 @Module({
   imports: [PrismaModule, AuthModule],
@@ -16,6 +18,8 @@ import { PostCacheService } from './cache/post-cache.service';
   providers: [
     PostsService,
     PostsRepository,
+    PostDeletePolicy,
+    PostUpdatePolicy,
     PostAudit,
     PostCreatedEvent,
     PostVisibilityService,

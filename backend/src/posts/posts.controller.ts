@@ -5,6 +5,7 @@ import {
   HttpCode,
   Post,
   Req,
+  Put,
   Delete,
   Param,
   Get,
@@ -20,6 +21,7 @@ import { GetPostsQueryDto } from './dto/get-posts.query.dto';
 import { ParsePostIdPipe } from './pipes/parse-post-id.pipe';
 import { OptionalAuthGuard } from './guards/optional-auth.guard';
 import { DeletePostParamsDto } from './dto/delete-post.params.dto';
+import { UpdatePostDto } from './dto/update-post.dto';
 
 @Controller('posts')
 export class PostsController {
@@ -119,5 +121,22 @@ export class PostsController {
        actorUserId: req.user.userId,
      });
   }
+
+   @Put(':id')
+ @HttpCode(200)
+ @UseGuards(AccessTokenCookieAuthGuard)
+ async updatePost(
+  @Param('id', ParsePostIdPipe) postId: string,
+  @Body() dto: UpdatePostDto,
+  @Req() req: Request,
+ ) {
+  const actor = req.user as { userId: string; jti: string };
+
+  return this.postsService.updatePost({
+    postId,
+    actorUserId: actor.userId,
+    content: dto.content,
+  });
+ }
 
 }

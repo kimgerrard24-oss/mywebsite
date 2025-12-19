@@ -1,5 +1,5 @@
 // backend/src/posts/posts.service.ts
-import { Injectable,NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PostsRepository } from './posts.repository';
 import { PostCreatePolicy } from './policy/post-create.policy';
 import { PostAudit } from './audit/post.audit';
@@ -9,6 +9,7 @@ import { PostVisibilityService } from './services/post-visibility.service';
 import { PostCacheService } from './cache/post-cache.service';
 import { PostDetailDto } from './dto/post-detail.dto';
 import { PostDeletePolicy } from './policy/post-delete.policy';
+import { PostUpdatePolicy } from './policy/post-update.policy';
 
 @Injectable()
 export class PostsService {
@@ -47,95 +48,139 @@ export class PostsService {
   }
 
   async getPublicFeed(params: {
-    viewerUserId: string | null;
-    limit: number;
-    cursor?: string;
-  }) {
-    const { viewerUserId, limit, cursor } = params;
+  viewerUserId: string | null;
+  limit: number;
+  cursor?: string;
+ }) {
+  const { viewerUserId, limit, cursor } = params;
 
-    const rows = await this.repo.findPublicFeed({
-      limit,
-      cursor,
-      viewerUserId,
-    });
+  const rows = await this.repo.findPublicFeed({
+    limit,
+    cursor,
+    viewerUserId,
+  });
 
-    const items = rows.map(PostFeedMapper.toDto);
-
-    const nextCursor =
-      items.length === limit
-        ? items[items.length - 1].id
-        : null;
+  const items = rows.map((post) => {
+    const dto = PostFeedMapper.toDto(post);
 
     return {
-      items,
-      nextCursor,
+      ...dto,
+      canDelete:
+        !!viewerUserId &&
+        viewerUserId === post.author.id,
     };
-  }
-
-async getPostDetail(params: {
-  postId: string;
-  viewer: { userId: string; jti: string } | null;
-}): Promise<PostDetailDto | null> {
-  const { postId, viewer } = params;
-
-  // 1) Public cache (viewer === null เท่านั้น)
-  if (!viewer) {
-    const cached = await this.cache.get(postId);
-    if (cached) return cached;
-  }
-
-  // 2) Load post
-  const post = await this.repo.findPostById(postId);
-  if (!post) return null;
-
-  // 3) Visibility / permission check
-  const canView = await this.visibility.canViewPost({
-    post,
-    viewer,
   });
-  if (!canView) return null;
 
-  // 4) Map to DTO
-  const dto = PostDetailDto.from(post);
+  const nextCursor =
+    items.length === limit
+      ? items[items.length - 1].id
+      : null;
 
-  dto.canDelete =
-    !!viewer &&
-    post.isDeleted === false &&
-    viewer.userId === post.author.id;
+  return {
+    items,
+    nextCursor,
+  };
+ }
 
-  // 5) Cache only PUBLIC + anonymous
-  const isPublicPost =
-    post.visibility === 'PUBLIC' &&
-    post.isDeleted === false &&
-    post.isHidden === false;
+  async getPostDetail(params: {
+    postId: string;
+    viewer: { userId: string; jti: string } | null;
+  }): Promise<PostDetailDto | null> {
+    const { postId, viewer } = params;
 
-  if (isPublicPost && !viewer) {
-    await this.cache.set(postId, dto);
+    // 1) Public cache
+    if (!viewer) {
+      const cached = await this.cache.get(postId);
+      if (cached) return cached;
+    }
+
+    // 2) Load post
+    const post = await this.repo.findPostById(postId);
+    if (!post) return null;
+
+    // 3) Visibility
+    const canView = await this.visibility.canViewPost({
+      post,
+      viewer,
+    });
+    if (!canView) return null;
+
+    // 4) Map DTO
+    const dto = PostDetailDto.from(post);
+
+    dto.canDelete =
+      !!viewer &&
+      post.isDeleted === false &&
+      viewer.userId === post.author.id;
+
+    // 5) Cache
+    const isPublicPost =
+      post.visibility === 'PUBLIC' &&
+      post.isDeleted === false &&
+      post.isHidden === false;
+
+    if (isPublicPost && !viewer) {
+      await this.cache.set(postId, dto);
+    }
+
+    return dto;
   }
 
-  return dto;
-}
+  async deletePost(params: { postId: string; actorUserId: string }) {
+    const { postId, actorUserId } = params;
 
- async deletePost(params: { postId: string; actorUserId: string }) {
-  const { postId, actorUserId } = params;
+    const post = await this.repo.findById(postId);
+    if (!post || post.isDeleted) {
+      throw new NotFoundException('Post not found');
+    }
+
+    PostDeletePolicy.assertCanDelete({
+      actorUserId,
+      ownerUserId: post.authorId,
+    });
+
+    await this.repo.softDelete(postId);
+
+    await this.audit.logDeleted({
+      postId,
+      actorUserId,
+    });
+  }
+
+  async updatePost(params: {
+  postId: string;
+  actorUserId: string;
+  content: string;
+ }) {
+  const { postId, actorUserId, content } = params;
 
   const post = await this.repo.findById(postId);
   if (!post || post.isDeleted) {
     throw new NotFoundException('Post not found');
   }
 
-  PostDeletePolicy.assertCanDelete({
+  PostUpdatePolicy.assertCanUpdate({
     actorUserId,
     ownerUserId: post.authorId,
   });
 
-  await this.repo.softDelete(postId);
+  const updated = await this.repo.updateContent({
+    postId,
+    content,
+  });
 
-  await this.audit.logDeleted({
+  await this.audit.logUpdated({
     postId,
     actorUserId,
   });
- }
 
+  await this.cache.invalidate(postId);
+
+  return {
+    id: updated.id,
+    content: updated.content,
+    editedAt: updated.editedAt,
+  };
+ }
 
 }

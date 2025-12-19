@@ -14,4 +14,7 @@ export class PostFeedItemDto {
     likeCount: number;
     commentCount: number;
   };
+  
+  canDelete!: boolean;
+
 }

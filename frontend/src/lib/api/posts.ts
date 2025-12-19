@@ -9,9 +9,9 @@ const API_BASE =
   process.env.INTERNAL_BACKEND_URL ??
   process.env.NEXT_PUBLIC_API_BASE_URL!;
 
-export async function createPost(
+ export async function createPost(
   payload: CreatePostPayload,
-) {
+ ) {
   const res = await api.post('/posts', payload, {
     withCredentials: true,
   });
@@ -20,13 +20,13 @@ export async function createPost(
     id: string;
     createdAt: string;
   };
-}
+ }
 
-export async function getPublicFeed(params: {
+ export async function getPublicFeed(params: {
   cookie: string;
   cursor?: string;
   limit?: number;
-}): Promise<PostFeedResponse> {
+ }): Promise<PostFeedResponse> {
   try {
     const base =
       process.env.INTERNAL_BACKEND_URL ??
@@ -57,12 +57,12 @@ export async function getPublicFeed(params: {
       nextCursor: null,
     };
   }
-}
+ }
 
-export async function getPostById(
+ export async function getPostById(
   postId: string,
   ctx?: GetServerSidePropsContext,
-): Promise<PostDetail | null> {
+ ): Promise<PostDetail | null> {
   try {
     const res = await api.get<PostDetail>(
       `/posts/${postId}`,
@@ -82,6 +82,26 @@ export async function getPostById(
   } catch {
     return null;
   }
+  
+ }
 
+
+ export async function updatePost(params: {
+  postId: string;
+  content: string;
+ }) {
+  const { postId, content } = params;
+
+  const res = await api.put(
+    `/posts/${postId}`,
+    { content },
+    { withCredentials: true },
+  );
+
+  return res.data as {
+    id: string;
+    content: string;
+    editedAt: string;
+  };
   
 }

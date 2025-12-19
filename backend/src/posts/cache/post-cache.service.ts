@@ -24,4 +24,8 @@ export class PostCacheService {
       60,
     );
   }
+
+  async invalidate(postId: string) {
+  await this.redis.del(`post:${postId}`);
+ }
 }

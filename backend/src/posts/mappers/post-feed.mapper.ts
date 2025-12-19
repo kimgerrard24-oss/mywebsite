@@ -20,6 +20,8 @@ export class PostFeedMapper {
         likeCount: row.likeCount,
         commentCount: row.commentCount,
       },
+
+      canDelete: false,
     };
   }
 }

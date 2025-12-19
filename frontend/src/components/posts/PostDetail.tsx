@@ -71,7 +71,7 @@ export default function PostDetail({ post }: Props) {
       )}
 
       {/* ===== ของเดิม (ยังอยู่ครบ ไม่ถูกแตะ) ===== */}
-      {post.canDelete && (
+      {post.canDelete === true && (
         <footer className="mt-4">
           <DeletePostButton postId={post.id} />
         </footer>
