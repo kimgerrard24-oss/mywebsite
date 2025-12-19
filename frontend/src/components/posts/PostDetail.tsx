@@ -1,5 +1,6 @@
 // frontend/src/components/posts/PostDetail.tsx
 import Link from "next/link";
+import { useRouter } from "next/router";
 import type { PostDetail as PostDetailType } from "@/types/post-detail";
 import PostActionMenu from "@/components/posts/PostActionMenu";
 
@@ -8,6 +9,8 @@ type Props = {
 };
 
 export default function PostDetail({ post }: Props) {
+  const router = useRouter();
+
   return (
     <>
       <header className="mb-4 flex items-center justify-between">
@@ -40,6 +43,9 @@ export default function PostDetail({ post }: Props) {
             canDelete={post.canDelete}
             canEdit={post.canDelete}
             canReport={!post.canDelete}
+            onDeleted={() => {
+              router.replace("/feed");
+            }}
           />
         </div>
       </header>

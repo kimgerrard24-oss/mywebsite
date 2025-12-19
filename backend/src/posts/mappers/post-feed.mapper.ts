@@ -27,7 +27,6 @@ export class PostFeedMapper {
       canDelete:
         !!viewerUserId &&
         !!author &&
-        row.isDeleted === false &&
         viewerUserId === author.id,
     };
   }

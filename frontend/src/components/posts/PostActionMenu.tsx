@@ -8,6 +8,9 @@ type Props = {
   canEdit?: boolean;
   canDelete?: boolean;
   canReport?: boolean;
+
+  // ✅ รองรับเฉพาะหน้า Post Detail (optional)
+  onDeleted?: () => void;
 };
 
 export default function PostActionMenu({
@@ -15,6 +18,7 @@ export default function PostActionMenu({
   canEdit = false,
   canDelete = false,
   canReport = false,
+  onDeleted,
 }: Props) {
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement | null>(null);
@@ -88,7 +92,10 @@ export default function PostActionMenu({
                   postId={postId}
                   canDelete={canDelete}
                   variant="menu"
-                  onDone={() => setOpen(false)}
+                  onDone={() => {
+                    setOpen(false);
+                    onDeleted?.();
+                  }}
                 />
               </li>
             )}
