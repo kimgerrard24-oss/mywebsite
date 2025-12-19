@@ -1,9 +1,10 @@
 // frontend/pages/posts/edit.tsx
 
 import Head from 'next/head';
-import type { GetServerSideProps } from 'next';
 import EditPostForm from '@/components/posts/EditPostForm';
-import cookie from 'cookie';
+
+
+export { getServerSideProps } from '@/lib/gssp/edit-post';
 
 type Props = {
   postId: string;
@@ -32,5 +33,4 @@ export default function EditPostPage({
       </main>
     </>
   );
-  
 }
