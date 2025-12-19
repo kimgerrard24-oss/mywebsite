@@ -1,0 +1,42 @@
+// frontend/src/hooks/useCreatePost.ts
+"use client";
+
+import { useCallback, useState } from "react";
+import { createPost } from "@/lib/api/posts";
+
+export function useCreatePost() {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const submit = useCallback(
+    async (params: {
+      content: string;
+      mediaIds?: string[];
+    }) => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const res = await createPost({
+          content: params.content,
+          mediaIds: params.mediaIds,
+        });
+
+        return res;
+      } catch (err) {
+        console.error("Create post failed:", err);
+        setError("ไม่สามารถโพสต์ได้ กรุณาลองใหม่");
+        throw err;
+      } finally {
+        setLoading(false);
+      }
+    },
+    [],
+  );
+
+  return {
+    submit,
+    loading,
+    error,
+  };
+}

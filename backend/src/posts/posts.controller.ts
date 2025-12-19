@@ -34,17 +34,19 @@ export class PostsController {
     @Body() dto: CreatePostDto,
     @Req() req: Request,
   ) {
-    /**
-     * req.user ถูก attach โดย ValidateSessionService
-     * { userId, jti }
-     */
+   
     const actor = req.user as { userId: string; jti: string };
 
-    return this.postsService.createPost({
+    const post = await this.postsService.createPost({
       authorId: actor.userId,
-      content: dto.content,
+      dto, 
     });
-  }
+
+    return {
+      id: post.id,
+      createdAt: post.createdAt,
+    };
+   }
 
  @Get()
  @UseGuards(OptionalAuthGuard)
@@ -107,7 +109,7 @@ export class PostsController {
   @Delete(':id')
  @HttpCode(204)
  @UseGuards(AccessTokenCookieAuthGuard)
- 
+
  async deletePost(
   @Param('id', ParsePostIdPipe) postId: string,
   @Req() req: any,

@@ -11,16 +11,25 @@ const API_BASE =
 
  export async function createPost(
   payload: CreatePostPayload,
- ) {
-  const res = await api.post('/posts', payload, {
-    withCredentials: true,
-  });
+ ): Promise<CreatePostResponse> {
+  const res = await api.post<CreatePostResponse>(
+    "/posts",
+    payload,
+    {
+      withCredentials: true, // cookie-based auth (production)
+    },
+  );
 
   return res.data as {
     id: string;
     createdAt: string;
   };
  }
+
+ export type CreatePostResponse = {
+  id: string;
+  createdAt: string;
+ };
 
  export async function getPublicFeed(params: {
   cookie: string;

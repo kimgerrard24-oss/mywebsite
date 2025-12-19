@@ -61,6 +61,12 @@ export default function FeedPage({ user, feedItems, lang }: FeedProps) {
     }
   }, [refreshing]);
 
+  // ===== FIX: handle delete post in feed (no reload) =====
+  const handlePostDeleted = useCallback((postId: string) => {
+    setItems((prev) => prev.filter((p) => p.id !== postId));
+  }, []);
+  // ===== END FIX =====
+
   return (
     <>
       {/* ================= SEO ================= */}
@@ -193,6 +199,9 @@ export default function FeedPage({ user, feedItems, lang }: FeedProps) {
                   canDelete={post.canDelete}
                   canEdit={post.canDelete}
                   canReport={!post.canDelete}
+                  onDeleted={() => {
+                    handlePostDeleted(post.id);
+                  }}
                 />
               </header>
 

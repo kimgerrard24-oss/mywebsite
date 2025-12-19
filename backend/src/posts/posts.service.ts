@@ -1,5 +1,5 @@
 // backend/src/posts/posts.service.ts
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException,BadRequestException } from '@nestjs/common';
 import { PostsRepository } from './posts.repository';
 import { PostCreatePolicy } from './policy/post-create.policy';
 import { PostAudit } from './audit/post.audit';
@@ -10,6 +10,9 @@ import { PostCacheService } from './cache/post-cache.service';
 import { PostDetailDto } from './dto/post-detail.dto';
 import { PostDeletePolicy } from './policy/post-delete.policy';
 import { PostUpdatePolicy } from './policy/post-update.policy';
+import { PostMediaPolicy } from './policy/post-media.policy';
+import { PrismaService } from '../prisma/prisma.service';
+import { CreatePostDto } from './dto/create-post.dto';
 
 @Injectable()
 export class PostsService {
@@ -19,33 +22,114 @@ export class PostsService {
     private readonly event: PostCreatedEvent,
     private readonly visibility: PostVisibilityService,
     private readonly cache: PostCacheService,
+    private readonly prisma: PrismaService,
   ) {}
 
-  async createPost(params: {
-    authorId: string;
-    content: string;
-  }) {
-    const { authorId, content } = params;
+ async createPost(params: {
+  authorId: string;
+  dto?: CreatePostDto; // รองรับแบบใหม่
+  content?: string;    // รองรับแบบเดิม
+}) {
+  const { authorId } = params;
 
-    PostCreatePolicy.assertCanCreatePost();
+  /**
+   * ==============================
+   * Normalize input (BACKWARD SAFE)
+   * ==============================
+   */
+  const content =
+    params.dto?.content ??
+    params.content ??
+    '';
 
-    const post = await this.repo.create({
-      authorId,
-      content,
+  const mediaIds =
+    params.dto?.mediaIds ?? [];
+
+  // 0️⃣ permission (เดิม)
+  PostCreatePolicy.assertCanCreatePost();
+
+  // 1️⃣ business validation
+  PostCreatePolicy.assertValid({
+    content,
+    mediaCount: mediaIds.length,
+  });
+
+  // 2️⃣ validate media ownership (schema ใหม่)
+  if (mediaIds.length > 0) {
+    const mediaList = await this.prisma.media.findMany({
+      where: {
+        id: { in: mediaIds },
+      },
+      select: {
+        id: true,
+        ownerUserId: true,
+      },
     });
 
-    this.audit.logPostCreated({
-      postId: post.id,
-      authorId,
-    });
+    if (mediaList.length !== mediaIds.length) {
+      throw new BadRequestException(
+        'Some media not found',
+      );
+    }
 
-    this.event.emit(post);
-
-    return {
-      id: post.id,
-      createdAt: post.createdAt,
-    };
+    for (const media of mediaList) {
+      PostMediaPolicy.assertOwnership({
+        actorUserId: authorId,
+        ownerUserId: media.ownerUserId,
+      });
+    }
   }
+
+  // 3️⃣ transaction-safe create
+  const post = await this.prisma.$transaction(
+    async (tx) => {
+      // 3.1 create post (เดิม)
+      const createdPost = await tx.post.create({
+        data: {
+          authorId,
+          content,
+        },
+        select: {
+          id: true,
+          createdAt: true,
+        },
+      });
+
+      // 3.2 attach media (ใหม่ – ถูก schema)
+      if (mediaIds.length > 0) {
+        await tx.postMedia.createMany({
+          data: mediaIds.map((mediaId) => ({
+            postId: createdPost.id,
+            mediaId,
+          })),
+          skipDuplicates: true,
+        });
+      }
+
+      return createdPost;
+    },
+  );
+
+  // 4️⃣ audit + event (เดิม 100%)
+  this.audit.logPostCreated({
+    postId: post.id,
+    authorId,
+  });
+
+  this.event.emit({
+    id: post.id,
+    authorId,
+    createdAt: post.createdAt,
+    mediaIds,
+  });
+
+  // 5️⃣ response (เดิม 100%)
+  return {
+    id: post.id,
+    createdAt: post.createdAt,
+  };
+}
+
 
  async getPublicFeed(params: {
   viewerUserId: string | null;

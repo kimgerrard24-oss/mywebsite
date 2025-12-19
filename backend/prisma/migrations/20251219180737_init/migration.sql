@@ -1,6 +1,9 @@
 -- CreateEnum
 CREATE TYPE "PostVisibility" AS ENUM ('PUBLIC', 'PRIVATE');
 
+-- CreateEnum
+CREATE TYPE "MediaType" AS ENUM ('IMAGE', 'VIDEO');
+
 -- CreateTable
 CREATE TABLE "User" (
     "id" TEXT NOT NULL,
@@ -137,15 +140,25 @@ CREATE TABLE "Post" (
 CREATE TABLE "PostMedia" (
     "id" TEXT NOT NULL,
     "postId" TEXT NOT NULL,
-    "type" TEXT NOT NULL,
-    "r2Key" TEXT NOT NULL,
-    "cdnUrl" TEXT NOT NULL,
+    "mediaId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "PostMedia_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Media" (
+    "id" TEXT NOT NULL,
+    "ownerUserId" TEXT NOT NULL,
+    "objectKey" TEXT NOT NULL,
+    "mediaType" "MediaType" NOT NULL,
+    "mimeType" TEXT NOT NULL,
     "width" INTEGER,
     "height" INTEGER,
     "duration" INTEGER,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT "PostMedia_pkey" PRIMARY KEY ("id")
+    CONSTRAINT "Media_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -216,6 +229,21 @@ CREATE INDEX "Post_isPublished_isDeleted_isHidden_publishedAt_idx" ON "Post"("is
 CREATE INDEX "PostMedia_postId_idx" ON "PostMedia"("postId");
 
 -- CreateIndex
+CREATE INDEX "PostMedia_mediaId_idx" ON "PostMedia"("mediaId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "PostMedia_postId_mediaId_key" ON "PostMedia"("postId", "mediaId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Media_objectKey_key" ON "Media"("objectKey");
+
+-- CreateIndex
+CREATE INDEX "Media_ownerUserId_idx" ON "Media"("ownerUserId");
+
+-- CreateIndex
+CREATE INDEX "Media_mediaType_idx" ON "Media"("mediaType");
+
+-- CreateIndex
 CREATE INDEX "Comment_postId_createdAt_idx" ON "Comment"("postId", "createdAt");
 
 -- CreateIndex
@@ -250,6 +278,12 @@ ALTER TABLE "Post" ADD CONSTRAINT "Post_authorId_fkey" FOREIGN KEY ("authorId") 
 
 -- AddForeignKey
 ALTER TABLE "PostMedia" ADD CONSTRAINT "PostMedia_postId_fkey" FOREIGN KEY ("postId") REFERENCES "Post"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PostMedia" ADD CONSTRAINT "PostMedia_mediaId_fkey" FOREIGN KEY ("mediaId") REFERENCES "Media"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Media" ADD CONSTRAINT "Media_ownerUserId_fkey" FOREIGN KEY ("ownerUserId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Comment" ADD CONSTRAINT "Comment_postId_fkey" FOREIGN KEY ("postId") REFERENCES "Post"("id") ON DELETE CASCADE ON UPDATE CASCADE;

@@ -61,7 +61,7 @@ export class PostsRepository {
     });
   }
 
-  async findPostById(postId: string) {
+ async findPostById(postId: string) {
   return this.prisma.post.findUnique({
     where: { id: postId },
     select: {
@@ -86,14 +86,21 @@ export class PostsRepository {
       media: {
         select: {
           id: true,
-          type: true,
-          r2Key: true,
-          cdnUrl: true,
+          media: {
+            select: {
+              id: true,
+              mediaType: true,
+              objectKey: true,
+              width: true,
+              height: true,
+              duration: true,
+            },
+          },
         },
       },
     },
   });
- }
+}
 
 
   async findById(postId: string): Promise<{
@@ -141,7 +148,39 @@ export class PostsRepository {
       editedAt: true,
     },
   });
- }
+ } 
+ 
+
+  async createPost(params: {
+    authorId: string;
+    content: string;
+  }) {
+    return this.prisma.post.create({
+      data: {
+        authorId: params.authorId,
+        content: params.content,
+      },
+    });
+  }
+
+  async attachMedia(params: {
+  postId: string;
+  mediaIds: string[];
+}) {
+  if (params.mediaIds.length === 0) {
+    return;
+  }
+
+  await this.prisma.postMedia.createMany({
+    data: params.mediaIds.map((mediaId) => ({
+      postId: params.postId,
+      mediaId,
+    })),
+    skipDuplicates: true,
+  });
+}
+
+
 
 
 }

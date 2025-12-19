@@ -48,19 +48,46 @@ export default function FeedItem({ post }: Props) {
           {/* ===== จบของเดิม ===== */}
         </div>
 
-        {/* ===== เพิ่มการทำงานใหม่: Post Action Menu ===== */}
         <PostActionMenu
           postId={post.id}
           canDelete={post.canDelete}
           canEdit={post.canDelete}
           canReport={!post.canDelete}
         />
-        {/* ===== จบการทำงานใหม่ ===== */}
       </header>
 
+      {/* ===== Content (เดิม) ===== */}
       <p className="whitespace-pre-wrap text-sm text-gray-800">
         {post.content}
       </p>
+
+      {/* ===== Media (ใหม่ | backward-safe) ===== */}
+      {Array.isArray((post as any).media) &&
+        (post as any).media.length > 0 && (
+          <section className="mt-3 space-y-2">
+            {(post as any).media.map((m: any) => (
+              <figure key={m.id} className="overflow-hidden rounded-lg">
+                {m.type === "image" && (
+                  <img
+                    src={m.cdnUrl}
+                    alt=""
+                    loading="lazy"
+                    className="w-full rounded-lg"
+                  />
+                )}
+
+                {m.type === "video" && (
+                  <video
+                    src={m.cdnUrl}
+                    controls
+                    preload="metadata"
+                    className="w-full rounded-lg"
+                  />
+                )}
+              </figure>
+            ))}
+          </section>
+        )}
 
       <footer className="mt-3 flex gap-4 text-xs text-gray-600">
         <span>❤️ {post.stats.likeCount}</span>

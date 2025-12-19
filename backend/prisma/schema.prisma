@@ -6,14 +6,14 @@ generator client {
 datasource db {
   provider          = "postgresql"
   url               = env("DATABASE_URL")
-  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")  
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 
 model User {
   id                        String               @id @default(uuid())
   email                     String               @unique
   name                      String?
-  displayName               String?   
+  displayName               String?
   username                  String               @unique
   hashedPassword            String
   isEmailVerified           Boolean              @default(false)
@@ -33,6 +33,7 @@ model User {
   currentRefreshTokenHash   String?
   createdAt                 DateTime             @default(now())
   updatedAt                 DateTime             @updatedAt
+  
   posts                     Post[]
   comments                  Comment[]
   oauthAccounts             OAuthAccount[]
@@ -41,6 +42,7 @@ model User {
   activities                UserActivity[]
   auditLogs                 AuditLog[]
   passwordResetTokens       PasswordResetToken[]
+  media                     Media[]
   @@unique([provider, providerId])
 }
 
@@ -97,7 +99,7 @@ model RefreshToken {
 model AuditLog {
   id         String   @id @default(uuid())
 
-  userId     String?  
+  userId     String?
   user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   email      String
@@ -126,15 +128,17 @@ model PasswordResetToken {
   @@index([expiresAt])
 }
 
-// Social Media Models (Post / Comment / Tag)
-
 enum PostVisibility {
   PUBLIC
   PRIVATE
-} 
+}
+
+enum MediaType {
+  IMAGE
+  VIDEO
+}
 
 model Post {
-
   id           String   @id @default(uuid())
   authorId     String
   content      String
@@ -156,36 +160,53 @@ model Post {
 
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
-  media        PostMedia[]
+
   author       User     @relation(fields: [authorId], references: [id], onDelete: Restrict)
-  visibility   PostVisibility @default(PUBLIC)
+  media        PostMedia[]
   comments     Comment[]
   tags         PostTag[]
+  visibility   PostVisibility @default(PUBLIC)
 
   @@index([authorId, publishedAt])
   @@index([isPublished, isDeleted, isHidden, publishedAt])
 }
 
 model PostMedia {
-
   id        String   @id @default(uuid())
+
   postId    String
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
 
-  type      String
-
-  r2Key     String
-
-  cdnUrl    String
-
-  width     Int?
-  height    Int?
-  duration  Int?
+  mediaId   String
+  media     Media    @relation(fields: [mediaId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
 
-  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
-
   @@index([postId])
+  @@index([mediaId])
+  @@unique([postId, mediaId])
+}
+
+model Media {
+  id           String   @id @default(uuid())
+
+  ownerUserId  String
+  owner        User     @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+
+  objectKey    String   @unique
+  mediaType    MediaType
+  mimeType     String
+
+  width        Int?
+  height       Int?
+  duration     Int?
+
+  createdAt    DateTime @default(now())
+
+  posts        PostMedia[]
+
+  @@index([ownerUserId])
+  @@index([mediaType])
 }
 
 model Comment {
@@ -197,8 +218,8 @@ model Comment {
   deletedAt DateTime?
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
-  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
-  
+
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
   author    User     @relation(fields: [authorId], references: [id], onDelete: Restrict)
 
   @@index([postId, createdAt])
@@ -208,7 +229,8 @@ model Tag {
   id        String   @id @default(uuid())
   name      String   @unique
   createdAt DateTime @default(now())
-  posts PostTag[]
+
+  posts     PostTag[]
 
   @@index([name])
 }
@@ -217,8 +239,8 @@ model PostTag {
   postId String
   tagId  String
 
-  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
-  tag  Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  post   Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag    Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
 
   @@id([postId, tagId])
   @@index([tagId])

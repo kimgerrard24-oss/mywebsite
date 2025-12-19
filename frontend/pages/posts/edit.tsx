@@ -1,10 +1,9 @@
 // frontend/pages/posts/edit.tsx
 
-import Head from 'next/head';
-import EditPostForm from '@/components/posts/EditPostForm';
+import Head from "next/head";
+import EditPostForm from "@/components/posts/EditPostForm";
 
-
-export { getServerSideProps } from '@/lib/gssp/edit-post';
+export { getServerSideProps } from "@/lib/gssp/edit-post";
 
 type Props = {
   postId: string;
@@ -19,6 +18,14 @@ export default function EditPostPage({
     <>
       <Head>
         <title>Edit post | PhlyPhant</title>
+
+        {/* ==============================
+         * SEO / Future Media Support
+         * ==============================
+         * - หน้า edit ไม่ index
+         * - media preview handled in form
+         */}
+        <meta name="robots" content="noindex,nofollow" />
       </Head>
 
       <main className="mx-auto max-w-2xl px-4 py-8">
@@ -26,6 +33,11 @@ export default function EditPostPage({
           Edit post
         </h1>
 
+        {/* 
+          ✅ Media support:
+          - EditPostForm เป็นผู้จัดการ media ทั้งหมด
+          - page ไม่ยุ่ง logic ใด ๆ
+        */}
         <EditPostForm
           postId={postId}
           initialContent={content}

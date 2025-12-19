@@ -15,22 +15,70 @@ type Props = {
 export default function PostDetailPage({ post }: Props) {
   const router = useRouter();
 
+  /**
+   * ==============================
+   * Media SEO (SAFE / OPTIONAL)
+   * ==============================
+   * - ใช้เฉพาะตัวแรก
+   * - ไม่กระทบ rendering เดิม
+   */
+  const firstMedia = post.media?.[0];
+
+  const ogImage =
+    firstMedia?.type === "image" ? firstMedia.url : undefined;
+
+  const ogVideo =
+    firstMedia?.type === "video" ? firstMedia.url : undefined;
+
   return (
     <>
       <Head>
         <title>{post.content.slice(0, 60)} | PhlyPhant</title>
+
         <meta
           name="description"
           content={post.content.slice(0, 160)}
         />
+
         <link
           rel="canonical"
           href={`https://www.phlyphant.com/posts/${post.id}`}
         />
+
+        {/* ===== OpenGraph base ===== */}
+        <meta property="og:type" content="article" />
+        <meta
+          property="og:title"
+          content={post.content.slice(0, 60)}
+        />
+        <meta
+          property="og:description"
+          content={post.content.slice(0, 160)}
+        />
+        <meta
+          property="og:url"
+          content={`https://www.phlyphant.com/posts/${post.id}`}
+        />
+
+        {/* ===== Media OG (optional, safe) ===== */}
+        {ogImage && (
+          <meta property="og:image" content={ogImage} />
+        )}
+
+        {ogVideo && (
+          <>
+            <meta property="og:video" content={ogVideo} />
+            <meta
+              property="og:video:type"
+              content="video/mp4"
+            />
+          </>
+        )}
       </Head>
 
       <main className="mx-auto max-w-2xl px-4 py-6">
         <article>
+          {/* ✅ Rendering media อยู่ใน component นี้แล้ว */}
           <PostDetail post={post} />
         </article>
       </main>
@@ -45,6 +93,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
     return { notFound: true };
   }
 
+  // ✅ optional session (SEO-safe)
   await requireSessionSSR(ctx, { optional: true });
 
   try {
