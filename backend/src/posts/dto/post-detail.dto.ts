@@ -16,7 +16,12 @@ export class PostDetailDto {
     url: string;
   }[];
 
-  static from(post: any): PostDetailDto {
+  canDelete!: boolean;
+
+  static from(
+    post: any,
+    viewerUserId?: string,
+  ): PostDetailDto {
     return {
       id: post.id,
       content: post.content,
@@ -33,6 +38,10 @@ export class PostDetailDto {
         type: m.type,
         url: m.cdnUrl,
       })),
+
+      canDelete: Boolean(
+        viewerUserId && post.author.id === viewerUserId
+      ),
     };
   }
 }

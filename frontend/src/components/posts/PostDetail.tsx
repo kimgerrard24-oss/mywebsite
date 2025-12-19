@@ -1,6 +1,8 @@
 // frontend/src/components/posts/PostDetail.tsx
 import Link from "next/link";
 import type { PostDetail as PostDetailType } from "@/types/post-detail";
+import DeletePostButton from "@/components/posts/DeletePostButton";
+import PostActionMenu from "@/components/posts/PostActionMenu";
 
 type Props = {
   post: PostDetailType;
@@ -28,12 +30,23 @@ export default function PostDetail({ post }: Props) {
         )}
         {/* ===== จบส่วนที่เพิ่ม ===== */}
 
-        <time
-          dateTime={post.createdAt}
-          className="text-sm text-gray-500"
-        >
-          {new Date(post.createdAt).toLocaleString()}
-        </time>
+        <div className="flex items-center gap-2">
+          <time
+            dateTime={post.createdAt}
+            className="text-sm text-gray-500"
+          >
+            {new Date(post.createdAt).toLocaleString()}
+          </time>
+
+          {/* ===== เพิ่มการทำงานใหม่: Post Action Menu ===== */}
+          <PostActionMenu
+            postId={post.id}
+            canDelete={post.canDelete}
+            canEdit={post.canDelete}
+            canReport={!post.canDelete}
+          />
+          {/* ===== จบการทำงานใหม่ ===== */}
+        </div>
       </header>
 
       <section className="prose max-w-none">
@@ -56,6 +69,14 @@ export default function PostDetail({ post }: Props) {
           ))}
         </section>
       )}
+
+      {/* ===== ของเดิม (ยังอยู่ครบ ไม่ถูกแตะ) ===== */}
+      {post.canDelete && (
+        <footer className="mt-4">
+          <DeletePostButton postId={post.id} />
+        </footer>
+      )}
+      {/* ===== จบของเดิม ===== */}
     </>
   );
 }

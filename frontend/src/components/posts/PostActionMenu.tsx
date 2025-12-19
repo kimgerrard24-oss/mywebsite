@@ -1,0 +1,106 @@
+// frontend/src/components/posts/PostActionMenu.tsx
+import { useState, useRef, useEffect } from "react";
+import Link from "next/link";
+import DeletePostButton from "@/components/posts/DeletePostButton";
+
+type Props = {
+  postId: string;
+  canEdit?: boolean;
+  canDelete?: boolean;
+  canReport?: boolean;
+};
+
+export default function PostActionMenu({
+  postId,
+  canEdit = false,
+  canDelete = false,
+  canReport = false,
+}: Props) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement | null>(null);
+
+  // ----------------------------------
+  // Close dropdown when click outside
+  // ----------------------------------
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) {
+        setOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  // ถ้าไม่มี action ใด ๆ เลย → ไม่ render
+  if (!canEdit && !canDelete && !canReport) {
+    return null;
+  }
+
+  return (
+    <div ref={ref} className="relative">
+      {/* Trigger */}
+      <button
+        type="button"
+        aria-haspopup="menu"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        className="rounded-full p-1 text-gray-500 hover:bg-gray-100"
+      >
+        ⋯
+      </button>
+
+      {/* Dropdown */}
+      {open && (
+        <div
+          role="menu"
+          className="absolute right-0 z-20 mt-2 w-44 rounded-md border border-gray-200 bg-white shadow-lg"
+        >
+          <ul className="py-1 text-sm text-gray-700">
+            {canEdit && (
+              <li>
+                <Link
+                  href={`/posts/${postId}/edit`}
+                  className="block px-4 py-2 hover:bg-gray-100"
+                  role="menuitem"
+                  onClick={() => setOpen(false)}
+                >
+                  แก้ไขโพสต์
+                </Link>
+              </li>
+            )}
+
+            {canDelete && (
+              <li className="px-4 py-2 hover:bg-gray-100">
+                <DeletePostButton
+                  postId={postId}
+                  variant="menu"
+                  onDone={() => setOpen(false)}
+                />
+              </li>
+            )}
+
+            {canReport && (
+              <li>
+                <button
+                  type="button"
+                  role="menuitem"
+                  onClick={() => {
+                    setOpen(false);
+                    // TODO: open report modal
+                  }}
+                  className="block w-full px-4 py-2 text-left hover:bg-gray-100"
+                >
+                  รายงานโพสต์
+                </button>
+              </li>
+            )}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}

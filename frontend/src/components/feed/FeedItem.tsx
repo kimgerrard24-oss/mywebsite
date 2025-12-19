@@ -1,6 +1,7 @@
 // frontend/components/feed/FeedItem.tsx
 import Link from "next/link";
 import type { PostFeedItem } from "@/types/post-feed";
+import PostActionMenu from "@/components/posts/PostActionMenu";
 
 type Props = {
   post: PostFeedItem;
@@ -12,38 +13,49 @@ export default function FeedItem({ post }: Props) {
       className="rounded-lg border border-gray-200 p-4"
       aria-labelledby={`post-${post.id}`}
     >
-      <header className="mb-2 flex items-center gap-3">
-        {/* ===== เพิ่มเฉพาะส่วนลิงก์โปรไฟล์ ===== */}
-        <Link
-          href={`/users/${post.author.id}`}
-          className="flex items-center gap-3 hover:underline"
-        >
-          {post.author.avatarUrl ? (
-            <img
-              src={post.author.avatarUrl}
-              alt={post.author.displayName ?? "User avatar"}
-              className="h-8 w-8 rounded-full object-cover"
-            />
-          ) : (
-            <div className="h-8 w-8 rounded-full bg-gray-300" />
-          )}
+      <header className="mb-2 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          {/* ===== ของเดิม: ลิงก์โปรไฟล์ผู้เขียน ===== */}
+          <Link
+            href={`/users/${post.author.id}`}
+            className="flex items-center gap-3 hover:underline"
+          >
+            {post.author.avatarUrl ? (
+              <img
+                src={post.author.avatarUrl}
+                alt={post.author.displayName ?? "User avatar"}
+                className="h-8 w-8 rounded-full object-cover"
+              />
+            ) : (
+              <div className="h-8 w-8 rounded-full bg-gray-300" />
+            )}
 
-          <div>
-            <h2
-              id={`post-${post.id}`}
-              className="text-sm font-medium text-gray-900"
-            >
-              {post.author.displayName ?? "Unknown user"}
-            </h2>
-            <time
-              dateTime={post.createdAt}
-              className="block text-xs text-gray-500"
-            >
-              {new Date(post.createdAt).toLocaleString()}
-            </time>
-          </div>
-        </Link>
-        {/* ===== จบส่วนที่เพิ่ม ===== */}
+            <div>
+              <h2
+                id={`post-${post.id}`}
+                className="text-sm font-medium text-gray-900"
+              >
+                {post.author.displayName ?? "Unknown user"}
+              </h2>
+              <time
+                dateTime={post.createdAt}
+                className="block text-xs text-gray-500"
+              >
+                {new Date(post.createdAt).toLocaleString()}
+              </time>
+            </div>
+          </Link>
+          {/* ===== จบของเดิม ===== */}
+        </div>
+
+        {/* ===== เพิ่มการทำงานใหม่: Post Action Menu ===== */}
+        <PostActionMenu
+          postId={post.id}
+          canDelete={post.canDelete}
+          canEdit={post.canDelete}
+          canReport={!post.canDelete}
+        />
+        {/* ===== จบการทำงานใหม่ ===== */}
       </header>
 
       <p className="whitespace-pre-wrap text-sm text-gray-800">

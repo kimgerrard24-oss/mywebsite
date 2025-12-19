@@ -82,26 +82,26 @@ export default function FeedPage({ user, feedItems, lang }: FeedProps) {
               PhlyPhant
             </Link>
 
-            <div className="flex items-center gap-4">
+            <div className="flex items-center gap-3 sm:gap-4">
               <LanguageSwitcher currentLang={lang} />
 
               <Link
                 href="/dashboard"
-                className="text-sm font-medium hover:text-blue-600 transition"
+                className="hidden sm:block text-sm font-medium hover:text-blue-600 transition"
               >
                 {t.feed.nav.dashboard}
               </Link>
 
               <Link
                 href="/profile"
-                className="text-sm font-medium hover:text-blue-600 transition"
+                className="hidden sm:block text-sm font-medium hover:text-blue-600 transition"
               >
                 {t.feed.nav.profile}
               </Link>
 
               <img
                 src={user?.avatarUrl || "/images/default-avatar.png"}
-                className="w-10 h-10 rounded-full border object-cover"
+                className="w-9 h-9 sm:w-10 sm:h-10 rounded-full border object-cover"
                 alt="Avatar"
               />
 
@@ -128,8 +128,8 @@ export default function FeedPage({ user, feedItems, lang }: FeedProps) {
         >
           <PostComposer onPostCreated={refreshFeed} />
 
-          <article className="bg-white p-6 rounded-2xl shadow border">
-            <h2 className="text-xl font-semibold">
+          <article className="bg-white p-5 sm:p-6 rounded-2xl shadow border">
+            <h2 className="text-lg sm:text-xl font-semibold">
               {t.feed.greeting}{" "}
               {user?.displayName ||
                 user?.email ||
@@ -147,36 +147,42 @@ export default function FeedPage({ user, feedItems, lang }: FeedProps) {
           {items.map((post) => (
             <article
               key={post.id}
-              className="bg-white shadow-sm border rounded-2xl p-5 flex flex-col gap-4"
+              className="bg-white shadow-sm border rounded-2xl p-4 sm:p-5 flex flex-col gap-4"
               aria-label={t.feed.post.aria}
             >
+              {/* ===== Header: โปรไฟล์ผู้เขียน (คลิกได้) ===== */}
               <header className="flex items-center gap-3">
-                {post.author.avatarUrl ? (
-                  <img
-                    src={post.author.avatarUrl}
-                    alt={
-                      post.author.displayName ??
-                      t.feed.post.authorFallback
-                    }
-                    className="h-8 w-8 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="h-8 w-8 rounded-full bg-gray-300" />
-                )}
+                <Link
+                  href={`/users/${post.author.id}`}
+                  className="flex items-center gap-3 hover:underline"
+                >
+                  {post.author.avatarUrl ? (
+                    <img
+                      src={post.author.avatarUrl}
+                      alt={
+                        post.author.displayName ??
+                        t.feed.post.authorFallback
+                      }
+                      className="h-8 w-8 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="h-8 w-8 rounded-full bg-gray-300" />
+                  )}
 
-                <div>
-                  <h3 className="font-semibold text-sm">
-                    {post.author.displayName ??
-                      t.feed.post.authorFallback}
-                  </h3>
+                  <div>
+                    <h3 className="font-semibold text-sm">
+                      {post.author.displayName ??
+                        t.feed.post.authorFallback}
+                    </h3>
 
-                  <time
-                    className="text-gray-500 text-xs"
-                    dateTime={post.createdAt}
-                  >
-                    {new Date(post.createdAt).toLocaleString()}
-                  </time>
-                </div>
+                    <time
+                      className="text-gray-500 text-xs"
+                      dateTime={post.createdAt}
+                    >
+                      {new Date(post.createdAt).toLocaleString()}
+                    </time>
+                  </div>
+                </Link>
               </header>
 
               {/* ================= CLICK TO POST DETAIL ================= */}
@@ -189,7 +195,7 @@ export default function FeedPage({ user, feedItems, lang }: FeedProps) {
                 </p>
               </Link>
 
-              <footer className="flex items-center gap-6 text-sm text-gray-600">
+              <footer className="flex flex-wrap items-center gap-4 sm:gap-6 text-sm text-gray-600">
                 <span>
                   ❤️ {post.stats.likeCount} {t.feed.post.likes}
                 </span>

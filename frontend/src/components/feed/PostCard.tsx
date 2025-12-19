@@ -3,6 +3,7 @@ import type { Post } from '@/types/index'
 import { useState } from 'react'
 import Link from 'next/link'
 import { apiPost } from '@/lib/api/api'
+import PostActionMenu from '@/components/posts/PostActionMenu'
 
 export default function PostCard({ post }: { post: Post }) {
   const [likes, setLikes] = useState(post.likes)
@@ -17,20 +18,24 @@ export default function PostCard({ post }: { post: Post }) {
   return (
     <article className="bg-white p-4 rounded shadow">
       <div className="flex gap-3">
-        {/* ===== เพิ่มเฉพาะส่วนลิงก์โปรไฟล์ ===== */}
-        <Link
-          href={`/users/${post.author.id}`}
-          className="shrink-0"
-        >
-          <img
-            className="w-10 h-10 rounded-full"
-            src={post.author.avatarUrl ?? '/images/avatar-default.jpg'}
-            alt={post.author.displayName ?? post.author.username}
-          />
-        </Link>
+        {/* ===== ของเดิม: ลิงก์โปรไฟล์ ===== */}
+    <Link
+       href={`/users/${post.author.id}`}
+         className="shrink-0"
+>
+        <img
+         className="w-10 h-10 rounded-full"
+          src={post.author.avatarUrl ?? '/images/avatar-default.jpg'}
+          alt={
+               post.author.displayName ??
+               post.author.username ??
+                    'User avatar'
+               }
+             />
+          </Link>
 
         <div className="flex-1">
-          <div className="flex justify-between">
+          <div className="flex justify-between items-start">
             <div>
               <Link
                 href={`/users/${post.author.id}`}
@@ -42,7 +47,15 @@ export default function PostCard({ post }: { post: Post }) {
                 {new Date(post.createdAt).toLocaleString()}
               </div>
             </div>
-            <div>...</div>
+
+            {/* ===== เพิ่มการทำงานใหม่: Post Action Menu ===== */}
+            <PostActionMenu
+              postId={post.id}
+              canDelete={post.canDelete}
+              canEdit={post.canDelete}
+              canReport={!post.canDelete}
+            />
+            {/* ===== จบการทำงานใหม่ ===== */}
           </div>
 
           <p className="mt-2">{post.text}</p>

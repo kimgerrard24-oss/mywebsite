@@ -11,12 +11,21 @@ export type User = {
 
 export type Post = {
   id: string;
-  author: User;
   text: string;
-  media?: string[]; // URLs
   createdAt: string;
+
+  author: {
+    id: string;
+    username?: string | null;
+    displayName?: string | null;
+    avatarUrl?: string | null;
+  };
+
   likes: number;
   comments: number;
+
+  // ===== เพิ่มใหม่ =====
+  canDelete: boolean;
 };
 
 export type Message = {

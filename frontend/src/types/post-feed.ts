@@ -14,6 +14,8 @@ export type PostFeedItem = {
     likeCount: number;
     commentCount: number;
   };
+
+  canDelete: boolean;
 };
 
 export type PostFeedResponse = {
