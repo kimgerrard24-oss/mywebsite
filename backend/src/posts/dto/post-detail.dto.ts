@@ -3,6 +3,13 @@ export class PostDetailDto {
   id!: string;
   content!: string;
   createdAt!: Date;
+
+  author!: {
+    id: string;
+    displayName: string | null;
+    avatarUrl: string | null;
+  };
+
   media!: {
     id: string;
     type: string;
@@ -14,10 +21,17 @@ export class PostDetailDto {
       id: post.id,
       content: post.content,
       createdAt: post.createdAt,
+
+      author: {
+        id: post.author.id,
+        displayName: post.author.displayName,
+        avatarUrl: post.author.avatarUrl,
+      },
+
       media: post.media.map((m: any) => ({
         id: m.id,
         type: m.type,
-        url: m.cdnUrl, // from R2 CDN
+        url: m.cdnUrl,
       })),
     };
   }

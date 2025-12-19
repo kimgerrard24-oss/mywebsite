@@ -62,31 +62,39 @@ export class PostsRepository {
   }
 
   async findPostById(postId: string) {
-    return this.prisma.post.findUnique({
-      where: { id: postId },
-      select: {
-        id: true,
-        content: true,
+  return this.prisma.post.findUnique({
+    where: { id: postId },
+    select: {
+      id: true,
+      content: true,
 
-        isPublished: true,
-        isDeleted: true,
-        isHidden: true,
-        visibility: true,
+      isPublished: true,
+      isDeleted: true,
+      isHidden: true,
+      visibility: true,
 
-        createdAt: true,
-        authorId: true,
+      createdAt: true,
 
-        media: {
-          select: {
-            id: true,
-            type: true,
-            r2Key: true,
-            cdnUrl: true,
-          },
+      author: {
+        select: {
+          id: true,
+          displayName: true,
+          avatarUrl: true,
         },
       },
-    });
-  }
+
+      media: {
+        select: {
+          id: true,
+          type: true,
+          r2Key: true,
+          cdnUrl: true,
+        },
+      },
+    },
+  });
+ }
+
 
   async findById(postId: string): Promise<{
   id: string;

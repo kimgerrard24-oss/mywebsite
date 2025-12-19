@@ -1,28 +1,52 @@
+// frontend/src/components/feed/PostCard.tsx
 import type { Post } from '@/types/index'
 import { useState } from 'react'
+import Link from 'next/link'
 import { apiPost } from '@/lib/api/api'
 
 export default function PostCard({ post }: { post: Post }) {
   const [likes, setLikes] = useState(post.likes)
+
   async function like() {
     try {
       await apiPost(`/posts/${post.id}/like`)
-      setLikes(l => l+1)
+      setLikes(l => l + 1)
     } catch {}
   }
+
   return (
     <article className="bg-white p-4 rounded shadow">
       <div className="flex gap-3">
-        <img className="w-10 h-10 rounded-full" src={post.author.avatarUrl ?? '/images/avatar-default.jpg'} />
+        {/* ===== เพิ่มเฉพาะส่วนลิงก์โปรไฟล์ ===== */}
+        <Link
+          href={`/users/${post.author.id}`}
+          className="shrink-0"
+        >
+          <img
+            className="w-10 h-10 rounded-full"
+            src={post.author.avatarUrl ?? '/images/avatar-default.jpg'}
+            alt={post.author.displayName ?? post.author.username}
+          />
+        </Link>
+
         <div className="flex-1">
           <div className="flex justify-between">
             <div>
-              <div className="font-semibold">{post.author.displayName ?? post.author.username}</div>
-              <div className="text-xs text-gray-400">{new Date(post.createdAt).toLocaleString()}</div>
+              <Link
+                href={`/users/${post.author.id}`}
+                className="font-semibold hover:underline"
+              >
+                {post.author.displayName ?? post.author.username}
+              </Link>
+              <div className="text-xs text-gray-400">
+                {new Date(post.createdAt).toLocaleString()}
+              </div>
             </div>
             <div>...</div>
           </div>
+
           <p className="mt-2">{post.text}</p>
+
           <div className="mt-3 flex gap-4 text-sm text-gray-600">
             <button onClick={like}>ไลก์ ({likes})</button>
             <button>คอมเมนต์ ({post.comments})</button>
