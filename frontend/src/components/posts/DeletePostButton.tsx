@@ -1,14 +1,16 @@
 // frontend/src/components/posts/DeletePostButton.tsx
 import { useDeletePost } from '@/hooks/useDeletePost';
 
+export type DeletePostButtonVariant = 'default' | 'menu';
+
 type Props = {
   postId: string;
 
-  // ===== ของเดิม =====
+  // legacy
   onDeleted?: () => void;
 
-  // ===== เพิ่มใหม่ (รองรับ PostActionMenu) =====
-  variant?: 'default' | 'menu';
+  // menu support
+  variant?: DeletePostButtonVariant;
   onDone?: () => void;
 };
 
@@ -26,15 +28,12 @@ export default function DeletePostButton({
 
     const success = await remove(postId);
     if (success) {
-      // ===== ของเดิม =====
       onDeleted?.();
-
-      // ===== เพิ่มใหม่ =====
       onDone?.();
     }
   }
 
-  // ===== รูปแบบเดิม (ใช้ในหน้า Post Detail) =====
+  // ===== default (NOT used anymore in PostDetail) =====
   if (variant === 'default') {
     return (
       <div className="inline-flex flex-col items-start">
@@ -56,13 +55,14 @@ export default function DeletePostButton({
     );
   }
 
-  // ===== รูปแบบสำหรับ dropdown menu =====
+  // ===== dropdown menu =====
   return (
     <button
       type="button"
       onClick={handleDelete}
       disabled={loading}
       className="w-full text-left text-sm text-red-600 hover:bg-gray-100 disabled:opacity-50"
+      role="menuitem"
     >
       {loading ? 'Deleting…' : 'Delete'}
     </button>

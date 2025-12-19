@@ -1,12 +1,15 @@
 // frontend/src/lib/gssp/edit-post.ts
 
 import type { GetServerSideProps } from 'next';
-import cookie from 'cookie';
 
 export const getServerSideProps: GetServerSideProps = async (ctx) => {
-  const { id } = ctx.params as { id: string };
-  const cookieHeader = ctx.req.headers.cookie ?? '';
+  const id = ctx.query.id;
 
+  if (typeof id !== 'string') {
+    return { notFound: true };
+  }
+
+  const cookieHeader = ctx.req.headers.cookie ?? '';
   const apiBase = process.env.NEXT_PUBLIC_BACKEND_URL!;
 
   // 1) session authority
@@ -15,7 +18,6 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
       Accept: 'application/json',
       Cookie: cookieHeader,
     },
-    credentials: 'include',
   });
 
   if (!sessionRes.ok) {
@@ -27,13 +29,12 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
     };
   }
 
-  // 2) load post detail
+  // 2) load post detail (with viewer context)
   const postRes = await fetch(`${apiBase}/posts/${id}`, {
     headers: {
       Accept: 'application/json',
       Cookie: cookieHeader,
     },
-    credentials: 'include',
   });
 
   if (!postRes.ok) {

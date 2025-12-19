@@ -105,22 +105,20 @@ export class PostsController {
 
 
   @Delete(':id')
-  @HttpCode(204)
-  @UseGuards(AccessTokenCookieAuthGuard)
+ @HttpCode(204)
+ @UseGuards(AccessTokenCookieAuthGuard)
+ 
+ async deletePost(
+  @Param('id', ParsePostIdPipe) postId: string,
+  @Req() req: any,
+ ): Promise<void> {
+  await this.postsService.deletePost({
 
-    async deletePost(
+    postId,
+    actorUserId: req.user.userId,
 
-    @Param() params: DeletePostParamsDto,
-
-      // req.user ถูก attach จาก ValidateSessionService
-    @Req() req: any,
-     ): Promise<void> {
-
-      await this.postsService.deletePost({
-       postId: params.id,
-       actorUserId: req.user.userId,
-     });
-  }
+  });
+ }
 
    @Put(':id')
  @HttpCode(200)
