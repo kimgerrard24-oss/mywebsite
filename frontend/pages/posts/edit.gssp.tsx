@@ -1,4 +1,4 @@
-// frontend/pages/posts/[id].edit.gssp.tsx
+// frontend/pages/posts/edit.gssp.tsx
 
 import type { GetServerSideProps } from 'next'; 
 import cookie from 'cookie';

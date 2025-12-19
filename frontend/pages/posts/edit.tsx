@@ -1,4 +1,4 @@
-// frontend/pages/posts/[id].edit.tsx
+// frontend/pages/posts/edit.tsx
 
 import Head from 'next/head';
 import type { GetServerSideProps } from 'next';
@@ -32,4 +32,5 @@ export default function EditPostPage({
       </main>
     </>
   );
+  
 }
