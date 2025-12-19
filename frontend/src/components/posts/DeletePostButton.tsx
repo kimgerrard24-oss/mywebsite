@@ -1,10 +1,17 @@
 // frontend/src/components/posts/DeletePostButton.tsx
+
 import { useDeletePost } from '@/hooks/useDeletePost';
 
 export type DeletePostButtonVariant = 'default' | 'menu';
 
 type Props = {
   postId: string;
+
+  /**
+   * permission
+   * true = owner (or allowed)
+   */
+  canDelete: boolean;
 
   // legacy
   onDeleted?: () => void;
@@ -16,24 +23,30 @@ type Props = {
 
 export default function DeletePostButton({
   postId,
+  canDelete,
   onDeleted,
   variant = 'default',
   onDone,
 }: Props) {
   const { remove, loading, error } = useDeletePost();
 
+  // 🔒 owner only
+  if (!canDelete) {
+    return null;
+  }
+
   async function handleDelete() {
     const ok = window.confirm('Delete this post?');
     if (!ok) return;
 
     const success = await remove(postId);
-    if (success) {
-      onDeleted?.();
-      onDone?.();
-    }
+    if (!success) return;
+
+    onDeleted?.();
+    onDone?.();
   }
 
-  // ===== default (NOT used anymore in PostDetail) =====
+  // ===== default =====
   if (variant === 'default') {
     return (
       <div className="inline-flex flex-col items-start">

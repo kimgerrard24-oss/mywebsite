@@ -86,6 +86,7 @@ export default function PostActionMenu({
               <li className="px-4 py-2 hover:bg-gray-100">
                 <DeletePostButton
                   postId={postId}
+                  canDelete={canDelete}
                   variant="menu"
                   onDone={() => setOpen(false)}
                 />
