@@ -1,37 +1,81 @@
 // frontend/pages/users/[userId].tsx
 import { GetServerSideProps } from "next";
+import Head from "next/head";
+import Link from "next/link";
+
 import ProfileLayout from "@/components/layout/ProfileLayout";
-import ProfileMeta from "@/components/seo/ProfileMeta";
-import PublicUserProfile from "@/components/profile/PublicUserProfile";
+import { ProfileCard } from "@/components/profile/profile-ProfileCard";
+
 import { fetchPublicUserProfileServer } from "@/lib/api/user";
-
-// ===== NEW =====
 import { getUserPosts } from "@/lib/api/posts";
-import FeedItem from "@/components/feed/FeedItem";
-// ==============
 
-import type { PublicUserProfile as PublicUserProfileType } from "@/lib/api/user";
+import FeedItem from "@/components/feed/FeedItem";
+
+import type { PublicUserProfile } from "@/lib/api/user";
 import type { PostFeedItem } from "@/types/post-feed";
 
 type Props = {
-  profile: PublicUserProfileType;
-
-  // ===== NEW =====
+  profile: PublicUserProfile;
   posts: PostFeedItem[];
-  // ==============
 };
 
 export default function UserProfilePage({ profile, posts }: Props) {
+  const siteUrl =
+    process.env.NEXT_PUBLIC_SITE_URL || "https://www.phlyphant.com";
+
   return (
     <>
-      <ProfileMeta profile={profile} />
-      <ProfileLayout>
-        <main>
-          {/* ===== Existing profile (DO NOT TOUCH) ===== */}
-          <PublicUserProfile profile={profile} />
+      <Head>
+        <title>
+          {profile.displayName ?? "User"} | PhlyPhant
+        </title>
+        <meta
+          name="description"
+          content={`ดูโปรไฟล์และโพสต์ของ ${
+            profile.displayName ?? "ผู้ใช้"
+          } บน PhlyPhant`}
+        />
+        <link
+          rel="canonical"
+          href={`${siteUrl}/users/${profile.id}`}
+        />
+        <meta property="og:type" content="profile" />
+        <meta
+          property="og:title"
+          content={`${profile.displayName ?? "User"} | PhlyPhant`}
+        />
+        <meta
+          property="og:url"
+          content={`${siteUrl}/users/${profile.id}`}
+        />
+      </Head>
 
-          {/* ===== New: User posts feed ===== */}
-          <section className="mt-6">
+      <ProfileLayout>
+        <main className="min-h-screen bg-gray-50">
+          {/* ===== Top navigation (same UX as owner profile) ===== */}
+          <div className="max-w-5xl mx-auto px-4 pt-4">
+            <Link
+              href="/feed"
+              prefetch={false}
+              className="text-sm text-blue-600 hover:underline"
+            >
+              ← Back to feed
+            </Link>
+          </div>
+
+          {/* ===== Profile card (read-only) ===== */}
+          <div className="mx-auto max-w-5xl px-4 pt-4 pb-8">
+            <ProfileCard
+              profile={{
+                ...profile,
+                // 🔒 force read-only behavior
+                isSelf: false,
+              }}
+            />
+          </div>
+
+          {/* ===== User posts ===== */}
+          <section className="mx-auto max-w-5xl px-4 pb-12">
             <h2 className="mb-4 text-lg font-semibold">
               Posts
             </h2>
@@ -57,13 +101,13 @@ export default function UserProfilePage({ profile, posts }: Props) {
 export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
   const userId = ctx.params?.userId;
 
-  // guard: userId ต้องเป็น string เท่านั้น
+  // guard
   if (typeof userId !== "string") {
     return { notFound: true };
   }
 
   try {
-    // ===== Existing: fetch public profile =====
+    // ===== Public profile (SSR) =====
     const { profile } = await fetchPublicUserProfileServer(
       userId,
       ctx.req.headers.cookie
@@ -73,7 +117,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
       return { notFound: true };
     }
 
-    // ===== New: fetch user posts (fail-soft) =====
+    // ===== User posts (fail-soft) =====
     let posts: PostFeedItem[] = [];
 
     try {
@@ -84,7 +128,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
 
       posts = feed.items;
     } catch {
-      // fail-soft: profile ยังต้องแสดง
+      // intentional fail-soft
     }
 
     return {
@@ -94,7 +138,6 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
       },
     };
   } catch {
-    // fail-soft: backend error / network error
     return { notFound: true };
   }
 };

@@ -1,9 +1,20 @@
+// frontend/src/components/profile/profile-ProfileCard.tsx
 import React from "react";
 import Link from "next/link";
-import type { UserProfile } from "@/lib/api/user";
+
+import type {
+  UserProfile,
+  PublicUserProfile,
+} from "@/lib/api/user";
 
 export interface ProfileCardProps {
-  profile: UserProfile | null;
+  profile: UserProfile | PublicUserProfile | null;
+
+  /**
+   * true  = owner profile
+   * false = public profile
+   */
+  isSelf?: boolean;
 }
 
 const formatDate = (iso: string) => {
@@ -16,24 +27,23 @@ const formatDate = (iso: string) => {
   });
 };
 
-export const ProfileCard: React.FC<ProfileCardProps> = ({ profile }) => {
-  if (!profile) {
-    return null;
-  }
+export const ProfileCard: React.FC<ProfileCardProps> = ({
+  profile,
+  isSelf = true,
+}) => {
+  if (!profile) return null;
 
   const displayName =
     profile.displayName && profile.displayName.trim().length > 0
       ? profile.displayName
-      : profile.email;
+      : "User";
 
   return (
     <section
       aria-labelledby="profile-heading"
       className="mx-auto mt-8 max-w-3xl rounded-2xl border border-gray-200 bg-white shadow-sm"
     >
-      {/* =========================
-          Cover
-         ========================= */}
+      {/* ===== Cover ===== */}
       <div
         className="h-32 w-full rounded-t-2xl bg-gray-200"
         style={{
@@ -43,11 +53,10 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ profile }) => {
           backgroundSize: "cover",
           backgroundPosition: "center",
         }}
-        aria-label="Profile cover image"
       />
 
       <div className="px-6 pb-6">
-        {/* Avatar + name + edit button */}
+        {/* Avatar + name */}
         <div className="-mt-10 flex items-end justify-between gap-4">
           <div className="flex items-end gap-4">
             <div className="h-20 w-20 shrink-0 overflow-hidden rounded-full border-4 border-white bg-gray-100">
@@ -71,23 +80,33 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ profile }) => {
               >
                 {displayName}
               </h1>
-              <p className="text-sm text-gray-500">{profile.email}</p>
+
+              {/* email แสดงเฉพาะเจ้าของ */}
+              {isSelf && "email" in profile && (
+                <p className="text-sm text-gray-500">
+                  {profile.email}
+                </p>
+              )}
             </div>
           </div>
 
-          {/* Edit profile button */}
-          <Link
-            href="/settings/profile"
-            prefetch={false}
-            className="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-          >
-            แก้ไขโปรไฟล์
-          </Link>
+          {/* Edit button: owner only */}
+          {isSelf && (
+            <Link
+              href="/settings/profile"
+              prefetch={false}
+              className="inline-flex items-center rounded-md border border-gray-300 bg-white px-4 py-2 text-sm font-medium text-gray-700 hover:bg-gray-50"
+            >
+              แก้ไขโปรไฟล์
+            </Link>
+          )}
         </div>
 
         {/* Bio */}
         <div className="mt-4">
-          <h2 className="text-sm font-medium text-gray-700">เกี่ยวกับฉัน</h2>
+          <h2 className="text-sm font-medium text-gray-700">
+            เกี่ยวกับฉัน
+          </h2>
           <p className="mt-1 text-sm text-gray-600">
             {profile.bio && profile.bio.trim().length > 0
               ? profile.bio
@@ -95,10 +114,12 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ profile }) => {
           </p>
         </div>
 
-        {/* Meta info */}
+        {/* Meta */}
         <dl className="mt-4 grid gap-4 text-sm text-gray-600 sm:grid-cols-2">
           <div>
-            <dt className="font-medium text-gray-700">เข้าร่วมเมื่อ</dt>
+            <dt className="font-medium text-gray-700">
+              เข้าร่วมเมื่อ
+            </dt>
             <dd>{formatDate(profile.createdAt)}</dd>
           </div>
         </dl>
@@ -106,3 +127,4 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({ profile }) => {
     </section>
   );
 };
+
