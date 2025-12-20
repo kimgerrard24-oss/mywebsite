@@ -27,13 +27,7 @@ export class MediaCleanupCron {
       Date.now() - 3 * 24 * 60 * 60 * 1000,
     );
 
-    /**
-     * 1️⃣ เลือกเฉพาะ media ที่:
-     * - ถูก mark deleted
-     * - เกิน 3 วัน
-     * - ยังไม่เคย cleanup
-     * - ❗ ไม่ถูกใช้งานโดย post ใด ๆ แล้ว
-     */
+
     const medias = await this.prisma.media.findMany({
       where: {
         deletedAt: {
