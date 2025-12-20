@@ -23,6 +23,7 @@ import { UsersModule } from './users/users.module';
 import { LocalRefreshModule } from './auth/dto/local/local-refresh.module';
 import { PostsModule } from './posts/posts.module';
 import { MediaModule } from './media/media.module';
+import { ScheduleModule } from '@nestjs/schedule';
 
 @Module({
   imports: [
@@ -34,7 +35,8 @@ import { MediaModule } from './media/media.module';
       isGlobal: true,
       cache: true,
     }),
-
+    
+    ScheduleModule.forRoot(),
     SecretsModule,
     FirebaseAdminModule,
     PrismaModule,

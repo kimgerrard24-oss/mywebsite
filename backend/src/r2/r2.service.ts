@@ -137,7 +137,6 @@ export class R2Service {
         }),
       );
     } catch (err) {
-      // ❌ ห้าม throw เพื่อไม่ให้ business flow พัง
       this.logger.warn(
         `R2 safeDeleteByUrl failed (bucket=${bucket}, key=${key})`,
       );
@@ -155,4 +154,5 @@ export class R2Service {
 
     return `${base}/${key}`;
   }
+
 }

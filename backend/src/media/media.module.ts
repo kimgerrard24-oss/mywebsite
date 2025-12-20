@@ -7,6 +7,7 @@ import { R2Module } from '../r2/r2.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AuthModule } from '../auth/auth.module';
 import { MediaRepository } from './media.repository';
+import { MediaCleanupCron } from './cron/media-cleanup.cron';
 
 @Module({
   imports: [
@@ -15,6 +16,11 @@ import { MediaRepository } from './media.repository';
     AuthModule, 
   ],
   controllers: [MediaController],
-  providers: [MediaService, MediaRepository, PresignService],
+  providers: [
+    MediaService, 
+    MediaRepository, 
+    MediaCleanupCron, 
+    PresignService,
+  ],
 })
 export class MediaModule {}

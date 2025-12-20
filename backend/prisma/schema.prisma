@@ -33,16 +33,16 @@ model User {
   currentRefreshTokenHash   String?
   createdAt                 DateTime             @default(now())
   updatedAt                 DateTime             @updatedAt
-  
-  posts                     Post[]
+  auditLogs                 AuditLog[]
   comments                  Comment[]
+  media                     Media[]
   oauthAccounts             OAuthAccount[]
+  passwordResetTokens       PasswordResetToken[]
+  posts                     Post[]
   refreshTokens             RefreshToken[]
   sessions                  Session[]
   activities                UserActivity[]
-  auditLogs                 AuditLog[]
-  passwordResetTokens       PasswordResetToken[]
-  media                     Media[]
+
   @@unique([provider, providerId])
 }
 
@@ -54,7 +54,6 @@ model Session {
   userAgent    String?
   expiresAt    DateTime
   createdAt    DateTime @default(now())
-
   user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
@@ -66,7 +65,6 @@ model UserActivity {
   ipAddress String?
   userAgent String?
   createdAt DateTime @default(now())
-
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
@@ -79,7 +77,6 @@ model OAuthAccount {
   refreshToken String?
   expiresAt    DateTime?
   createdAt    DateTime  @default(now())
-
   user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([provider, providerId])
@@ -92,16 +89,12 @@ model RefreshToken {
   createdAt DateTime @default(now())
   expiresAt DateTime
   revoked   Boolean  @default(false)
-
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model AuditLog {
   id         String   @id @default(uuid())
-
   userId     String?
-  user       User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
-
   email      String
   action     String
   success    Boolean
@@ -110,22 +103,121 @@ model AuditLog {
   ip         String?
   userAgent  String?
   metadata   Json?
-
   occurredAt DateTime @default(now())
+  user       User?    @relation(fields: [userId], references: [id])
 }
 
 model PasswordResetToken {
-  id        String   @id @default(uuid())
+  id        String    @id @default(uuid())
   userId    String
   tokenHash String
   expiresAt DateTime
-  createdAt DateTime @default(now())
+  createdAt DateTime  @default(now())
   usedAt    DateTime?
-
-  user      User     @relation(fields: [userId], references: [id])
+  user      User      @relation(fields: [userId], references: [id])
 
   @@index([userId])
   @@index([expiresAt])
+}
+
+model Post {
+  id           String         @id @default(uuid())
+  authorId     String
+  content      String
+  isPublished  Boolean        @default(true)
+  publishedAt  DateTime       @default(now())
+  isEdited     Boolean        @default(false)
+  editedAt     DateTime?
+  isDeleted    Boolean        @default(false)
+  deletedAt    DateTime?
+  isHidden     Boolean        @default(false)
+  hiddenAt     DateTime?
+  commentCount Int            @default(0)
+  likeCount    Int            @default(0)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  visibility   PostVisibility @default(PUBLIC)
+  comments     Comment[]
+  author       User           @relation(fields: [authorId], references: [id])
+  media        PostMedia[]
+  tags         PostTag[]
+
+  @@index([authorId, publishedAt])
+  @@index([isPublished, isDeleted, isHidden, publishedAt])
+}
+
+model PostMedia {
+  id        String   @id @default(uuid())
+  postId    String
+  mediaId   String
+  createdAt DateTime @default(now())
+  media     Media    @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, mediaId])
+  @@index([postId])
+  @@index([mediaId])
+}
+
+model Media {
+  id          String      @id @default(uuid())
+
+  ownerUserId String
+  owner       User        @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
+
+  objectKey   String      @unique
+  mediaType   MediaType
+  mimeType    String
+
+  width       Int?
+  height      Int?
+  duration    Int?
+
+  createdAt   DateTime    @default(now())
+
+  deletedAt   DateTime?   // เมื่อ user ลบ post / media
+  cleanupAt   DateTime?   // เวลาที่ cron จะลบจาก R2
+
+  posts       PostMedia[]
+
+  @@index([ownerUserId])
+  @@index([mediaType])
+  @@index([deletedAt])
+  @@index([cleanupAt])
+}
+
+model Comment {
+  id        String    @id @default(uuid())
+  postId    String
+  authorId  String
+  content   String
+  isDeleted Boolean   @default(false)
+  deletedAt DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  author    User      @relation(fields: [authorId], references: [id])
+  post      Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  @@index([postId, createdAt])
+}
+
+model Tag {
+  id        String    @id @default(uuid())
+  name      String    @unique
+  createdAt DateTime  @default(now())
+  posts     PostTag[]
+
+  @@index([name])
+}
+
+model PostTag {
+  postId String
+  tagId  String
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+  tag    Tag    @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([postId, tagId])
+  @@index([tagId])
 }
 
 enum PostVisibility {
@@ -136,112 +228,4 @@ enum PostVisibility {
 enum MediaType {
   IMAGE
   VIDEO
-}
-
-model Post {
-  id           String   @id @default(uuid())
-  authorId     String
-  content      String
-
-  isPublished  Boolean  @default(true)
-  publishedAt  DateTime @default(now())
-
-  isEdited     Boolean  @default(false)
-  editedAt     DateTime?
-
-  isDeleted    Boolean  @default(false)
-  deletedAt    DateTime?
-
-  isHidden     Boolean  @default(false)
-  hiddenAt     DateTime?
-
-  commentCount Int      @default(0)
-  likeCount    Int      @default(0)
-
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
-
-  author       User     @relation(fields: [authorId], references: [id], onDelete: Restrict)
-  media        PostMedia[]
-  comments     Comment[]
-  tags         PostTag[]
-  visibility   PostVisibility @default(PUBLIC)
-
-  @@index([authorId, publishedAt])
-  @@index([isPublished, isDeleted, isHidden, publishedAt])
-}
-
-model PostMedia {
-  id        String   @id @default(uuid())
-
-  postId    String
-  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
-
-  mediaId   String
-  media     Media    @relation(fields: [mediaId], references: [id], onDelete: Cascade)
-
-  createdAt DateTime @default(now())
-
-  @@index([postId])
-  @@index([mediaId])
-  @@unique([postId, mediaId])
-}
-
-model Media {
-  id           String   @id @default(uuid())
-
-  ownerUserId  String
-  owner        User     @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
-
-  objectKey    String   @unique
-  mediaType    MediaType
-  mimeType     String
-
-  width        Int?
-  height       Int?
-  duration     Int?
-
-  createdAt    DateTime @default(now())
-
-  posts        PostMedia[]
-
-  @@index([ownerUserId])
-  @@index([mediaType])
-}
-
-model Comment {
-  id        String   @id @default(uuid())
-  postId    String
-  authorId  String
-  content   String
-  isDeleted Boolean  @default(false)
-  deletedAt DateTime?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
-  author    User     @relation(fields: [authorId], references: [id], onDelete: Restrict)
-
-  @@index([postId, createdAt])
-}
-
-model Tag {
-  id        String   @id @default(uuid())
-  name      String   @unique
-  createdAt DateTime @default(now())
-
-  posts     PostTag[]
-
-  @@index([name])
-}
-
-model PostTag {
-  postId String
-  tagId  String
-
-  post   Post @relation(fields: [postId], references: [id], onDelete: Cascade)
-  tag    Tag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
-
-  @@id([postId, tagId])
-  @@index([tagId])
 }

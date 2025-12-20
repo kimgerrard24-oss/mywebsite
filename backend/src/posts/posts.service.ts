@@ -203,26 +203,43 @@ export class PostsService {
     return dto;
   }
 
-  async deletePost(params: { postId: string; actorUserId: string }) {
-    const { postId, actorUserId } = params;
+async deletePost(params: { postId: string; actorUserId: string }) {
+  const { postId, actorUserId } = params;
 
-    const post = await this.repo.findById(postId);
-    if (!post || post.isDeleted) {
-      throw new NotFoundException('Post not found');
-    }
-
-    PostDeletePolicy.assertCanDelete({
-      actorUserId,
-      ownerUserId: post.authorId,
-    });
-
-    await this.repo.softDelete(postId);
-
-    await this.audit.logDeleted({
-      postId,
-      actorUserId,
-    });
+  const post = await this.repo.findById(postId);
+  if (!post || post.isDeleted) {
+    throw new NotFoundException('Post not found');
   }
+
+  PostDeletePolicy.assertCanDelete({
+    actorUserId,
+    ownerUserId: post.authorId,
+  });
+
+  // ✅ 1) mark media.deletedAt
+  await this.prisma.media.updateMany({
+    where: {
+      posts: {
+        some: { postId },
+      },
+      deletedAt: null,
+    },
+    data: {
+      deletedAt: new Date(),
+      cleanupAt: new Date(
+        Date.now() + 3 * 24 * 60 * 60 * 1000,
+      ),
+    },
+  });
+
+  await this.repo.softDelete(postId);
+
+  await this.audit.logDeleted({
+    postId,
+    actorUserId,
+  });
+}
+
 
   async updatePost(params: {
   postId: string;
