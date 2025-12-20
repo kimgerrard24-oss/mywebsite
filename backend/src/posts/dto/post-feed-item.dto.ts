@@ -10,9 +10,10 @@ export class PostFeedItemDto {
     avatarUrl: string | null;
   };
 
-   media!: {
+  media!: {
     id: string;
     type: 'image' | 'video';
+    url: string;
     objectKey: string;
   }[];
 
@@ -22,5 +23,4 @@ export class PostFeedItemDto {
   };
   
   canDelete!: boolean;
-
 }

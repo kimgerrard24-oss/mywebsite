@@ -1,6 +1,7 @@
 // backend/src/posts/mappers/post-feed.mapper.ts
 import { PostFeedItemDto } from '../dto/post-feed-item.dto';
 import { MediaType } from '@prisma/client';
+import { buildCdnUrl } from '../../media/utils/build-cdn-url.util';
 
 export class PostFeedMapper {
   static toDto(
@@ -20,7 +21,6 @@ export class PostFeedMapper {
         avatarUrl: author?.avatarUrl ?? null,
       },
 
-      // ✅ FIX: ส่ง media ออกไปให้ frontend
       media: Array.isArray(row.media)
         ? row.media.map((pm: any) => ({
             id: pm.media.id,
@@ -28,7 +28,11 @@ export class PostFeedMapper {
               pm.media.mediaType === MediaType.IMAGE
                 ? 'image'
                 : 'video',
-            // ❗️ยังไม่ build cdnUrl ที่นี่ (จะทำใน service layer)
+
+            // ✅ FIX: เพิ่ม url สำหรับ frontend render
+            url: buildCdnUrl(pm.media.objectKey),
+
+            // ❗ เก็บ objectKey ไว้ (เผื่อ internal use / future)
             objectKey: pm.media.objectKey,
           }))
         : [],
