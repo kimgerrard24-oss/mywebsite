@@ -15,6 +15,29 @@ export function useMediaComplete() {
       setError(null);
 
       try {
+        // Defensive validation (fail-fast, production-safe)
+        if (
+          !payload.objectKey ||
+          typeof payload.objectKey !== "string"
+        ) {
+          throw new Error("Invalid objectKey");
+        }
+
+        if (
+          payload.mediaType !== "image" &&
+          payload.mediaType !== "video"
+        ) {
+          throw new Error("Invalid mediaType");
+        }
+
+        if (
+          !payload.mimeType ||
+          typeof payload.mimeType !== "string" ||
+          payload.mimeType.length > 255
+        ) {
+          throw new Error("Invalid mimeType");
+        }
+
         const res = await completeMediaUpload(payload);
         return res.mediaId;
       } catch (err) {

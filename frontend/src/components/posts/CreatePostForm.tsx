@@ -1,14 +1,10 @@
 // frontend/src/components/posts/CreatePostForm.tsx
 import { useState } from 'react';
+import { useMediaUpload } from '@/hooks/useMediaUpload';
+import { useMediaComplete } from '@/hooks/useMediaComplete';
 import { createPost } from '@/lib/api/posts';
-import { api } from '@/lib/api/api';
 
 const MAX_FILES = 5;
-
-type PresignItem = {
-  uploadUrl: string;
-  mediaId: string;
-};
 
 export default function CreatePostForm() {
   const [content, setContent] = useState('');
@@ -16,8 +12,13 @@ export default function CreatePostForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const { upload, uploading } = useMediaUpload();
+  const { complete, loading: completing } = useMediaComplete();
+
+  const submitting = loading || uploading || completing;
+
   // =========================
-  // File selection (NEW)
+  // File selection (UNCHANGED)
   // =========================
   function handleFileChange(
     e: React.ChangeEvent<HTMLInputElement>,
@@ -30,52 +31,6 @@ export default function CreatePostForm() {
     );
 
     setFiles(selected);
-  }
-
-  // =========================
-  // Upload media flow (NEW)
-  // =========================
-  async function uploadMedia(): Promise<string[]> {
-    if (files.length === 0) return [];
-
-    // 1) request presigned URLs
-    const presignRes = await api.post<{
-      items: PresignItem[];
-    }>('/media/presign/validate', {
-      files: files.map((f) => ({
-        filename: f.name,
-        contentType: f.type,
-        size: f.size,
-      })),
-    });
-
-    const items = presignRes.data.items;
-
-    if (!Array.isArray(items) || items.length !== files.length) {
-      throw new Error('Invalid presign response');
-    }
-
-    // 2) upload to R2
-    await Promise.all(
-      items.map((item, idx) =>
-        fetch(item.uploadUrl, {
-          method: 'PUT',
-          body: files[idx],
-          headers: {
-            'Content-Type': files[idx].type,
-          },
-        }),
-      ),
-    );
-
-    // 3) notify backend upload complete
-    const completeRes = await api.post<{
-      mediaIds: string[];
-    }>('/media/complete', {
-      mediaIds: items.map((i) => i.mediaId),
-    });
-
-    return completeRes.data.mediaIds;
   }
 
   // =========================
@@ -93,13 +48,27 @@ export default function CreatePostForm() {
       setLoading(true);
       setError(null);
 
-      // ✅ NEW: upload media (optional)
-      const mediaIds = await uploadMedia();
+      // ✅ FIXED: upload + complete media (per file)
+      const mediaIds: string[] = [];
 
-      // ✅ BACKWARD SAFE: text-only ยังทำงานเหมือนเดิม
+      for (const file of files) {
+        const { objectKey } = await upload(file);
+
+        const mediaId = await complete({
+          objectKey,
+          mimeType: file.type,
+          mediaType: file.type.startsWith('video/')
+            ? 'video'
+            : 'image',
+        });
+
+        mediaIds.push(mediaId);
+      }
+
+      // ✅ text-only still works exactly the same
       await createPost({
         content,
-        mediaIds,
+        mediaIds: mediaIds.length > 0 ? mediaIds : undefined,
       });
 
       setContent('');
@@ -128,10 +97,10 @@ export default function CreatePostForm() {
         onChange={(e) => setContent(e.target.value)}
         className="w-full rounded-lg border p-3 text-sm focus:outline-none focus:ring"
         placeholder="What’s on your mind?"
-        disabled={loading}
+        disabled={submitting}
       />
 
-      {/* ===== Media picker (NEW, optional) ===== */}
+      {/* ===== Media picker (UNCHANGED UI) ===== */}
       <div className="mt-2 flex items-center justify-between">
         <label className="cursor-pointer text-sm text-gray-600">
           <input
@@ -139,7 +108,7 @@ export default function CreatePostForm() {
             multiple
             accept="image/*,video/*"
             onChange={handleFileChange}
-            disabled={loading}
+            disabled={submitting}
             className="hidden"
           />
           Add photo / video
@@ -161,10 +130,10 @@ export default function CreatePostForm() {
       <div className="mt-4 flex justify-end">
         <button
           type="submit"
-          disabled={loading}
+          disabled={submitting}
           className="rounded-lg bg-black px-4 py-2 text-white disabled:opacity-50"
         >
-          {loading ? 'Posting...' : 'Post'}
+          {submitting ? 'Posting...' : 'Post'}
         </button>
       </div>
     </form>

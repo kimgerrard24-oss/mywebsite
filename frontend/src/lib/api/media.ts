@@ -1,4 +1,4 @@
-//  frontend/src/lib/api/media.ts
+// frontend/src/lib/api/media.ts
 import { api } from "./api";
 
 // ==============================
@@ -17,6 +17,34 @@ export type PresignValidateResponse = {
   objectKey: string;
   expiresIn: number;
 };
+
+// ==============================
+// Helpers (SAFE / Production)
+// ==============================
+
+/**
+ * Build presign payload from File
+ * Ensures payload always matches backend DTO
+ */
+export function buildPresignValidatePayload(
+  file: File,
+): PresignValidateRequest {
+  if (!file?.name || !file.type || typeof file.size !== "number") {
+    throw new Error("Invalid file for presign validation");
+  }
+
+  const mediaType: "image" | "video" =
+    file.type.startsWith("video/")
+      ? "video"
+      : "image";
+
+  return {
+    fileName: file.name,
+    fileSize: file.size,
+    mimeType: file.type,
+    mediaType,
+  };
+}
 
 // ==============================
 // API

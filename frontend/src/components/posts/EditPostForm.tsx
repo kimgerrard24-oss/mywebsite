@@ -2,16 +2,12 @@
 import { useState } from 'react';
 import { useRouter } from 'next/router';
 import { useUpdatePost } from '@/hooks/useUpdatePost';
-import { api } from '@/lib/api/api';
+import { useMediaUpload } from '@/hooks/useMediaUpload';
+import { useMediaComplete } from '@/hooks/useMediaComplete';
 
 type Props = {
   postId: string;
   initialContent: string;
-};
-
-type PresignItem = {
-  uploadUrl: string;
-  mediaId: string;
 };
 
 const MAX_FILES = 5;
@@ -26,9 +22,13 @@ export default function EditPostForm({
   const [localError, setLocalError] = useState<string | null>(null);
 
   const { submit, loading, error } = useUpdatePost();
+  const { upload, uploading } = useMediaUpload();
+  const { complete, loading: completing } = useMediaComplete();
+
+  const submitting = loading || uploading || completing;
 
   // =========================
-  // File selection (NEW)
+  // File selection (UNCHANGED)
   // =========================
   function handleFileChange(
     e: React.ChangeEvent<HTMLInputElement>,
@@ -44,49 +44,6 @@ export default function EditPostForm({
   }
 
   // =========================
-  // Upload media flow (NEW)
-  // =========================
-  async function uploadMedia(): Promise<string[]> {
-    if (files.length === 0) return [];
-
-    const presignRes = await api.post<{
-      items: PresignItem[];
-    }>('/media/presign/validate', {
-      files: files.map((f) => ({
-        filename: f.name,
-        contentType: f.type,
-        size: f.size,
-      })),
-    });
-
-    const items = presignRes.data.items;
-
-    if (!Array.isArray(items) || items.length !== files.length) {
-      throw new Error('Invalid presign response');
-    }
-
-    await Promise.all(
-      items.map((item, idx) =>
-        fetch(item.uploadUrl, {
-          method: 'PUT',
-          body: files[idx],
-          headers: {
-            'Content-Type': files[idx].type,
-          },
-        }),
-      ),
-    );
-
-    const completeRes = await api.post<{
-      mediaIds: string[];
-    }>('/media/complete', {
-      mediaIds: items.map((i) => i.mediaId),
-    });
-
-    return completeRes.data.mediaIds;
-  }
-
-  // =========================
   // Submit edit
   // =========================
   async function handleSubmit(e: React.FormEvent) {
@@ -95,8 +52,22 @@ export default function EditPostForm({
     try {
       setLocalError(null);
 
-      // ✅ optional media upload
-      const mediaIds = await uploadMedia();
+      // ✅ upload + complete media (FIXED FLOW)
+      const mediaIds: string[] = [];
+
+      for (const file of files) {
+        const { objectKey } = await upload(file);
+
+        const mediaId = await complete({
+          objectKey,
+          mimeType: file.type,
+          mediaType: file.type.startsWith('video/')
+            ? 'video'
+            : 'image',
+        });
+
+        mediaIds.push(mediaId);
+      }
 
       const result = await submit({
         postId,
@@ -125,10 +96,10 @@ export default function EditPostForm({
         rows={6}
         className="w-full rounded-lg border p-3 focus:outline-none focus:ring"
         required
-        disabled={loading}
+        disabled={submitting}
       />
 
-      {/* ===== Media picker (NEW, optional) ===== */}
+      {/* ===== Media picker (UNCHANGED UI) ===== */}
       <div className="flex items-center justify-between text-sm">
         <label className="cursor-pointer text-gray-600">
           <input
@@ -136,7 +107,7 @@ export default function EditPostForm({
             multiple
             accept="image/*,video/*"
             onChange={handleFileChange}
-            disabled={loading}
+            disabled={submitting}
             className="hidden"
           />
           Add photo / video
@@ -158,10 +129,10 @@ export default function EditPostForm({
       <div className="flex gap-3">
         <button
           type="submit"
-          disabled={loading}
+          disabled={submitting}
           className="rounded bg-blue-600 px-4 py-2 text-white disabled:opacity-50"
         >
-          {loading ? 'Saving…' : 'Save'}
+          {submitting ? 'Saving…' : 'Save'}
         </button>
 
         <button

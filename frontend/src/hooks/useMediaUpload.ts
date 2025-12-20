@@ -2,7 +2,7 @@
 import { useCallback, useState } from "react";
 import {
   requestPresignValidate,
-  type PresignValidateRequest,
+  buildPresignValidatePayload,
 } from "@/lib/api/media";
 
 export type UploadResult = {
@@ -19,34 +19,19 @@ export function useMediaUpload() {
       setError(null);
 
       try {
-        const mediaType =
-          file.type.startsWith("image/")
-            ? "image"
-            : file.type.startsWith("video/")
-            ? "video"
-            : null;
+        // 1️⃣ Build payload (guaranteed to match backend DTO)
+        const payload = buildPresignValidatePayload(file);
 
-        if (!mediaType) {
-          throw new Error("Unsupported media type");
-        }
-
-        const payload: PresignValidateRequest = {
-          fileName: file.name,
-          fileSize: file.size,
-          mimeType: file.type,
-          mediaType,
-        };
-
-        // 1️⃣ ขอ presigned URL
+        // 2️⃣ ขอ presigned URL
         const { uploadUrl, objectKey } =
           await requestPresignValidate(payload);
 
-        // 2️⃣ upload ตรงไป R2
+        // 3️⃣ upload ตรงไป R2
         const res = await fetch(uploadUrl, {
           method: "PUT",
           body: file,
           headers: {
-            "Content-Type": file.type,
+            "Content-Type": payload.mimeType,
           },
         });
 

@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useCallback } from "react";
-import { createPost } from "@/lib/api/posts";
-import { api } from "@/lib/api/api";
+import { useMediaUpload } from "@/hooks/useMediaUpload";
+import { useMediaComplete } from "@/hooks/useMediaComplete";
+import { useCreatePost } from "@/hooks/useCreatePost";
 
 type Props = {
   onPostCreated?: () => void;
@@ -12,21 +13,19 @@ type Props = {
 const MAX_LENGTH = 500;
 const MAX_FILES = 5;
 
-// ===== Presign response item (from backend) =====
-type PresignItem = {
-  uploadUrl: string;
-  mediaId: string;
-};
-
 export default function PostComposer({
   onPostCreated,
   onPosted,
 }: Props) {
   const [content, setContent] = useState("");
   const [files, setFiles] = useState<File[]>([]);
-  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  const { upload, uploading } = useMediaUpload();
+  const { complete, loading: completing } = useMediaComplete();
+  const { submit, loading: creating } = useCreatePost();
+
+  const submitting = uploading || completing || creating;
   const remaining = MAX_LENGTH - content.length;
 
   // =========================
@@ -45,56 +44,7 @@ export default function PostComposer({
   };
 
   // =========================
-  // Upload media (presign → PUT → complete)
-  // =========================
-  const uploadMedia = async (): Promise<string[]> => {
-    if (files.length === 0) return [];
-
-    // 1) ขอ presigned URLs
-    const presignRes = await api.post<{
-      items: PresignItem[];
-    }>("/media/presign/validate", {
-      files: files.map((f) => ({
-        filename: f.name,
-        contentType: f.type,
-        size: f.size,
-      })),
-    });
-
-    const items = presignRes.data.items;
-
-    if (
-      !Array.isArray(items) ||
-      items.length !== files.length
-    ) {
-      throw new Error("Invalid presign response");
-    }
-
-    // 2) Upload ตรงไป R2
-    await Promise.all(
-      items.map((item, idx) =>
-        fetch(item.uploadUrl, {
-          method: "PUT",
-          body: files[idx],
-          headers: {
-            "Content-Type": files[idx].type,
-          },
-        }),
-      ),
-    );
-
-    // 3) แจ้ง backend ว่า upload เสร็จ
-    const completeRes = await api.post<{
-      mediaIds: string[];
-    }>("/media/complete", {
-      mediaIds: items.map((i) => i.mediaId),
-    });
-
-    return completeRes.data.mediaIds;
-  };
-
-  // =========================
-  // Submit post (text + mediaIds)
+  // Submit post (text + media)
   // =========================
   const handleSubmit = useCallback(async () => {
     if (submitting) return;
@@ -110,14 +60,29 @@ export default function PostComposer({
     }
 
     try {
-      setSubmitting(true);
       setError(null);
 
-      const mediaIds = await uploadMedia();
+      // 1️⃣ upload + complete media (ทีละไฟล์)
+      const mediaIds: string[] = [];
 
-      await createPost({
+      for (const file of files) {
+        const { objectKey } = await upload(file);
+
+        const mediaId = await complete({
+          objectKey,
+          mimeType: file.type,
+          mediaType: file.type.startsWith("video/")
+            ? "video"
+            : "image",
+        });
+
+        mediaIds.push(mediaId);
+      }
+
+      // 2️⃣ create post
+      await submit({
         content,
-        mediaIds,
+        mediaIds: mediaIds.length > 0 ? mediaIds : undefined,
       });
 
       // reset state
@@ -130,10 +95,17 @@ export default function PostComposer({
     } catch (err) {
       console.error("Create post failed:", err);
       setError("ไม่สามารถโพสต์ได้ กรุณาลองใหม่");
-    } finally {
-      setSubmitting(false);
     }
-  }, [content, files, submitting, onPostCreated, onPosted]);
+  }, [
+    content,
+    files,
+    submitting,
+    upload,
+    complete,
+    submit,
+    onPostCreated,
+    onPosted,
+  ]);
 
   return (
     <section

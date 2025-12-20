@@ -22,17 +22,26 @@ export default function MediaUploadFlow({
       const file = e.target.files?.[0];
       if (!file) return;
 
+      // 🔒 fail-fast: ป้องกัน mediaType mismatch
+      if (
+        mediaType === "image" &&
+        !file.type.startsWith("image/")
+      ) {
+        e.target.value = "";
+        return;
+      }
+
+      if (
+        mediaType === "video" &&
+        !file.type.startsWith("video/")
+      ) {
+        e.target.value = "";
+        return;
+      }
+
       try {
-        /**
-         * STEP 1: Upload file to R2 via presigned URL
-         * upload() must return: { objectKey: string }
-         */
         const { objectKey } = await upload(file);
 
-        /**
-         * STEP 2: Notify backend that upload is complete
-         * complete() must return: mediaId (string)
-         */
         const mediaId = await complete({
           objectKey,
           mediaType,
@@ -43,7 +52,6 @@ export default function MediaUploadFlow({
       } catch {
         // errors are handled inside hooks (fail-soft)
       } finally {
-        // allow re-selecting same file
         e.target.value = "";
       }
     },
