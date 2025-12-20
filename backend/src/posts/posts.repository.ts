@@ -50,6 +50,7 @@ export class PostsRepository {
         createdAt: true,
         likeCount: true,
         commentCount: true,
+
         author: {
           select: {
             id: true,
@@ -57,99 +58,112 @@ export class PostsRepository {
             avatarUrl: true,
           },
         },
-      },
-    });
-  }
 
- async findPostById(postId: string) {
-  return this.prisma.post.findUnique({
-    where: { id: postId },
-    select: {
-      id: true,
-      content: true,
-
-      isPublished: true,
-      isDeleted: true,
-      isHidden: true,
-      visibility: true,
-
-      createdAt: true,
-
-      author: {
-        select: {
-          id: true,
-          displayName: true,
-          avatarUrl: true,
-        },
-      },
-
-      media: {
-        select: {
-          id: true,
-          media: {
-            select: {
-              id: true,
-              mediaType: true,
-              objectKey: true,
-              width: true,
-              height: true,
-              duration: true,
+        // ✅ FIX: ดึง media มาด้วย
+        media: {
+          select: {
+            media: {
+              select: {
+                id: true,
+                mediaType: true,
+                objectKey: true,
+                width: true,
+                height: true,
+                duration: true,
+              },
             },
           },
         },
       },
-    },
-  });
-}
+    });
+  }
 
+  async findPostById(postId: string) {
+    return this.prisma.post.findUnique({
+      where: { id: postId },
+      select: {
+        id: true,
+        content: true,
+
+        isPublished: true,
+        isDeleted: true,
+        isHidden: true,
+        visibility: true,
+
+        createdAt: true,
+
+        author: {
+          select: {
+            id: true,
+            displayName: true,
+            avatarUrl: true,
+          },
+        },
+
+        media: {
+          select: {
+            id: true,
+            media: {
+              select: {
+                id: true,
+                mediaType: true,
+                objectKey: true,
+                width: true,
+                height: true,
+                duration: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  }
 
   async findById(postId: string): Promise<{
-  id: string;
-  authorId: string;
-  isDeleted: boolean;
- } | null> {
-  return this.prisma.post.findUnique({
-    where: { id: postId },
-    select: {
-      id: true,
-      authorId: true,
-      isDeleted: true,
-    },
-  });
- }
+    id: string;
+    authorId: string;
+    isDeleted: boolean;
+  } | null> {
+    return this.prisma.post.findUnique({
+      where: { id: postId },
+      select: {
+        id: true,
+        authorId: true,
+        isDeleted: true,
+      },
+    });
+  }
 
-  
   async softDelete(postId: string) {
     await this.prisma.post.update({
-     where: { id: postId },
-     data: {
-     isDeleted: true,
-     deletedAt: new Date(),
-     },
-   });
+      where: { id: postId },
+      data: {
+        isDeleted: true,
+        deletedAt: new Date(),
+      },
+    });
   }
 
   async updateContent(params: {
-  postId: string;
-  content: string;
- }) {
-  const { postId, content } = params;
+    postId: string;
+    content: string;
+  }) {
+    const { postId, content } = params;
 
-  return this.prisma.post.update({
-    where: { id: postId },
-    data: {
-      content,
-      isEdited: true,
-      editedAt: new Date(),
-    },
-    select: {
-      id: true,
-      content: true,
-      editedAt: true,
-    },
-  });
- } 
- 
+    return this.prisma.post.update({
+      where: { id: postId },
+      data: {
+        content,
+        isEdited: true,
+        editedAt: new Date(),
+      },
+      select: {
+        id: true,
+        content: true,
+        editedAt: true,
+      },
+    });
+  }
 
   async createPost(params: {
     authorId: string;
@@ -164,23 +178,19 @@ export class PostsRepository {
   }
 
   async attachMedia(params: {
-  postId: string;
-  mediaIds: string[];
-}) {
-  if (params.mediaIds.length === 0) {
-    return;
+    postId: string;
+    mediaIds: string[];
+  }) {
+    if (params.mediaIds.length === 0) {
+      return;
+    }
+
+    await this.prisma.postMedia.createMany({
+      data: params.mediaIds.map((mediaId) => ({
+        postId: params.postId,
+        mediaId,
+      })),
+      skipDuplicates: true,
+    });
   }
-
-  await this.prisma.postMedia.createMany({
-    data: params.mediaIds.map((mediaId) => ({
-      postId: params.postId,
-      mediaId,
-    })),
-    skipDuplicates: true,
-  });
-}
-
-
-
-
 }

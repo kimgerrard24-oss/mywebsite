@@ -10,6 +10,12 @@ export class PostFeedItemDto {
     avatarUrl: string | null;
   };
 
+   media!: {
+    id: string;
+    type: 'image' | 'video';
+    objectKey: string;
+  }[];
+
   stats!: {
     likeCount: number;
     commentCount: number;
