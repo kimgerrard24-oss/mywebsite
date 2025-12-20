@@ -14,9 +14,9 @@ export type PostDetail = {
   media: {
     id: string;
     type: string;
-    url: string;
+    cdnUrl: string;
+    url?: string; // optional for backward compatibility
   }[];
 
   canDelete: boolean;
-
 };

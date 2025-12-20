@@ -26,13 +26,10 @@ export function useMediaUpload() {
         const { uploadUrl, objectKey } =
           await requestPresignValidate(payload);
 
-        // 3️⃣ upload ตรงไป R2
+        // 3️⃣ upload ตรงไป R2 (❗ ห้ามใส่ headers เอง)
         const res = await fetch(uploadUrl, {
           method: "PUT",
           body: file,
-          headers: {
-            "Content-Type": payload.mimeType,
-          },
         });
 
         if (!res.ok) {
@@ -48,7 +45,7 @@ export function useMediaUpload() {
         setUploading(false);
       }
     },
-    []
+    [],
   );
 
   return {

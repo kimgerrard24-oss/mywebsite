@@ -70,7 +70,7 @@ export default function PostDetail({ post }: Props) {
               return (
                 <figure key={m.id}>
                   <img
-                    src={m.url}
+                    src={m.cdnUrl}
                     alt=""
                     loading="lazy"
                     className="w-full rounded-lg"
@@ -83,7 +83,7 @@ export default function PostDetail({ post }: Props) {
               return (
                 <figure key={m.id}>
                   <video
-                    src={m.url}
+                    src={m.cdnUrl}
                     controls
                     preload="metadata"
                     className="w-full rounded-lg"
@@ -92,7 +92,7 @@ export default function PostDetail({ post }: Props) {
               );
             }
 
-            // fail-soft: media type ไม่รู้จัก
+            // fail-soft
             return null;
           })}
         </section>
