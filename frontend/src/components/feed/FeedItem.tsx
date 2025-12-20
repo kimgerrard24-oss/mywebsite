@@ -59,40 +59,39 @@ export default function FeedItem({ post }: Props) {
         {post.content}
       </p>
 
-      {/* ===== Media (FIXED) ===== */}
-      {Array.isArray((post as any).media) &&
-        (post as any).media.length > 0 && (
-          <section className="mt-3 space-y-2">
-            {(post as any).media.map((m: any) => {
-              const src = m.cdnUrl ?? m.url;
+      {/* ===== Media ===== */}
+      {Array.isArray(post.media) && post.media.length > 0 && (
+        <section className="mt-3 space-y-2">
+          {post.media.map((m) => {
+            const src = m.url;
 
-              return (
-                <figure
-                  key={m.id}
-                  className="overflow-hidden rounded-lg"
-                >
-                  {m.type === "image" && (
-                    <img
-                      src={src}
-                      alt=""
-                      loading="lazy"
-                      className="w-full rounded-lg"
-                    />
-                  )}
+            return (
+              <figure
+                key={m.id}
+                className="overflow-hidden rounded-lg"
+              >
+                {m.type === "image" && (
+                  <img
+                    src={src}
+                    alt=""
+                    loading="lazy"
+                    className="w-full rounded-lg"
+                  />
+                )}
 
-                  {m.type === "video" && (
-                    <video
-                      src={src}
-                      controls
-                      preload="metadata"
-                      className="w-full rounded-lg"
-                    />
-                  )}
-                </figure>
-              );
-            })}
-          </section>
-        )}
+                {m.type === "video" && (
+                  <video
+                    src={src}
+                    controls
+                    preload="metadata"
+                    className="w-full rounded-lg"
+                  />
+                )}
+              </figure>
+            );
+          })}
+        </section>
+      )}
 
       <footer className="mt-3 flex gap-4 text-xs text-gray-600">
         <span>❤️ {post.stats.likeCount}</span>

@@ -66,11 +66,14 @@ export default function PostDetail({ post }: Props) {
           aria-label="Post media"
         >
           {post.media.map((m) => {
+            // ✅ FIX: รองรับ backend ใหม่ (url) + backward-safe (cdnUrl)
+            const src = m.cdnUrl ?? m.url;
+
             if (m.type === "image") {
               return (
                 <figure key={m.id}>
                   <img
-                    src={m.cdnUrl}
+                    src={src}
                     alt=""
                     loading="lazy"
                     className="w-full rounded-lg"
@@ -83,7 +86,7 @@ export default function PostDetail({ post }: Props) {
               return (
                 <figure key={m.id}>
                   <video
-                    src={m.cdnUrl}
+                    src={src}
                     controls
                     preload="metadata"
                     className="w-full rounded-lg"

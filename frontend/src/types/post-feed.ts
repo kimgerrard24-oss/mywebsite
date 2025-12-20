@@ -10,6 +10,13 @@ export type PostFeedItem = {
     avatarUrl: string | null;
   };
 
+  media: {
+    id: string;
+    type: 'image' | 'video';
+    url: string;
+    objectKey: string;
+  }[];
+
   stats: {
     likeCount: number;
     commentCount: number;
