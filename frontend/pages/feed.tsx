@@ -61,11 +61,9 @@ export default function FeedPage({ user, feedItems, lang }: FeedProps) {
     }
   }, [refreshing]);
 
-  // ===== FIX: handle delete post in feed (no reload) =====
   const handlePostDeleted = useCallback((postId: string) => {
     setItems((prev) => prev.filter((p) => p.id !== postId));
   }, []);
-  // ===== END FIX =====
 
   return (
     <>
@@ -156,10 +154,9 @@ export default function FeedPage({ user, feedItems, lang }: FeedProps) {
               className="bg-white shadow-sm border rounded-2xl p-4 sm:p-5 flex flex-col gap-4"
               aria-label={t.feed.post.aria}
             >
-              {/* ===== Header: โปรไฟล์ผู้เขียน ===== */}
+              {/* ===== Header ===== */}
               <header className="flex items-start justify-between gap-3">
                 <div className="flex items-start gap-3">
-                  {/* Avatar */}
                   <Link href={`/users/${post.author.id}`}>
                     {post.author.avatarUrl ? (
                       <img
@@ -175,7 +172,6 @@ export default function FeedPage({ user, feedItems, lang }: FeedProps) {
                     )}
                   </Link>
 
-                  {/* Name + Time */}
                   <div className="flex flex-col leading-tight">
                     <Link
                       href={`/users/${post.author.id}`}
@@ -199,18 +195,48 @@ export default function FeedPage({ user, feedItems, lang }: FeedProps) {
                   canDelete={post.canDelete}
                   canEdit={post.canDelete}
                   canReport={!post.canDelete}
-                  onDeleted={() => {
-                    handlePostDeleted(post.id);
-                  }}
+                  onDeleted={() => handlePostDeleted(post.id)}
                 />
               </header>
 
-              {/* ================= CLICK TO POST DETAIL ================= */}
+              {/* ===== Content ===== */}
               <Link href={`/posts/${post.id}`} className="block">
                 <p className="text-gray-800 leading-relaxed whitespace-pre-wrap hover:underline cursor-pointer">
                   {post.content}
                 </p>
               </Link>
+
+              {/* ===== MEDIA (ADDED — NO EXISTING LOGIC REMOVED) ===== */}
+              {Array.isArray((post as any).media) &&
+                (post as any).media.length > 0 && (
+                  <section className="mt-2 space-y-3">
+                    {(post as any).media.map((m: any) => (
+                      <figure
+                        key={m.id}
+                        className="overflow-hidden rounded-xl"
+                      >
+                        {m.type === "image" && (
+                          <img
+                            src={m.url}
+                            alt=""
+                            loading="lazy"
+                            className="w-full rounded-xl"
+                          />
+                        )}
+
+                        {m.type === "video" && (
+                          <video
+                            src={m.url}
+                            controls
+                            preload="metadata"
+                            className="w-full rounded-xl"
+                          />
+                        )}
+                      </figure>
+                    ))}
+                  </section>
+                )}
+              {/* ===== END MEDIA ===== */}
 
               <footer className="flex flex-wrap items-center gap-4 sm:gap-6 text-sm text-gray-600">
                 <span>

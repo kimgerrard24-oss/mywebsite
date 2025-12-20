@@ -1,7 +1,4 @@
-// ==============================
 // stores/user.store.tsx
-// FIXED — Hybrid Auth Compatible
-// ==============================
 
 "use client";
 
