@@ -12,8 +12,14 @@ export class UserProfileDto {
   bio: string | null;
   createdAt: Date;
   updatedAt: Date;
+  isSelf: boolean;
 
-  constructor(user: any) {
+  constructor(
+    user: any,
+    options?: {
+      isSelf?: boolean;
+    },
+  ) {
     this.id = user.id;
     this.email = user.email;
     this.username = user.username;
@@ -25,9 +31,16 @@ export class UserProfileDto {
     this.bio = user.bio ?? null;
     this.createdAt = user.createdAt;
     this.updatedAt = user.updatedAt;
+
+    this.isSelf = options?.isSelf ?? false;
   }
 
-  static fromUser(user: any): UserProfileDto {
-    return new UserProfileDto(user);
+  static fromUser(
+    user: any,
+    options?: {
+      isSelf?: boolean;
+    },
+  ): UserProfileDto {
+    return new UserProfileDto(user, options);
   }
 }

@@ -11,43 +11,46 @@ const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL!;
   
 
- export async function getUserPosts(params: {
+export async function getUserPosts(params: {
   userId: string;
   cursor?: string | null;
   limit?: number;
-  cookie?: string;
+  cookie?: string; // มีเฉพาะ SSR
 }): Promise<UserPostFeedResponse> {
   const { userId, cursor, limit, cookie } = params;
 
   const qs = new URLSearchParams();
-  if (cursor) qs.set('cursor', cursor);
-  if (limit) qs.set('limit', String(limit));
+  if (cursor) qs.set("cursor", cursor);
+  if (limit) qs.set("limit", String(limit));
 
-  const base =
-    process.env.INTERNAL_BACKEND_URL ??
-    process.env.NEXT_PUBLIC_BACKEND_URL ??
-    'https://api.phlyphant.com';
+  const isServer = typeof window === "undefined";
+
+  const base = isServer
+    ? process.env.INTERNAL_BACKEND_URL ??
+      process.env.NEXT_PUBLIC_BACKEND_URL ??
+      "https://api.phlyphant.com"
+    : process.env.NEXT_PUBLIC_BACKEND_URL ??
+      "https://api.phlyphant.com";
 
   const res = await fetch(
-    `${base}/posts/user/${userId}?${qs.toString()}`,
+    `${base.replace(/\/+$/, "")}/posts/user/${userId}?${qs.toString()}`,
     {
-      method: 'GET',
+      method: "GET",
       headers: {
-        Accept: 'application/json',
+        Accept: "application/json",
         ...(cookie ? { Cookie: cookie } : {}),
       },
-      cache: 'no-store',
-    },
+      credentials: isServer ? "same-origin" : "include",
+      cache: "no-store",
+    }
   );
 
   if (!res.ok) {
-    throw new Error('Failed to load user posts');
+    throw new Error("Failed to load user posts");
   }
 
   return res.json();
-}
-
-
+ }
 
  export async function createPost(
   payload: CreatePostPayload,

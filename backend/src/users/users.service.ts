@@ -155,8 +155,11 @@ export class UsersService {
       throw new NotFoundException("User not found");
     }
 
-    return user as UserProfileDto;
+    return UserProfileDto.fromUser(user, {
+  isSelf: false,
+ });
   }
+
 
   /**
    * Get the current user's profile by userId (for route GET /users/me)
@@ -188,7 +191,10 @@ export class UsersService {
       );
     }
 
-    return user as UserProfileDto;
+     return UserProfileDto.fromUser(user, {
+    isSelf: true,
+  });
+  
   }
 
   async getPublicProfile(params: {
