@@ -1,5 +1,6 @@
 // frontend/src/components/posts/CreatePostForm.tsx
 import { useState } from 'react';
+import { useRouter } from 'next/router';
 import { useMediaUpload } from '@/hooks/useMediaUpload';
 import { useMediaComplete } from '@/hooks/useMediaComplete';
 import { createPost } from '@/lib/api/posts';
@@ -7,6 +8,8 @@ import { createPost } from '@/lib/api/posts';
 const MAX_FILES = 5;
 
 export default function CreatePostForm() {
+  const router = useRouter();
+
   const [content, setContent] = useState('');
   const [files, setFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
@@ -48,7 +51,7 @@ export default function CreatePostForm() {
       setLoading(true);
       setError(null);
 
-      // ✅ FIXED: upload + complete media (per file)
+      // upload + complete media (UNCHANGED)
       const mediaIds: string[] = [];
 
       for (const file of files) {
@@ -65,7 +68,7 @@ export default function CreatePostForm() {
         mediaIds.push(mediaId);
       }
 
-      // ✅ text-only still works exactly the same
+      // create post (UNCHANGED)
       await createPost({
         content,
         mediaIds: mediaIds.length > 0 ? mediaIds : undefined,
@@ -73,7 +76,9 @@ export default function CreatePostForm() {
 
       setContent('');
       setFiles([]);
-      alert('Post created successfully');
+
+      // ✅ FIX: refresh feed หลังโพสต์สำเร็จ
+      router.replace(router.asPath);
     } catch (err) {
       console.error(err);
       setError('Failed to create post. Please try again.');

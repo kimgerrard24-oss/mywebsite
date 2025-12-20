@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useCallback } from "react";
+import { useRouter } from "next/router";
 import { useMediaUpload } from "@/hooks/useMediaUpload";
 import { useMediaComplete } from "@/hooks/useMediaComplete";
 import { useCreatePost } from "@/hooks/useCreatePost";
@@ -17,6 +18,8 @@ export default function PostComposer({
   onPostCreated,
   onPosted,
 }: Props) {
+  const router = useRouter();
+
   const [content, setContent] = useState("");
   const [files, setFiles] = useState<File[]>([]);
   const [error, setError] = useState<string | null>(null);
@@ -36,8 +39,10 @@ export default function PostComposer({
   ) => {
     if (!e.target.files) return;
 
-    const selected = Array.from(e.target.files)
-      .slice(0, MAX_FILES);
+    const selected = Array.from(e.target.files).slice(
+      0,
+      MAX_FILES,
+    );
 
     setFiles(selected);
     e.target.value = "";
@@ -62,7 +67,7 @@ export default function PostComposer({
     try {
       setError(null);
 
-      // 1️⃣ upload + complete media (ทีละไฟล์)
+      // 1️⃣ upload + complete media
       const mediaIds: string[] = [];
 
       for (const file of files) {
@@ -89,9 +94,14 @@ export default function PostComposer({
       setContent("");
       setFiles([]);
 
-      // callbacks (compatibility-safe)
+      // callbacks (UNCHANGED)
       onPostCreated?.();
       onPosted?.();
+
+      // ✅ FIX: fallback refresh feed
+      if (!onPostCreated && !onPosted) {
+        router.replace(router.asPath);
+      }
     } catch (err) {
       console.error("Create post failed:", err);
       setError("ไม่สามารถโพสต์ได้ กรุณาลองใหม่");
@@ -105,6 +115,7 @@ export default function PostComposer({
     submit,
     onPostCreated,
     onPosted,
+    router,
   ]);
 
   return (
