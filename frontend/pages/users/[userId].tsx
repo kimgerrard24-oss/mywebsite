@@ -6,29 +6,28 @@ import Link from "next/link";
 import ProfileLayout from "@/components/layout/ProfileLayout";
 import { ProfileCard } from "@/components/profile/profile-ProfileCard";
 
+// ✅ NEW: shared posts component
+import ProfilePosts from "@/components/profile/ProfilePosts";
+
 import { fetchPublicUserProfileServer } from "@/lib/api/user";
 import { getUserPosts } from "@/lib/api/posts";
-
-import FeedItem from "@/components/feed/FeedItem";
 
 import type { PublicUserProfile } from "@/lib/api/user";
 import type { PostFeedItem } from "@/types/post-feed";
 
 type Props = {
   profile: PublicUserProfile;
-  posts: PostFeedItem[];
+  posts: PostFeedItem[]; // kept for compatibility (fail-soft SSR)
 };
 
-export default function UserProfilePage({ profile, posts }: Props) {
+export default function UserProfilePage({ profile }: Props) {
   const siteUrl =
     process.env.NEXT_PUBLIC_SITE_URL || "https://www.phlyphant.com";
 
   return (
     <>
       <Head>
-        <title>
-          {profile.displayName ?? "User"} | PhlyPhant
-        </title>
+        <title>{profile.displayName ?? "User"} | PhlyPhant</title>
         <meta
           name="description"
           content={`ดูโปรไฟล์และโพสต์ของ ${
@@ -52,7 +51,7 @@ export default function UserProfilePage({ profile, posts }: Props) {
 
       <ProfileLayout>
         <main className="min-h-screen bg-gray-50">
-          {/* ===== Top navigation (same UX as owner profile) ===== */}
+          {/* ===== Top navigation ===== */}
           <div className="max-w-5xl mx-auto px-4 pt-4">
             <Link
               href="/feed"
@@ -66,32 +65,15 @@ export default function UserProfilePage({ profile, posts }: Props) {
           {/* ===== Profile card (read-only) ===== */}
           <div className="mx-auto max-w-5xl px-4 pt-4 pb-8">
             <ProfileCard
-              profile={{
-                ...profile,
-                // 🔒 force read-only behavior
-                isSelf: false,
-              }}
+              profile={profile}
+              isSelf={false}
             />
           </div>
 
-          {/* ===== User posts ===== */}
-          <section className="mx-auto max-w-5xl px-4 pb-12">
-            <h2 className="mb-4 text-lg font-semibold">
-              Posts
-            </h2>
-
-            {posts.length === 0 ? (
-              <p className="text-sm text-gray-500">
-                No posts to display
-              </p>
-            ) : (
-              <div className="space-y-4">
-                {posts.map((post) => (
-                  <FeedItem key={post.id} post={post} />
-                ))}
-              </div>
-            )}
-          </section>
+          {/* ===== Shared ProfilePosts (same as /profile) ===== */}
+          <div className="mx-auto max-w-5xl px-4 pb-12">
+            <ProfilePosts userId={profile.id} />
+          </div>
         </main>
       </ProfileLayout>
     </>
@@ -101,7 +83,6 @@ export default function UserProfilePage({ profile, posts }: Props) {
 export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
   const userId = ctx.params?.userId;
 
-  // guard
   if (typeof userId !== "string") {
     return { notFound: true };
   }
@@ -117,13 +98,14 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
       return { notFound: true };
     }
 
-    // ===== User posts (fail-soft) =====
+    // ===== User posts (SSR, fail-soft, kept for compatibility) =====
     let posts: PostFeedItem[] = [];
 
     try {
       const feed = await getUserPosts({
         userId,
         limit: 20,
+        cookie: ctx.req.headers.cookie,
       });
 
       posts = feed.items;

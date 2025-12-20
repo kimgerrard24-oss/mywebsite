@@ -15,21 +15,28 @@ const API_BASE =
   userId: string;
   cursor?: string | null;
   limit?: number;
- }): Promise<UserPostFeedResponse> {
-  const { userId, cursor, limit } = params;
+  cookie?: string;
+}): Promise<UserPostFeedResponse> {
+  const { userId, cursor, limit, cookie } = params;
 
   const qs = new URLSearchParams();
   if (cursor) qs.set('cursor', cursor);
   if (limit) qs.set('limit', String(limit));
 
+  const base =
+    process.env.INTERNAL_BACKEND_URL ??
+    process.env.NEXT_PUBLIC_BACKEND_URL ??
+    'https://api.phlyphant.com';
+
   const res = await fetch(
-    apiPath(`/posts/user/${userId}?${qs.toString()}`),
+    `${base}/posts/user/${userId}?${qs.toString()}`,
     {
       method: 'GET',
-      credentials: 'include', // ✅ HttpOnly cookie
       headers: {
         Accept: 'application/json',
+        ...(cookie ? { Cookie: cookie } : {}),
       },
+      cache: 'no-store',
     },
   );
 
@@ -38,7 +45,8 @@ const API_BASE =
   }
 
   return res.json();
- }
+}
+
 
 
  export async function createPost(

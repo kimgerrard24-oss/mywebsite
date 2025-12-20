@@ -12,6 +12,9 @@ import type { UserProfile } from "@/lib/api/user";
 import { ProfileCard } from "@/components/profile/profile-ProfileCard";
 import { ProfileSkeleton } from "@/components/profile/ProfileSkeleton";
 
+// ✅ NEW: reusable posts component
+import ProfilePosts from "@/components/profile/ProfilePosts";
+
 interface ProfilePageProps {
   initialProfile: UserProfile | null;
   // IMPORTANT: this now means "session valid", not "profile exists"
@@ -236,8 +239,14 @@ const ProfilePage: NextPage<ProfilePageProps> = ({
         <div className="mx-auto max-w-5xl px-4 pb-12 pt-4 sm:px-6 lg:px-8">
           {loading && <ProfileSkeleton />}
           {!loading && error && <ProfileSkeleton errorMessage={error} />}
+
           {!loading && !error && profile && (
-            <ProfileCard profile={profile} />
+            <>
+              <ProfileCard profile={profile} />
+
+              {/* ✅ NEW: profile posts (reusable, production-safe) */}
+              <ProfilePosts userId={profile.id} />
+            </>
           )}
         </div>
       </main>
