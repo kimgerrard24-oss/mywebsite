@@ -40,7 +40,7 @@ export class MediaService {
     ].join('/');
 
     const uploadUrl = await this.presign.createUploadUrl({
-      bucket: process.env.MEDIA_BUCKET_NAME!,
+      bucket: process.env.R2_BUCKET_NAME!,
       key: objectKey,
       contentType: dto.mimeType,
       expiresInSeconds: 60 * 5, // 5 minutes
