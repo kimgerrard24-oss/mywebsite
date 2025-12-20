@@ -1,7 +1,6 @@
 // components/profile/PublicUserProfile.tsx
 import UserProfileHeader from "./UserProfileHeader";
 import UserProfileStats from "./UserProfileStats";
-import PublicUserPosts from "./PublicUserPosts";
 import type { PublicUserProfile } from "@/lib/api/user";
 
 type Props = {
@@ -22,10 +21,12 @@ export default function PublicUserProfile({ profile }: Props) {
         <UserProfileStats profile={profile} />
       </div>
 
-      {/* Posts / Empty state */}
-      <div className="mt-8">
-        <PublicUserPosts userId={profile.id} />
-      </div>
+      {/* 
+        NOTE:
+        - User posts feed ถูกย้ายไป render ที่ page-level (/users/[userId].tsx)
+        - เพื่อหลีกเลี่ยง placeholder / empty state หลอก
+        - component นี้ทำหน้าที่เฉพาะ "profile presentation" เท่านั้น
+      */}
     </section>
   );
 }
