@@ -13,7 +13,7 @@ const rawBase =
 export const API_BASE = rawBase.replace(/\/+$/, "");
 
 // Normalize path
-function apiPath(path: string): string {
+export function apiPath(path: string): string {
   if (!path.startsWith("/")) return `${API_BASE}/${path}`;
   return `${API_BASE}${path}`;
 }

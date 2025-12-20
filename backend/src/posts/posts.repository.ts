@@ -193,4 +193,41 @@ export class PostsRepository {
       skipDuplicates: true,
     });
   }
+
+   async findUserPosts(params: {
+    userId: string;
+    limit?: number;
+    cursor?: string;
+    scope: 'public' | 'self';
+  }) {
+    const { userId, limit = 20, cursor } = params;
+
+    return this.prisma.post.findMany({
+      where: {
+        authorId: userId,
+        isDeleted: false,
+        isHidden: false,
+      },
+      take: limit,
+      skip: cursor ? 1 : 0,
+      cursor: cursor ? { id: cursor } : undefined,
+      orderBy: {
+        createdAt: 'desc',
+      },
+      include: {
+        author: {
+          select: {
+            id: true,
+            displayName: true,
+            avatarUrl: true,
+          },
+        },
+        media: {
+          include: {
+            media: true,
+          },
+        },
+      },
+    });
+  }
 }

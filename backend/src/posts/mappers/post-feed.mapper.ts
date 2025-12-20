@@ -29,19 +29,21 @@ export class PostFeedMapper {
                 ? 'image'
                 : 'video',
 
-            // ✅ FIX: เพิ่ม url สำหรับ frontend render
+            // ✅ การทำงานใหม่: build CDN url ให้ frontend render ได้
             url: buildCdnUrl(pm.media.objectKey),
 
-            // ❗ เก็บ objectKey ไว้ (เผื่อ internal use / future)
+            // ❗ เก็บไว้เพื่อ internal / future use
             objectKey: pm.media.objectKey,
           }))
         : [],
 
+      // 🔒 logic เดิม (ไม่แตะ)
       stats: {
         likeCount: row.likeCount,
         commentCount: row.commentCount,
       },
 
+      // 🔒 logic เดิม (authority จาก session)
       canDelete:
         !!viewerUserId &&
         !!author &&

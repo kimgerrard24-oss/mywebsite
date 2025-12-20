@@ -159,6 +159,8 @@ CREATE TABLE "Media" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "deletedAt" TIMESTAMP(3),
     "cleanupAt" TIMESTAMP(3),
+    "cleanupFailCount" INTEGER NOT NULL DEFAULT 0,
+    "lastCleanupError" TEXT,
 
     CONSTRAINT "Media_pkey" PRIMARY KEY ("id")
 );

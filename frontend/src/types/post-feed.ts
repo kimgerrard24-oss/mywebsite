@@ -29,3 +29,8 @@ export type PostFeedResponse = {
   items: PostFeedItem[];
   nextCursor?: string | null;
 };
+
+export type UserPostFeedResponse = {
+  items: PostFeedItem[];
+  nextCursor: string | null;
+};

@@ -3,3 +3,9 @@ export type CreatePostPayload = {
   content: string;
   mediaIds?: string[];
 };
+
+
+
+
+
+

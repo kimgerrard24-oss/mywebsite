@@ -22,6 +22,7 @@ import { ParsePostIdPipe } from './pipes/parse-post-id.pipe';
 import { OptionalAuthGuard } from './guards/optional-auth.guard';
 import { DeletePostParamsDto } from './dto/delete-post.params.dto';
 import { UpdatePostDto } from './dto/update-post.dto';
+import { GetUserPostsQuery } from './dto/get-user-posts.query';
 
 @Controller('posts')
 export class PostsController {
@@ -138,5 +139,20 @@ export class PostsController {
     content: dto.content,
   });
  }
+ 
 
+  @UseGuards(AccessTokenCookieAuthGuard)
+ @Get('user/:userId')
+ async getUserPosts(
+  @Param('userId') userId: string,
+  @Query() query: GetUserPostsQuery,
+  @Req() req: Request & { user?: { userId: string } },
+ ) {
+  return this.postsService.getUserPostFeed({
+    targetUserId: userId,
+    query,
+    viewer: req.user ?? null, // ✅ FIX
+  });
+
+ }
 }

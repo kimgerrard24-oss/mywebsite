@@ -13,6 +13,7 @@ import { PostUpdatePolicy } from './policy/post-update.policy';
 import { PostMediaPolicy } from './policy/post-media.policy';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePostDto } from './dto/create-post.dto';
+import { GetUserPostsQuery } from './dto/get-user-posts.query';
 
 @Injectable()
 export class PostsService {
@@ -274,6 +275,48 @@ async deletePost(params: { postId: string; actorUserId: string }) {
     id: updated.id,
     content: updated.content,
     editedAt: updated.editedAt,
+  };
+ }
+ 
+
+ async getUserPostFeed(params: {
+  targetUserId: string;
+  query: GetUserPostsQuery;
+  viewer: { userId: string } | null; // ✅ เพิ่ม viewer
+ }) {
+  const { targetUserId, query, viewer } = params;
+
+  // ✅ FIX 1: ส่ง object ให้ resolveUserPostVisibility
+  const visibilityScope =
+    await this.visibility.resolveUserPostVisibility({
+      targetUserId,
+      viewer,
+    });
+
+  if (!visibilityScope.canView) {
+    return { items: [], nextCursor: null };
+  }
+
+  const rows = await this.repo.findUserPosts({
+    userId: targetUserId,
+    limit: query.limit,
+    cursor: query.cursor,
+    scope: visibilityScope.scope,
+  });
+
+  // ✅ FIX 2: ส่ง viewerUserId ให้ mapper
+  const items = rows.map((row) =>
+    PostFeedMapper.toDto(row, viewer?.userId ?? null),
+  );
+
+  const nextCursor =
+    rows.length === query.limit
+      ? rows[rows.length - 1].id
+      : null;
+
+  return {
+    items,
+    nextCursor,
   };
  }
 

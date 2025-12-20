@@ -4,6 +4,8 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron } from '@nestjs/schedule';
 import { PrismaService } from '../../prisma/prisma.service';
 import { R2DeleteService } from '../../r2/r2-delete.service';
+import * as Sentry from '@sentry/node';
+import { AlertService } from '../../alert/alert.service';
 
 @Injectable()
 export class MediaCleanupCron {
@@ -12,6 +14,7 @@ export class MediaCleanupCron {
   constructor(
     private readonly prisma: PrismaService,
     private readonly r2Delete: R2DeleteService,
+    private readonly alert: AlertService,
   ) {}
 
   /**
@@ -21,12 +24,11 @@ export class MediaCleanupCron {
    * - Safe / Idempotent / Fail-soft
    * =========================================================
    */
-  @Cron('*/1 * * * *')
+  @Cron('0 3 */3 * *')
   async cleanupDeletedMedia(): Promise<void> {
     const threshold = new Date(
       Date.now() - 3 * 24 * 60 * 60 * 1000,
     );
-
 
     const medias = await this.prisma.media.findMany({
       where: {
@@ -35,14 +37,15 @@ export class MediaCleanupCron {
         },
         cleanupAt: null,
         posts: {
-          none: {}, // ✅ สำคัญ: ต้องไม่ถูกผูกกับ post ใด ๆ
+          none: {},
         },
       },
       select: {
         id: true,
         objectKey: true,
+        cleanupFailCount: true,
       },
-      take: 100, // batch safety
+      take: 100,
     });
 
     if (medias.length === 0) {
@@ -54,11 +57,6 @@ export class MediaCleanupCron {
     );
 
     for (const media of medias) {
-      /**
-       * =========================
-       * Defensive validation
-       * =========================
-       */
       if (
         !media.objectKey ||
         media.objectKey.includes('..') ||
@@ -72,22 +70,13 @@ export class MediaCleanupCron {
       }
 
       try {
-        /**
-         * 2️⃣ soft-lock กัน cron ซ้ำ
-         */
         await this.prisma.media.update({
           where: { id: media.id },
           data: { cleanupAt: new Date() },
         });
 
-        /**
-         * 3️⃣ ลบ object จาก R2 (fail-soft)
-         */
         await this.r2Delete.deleteObject(media.objectKey);
 
-        /**
-         * 4️⃣ ลบ record ออกจาก DB (final)
-         */
         await this.prisma.media.delete({
           where: { id: media.id },
         });
@@ -96,15 +85,55 @@ export class MediaCleanupCron {
           `Media cleaned mediaId=${media.id}`,
         );
       } catch (err) {
-        /**
-         * ❗ fail-soft
-         * - ห้าม throw
-         * - cron ต้องทำงานต่อ
-         */
+        const failCount = (media.cleanupFailCount ?? 0) + 1;
+
+        await this.prisma.media.update({
+          where: { id: media.id },
+          data: {
+            cleanupFailCount: failCount,
+            lastCleanupError:
+              err instanceof Error ? err.message : 'unknown',
+          },
+        });
+
         this.logger.error(
-          `Media cleanup failed mediaId=${media.id}`,
+          `Media cleanup failed mediaId=${media.id} (fail ${failCount})`,
           err instanceof Error ? err.stack : undefined,
         );
+
+        /**
+         * =====================================================
+         * 🚨 ALERT ZONE (เพิ่มอย่างปลอดภัย)
+         * =====================================================
+         */
+        if (failCount >= 3) {
+          // 1️⃣ Alert ผ่าน AlertService (Ops / Slack / Email)
+          try {
+            await this.alert.notifyCritical(
+              'Media cleanup failed repeatedly',
+              {
+                mediaId: media.id,
+                objectKey: media.objectKey,
+                failCount,
+              },
+            );
+          } catch {
+            // ❗ ห้ามให้ alert ทำ cron ล้ม
+          }
+
+          // 2️⃣ ส่งเข้า Sentry (สำหรับ trace & history)
+          Sentry.captureMessage(
+            'Media cleanup failed repeatedly',
+            {
+              level: 'error',
+              extra: {
+                mediaId: media.id,
+                objectKey: media.objectKey,
+                failCount,
+              },
+            },
+          );
+        }
       }
     }
 

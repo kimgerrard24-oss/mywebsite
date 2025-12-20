@@ -1,13 +1,45 @@
 // frontend/src/lib/api/posts.ts
-import { api } from './api';
+import { api, apiPath } from './api';
 import type { GetServerSidePropsContext } from "next";
 import type { CreatePostPayload } from '@/types/post';
 import type { PostFeedResponse } from '@/types/post-feed';
 import type { PostDetail } from "@/types/post-detail";
+import { UserPostFeedResponse } from '@/types/post-feed';
 
 const API_BASE =
   process.env.INTERNAL_BACKEND_URL ??
   process.env.NEXT_PUBLIC_API_BASE_URL!;
+  
+
+ export async function getUserPosts(params: {
+  userId: string;
+  cursor?: string | null;
+  limit?: number;
+ }): Promise<UserPostFeedResponse> {
+  const { userId, cursor, limit } = params;
+
+  const qs = new URLSearchParams();
+  if (cursor) qs.set('cursor', cursor);
+  if (limit) qs.set('limit', String(limit));
+
+  const res = await fetch(
+    apiPath(`/posts/user/${userId}?${qs.toString()}`),
+    {
+      method: 'GET',
+      credentials: 'include', // ✅ HttpOnly cookie
+      headers: {
+        Accept: 'application/json',
+      },
+    },
+  );
+
+  if (!res.ok) {
+    throw new Error('Failed to load user posts');
+  }
+
+  return res.json();
+ }
+
 
  export async function createPost(
   payload: CreatePostPayload,
@@ -112,5 +144,6 @@ const API_BASE =
     content: string;
     editedAt: string;
   };
-  
+ 
+ 
 }

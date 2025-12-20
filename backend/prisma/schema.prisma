@@ -177,7 +177,8 @@ model Media {
 
   deletedAt   DateTime?   // เมื่อ user ลบ post / media
   cleanupAt   DateTime?   // เวลาที่ cron จะลบจาก R2
-
+  cleanupFailCount Int        @default(0)
+  lastCleanupError String?
   posts       PostMedia[]
 
   @@index([ownerUserId])
