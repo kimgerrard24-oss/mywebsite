@@ -6,6 +6,7 @@ import { PresignService } from './presign/presign.service';
 import { R2Module } from '../r2/r2.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AuthModule } from '../auth/auth.module';
+import { MediaRepository } from './media.repository';
 
 @Module({
   imports: [
@@ -14,6 +15,6 @@ import { AuthModule } from '../auth/auth.module';
     AuthModule, 
   ],
   controllers: [MediaController],
-  providers: [MediaService, PresignService],
+  providers: [MediaService, MediaRepository, PresignService],
 })
 export class MediaModule {}

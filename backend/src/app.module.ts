@@ -22,6 +22,7 @@ import { TestRateModule } from './modules/test/test.module';
 import { UsersModule } from './users/users.module';
 import { LocalRefreshModule } from './auth/dto/local/local-refresh.module';
 import { PostsModule } from './posts/posts.module';
+import { MediaModule } from './media/media.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { PostsModule } from './posts/posts.module';
     SecretsModule,
     FirebaseAdminModule,
     PrismaModule,
+    MediaModule,
     RedisModule,
     AuthModule,
     AwsModule,
