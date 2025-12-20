@@ -20,6 +20,5 @@ export function usePostFeedUpdater<T extends PostBase>(
     },
     [setPosts],
   );
-
   return { removeFromFeed };
 }
