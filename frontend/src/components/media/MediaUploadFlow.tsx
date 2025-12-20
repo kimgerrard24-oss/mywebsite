@@ -15,7 +15,11 @@ export default function MediaUploadFlow({
   onCompleted,
 }: Props) {
   const { upload, uploading, error: uploadError } = useMediaUpload();
-  const { complete, loading, error: completeError } = useMediaComplete();
+  const {
+    complete,
+    loading: completing,
+    error: completeError,
+  } = useMediaComplete();
 
   const handleChange = useCallback(
     async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -58,7 +62,7 @@ export default function MediaUploadFlow({
     [upload, complete, mediaType, onCompleted],
   );
 
-  const isLoading = uploading || loading;
+  const isLoading = uploading || completing;
   const error = uploadError || completeError;
 
   return (

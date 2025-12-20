@@ -1,6 +1,6 @@
 // backend/src/media/dto/media-complete.dto.ts
 import {
-  IsEnum,
+  IsIn,
   IsNotEmpty,
   IsString,
   MaxLength,
@@ -11,7 +11,7 @@ export class MediaCompleteDto {
   @IsNotEmpty()
   objectKey!: string;
 
-  @IsEnum(['image', 'video'])
+  @IsIn(['image', 'video'])
   mediaType!: 'image' | 'video';
 
   @IsString()

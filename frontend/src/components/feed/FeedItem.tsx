@@ -15,7 +15,6 @@ export default function FeedItem({ post }: Props) {
     >
       <header className="mb-2 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          {/* ===== ของเดิม: ลิงก์โปรไฟล์ผู้เขียน ===== */}
           <Link
             href={`/users/${post.author.id}`}
             className="flex items-center gap-3 hover:underline"
@@ -45,7 +44,6 @@ export default function FeedItem({ post }: Props) {
               </time>
             </div>
           </Link>
-          {/* ===== จบของเดิม ===== */}
         </div>
 
         <PostActionMenu
@@ -56,36 +54,43 @@ export default function FeedItem({ post }: Props) {
         />
       </header>
 
-      {/* ===== Content (เดิม) ===== */}
+      {/* ===== Content ===== */}
       <p className="whitespace-pre-wrap text-sm text-gray-800">
         {post.content}
       </p>
 
-      {/* ===== Media (ใหม่ | backward-safe) ===== */}
+      {/* ===== Media (FIXED) ===== */}
       {Array.isArray((post as any).media) &&
         (post as any).media.length > 0 && (
           <section className="mt-3 space-y-2">
-            {(post as any).media.map((m: any) => (
-              <figure key={m.id} className="overflow-hidden rounded-lg">
-                {m.type === "image" && (
-                  <img
-                    src={m.cdnUrl}
-                    alt=""
-                    loading="lazy"
-                    className="w-full rounded-lg"
-                  />
-                )}
+            {(post as any).media.map((m: any) => {
+              const src = m.cdnUrl ?? m.url;
 
-                {m.type === "video" && (
-                  <video
-                    src={m.cdnUrl}
-                    controls
-                    preload="metadata"
-                    className="w-full rounded-lg"
-                  />
-                )}
-              </figure>
-            ))}
+              return (
+                <figure
+                  key={m.id}
+                  className="overflow-hidden rounded-lg"
+                >
+                  {m.type === "image" && (
+                    <img
+                      src={src}
+                      alt=""
+                      loading="lazy"
+                      className="w-full rounded-lg"
+                    />
+                  )}
+
+                  {m.type === "video" && (
+                    <video
+                      src={src}
+                      controls
+                      preload="metadata"
+                      className="w-full rounded-lg"
+                    />
+                  )}
+                </figure>
+              );
+            })}
           </section>
         )}
 

@@ -20,15 +20,16 @@ export default function PostDetailPage({ post }: Props) {
    * Media SEO (SAFE / OPTIONAL)
    * ==============================
    * - ใช้เฉพาะตัวแรก
-   * - ไม่กระทบ rendering เดิม
+   * - รองรับ cdnUrl + url (backward-safe)
    */
   const firstMedia = post.media?.[0];
+  const mediaSrc = firstMedia?.cdnUrl ?? firstMedia?.url;
 
   const ogImage =
-    firstMedia?.type === "image" ? firstMedia.url : undefined;
+    firstMedia?.type === "image" ? mediaSrc : undefined;
 
   const ogVideo =
-    firstMedia?.type === "video" ? firstMedia.url : undefined;
+    firstMedia?.type === "video" ? mediaSrc : undefined;
 
   return (
     <>
@@ -78,7 +79,6 @@ export default function PostDetailPage({ post }: Props) {
 
       <main className="mx-auto max-w-2xl px-4 py-6">
         <article>
-          {/* ✅ Rendering media อยู่ใน component นี้แล้ว */}
           <PostDetail post={post} />
         </article>
       </main>
@@ -93,7 +93,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
     return { notFound: true };
   }
 
-  // ✅ optional session (SEO-safe)
+  // optional session (SEO-safe)
   await requireSessionSSR(ctx, { optional: true });
 
   try {

@@ -96,7 +96,7 @@ export function useAuthInternal() {
     setUser(null);
 
     // redirect หลัง logout จริงเท่านั้น
-    window.location.href = "/login";
+    window.location.href = "/";
   };
 
   return {
