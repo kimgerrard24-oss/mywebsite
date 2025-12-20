@@ -56,9 +56,7 @@ export default function ProfilePosts({
     };
   }, [userId, initialLimit]);
 
-  // =========================
   // Render states
-  // =========================
 
   if (loading) {
     return (
