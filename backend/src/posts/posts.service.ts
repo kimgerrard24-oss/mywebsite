@@ -184,49 +184,54 @@ export class PostsService {
   };
  }
 
-  async getPostDetail(params: {
-    postId: string;
-    viewer: { userId: string; jti: string } | null;
-  }): Promise<PostDetailDto | null> {
-    const { postId, viewer } = params;
+ async getPostDetail(params: {
+  postId: string;
+  viewer: { userId: string; jti: string } | null;
+}): Promise<PostDetailDto | null> {
+  const { postId, viewer } = params;
 
-    // 1) Public cache
-    if (!viewer) {
-      const cached = await this.cache.get(postId);
-      if (cached) return cached;
-    }
-
-    // 2) Load post
-    const post = await this.repo.findPostById(postId);
-    if (!post) return null;
-
-    // 3) Visibility
-    const canView = await this.visibility.canViewPost({
-      post,
-      viewer,
-    });
-    if (!canView) return null;
-
-    // 4) Map DTO
-    const dto = PostDetailDto.from(post);
-
-    dto.canDelete =
-      !!viewer &&
-      post.isDeleted === false &&
-      viewer.userId === post.author.id;
-
-    // 5) Cache
-    const isPublicPost =
-      post.visibility === 'PUBLIC' &&
-      post.isDeleted === false &&
-      post.isHidden === false;
-
-    if (isPublicPost && !viewer) {
-      await this.cache.set(postId, dto);
-    }
-
-    return dto;
+  // 1) Public cache
+  if (!viewer) {
+    const cached = await this.cache.get(postId);
+    if (cached) return cached;
   }
+
+  // 2) Load post
+  const post = await this.repo.findPostById(postId);
+  if (!post) return null;
+
+  // 3) Visibility
+  const canView = await this.visibility.canViewPost({
+    post,
+    viewer,
+  });
+  if (!canView) return null;
+
+  // 4) Map DTO (✅ FIX: pass viewerUserId)
+  const dto = PostDetailDto.from(
+    post,
+    viewer?.userId,
+  );
+
+  // ⛔️ logic เดิม (ไม่แตะ)
+  dto.canDelete =
+    !!viewer &&
+    post.isDeleted === false &&
+    viewer.userId === post.author.id;
+
+  // 5) Cache
+  const isPublicPost =
+    post.visibility === 'PUBLIC' &&
+    post.isDeleted === false &&
+    post.isHidden === false;
+
+  if (isPublicPost && !viewer) {
+    await this.cache.set(postId, dto);
+  }
+
+  return dto;
+}
+
 
 async deletePost(params: { postId: string; actorUserId: string }) {
   const { postId, actorUserId } = params;

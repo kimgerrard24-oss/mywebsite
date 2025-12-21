@@ -16,6 +16,7 @@ export default function FeedItem({ post }: Props) {
     >
       <header className="mb-2 flex items-center justify-between">
         <div className="flex items-center gap-3">
+          {/* ===== Avatar + Name (LINK) ===== */}
           <Link
             href={`/users/${post.author.id}`}
             className="flex items-center gap-3 hover:underline"
@@ -30,21 +31,21 @@ export default function FeedItem({ post }: Props) {
               <div className="h-8 w-8 rounded-full bg-gray-300" />
             )}
 
-            <div>
-              <h2
-                id={`post-${post.id}`}
-                className="text-sm font-medium text-gray-900"
-              >
-                {post.author.displayName ?? "Unknown user"}
-              </h2>
-              <time
-                dateTime={post.createdAt}
-                className="block text-xs text-gray-500"
-              >
-                {new Date(post.createdAt).toLocaleString()}
-              </time>
-            </div>
+            <h2
+              id={`post-${post.id}`}
+              className="text-sm font-medium text-gray-900"
+            >
+              {post.author.displayName ?? "Unknown user"}
+            </h2>
           </Link>
+
+          {/* ===== Time (NOT a link) ===== */}
+          <time
+            dateTime={post.createdAt}
+            className="text-xs text-gray-500"
+          >
+            {new Date(post.createdAt).toLocaleString()}
+          </time>
         </div>
 
         <PostActionMenu
@@ -101,3 +102,4 @@ export default function FeedItem({ post }: Props) {
     </article>
   );
 }
+

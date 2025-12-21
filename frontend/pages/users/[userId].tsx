@@ -6,7 +6,6 @@ import Link from "next/link";
 import ProfileLayout from "@/components/layout/ProfileLayout";
 import { ProfileCard } from "@/components/profile/profile-ProfileCard";
 
-// ✅ NEW: shared posts component
 import ProfilePosts from "@/components/profile/ProfilePosts";
 
 import { fetchPublicUserProfileServer } from "@/lib/api/user";

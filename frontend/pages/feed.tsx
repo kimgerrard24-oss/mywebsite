@@ -11,7 +11,7 @@ import { useRouter } from "next/router";
 import { useCallback, useState } from "react";
 import Link from "next/link";
 import cookie from "cookie";
-
+import { renderContentWithHashtags } from "@/utils/renderContentWithHashtags";
 import UserSearchPanel from "@/components/users/UserSearchPanel";
 import PostComposer from "@/components/posts/PostComposer";
 import LanguageSwitcher from "@/components/common/LanguageSwitcher";
@@ -201,7 +201,7 @@ export default function FeedPage({ user, feedItems, lang }: FeedProps) {
 
               {/* ===== Content ===== */}
                   <p className="text-gray-800 leading-relaxed whitespace-pre-wrap">
-                     {post.content}
+                     {renderContentWithHashtags(post.content)}
                   </p>
 
               {/* ===== MEDIA (ADDED — NO EXISTING LOGIC REMOVED) ===== */}
