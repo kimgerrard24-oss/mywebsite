@@ -39,108 +39,133 @@ export default function FeedPage({
     router.replace("/");
   };
 
-  return (
-    <>
-      {/* ================= SEO ================= */}
-      <Head>
-        <title>{t.feed.pageTitle}</title>
-        <meta
-          name="description"
-          content={t.feed.pageDescription}
-        />
-        <meta
-          property="og:title"
-          content={t.feed.pageTitle}
-        />
-        <meta
-          property="og:description"
-          content={t.feed.ogDescription}
-        />
-      </Head>
+ return (
+  <>
+    {/* ================= SEO ================= */}
+    <Head>
+      <title>{t.feed.pageTitle}</title>
+      <meta
+        name="description"
+        content={t.feed.pageDescription}
+      />
+      <meta
+        property="og:title"
+        content={t.feed.pageTitle}
+      />
+      <meta
+        property="og:description"
+        content={t.feed.ogDescription}
+      />
+    </Head>
 
-      <main className="min-h-screen bg-gray-50 text-gray-900">
-        {/* ================= Header ================= */}
-        <header className="w-full bg-white shadow-sm sticky top-0 z-20">
-          <nav className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+    {/* ================= Root Layout ================= */}
+    <main
+      className="
+        h-screen
+        flex
+        flex-col
+        bg-gray-50
+        text-gray-900
+        overflow-hidden
+      "
+    >
+      {/* ================= Header (LOCKED) ================= */}
+      <header className="shrink-0 w-full bg-white shadow-sm sticky top-0 z-20">
+        <nav className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
+          <Link
+            href="/feed"
+            className="text-2xl font-semibold tracking-tight text-blue-600"
+          >
+            PhlyPhant
+          </Link>
+
+          <div className="flex items-center gap-3 sm:gap-4">
+            <LanguageSwitcher currentLang={lang} />
+
             <Link
-              href="/feed"
-              className="text-2xl font-semibold tracking-tight text-blue-600"
+              href="/dashboard"
+              className="hidden sm:block text-sm font-medium hover:text-blue-600 transition"
             >
-              PhlyPhant
+              {t.feed.nav.dashboard}
             </Link>
 
-            <div className="flex items-center gap-3 sm:gap-4">
-              <LanguageSwitcher currentLang={lang} />
+            <Link
+              href="/profile"
+              className="hidden sm:block text-sm font-medium hover:text-blue-600 transition"
+            >
+              {t.feed.nav.profile}
+            </Link>
 
-              <Link
-                href="/dashboard"
-                className="hidden sm:block text-sm font-medium hover:text-blue-600 transition"
-              >
-                {t.feed.nav.dashboard}
-              </Link>
+            <img
+              src={
+                user?.avatarUrl ||
+                "/images/default-avatar.png"
+              }
+              className="w-9 h-9 sm:w-10 sm:h-10 rounded-full border object-cover"
+              alt="Avatar"
+            />
 
-              <Link
-                href="/profile"
-                className="hidden sm:block text-sm font-medium hover:text-blue-600 transition"
-              >
-                {t.feed.nav.profile}
-              </Link>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="text-sm font-medium hover:text-red-600 transition"
+            >
+              {t.feed.nav.logout}
+            </button>
+          </div>
+        </nav>
+      </header>
 
-              <img
-                src={
-                  user?.avatarUrl ||
-                  "/images/default-avatar.png"
-                }
-                className="w-9 h-9 sm:w-10 sm:h-10 rounded-full border object-cover"
-                alt="Avatar"
-              />
+      {/* ================= Search (LOCKED) ================= */}
+      <section className="shrink-0 max-w-3xl mx-auto px-4 py-6">
+        <UserSearchPanel variant="feed" />
+      </section>
 
-              <button
-                type="button"
-                onClick={handleLogout}
-                className="text-sm font-medium hover:text-red-600 transition"
-              >
-                {t.feed.nav.logout}
-              </button>
-            </div>
-          </nav>
-        </header>
-
-        {/* ================= Search ================= */}
-        <section className="max-w-3xl mx-auto px-4 py-6">
-          <UserSearchPanel variant="feed" />
-        </section>
-
-        {/* ================= Feed Layout ================= */}
-        <section
+      {/* ================= Feeds Area (SCROLL SEPARATE) ================= */}
+      <section className="flex-1 overflow-hidden">
+        <div
           className="
-            max-w-7xl
-            mx-auto
-            px-4
-            pb-12
+            h-full
             grid
             grid-cols-1
-            lg:grid-cols-2
-            gap-6
+            lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]
           "
         >
-          {/* ===== Left: Text Feed (เดิมทั้งหมด) ===== */}
-          <div className="min-w-0">
+          {/* ===== Left: Text Feed (OWN SCROLL) ===== */}
+          <aside
+            className="
+              h-full
+              overflow-y-auto
+              overscroll-contain
+              border-r
+              bg-gray-50
+            "
+          >
             <TextFeed
               user={user}
               initialItems={feedItems}
               lang={lang}
             />
-          </div>
+          </aside>
 
-          {/* ===== Right: Video Feed (ใหม่, Desktop only) ===== */}
-          <aside className="hidden lg:block sticky top-[5.5rem] h-[calc(100vh-6rem)]">
+          {/* ===== Right: Video Feed (OWN SCROLL) ===== */}
+          <aside
+            className="
+              hidden
+              lg:block
+              h-full
+              overflow-y-auto
+              overscroll-contain
+              bg-black
+            "
+          >
             <VideoFeed />
           </aside>
-        </section>
-      </main>
-    </>
-  );
+        </div>
+      </section>
+    </main>
+  </>
+ );
 }
 
 /* ================= SSR ================= */

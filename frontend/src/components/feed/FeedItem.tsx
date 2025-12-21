@@ -73,22 +73,49 @@ export default function FeedItem({ post }: Props) {
                 className="overflow-hidden rounded-lg"
               >
                 {m.type === "image" && (
-                  <img
-                    src={src}
-                    alt=""
-                    loading="lazy"
-                    className="w-full rounded-lg"
-                  />
-                )}
+  <img
+    src={src}
+    alt=""
+    loading="lazy"
+    className="
+      w-full
+      max-h-[520px]
+      object-cover
+      rounded-lg
+      bg-black/5
+    "
+  />
+)}
 
-                {m.type === "video" && (
-                  <video
-                    src={src}
-                    controls
-                    preload="metadata"
-                    className="w-full rounded-lg"
-                  />
-                )}
+
+{m.type === "video" && (
+  <div
+    className="
+      relative
+      w-full
+      max-h-[520px]
+      aspect-video
+      bg-black
+      rounded-lg
+      overflow-hidden
+    "
+  >
+    <video
+      src={src}
+      controls
+      preload="metadata"
+      className="
+        absolute
+        inset-0
+        h-full
+        w-full
+        object-contain
+      "
+    />
+  </div>
+)}
+
+
               </figure>
             );
           })}

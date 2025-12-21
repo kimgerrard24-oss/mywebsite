@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from "react";
 import { getVideoFeed } from "@/lib/api/posts";
 import type { PostFeedItem } from "@/types/post-feed";
 import VideoItem from "@/components/feed/videoItem";
+import VideoComposer from "@/components/feed/VideoComposer";
 
 export default function VideoFeed() {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -17,20 +18,15 @@ export default function VideoFeed() {
   const [loading, setLoading] = useState(false);
   const [hasMore, setHasMore] = useState(true);
 
-  /**
-   * ==============================
-   * Load next page (cursor-based)
-   * ==============================
-   */
   async function loadMore() {
     if (loading || !hasMore) return;
 
     setLoading(true);
     try {
-     const res = await getVideoFeed({
-  limit: 5,
-  cursor: cursor ?? undefined,
-});
+      const res = await getVideoFeed({
+        limit: 5,
+        cursor: cursor ?? undefined,
+      });
 
       setItems((prev) => [...prev, ...res.items]);
       setCursor(res.nextCursor ?? null);
@@ -43,19 +39,13 @@ export default function VideoFeed() {
     }
   }
 
-  /**
-   * ==============================
-   * Initial load
-   * ==============================
-   */
   useEffect(() => {
     loadMore();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   /**
    * ==================================
-   * Auto play / pause by viewport
+   * 🎯 PLAY ONLY VIDEO IN CENTER
    * ==================================
    */
   useEffect(() => {
@@ -80,7 +70,14 @@ export default function VideoFeed() {
         });
       },
       {
+        root, // ✅ ใช้ container เป็น viewport
         threshold: 0.6,
+        /**
+         * ✅ บังคับให้ต้องอยู่ "กลางจอ"
+         * - ตัดบน 20%
+         * - ตัดล่าง 20%
+         */
+        rootMargin: "-20% 0px -20% 0px",
       }
     );
 
@@ -89,11 +86,6 @@ export default function VideoFeed() {
     return () => observer.disconnect();
   }, [items]);
 
-  /**
-   * ==============================
-   * Infinite scroll (near bottom)
-   * ==============================
-   */
   function handleScroll(
     e: React.UIEvent<HTMLDivElement>,
   ) {
@@ -107,21 +99,42 @@ export default function VideoFeed() {
   }
 
   return (
-    <section
+  <section
+    aria-label="Short video feed"
+    className="
+      h-[calc(100vh-4rem)]
+      bg-black
+      rounded-xl
+      lg:rounded-2xl
+      overflow-hidden
+      flex
+      flex-col
+    "
+  >
+    {/* ==============================
+        🎬 Video Composer (FIXED)
+        ============================== */}
+    <div className="sticky top-0 z-10 bg-black">
+      <VideoComposer />
+    </div>
+
+    {/* ==============================
+        🎥 Video Feed (SCROLL + SNAP)
+        ============================== */}
+    <div
       ref={containerRef}
-      aria-label="Short video feed"
       onScroll={handleScroll}
       className="
-        h-[calc(100vh-4rem)]
+        flex-1
         overflow-y-scroll
         snap-y snap-mandatory
-        bg-black
-        rounded-xl
-        lg:rounded-2xl
       "
     >
       {items.map((post) => (
-        <div key={post.id} className="snap-start h-full">
+        <div
+          key={post.id}
+          className="snap-start h-screen"
+        >
           <VideoItem
             post={post}
             onLike={(postId) => {
@@ -143,6 +156,8 @@ export default function VideoFeed() {
           ไม่มีวิดีโอเพิ่มเติม
         </div>
       )}
-    </section>
-  );
+    </div>
+  </section>
+);
+
 }
