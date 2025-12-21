@@ -5,11 +5,47 @@ import type { CreatePostPayload } from '@/types/post';
 import type { PostFeedResponse } from '@/types/post-feed';
 import type { PostDetail } from "@/types/post-detail";
 import { UserPostFeedResponse } from '@/types/post-feed';
+import { IncomingMessage } from 'http';
 
 const API_BASE =
   process.env.INTERNAL_BACKEND_URL ??
   process.env.NEXT_PUBLIC_API_BASE_URL!;
   
+  
+export async function getPostsByTag(
+  tag: string,
+  options?: {
+    req?: IncomingMessage;
+    cursor?: string;
+  },
+): Promise<PostFeedResponse> {
+  const url = new URL(
+    `/posts/tag/${encodeURIComponent(tag)}`,
+    API_BASE,
+  );
+
+  if (options?.cursor) {
+    url.searchParams.set('cursor', options.cursor);
+  }
+
+  const res = await fetch(url.toString(), {
+    method: 'GET',
+    headers: {
+      ...(options?.req?.headers.cookie
+        ? { cookie: options.req.headers.cookie }
+        : {}),
+      Accept: 'application/json',
+    },
+    credentials: 'include',
+  });
+
+  if (!res.ok) {
+    throw new Error('Failed to fetch posts by tag');
+  }
+
+  return res.json();
+}
+
 
 export async function getUserPosts(params: {
   userId: string;
@@ -155,6 +191,6 @@ export async function getUserPosts(params: {
     content: string;
     editedAt: string;
   };
- 
+  
  
 }

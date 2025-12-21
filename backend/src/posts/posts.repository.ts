@@ -230,4 +230,46 @@ export class PostsRepository {
       },
     });
   }
+
+  async findPostsByTag(params: {
+    tag: string;
+    cursor?: string;
+    limit: number;
+  }) {
+    const normalizedTag = params.tag.toLowerCase();
+
+    return this.prisma.post.findMany({
+      where: {
+        isDeleted: false,
+        isHidden: false,
+        tags: {
+          some: {
+            tag: {
+              name: normalizedTag,
+            },
+          },
+        },
+      },
+      take: params.limit,
+      skip: params.cursor ? 1 : 0,
+      cursor: params.cursor ? { id: params.cursor } : undefined,
+      orderBy: {
+        createdAt: 'desc',
+      },
+      include: {
+        author: {
+          select: {
+            id: true,
+            displayName: true,
+            avatarUrl: true,
+          },
+        },
+        media: {
+          include: {
+            media: true,
+          },
+        },
+      },
+    });
+  }
 }

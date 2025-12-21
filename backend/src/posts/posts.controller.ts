@@ -23,6 +23,7 @@ import { OptionalAuthGuard } from './guards/optional-auth.guard';
 import { DeletePostParamsDto } from './dto/delete-post.params.dto';
 import { UpdatePostDto } from './dto/update-post.dto';
 import { GetUserPostsQuery } from './dto/get-user-posts.query';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 
 @Controller('posts')
 export class PostsController {
@@ -155,4 +156,20 @@ export class PostsController {
   });
 
  }
+
+ @Get('tag/:tag')
+  @UseGuards(OptionalAuthGuard)
+  async getPostsByTag(
+    @Param('tag') tag: string,
+    @Query('cursor') cursor?: string,
+    @Query('limit') limit?: string,
+    @CurrentUser() user?: { userId: string } | null,
+  ) {
+    return this.postsService.getPostsByTag({
+      tag,
+      viewerUserId: user?.userId ?? null,
+      cursor,
+      limit: limit ? Math.min(Number(limit), 50) : 20,
+    });
+  }
 }

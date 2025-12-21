@@ -17,6 +17,8 @@ export type PostFeedItem = {
     objectKey: string;
   }[];
 
+  isSelf: boolean;
+
   stats: {
     likeCount: number;
     commentCount: number;

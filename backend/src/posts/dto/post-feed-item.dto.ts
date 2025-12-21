@@ -16,7 +16,9 @@ export class PostFeedItemDto {
     url: string;
     objectKey: string;
   }[];
-
+   
+  isSelf!: boolean;
+    
   stats!: {
     likeCount: number;
     commentCount: number;

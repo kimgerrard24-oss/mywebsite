@@ -14,6 +14,7 @@ import { PostMediaPolicy } from './policy/post-media.policy';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePostDto } from './dto/create-post.dto';
 import { GetUserPostsQuery } from './dto/get-user-posts.query';
+import { PostFeedItemDto } from './dto/post-feed-item.dto';
 
 @Injectable()
 export class PostsService {
@@ -319,5 +320,32 @@ async deletePost(params: { postId: string; actorUserId: string }) {
     nextCursor,
   };
  }
+
+ async getPostsByTag(params: {
+    tag: string;
+    viewerUserId: string | null;
+    cursor?: string;
+    limit: number;
+  }): Promise<{
+    items: PostFeedItemDto[];
+    nextCursor: string | null;
+  }> {
+    const rows = await this.repo.findPostsByTag({
+      tag: params.tag,
+      cursor: params.cursor,
+      limit: params.limit,
+    });
+
+    const items = rows.map((row) =>
+      PostFeedMapper.toDto(row, params.viewerUserId),
+    );
+
+    const nextCursor =
+      rows.length === params.limit
+        ? rows[rows.length - 1].id
+        : null;
+
+    return { items, nextCursor };
+  }
 
 }
