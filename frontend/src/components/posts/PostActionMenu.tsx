@@ -73,6 +73,16 @@ export default function PostActionMenu({
           className="absolute right-0 z-20 mt-2 w-44 rounded-md border border-gray-200 bg-white shadow-lg"
         >
           <ul className="py-1 text-sm text-gray-700">
+            <li>
+            <Link
+                  href={`/posts/${postId}`}
+                  role="menuitem"
+                  onClick={() => setOpen(false)}
+              className="block px-4 py-2 hover:bg-gray-100"
+                >
+                  ดูโพสต์
+            </Link>
+            </li>
             {canEdit && (
               <li>
                 <Link

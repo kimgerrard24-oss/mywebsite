@@ -35,4 +35,41 @@ export class MediaRepository {
 
     return count > 0;
   }
+
+  async findMediaById(mediaId: string) {
+  return this.prisma.media.findUnique({
+    where: {
+      id: mediaId,
+    },
+    select: {
+      id: true,
+      objectKey: true,
+      mediaType: true,
+      mimeType: true,
+      ownerUserId: true,
+      createdAt: true,
+      deletedAt: true,
+
+      owner: {
+        select: {
+          id: true,
+        },
+      },
+
+      posts: {
+        select: {
+          post: {
+            select: {
+              id: true,
+              isDeleted: true,
+              isHidden: true,
+            },
+          },
+        },
+        take: 1, // media ผูกกับ post เดียวในระบบคุณ
+      },
+    },
+  });
+ }
+
 }

@@ -15,6 +15,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { CreatePostDto } from './dto/create-post.dto';
 import { GetUserPostsQuery } from './dto/get-user-posts.query';
 import { PostFeedItemDto } from './dto/post-feed-item.dto';
+import { parseHashtags } from './utils/parse-hashtags.util';
 
 @Injectable()
 export class PostsService {
@@ -29,16 +30,11 @@ export class PostsService {
 
  async createPost(params: {
   authorId: string;
-  dto?: CreatePostDto; // รองรับแบบใหม่
-  content?: string;    // รองรับแบบเดิม
-}) {
+  dto?: CreatePostDto;
+  content?: string;
+ }) {
   const { authorId } = params;
 
-  /**
-   * ==============================
-   * Normalize input (BACKWARD SAFE)
-   * ==============================
-   */
   const content =
     params.dto?.content ??
     params.content ??
@@ -47,16 +43,13 @@ export class PostsService {
   const mediaIds =
     params.dto?.mediaIds ?? [];
 
-  // 0️⃣ permission (เดิม)
   PostCreatePolicy.assertCanCreatePost();
 
-  // 1️⃣ business validation
   PostCreatePolicy.assertValid({
     content,
     mediaCount: mediaIds.length,
   });
 
-  // 2️⃣ validate media ownership (schema ใหม่)
   if (mediaIds.length > 0) {
     const mediaList = await this.prisma.media.findMany({
       where: {
@@ -82,10 +75,8 @@ export class PostsService {
     }
   }
 
-  // 3️⃣ transaction-safe create
   const post = await this.prisma.$transaction(
     async (tx) => {
-      // 3.1 create post (เดิม)
       const createdPost = await tx.post.create({
         data: {
           authorId,
@@ -97,7 +88,6 @@ export class PostsService {
         },
       });
 
-      // 3.2 attach media (ใหม่ – ถูก schema)
       if (mediaIds.length > 0) {
         await tx.postMedia.createMany({
           data: mediaIds.map((mediaId) => ({
@@ -108,11 +98,44 @@ export class PostsService {
         });
       }
 
+      /**
+       * ===============================
+       * Hashtag Processing (FAIL-SOFT)
+       * ===============================
+       */
+      try {
+        const tags = parseHashtags(content);
+
+        if (tags.length > 0) {
+          // upsert tags
+          const tagRows = await Promise.all(
+            tags.map((name) =>
+              tx.tag.upsert({
+                where: { name },
+                update: {},
+                create: { name },
+                select: { id: true },
+              }),
+            ),
+          );
+
+          // link post ↔ tags
+          await tx.postTag.createMany({
+            data: tagRows.map((tag) => ({
+              postId: createdPost.id,
+              tagId: tag.id,
+            })),
+            skipDuplicates: true,
+          });
+        }
+      } catch {
+
+      }
+
       return createdPost;
     },
   );
 
-  // 4️⃣ audit + event (เดิม 100%)
   this.audit.logPostCreated({
     postId: post.id,
     authorId,
@@ -125,14 +148,14 @@ export class PostsService {
     mediaIds,
   });
 
-  // 5️⃣ response (เดิม 100%)
   return {
     id: post.id,
     createdAt: post.createdAt,
   };
-}
 
+ }
 
+ 
  async getPublicFeed(params: {
   viewerUserId: string | null;
   limit: number;

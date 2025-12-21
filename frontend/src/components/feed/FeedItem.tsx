@@ -2,6 +2,7 @@
 import Link from "next/link";
 import type { PostFeedItem } from "@/types/post-feed";
 import PostActionMenu from "@/components/posts/PostActionMenu";
+import { renderContentWithHashtags } from "@/utils/renderContentWithHashtags";
 
 type Props = {
   post: PostFeedItem;
@@ -56,7 +57,7 @@ export default function FeedItem({ post }: Props) {
 
       {/* ===== Content ===== */}
       <p className="whitespace-pre-wrap text-sm text-gray-800">
-        {post.content}
+        {renderContentWithHashtags(post.content)}
       </p>
 
       {/* ===== Media ===== */}

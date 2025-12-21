@@ -4,6 +4,9 @@ import {
   Controller,
   HttpCode,
   Post,
+  NotFoundException,
+  Get,
+  Param,
   Req,
   UseGuards,
 } from '@nestjs/common';
@@ -12,6 +15,7 @@ import { MediaService } from './media.service';
 import { PresignValidateDto } from './dto/presign-validate.dto';
 import { MediaCompleteDto } from './dto/media-complete.dto';
 import { AccessTokenCookieAuthGuard } from '../auth/guards/access-token-cookie.guard';
+import { OptionalAuthGuard } from '../posts/guards/optional-auth.guard';
 
 @Controller('media')
 export class MediaController {
@@ -52,6 +56,29 @@ export class MediaController {
       mediaType: dto.mediaType,
       mimeType: dto.mimeType,
     });
+  }
+
+  @Get(':id')
+  @UseGuards(OptionalAuthGuard)
+  async getMediaById(
+    @Param('id') mediaId: string,
+    @Req() req: Request,
+  ) {
+    const viewerUserId =
+      req.user && typeof req.user === 'object'
+        ? (req.user as any).userId
+        : null;
+
+    const media = await this.mediaService.getMediaMetadata({
+      mediaId,
+      viewerUserId,
+    });
+
+    if (!media) {
+      throw new NotFoundException('Media not found');
+    }
+
+    return media;
   }
 
 }

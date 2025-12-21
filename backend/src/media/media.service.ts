@@ -10,6 +10,8 @@ import { randomUUID } from 'crypto';
 import { MediaRepository } from './media.repository';
 import { R2Service } from '../r2/r2.service';
 import { MediaType } from '@prisma/client';
+import { MediaMetadataDto } from './dto/media-metadata.dto';
+import { MediaMetadataMapper } from './mappers/media-metadata.mapper';
 
 @Injectable()
 export class MediaService {
@@ -91,6 +93,19 @@ export class MediaService {
   return {
     mediaId: media.id,
   };
-}
+ }
+
+  async getMediaMetadata(params: {
+    mediaId: string;
+    viewerUserId: string | null;
+  }): Promise<MediaMetadataDto | null> {
+    const row = await this.mediaRepository.findMediaById(params.mediaId);
+
+    if (!row) {
+      return null;
+    }
+
+    return MediaMetadataMapper.toDto(row, params.viewerUserId);
+  }
 
 }

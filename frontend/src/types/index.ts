@@ -36,3 +36,14 @@ export type Message = {
   createdAt: string;
   read?: boolean;
 };
+
+export type MediaMetadata = {
+  id: string;
+  type: "image" | "video";
+  url: string;
+  objectKey: string;
+  ownerUserId: string;
+  postId: string | null;
+  createdAt: string;
+  isOwner: boolean;
+};

@@ -200,11 +200,9 @@ export default function FeedPage({ user, feedItems, lang }: FeedProps) {
               </header>
 
               {/* ===== Content ===== */}
-              <Link href={`/posts/${post.id}`} className="block">
-                <p className="text-gray-800 leading-relaxed whitespace-pre-wrap hover:underline cursor-pointer">
-                  {post.content}
-                </p>
-              </Link>
+                  <p className="text-gray-800 leading-relaxed whitespace-pre-wrap">
+                     {post.content}
+                  </p>
 
               {/* ===== MEDIA (ADDED — NO EXISTING LOGIC REMOVED) ===== */}
               {Array.isArray((post as any).media) &&

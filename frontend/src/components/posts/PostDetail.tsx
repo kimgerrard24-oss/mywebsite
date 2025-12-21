@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useRouter } from "next/router";
 import type { PostDetail as PostDetailType } from "@/types/post-detail";
 import PostActionMenu from "@/components/posts/PostActionMenu";
+import { renderContentWithHashtags } from "@/utils/renderContentWithHashtags";
 
 type Props = {
   post: PostDetailType;
@@ -56,7 +57,7 @@ export default function PostDetail({ post }: Props) {
 
       {/* ================= Content ================= */}
       <section className="prose max-w-none">
-        <p>{post.content}</p>
+        <p>{renderContentWithHashtags(post.content)}</p>
       </section>
 
       {/* ================= Media ================= */}
