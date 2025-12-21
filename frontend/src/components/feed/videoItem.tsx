@@ -19,7 +19,6 @@ export default function VideoItem({ post, onLike }: Props) {
   function handleTap() {
     const now = Date.now();
 
-    // ❤️ Double tap = like
     if (now - lastTap.current < 300) {
       onLike?.(post.id);
     } else {
