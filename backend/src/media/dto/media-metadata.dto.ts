@@ -1,5 +1,6 @@
 // backend/src/media/dto/media-metadata.dto.ts
 
+
 export class MediaMetadataDto {
   id!: string;
   type!: 'image' | 'video';
