@@ -4,19 +4,17 @@
 
 import Head from "next/head";
 import type { GetServerSideProps } from "next";
+import Link from "next/link";
+import { useRouter } from "next/router";
+import cookie from "cookie";
 import { api } from "@/lib/api/api";
 import { getPublicFeed } from "@/lib/api/posts";
 import type { PostFeedItem } from "@/types/post-feed";
-import { useRouter } from "next/router";
-import { useCallback, useState } from "react";
-import Link from "next/link";
-import cookie from "cookie";
-import { renderContentWithHashtags } from "@/utils/renderContentWithHashtags";
-import UserSearchPanel from "@/components/users/UserSearchPanel";
-import PostComposer from "@/components/posts/PostComposer";
-import LanguageSwitcher from "@/components/common/LanguageSwitcher";
-import PostActionMenu from "@/components/posts/PostActionMenu";
 import { getDictionary, type Lang } from "@/lib/i18n";
+import LanguageSwitcher from "@/components/common/LanguageSwitcher";
+import UserSearchPanel from "@/components/users/UserSearchPanel";
+import TextFeed from "@/components/feed/TextFeed";
+import VideoFeed from "@/components/feed/ShortVideoFeed";
 
 type FeedProps = {
   user: any | null;
@@ -24,61 +22,46 @@ type FeedProps = {
   lang: Lang;
 };
 
-export default function FeedPage({ user, feedItems, lang }: FeedProps) {
+export default function FeedPage({
+  user,
+  feedItems,
+  lang,
+}: FeedProps) {
   const router = useRouter();
   const t = getDictionary(lang);
 
-  const [items, setItems] = useState<PostFeedItem[]>(feedItems);
-  const [refreshing, setRefreshing] = useState(false);
-
-  const handleLogout = useCallback(async () => {
+  const handleLogout = async () => {
     try {
       await api.post("/auth/local/logout", {});
     } catch (err) {
       console.error("Logout failed:", err);
     }
-
     router.replace("/");
-  }, [router]);
-
-  const refreshFeed = useCallback(async () => {
-    if (refreshing) return;
-
-    try {
-      setRefreshing(true);
-      const res = await api.get<{ items: PostFeedItem[] }>("/posts", {
-        params: { limit: 20 },
-        withCredentials: true,
-      });
-
-      if (Array.isArray(res.data?.items)) {
-        setItems(res.data.items);
-      }
-    } catch (err) {
-      console.error("Refresh feed failed:", err);
-    } finally {
-      setRefreshing(false);
-    }
-  }, [refreshing]);
-
-  const handlePostDeleted = useCallback((postId: string) => {
-    setItems((prev) => prev.filter((p) => p.id !== postId));
-  }, []);
+  };
 
   return (
     <>
       {/* ================= SEO ================= */}
       <Head>
         <title>{t.feed.pageTitle}</title>
-        <meta name="description" content={t.feed.pageDescription} />
-        <meta property="og:title" content={t.feed.pageTitle} />
-        <meta property="og:description" content={t.feed.ogDescription} />
+        <meta
+          name="description"
+          content={t.feed.pageDescription}
+        />
+        <meta
+          property="og:title"
+          content={t.feed.pageTitle}
+        />
+        <meta
+          property="og:description"
+          content={t.feed.ogDescription}
+        />
       </Head>
 
       <main className="min-h-screen bg-gray-50 text-gray-900">
         {/* ================= Header ================= */}
         <header className="w-full bg-white shadow-sm sticky top-0 z-20">
-          <nav className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
+          <nav className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
             <Link
               href="/feed"
               className="text-2xl font-semibold tracking-tight text-blue-600"
@@ -104,7 +87,10 @@ export default function FeedPage({ user, feedItems, lang }: FeedProps) {
               </Link>
 
               <img
-                src={user?.avatarUrl || "/images/default-avatar.png"}
+                src={
+                  user?.avatarUrl ||
+                  "/images/default-avatar.png"
+                }
                 className="w-9 h-9 sm:w-10 sm:h-10 rounded-full border object-cover"
                 alt="Avatar"
               />
@@ -125,199 +111,123 @@ export default function FeedPage({ user, feedItems, lang }: FeedProps) {
           <UserSearchPanel variant="feed" />
         </section>
 
-        {/* ================= Feed ================= */}
+        {/* ================= Feed Layout ================= */}
         <section
-          className="max-w-3xl mx-auto px-4 py-8 flex flex-col gap-6"
-          aria-label="User feed"
+          className="
+            max-w-7xl
+            mx-auto
+            px-4
+            pb-12
+            grid
+            grid-cols-1
+            lg:grid-cols-2
+            gap-6
+          "
         >
-          <PostComposer onPostCreated={refreshFeed} />
+          {/* ===== Left: Text Feed (เดิมทั้งหมด) ===== */}
+          <div className="min-w-0">
+            <TextFeed
+              user={user}
+              initialItems={feedItems}
+              lang={lang}
+            />
+          </div>
 
-          <article className="bg-white p-5 sm:p-6 rounded-2xl shadow border">
-            <h2 className="text-lg sm:text-xl font-semibold">
-              {t.feed.greeting}{" "}
-              {user?.displayName ||
-                user?.email ||
-                t.feed.greetingFallback}
-            </h2>
-            <p className="text-gray-600 mt-1">{t.feed.intro}</p>
-          </article>
-
-          {items.length === 0 && (
-            <p className="text-center text-gray-500">
-              {t.feed.empty}
-            </p>
-          )}
-
-          {items.map((post) => (
-            <article
-              key={post.id}
-              className="bg-white shadow-sm border rounded-2xl p-4 sm:p-5 flex flex-col gap-4"
-              aria-label={t.feed.post.aria}
-            >
-              {/* ===== Header ===== */}
-              <header className="flex items-start justify-between gap-3">
-                <div className="flex items-start gap-3">
-                  <Link href={`/users/${post.author.id}`}>
-                    {post.author.avatarUrl ? (
-                      <img
-                        src={post.author.avatarUrl}
-                        alt={
-                          post.author.displayName ??
-                          t.feed.post.authorFallback
-                        }
-                        className="h-8 w-8 rounded-full object-cover"
-                      />
-                    ) : (
-                      <div className="h-8 w-8 rounded-full bg-gray-300" />
-                    )}
-                  </Link>
-
-                  <div className="flex flex-col leading-tight">
-                    <Link
-                      href={`/users/${post.author.id}`}
-                      className="font-semibold text-sm hover:underline"
-                    >
-                      {post.author.displayName ??
-                        t.feed.post.authorFallback}
-                    </Link>
-
-                    <time
-                      className="text-gray-500 text-xs mt-0.5"
-                      dateTime={post.createdAt}
-                    >
-                      {new Date(post.createdAt).toLocaleString()}
-                    </time>
-                  </div>
-                </div>
-
-                <PostActionMenu
-                  postId={post.id}
-                  canDelete={post.canDelete}
-                  canEdit={post.canDelete}
-                  canReport={!post.canDelete}
-                  onDeleted={() => handlePostDeleted(post.id)}
-                />
-              </header>
-
-              {/* ===== Content ===== */}
-                  <p className="text-gray-800 leading-relaxed whitespace-pre-wrap">
-                     {renderContentWithHashtags(post.content)}
-                  </p>
-
-              {/* ===== MEDIA (ADDED — NO EXISTING LOGIC REMOVED) ===== */}
-              {Array.isArray((post as any).media) &&
-                (post as any).media.length > 0 && (
-                  <section className="mt-2 space-y-3">
-                    {(post as any).media.map((m: any) => (
-                      <figure
-                        key={m.id}
-                        className="overflow-hidden rounded-xl"
-                      >
-                        {m.type === "image" && (
-                          <img
-                            src={m.url}
-                            alt=""
-                            loading="lazy"
-                            className="w-full rounded-xl"
-                          />
-                        )}
-
-                        {m.type === "video" && (
-                          <video
-                            src={m.url}
-                            controls
-                            preload="metadata"
-                            className="w-full rounded-xl"
-                          />
-                        )}
-                      </figure>
-                    ))}
-                  </section>
-                )}
-              {/* ===== END MEDIA ===== */}
-
-              <footer className="flex flex-wrap items-center gap-4 sm:gap-6 text-sm text-gray-600">
-                <span>
-                  ❤️ {post.stats.likeCount} {t.feed.post.likes}
-                </span>
-                <span>
-                  💬 {post.stats.commentCount} {t.feed.post.comments}
-                </span>
-              </footer>
-            </article>
-          ))}
+          {/* ===== Right: Video Feed (ใหม่, Desktop only) ===== */}
+          <aside className="hidden lg:block sticky top-[5.5rem] h-[calc(100vh-6rem)]">
+            <VideoFeed />
+          </aside>
         </section>
       </main>
     </>
   );
 }
 
-export const getServerSideProps: GetServerSideProps = async (ctx) => {
-  const cookieHeader = ctx.req.headers.cookie ?? "";
-  const cookies = cookie.parse(cookieHeader);
-  const lang = (cookies.lang as Lang) ?? "th";
+/* ================= SSR ================= */
 
-  const baseUrl =
-    process.env.NEXT_PUBLIC_BACKEND_URL ||
-    process.env.NEXT_PUBLIC_API_BASE_URL ||
-    process.env.NEXT_PUBLIC_API_BASE ||
-    "https://api.phlyphant.com";
+export const getServerSideProps: GetServerSideProps =
+  async (ctx) => {
+    const cookieHeader =
+      ctx.req.headers.cookie ?? "";
+    const cookies = cookie.parse(cookieHeader);
+    const lang = (cookies.lang as Lang) ?? "th";
 
-  const apiBase = baseUrl.replace(/\/+$/, "");
+    const baseUrl =
+      process.env.NEXT_PUBLIC_BACKEND_URL ||
+      process.env.NEXT_PUBLIC_API_BASE_URL ||
+      process.env.NEXT_PUBLIC_API_BASE ||
+      "https://api.phlyphant.com";
 
-  const sessionRes = await fetch(`${apiBase}/auth/session-check`, {
-    method: "GET",
-    headers: {
-      Accept: "application/json",
-      ...(cookieHeader ? { Cookie: cookieHeader } : {}),
-    },
-    credentials: "include",
-    cache: "no-store",
-  });
+    const apiBase = baseUrl.replace(/\/+$/, "");
 
-  if (!sessionRes.ok) {
-    return {
-      redirect: { destination: "/", permanent: false },
-    };
-  }
+    const sessionRes = await fetch(
+      `${apiBase}/auth/session-check`,
+      {
+        headers: {
+          Accept: "application/json",
+          ...(cookieHeader
+            ? { Cookie: cookieHeader }
+            : {}),
+        },
+        credentials: "include",
+        cache: "no-store",
+      }
+    );
 
-  const sessionJson = await sessionRes.json().catch(() => null);
-  if (!sessionJson || sessionJson.valid !== true) {
-    return {
-      redirect: { destination: "/", permanent: false },
-    };
-  }
+    if (!sessionRes.ok) {
+      return {
+        redirect: {
+          destination: "/",
+          permanent: false,
+        },
+      };
+    }
 
-  const feed = await getPublicFeed({ cookie: cookieHeader });
+    const sessionJson =
+      await sessionRes.json().catch(() => null);
 
-  let user: any | null = null;
+    if (!sessionJson?.valid) {
+      return {
+        redirect: {
+          destination: "/",
+          permanent: false,
+        },
+      };
+    }
 
-  try {
-    const userRes = await fetch(`${apiBase}/users/me`, {
-      method: "GET",
-      headers: {
-        Accept: "application/json",
-        ...(cookieHeader ? { Cookie: cookieHeader } : {}),
-      },
-      credentials: "include",
-      cache: "no-store",
+    const feed = await getPublicFeed({
+      cookie: cookieHeader,
     });
 
-    if (userRes.ok) {
-      const json = await userRes.json().catch(() => null);
-      if (json?.data && typeof json.data === "object") {
-        user = json.data;
-      } else if (json?.id) {
-        user = json;
-      }
-    }
-  } catch {}
+    let user: any | null = null;
 
-  return {
-    props: {
-      user,
-      feedItems: feed.items,
-      lang,
-    },
+    try {
+      const userRes = await fetch(
+        `${apiBase}/users/me`,
+        {
+          headers: {
+            Accept: "application/json",
+            ...(cookieHeader
+              ? { Cookie: cookieHeader }
+              : {}),
+          },
+          credentials: "include",
+          cache: "no-store",
+        }
+      );
+
+      if (userRes.ok) {
+        user = await userRes.json().catch(
+          () => null
+        );
+      }
+    } catch {}
+
+    return {
+      props: {
+        user,
+        feedItems: feed.items,
+        lang,
+      },
+    };
   };
-};

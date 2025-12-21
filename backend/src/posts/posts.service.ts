@@ -156,17 +156,32 @@ export class PostsService {
  }
 
  
- async getPublicFeed(params: {
+async getPublicFeed(params: {
   viewerUserId: string | null;
   limit: number;
   cursor?: string;
- }) {
-  const { viewerUserId, limit, cursor } = params;
+
+  /**
+   * 🔥 OPTIONAL
+   * - 'video' = ใช้สำหรับ right video feed (TikTok-style)
+   * - undefined = feed ปกติ (text / image / video ปนกัน)
+   */
+  mediaType?: 'video';
+}) {
+  const {
+    viewerUserId,
+    limit,
+    cursor,
+    mediaType,
+  } = params;
 
   const rows = await this.repo.findPublicFeed({
     limit,
     cursor,
     viewerUserId,
+
+    // ✅ pass-through แบบ fail-safe
+    mediaType,
   });
 
   const items = rows.map((post) =>
@@ -182,7 +197,8 @@ export class PostsService {
     items,
     nextCursor,
   };
- }
+}
+
 
  async getPostDetail(params: {
   postId: string;

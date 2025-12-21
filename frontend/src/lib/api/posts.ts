@@ -4,13 +4,24 @@ import type { GetServerSidePropsContext } from "next";
 import type { CreatePostPayload } from '@/types/post';
 import type { PostFeedResponse } from '@/types/post-feed';
 import type { PostDetail } from "@/types/post-detail";
-import { UserPostFeedResponse } from '@/types/post-feed';
+import { UserPostFeedResponse, PostFeedItem } from '@/types/post-feed';
 import { IncomingMessage } from 'http';
+
+type GetVideoFeedParams = {
+  limit?: number;
+  cursor?: string | null;
+};
+
+type GetVideoFeedResponse = {
+  items: PostFeedItem[];
+  nextCursor: string | null;
+};
+
 
 const API_BASE =
   process.env.INTERNAL_BACKEND_URL ??
   process.env.NEXT_PUBLIC_API_BASE_URL!;
-  
+
   
 export async function getPostsByTag(
   tag: string,
@@ -44,6 +55,30 @@ export async function getPostsByTag(
   }
 
   return res.json();
+}
+
+export async function getVideoFeed(params?: {
+  limit?: number;
+  cursor?: string;
+}) {
+  const search = new URLSearchParams();
+
+  search.set("mediaType", "video");
+
+  if (params?.limit) {
+    search.set("limit", String(params.limit));
+  }
+
+  if (params?.cursor) {
+    search.set("cursor", params.cursor);
+  }
+
+  const res = await api.get(`/posts?${search.toString()}`);
+
+  return res.data as {
+    items: PostFeedItem[];
+    nextCursor: string | null;
+  };
 }
 
 
@@ -191,6 +226,5 @@ export async function getUserPosts(params: {
     content: string;
     editedAt: string;
   };
-  
  
 }

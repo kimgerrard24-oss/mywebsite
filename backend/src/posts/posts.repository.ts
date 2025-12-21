@@ -23,60 +23,88 @@ export class PostsRepository {
     });
   }
 
-  async findPublicFeed(params: {
-    limit?: number;
-    cursor?: string;
-    viewerUserId: string | null;
-  }) {
-    const limit = params.limit ?? 20;
+ async findPublicFeed(params: {
+  limit?: number;
+  cursor?: string;
+  viewerUserId: string | null;
 
-    return this.prisma.post.findMany({
-      take: limit,
-      ...(params.cursor && {
-        skip: 1,
-        cursor: { id: params.cursor },
-      }),
-      orderBy: {
-        createdAt: 'desc',
-      },
-      where: {
-        visibility: 'PUBLIC',
-        isDeleted: false,
-        isHidden: false,
-      },
-      select: {
-        id: true,
-        content: true,
-        createdAt: true,
-        likeCount: true,
-        commentCount: true,
+  /**
+   * 🔥 OPTIONAL
+   * - ใช้สำหรับ video feed (TikTok-style)
+   */
+  mediaType?: 'video';
+}) {
+  const limit = params.limit ?? 20;
 
-        author: {
-          select: {
-            id: true,
-            displayName: true,
-            avatarUrl: true,
-          },
-        },
+  return this.prisma.post.findMany({
+    take: limit,
 
-        // ✅ FIX: ดึง media มาด้วย
-        media: {
-          select: {
+    ...(params.cursor && {
+      skip: 1,
+      cursor: { id: params.cursor },
+    }),
+
+    orderBy: {
+      createdAt: 'desc',
+    },
+
+    where: {
+      visibility: 'PUBLIC',
+      isDeleted: false,
+      isHidden: false,
+
+      /**
+       * ✅ ADDITION (FAIL-SAFE)
+       * - ถ้า mediaType !== 'video' → object นี้เป็น {}
+       * - Prisma จะ ignore
+       */
+      ...(params.mediaType === 'video'
+        ? {
             media: {
-              select: {
-                id: true,
-                mediaType: true,
-                objectKey: true,
-                width: true,
-                height: true,
-                duration: true,
+              some: {
+                media: {
+                  mediaType: 'VIDEO',
+                },
               },
+            },
+          }
+        : {}),
+    },
+
+    select: {
+      id: true,
+      content: true,
+      createdAt: true,
+      likeCount: true,
+      commentCount: true,
+
+      author: {
+        select: {
+          id: true,
+          displayName: true,
+          avatarUrl: true,
+        },
+      },
+
+      // ✅ FIX: ดึง media มาด้วย (เดิม)
+      media: {
+        select: {
+          media: {
+            select: {
+              id: true,
+              mediaType: true,
+              objectKey: true,
+              width: true,
+              height: true,
+              duration: true,
             },
           },
         },
       },
-    });
-  }
+    },
+  });
+}
+
 
   async findPostById(postId: string) {
     return this.prisma.post.findUnique({
@@ -272,4 +300,43 @@ export class PostsRepository {
       },
     });
   }
+  
+  async findPublicPosts(params: {
+  limit: number;
+  cursor?: string;
+  mediaType?: "video";
+ }) {
+  return this.prisma.post.findMany({
+    where: {
+      isDeleted: false,
+      isHidden: false,
+      visibility: "PUBLIC",
+      ...(params.mediaType === "video"
+        ? {
+            media: {
+              some: {
+                media: {
+                  mediaType: "VIDEO",
+                },
+              },
+            },
+          }
+        : {}),
+    },
+    include: {
+      author: true,
+      media: {
+        include: {
+          media: true,
+        },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+    take: params.limit,
+    ...(params.cursor
+      ? { skip: 1, cursor: { id: params.cursor } }
+      : {}),
+  });
+ }
+
 }

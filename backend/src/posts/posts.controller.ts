@@ -50,12 +50,12 @@ export class PostsController {
     };
    }
 
- @Get()
- @UseGuards(OptionalAuthGuard)
- async getFeed(
-  @Query() query: GetPostsQueryDto,
+@Get()
+@UseGuards(OptionalAuthGuard)
+async getFeed(
+  @Query() query: GetPostsQueryDto & { mediaType?: string },
   @Req() req: Request,
- ) {
+) {
   // SAFE: extract viewer userId (fail-soft)
   let viewerUserId: string | null = null;
 
@@ -73,10 +73,18 @@ export class PostsController {
       ? Math.min(query.limit, 50)
       : 20;
 
+  // ✅ ADD (FAIL-SOFT)
+  // รองรับเฉพาะ mediaType=video เท่านั้น
+  const mediaType =
+    query.mediaType === 'video' ? 'video' : undefined;
+
   return this.postsService.getPublicFeed({
     viewerUserId,
     limit,
     cursor: query.cursor ?? undefined,
+
+    // ✅ OPTIONAL (ไม่กระทบ behavior เดิม)
+    mediaType,
   });
  }
 
@@ -172,4 +180,5 @@ export class PostsController {
       limit: limit ? Math.min(Number(limit), 50) : 20,
     });
   }
+  
 }
