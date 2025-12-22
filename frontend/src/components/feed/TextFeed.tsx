@@ -43,6 +43,17 @@ export default function TextFeed({
   const [refreshing, setRefreshing] =
     useState(false);
 
+  const [showGreeting, setShowGreeting] = useState(false);
+
+  useEffect(() => {
+  const seen = localStorage.getItem("feed_greeting_seen");
+
+  if (!seen) {
+    setShowGreeting(true);
+    localStorage.setItem("feed_greeting_seen", "1");
+  }
+  }, []);
+
   const refreshFeed = useCallback(async () => {
     if (refreshing) return;
 
@@ -99,7 +110,8 @@ return (
       <PostComposer onPostCreated={refreshFeed} />
     )}
 
-    {/* ===== Greeting ===== */}
+    {/* ===== Greeting (แสดงเฉพาะครั้งแรก) ===== */}
+  {showGreeting && (
     <article className="bg-white p-5 sm:p-6 rounded-2xl shadow border">
       <h2 className="text-lg sm:text-xl font-semibold">
         {t.feed.greeting}{" "}
@@ -111,6 +123,7 @@ return (
         {t.feed.intro}
       </p>
     </article>
+  )}
 
     {/* ===== Empty state ===== */}
     {items.length === 0 && (

@@ -68,12 +68,12 @@ export default function FeedPage({
     {/* ================= Root Layout ================= */}
     <main
       className="
-        h-screen
+        min-h-screen
         flex
         flex-col
         bg-gray-50
         text-gray-900
-        overflow-hidden
+        overflow-y-auto
       "
     >
 {/* ================= Header (LOCKED) ================= */}
@@ -153,11 +153,9 @@ export default function FeedPage({
 </div>
 
 {/* ================= Feeds Area (SCROLL SEPARATE) ================= */}
-<section className="flex-1 min-h-0">
+<section className="flex-1">
   <div
     className="
-      h-full
-      min-h-0
       grid
       grid-cols-1
       lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]
@@ -166,44 +164,34 @@ export default function FeedPage({
     {/* ===== Left: Text Feed ===== */}
     <aside
       className={`
-        h-full
         border-r
         bg-gray-50
         flex
         flex-col
-        min-h-0
-        ${feedMode === "video" ? "hidden" : "block"}
-        lg:block
+        ${feedMode === "video" ? "hidden" : "flex"}
+        lg:flex
       `}
     >
       {/* 🔒 Sticky Composer */}
-      <div className="sticky top-14 z-10 bg-gray-50 border-b">
-        <div className="max-w-3xl mx-auto px-4 py-4">
-          <PostComposer 
-          onPostCreated={() => {
-           refreshFeedRef.current?.();
-          }}
+      <div className="sticky top-14 z-10 bg-gray-50">
+        <div className="max-w-3xl mx-auto px-4 py-2">
+          <PostComposer
+            onPostCreated={() => {
+              refreshFeedRef.current?.();
+            }}
           />
-          
         </div>
       </div>
 
-      {/* 🔽 Scrollable Feed List */}
-      <div
-        className="
-          flex-1
-          overflow-y-auto
-          overscroll-contain
-          min-h-0
-        "
-      >
+      {/* 🔽 Feed list (ปล่อยให้ page scroll) */}
+      <div>
         <TextFeed
           user={user}
           initialItems={feedItems}
           lang={lang}
           showComposer={false}
           onRefreshReady={(fn) => {
-           refreshFeedRef.current = fn;
+            refreshFeedRef.current = fn;
           }}
         />
       </div>
@@ -212,9 +200,7 @@ export default function FeedPage({
     {/* ===== Right: Video Feed ===== */}
     <aside
       className={`
-        h-full
         bg-black
-        min-h-0
         ${feedMode === "text" ? "hidden" : "block"}
         lg:block
       `}

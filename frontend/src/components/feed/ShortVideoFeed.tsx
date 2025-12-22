@@ -54,8 +54,7 @@ export default function VideoFeed() {
   }, []);
 
   /**
-   * ✅ AUTOPLAY คลิปแรก เมื่อเข้า feed ครั้งแรก
-   * (ไม่แตะ observer / scroll)
+   * ✅ AUTOPLAY first video
    */
   useEffect(() => {
     const root = containerRef.current;
@@ -64,35 +63,26 @@ export default function VideoFeed() {
     const firstVideo =
       root.querySelector<HTMLVideoElement>("video[data-video]");
 
-    if (firstVideo) {
-      firstVideo.play().catch(() => {
-        // fail-soft: browser policy
-      });
-    }
+    firstVideo?.play().catch(() => {});
   }, [items]);
 
   /**
-   * 🎯 Play only video in true center
+   * 🎯 Play video when mostly visible (smooth)
    */
   useEffect(() => {
     const root = containerRef.current;
     if (!root) return;
 
     const videos =
-      root.querySelectorAll<HTMLVideoElement>(
-        "video[data-video]"
-      );
+      root.querySelectorAll<HTMLVideoElement>("video[data-video]");
 
     const observer = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
           const video = entry.target as HTMLVideoElement;
 
-          if (entry.isIntersecting) {
-            videos.forEach((v) => {
-              if (v !== video) v.pause();
-            });
-
+          if (entry.intersectionRatio >= 0.6) {
+            videos.forEach((v) => v !== video && v.pause());
             video.play().catch(() => {});
           } else {
             video.pause();
@@ -101,8 +91,8 @@ export default function VideoFeed() {
       },
       {
         root,
-        threshold: 0.75,
-        rootMargin: `-${COMPOSER_HEIGHT + 80}px 0px -80px 0px`,
+        threshold: [0.6],
+        rootMargin: `-${COMPOSER_HEIGHT}px 0px 0px 0px`,
       }
     );
 
@@ -110,14 +100,9 @@ export default function VideoFeed() {
     return () => observer.disconnect();
   }, [items]);
 
-  function handleScroll(
-    e: React.UIEvent<HTMLDivElement>,
-  ) {
+  function handleScroll(e: React.UIEvent<HTMLDivElement>) {
     const el = e.currentTarget;
-    if (
-      el.scrollHeight - el.scrollTop - el.clientHeight <
-      300
-    ) {
+    if (el.scrollHeight - el.scrollTop - el.clientHeight < 300) {
       loadMore();
     }
   }
@@ -145,26 +130,22 @@ export default function VideoFeed() {
         ref={containerRef}
         onScroll={handleScroll}
         className="
-          relative
           flex-1
           overflow-y-scroll
           snap-y
           snap-mandatory
           scroll-smooth
         "
-        style={{
-          scrollSnapType: "y mandatory",
-          scrollBehavior: "smooth",
-        }}
       >
         {items.map((post) => (
           <div
             key={post.id}
             className="
-              snap-start
-              snap-always
+              snap-center
               h-[calc(100vh-4rem-56px)]
-              scroll-snap-stop-always
+              flex
+              items-center
+              justify-center
             "
           >
             <VideoItem post={post} />

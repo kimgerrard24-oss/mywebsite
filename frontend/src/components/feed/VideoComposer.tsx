@@ -81,67 +81,71 @@ export default function VideoComposer({ onPosted }: Props) {
     }
   }
 
-  return (
-    <div className="p-3 border-b border-white/10 bg-black space-y-2">
-      {/* ===== Caption ===== */}
-      <textarea
-        rows={2}
-        maxLength={MAX_CAPTION_LENGTH}
-        placeholder="เขียนคำบรรยายวิดีโอ..."
-        value={caption}
-        onChange={(e) => setCaption(e.target.value)}
-        disabled={posting}
-        className="
-          w-full
-          resize-none
-          rounded-md
-          bg-black/40
-          border
-          border-white/10
-          px-3
-          py-2
-          text-sm
-          text-white
-          placeholder-white/50
-          focus:outline-none
-          focus:ring-1
-          focus:ring-blue-500
-        "
-      />
+return (
+  <div className="px-2 py-2 border-b border-white/10 bg-black space-y-1">
+    {/* ===== Caption (COMPACT) ===== */}
+    <textarea
+      rows={1}
+      maxLength={MAX_CAPTION_LENGTH}
+      placeholder="คำบรรยาย..."
+      value={caption}
+      onChange={(e) => setCaption(e.target.value)}
+      disabled={posting}
+      className="
+        w-full
+        resize-none
+        rounded
+        bg-black/40
+        border
+        border-white/10
+        px-2
+        py-1
+        text-xs
+        text-white
+        placeholder-white/50
+        focus:outline-none
+        focus:ring-1
+        focus:ring-blue-500
+      "
+    />
 
-      {/* ===== File Picker ===== */}
+    {/* ===== Actions row ===== */}
+    <div className="flex items-center justify-between gap-2">
+      {/* File picker (compact) */}
       <input
         type="file"
         accept="video/*"
         onChange={handleFileChange}
         disabled={posting}
-        className="text-sm text-white"
+        className="text-[11px] text-white/70"
       />
 
-      {/* ===== Submit ===== */}
+      {/* Submit */}
       <button
         onClick={handlePost}
         disabled={!file || posting}
         className="
-          w-full
+          px-3
+          py-1
           rounded
           bg-blue-600
-          py-2
-          text-sm
+          text-xs
           text-white
           disabled:opacity-50
           disabled:cursor-not-allowed
         "
       >
-        {posting ? "กำลังอัปโหลด…" : "โพสต์คลิป"}
+        {posting ? "อัปโหลด…" : "โพสต์"}
       </button>
-
-      {/* ===== Error ===== */}
-      {error && (
-        <p className="text-xs text-red-400">
-          {error}
-        </p>
-      )}
     </div>
-  );
+
+    {/* ===== Error ===== */}
+    {error && (
+      <p className="text-[11px] text-red-400">
+        {error}
+      </p>
+    )}
+  </div>
+);
+
 }

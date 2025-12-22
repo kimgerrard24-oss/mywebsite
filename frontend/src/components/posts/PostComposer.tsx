@@ -11,7 +11,7 @@ type Props = {
   onPosted?: () => void; // legacy compatibility
 };
 
-const MAX_LENGTH = 500;
+const MAX_LENGTH = 2000;
 const MAX_FILES = 5;
 
 export default function PostComposer({
@@ -30,6 +30,7 @@ export default function PostComposer({
 
   const submitting = uploading || completing || creating;
   const remaining = MAX_LENGTH - content.length;
+
 
   // =========================
   // File selection (safe)
@@ -118,48 +119,59 @@ export default function PostComposer({
     router,
   ]);
 
- return (
+return (
   <section
     aria-label="Create post"
     className="
       bg-white
       border
-      rounded-xl
-      px-4
-      py-3
+      rounded-lg
+      px-3
+      py-2
       shadow-sm
-      space-y-3
+      space-y-2
     "
   >
     {/* ===== Textarea ===== */}
     <textarea
-      className="
-        w-full
-        resize-none
-        border
-        rounded-lg
-        px-3
-        py-2
-        text-base
-        leading-relaxed
-        placeholder-gray-400
-        focus:outline-none
-        focus:ring-2
-        focus:ring-blue-500
-        focus:border-blue-500
-        transition
-      "
-      rows={2}
-      placeholder="คุณกำลังคิดอะไรอยู่?"
-      value={content}
-      maxLength={MAX_LENGTH}
-      onChange={(e) => setContent(e.target.value)}
-      disabled={submitting}
-    />
+  className="
+    w-full
+    resize-none
+    border
+    rounded-md
+    px-3
+    py-2
+    text-sm
+    leading-snug
+    placeholder-gray-400
+    focus:outline-none
+    focus:ring-1
+    focus:ring-blue-500
+    focus:border-blue-500
+    transition
+  "
+  rows={1}
+  placeholder="คุณกำลังคิดอะไรอยู่?"
+  value={content}
+  maxLength={MAX_LENGTH}
+  disabled={submitting}
+  onChange={(e) => {
+    const value = e.target.value;
+
+    if (value.length >= MAX_LENGTH) {
+      setError("ข้อความยาวถึงขีดจำกัดแล้ว");
+    } else {
+      setError(null);
+    }
+
+    setContent(value);
+  }}
+/>
+
 
     {/* ===== Media + Counter ===== */}
     <div className="flex items-center justify-between">
-      <label className="text-sm text-gray-600 cursor-pointer hover:text-gray-800 transition">
+      <label className="text-xs text-gray-600 cursor-pointer hover:text-gray-800 transition">
         <input
           type="file"
           multiple
@@ -171,9 +183,6 @@ export default function PostComposer({
         เพิ่มรูป / วิดีโอ
       </label>
 
-      <span className="text-xs text-gray-400">
-        {remaining}
-      </span>
     </div>
 
     {files.length > 0 && (
@@ -189,12 +198,12 @@ export default function PostComposer({
         onClick={handleSubmit}
         disabled={submitting}
         className="
-          px-4
-          py-1.5
+          px-3
+          py-1
           rounded-md
           bg-blue-600
           text-white
-          text-sm
+          text-xs
           font-medium
           disabled:opacity-50
           disabled:cursor-not-allowed
@@ -207,11 +216,12 @@ export default function PostComposer({
     </div>
 
     {error && (
-      <p className="text-sm text-red-600">
+      <p className="text-xs text-red-600">
         {error}
       </p>
     )}
   </section>
 );
+
 
 }

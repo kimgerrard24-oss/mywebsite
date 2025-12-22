@@ -1,7 +1,7 @@
 // frontend/src/components/feed/videoItem.tsx
 "use client";
 
-import { useRef } from "react";
+import { useEffect, useRef } from "react";
 import type { PostFeedItem } from "@/types/post-feed";
 
 type Props = {
@@ -15,6 +15,20 @@ export default function VideoItem({ post, onLike }: Props) {
   const lastTap = useRef<number>(0);
 
   if (!video?.url) return null;
+
+  // ✅ ensure autoplay หลัง mount (fail-soft)
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+
+    const tryPlay = () => {
+      v.play().catch(() => {
+        // browser policy → fail-soft
+      });
+    };
+
+    tryPlay();
+  }, []);
 
   function handleTap() {
     const now = Date.now();
@@ -64,9 +78,10 @@ export default function VideoItem({ post, onLike }: Props) {
           data-video
           src={video.url}
           muted
+          autoPlay
           loop
           playsInline
-          preload="metadata"
+          preload="auto"
           onClick={handleTap}
           className="
             absolute
