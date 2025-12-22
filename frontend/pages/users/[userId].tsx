@@ -22,60 +22,108 @@ export default function UserProfilePage({ profile }: Props) {
   const siteUrl =
     process.env.NEXT_PUBLIC_SITE_URL || "https://www.phlyphant.com";
 
-  return (
-    <>
-      <Head>
-        <title>{profile.displayName ?? "User"} | PhlyPhant</title>
-        <meta
-          name="description"
-          content={`ดูโปรไฟล์และโพสต์ของ ${
-            profile.displayName ?? "ผู้ใช้"
-          } บน PhlyPhant`}
-        />
-        <link
-          rel="canonical"
-          href={`${siteUrl}/users/${profile.id}`}
-        />
-        <meta property="og:type" content="profile" />
-        <meta
-          property="og:title"
-          content={`${profile.displayName ?? "User"} | PhlyPhant`}
-        />
-        <meta
-          property="og:url"
-          content={`${siteUrl}/users/${profile.id}`}
-        />
-      </Head>
+return (
+  <>
+    <Head>
+      <title>{profile.displayName ?? 'User'} | PhlyPhant</title>
+      <meta
+        name="description"
+        content={`ดูโปรไฟล์และโพสต์ของ ${
+          profile.displayName ?? 'ผู้ใช้'
+        } บน PhlyPhant`}
+      />
+      <link
+        rel="canonical"
+        href={`${siteUrl}/users/${profile.id}`}
+      />
+      <meta property="og:type" content="profile" />
+      <meta
+        property="og:title"
+        content={`${profile.displayName ?? 'User'} | PhlyPhant`}
+      />
+      <meta
+        property="og:url"
+        content={`${siteUrl}/users/${profile.id}`}
+      />
+    </Head>
 
-      <ProfileLayout>
-        <main className="min-h-screen bg-gray-50">
-          {/* ===== Top navigation ===== */}
-          <div className="max-w-5xl mx-auto px-4 pt-4">
-            <Link
-              href="/feed"
-              prefetch={false}
-              className="text-sm text-blue-600 hover:underline"
-            >
-              ← Back to feed
-            </Link>
-          </div>
+    <ProfileLayout>
+      <main
+        className="
+          min-h-screen
+          bg-gray-50
+        "
+      >
+        {/* ===== Top navigation ===== */}
+        <nav
+          aria-label="Profile navigation"
+          className="
+            mx-auto
+            w-full
+            max-w-5xl
+            px-4
+            pt-4
+            sm:pt-6
+          "
+        >
+          <Link
+            href="/feed"
+            prefetch={false}
+            className="
+              inline-block
+              text-xs
+              sm:text-sm
+              text-blue-600
+              hover:underline
+              focus:outline-none
+              focus-visible:ring-2
+              focus-visible:ring-blue-500
+              rounded
+            "
+          >
+            ← Back to feed
+          </Link>
+        </nav>
 
-          {/* ===== Profile card ===== */}
-          <div className="mx-auto max-w-5xl px-4 pt-4 pb-8">
-            <ProfileCard
-              profile={profile}
-              isSelf={profile.isSelf === true}
-            />
-          </div>
+        {/* ===== Profile card ===== */}
+        <section
+          aria-label="User profile"
+          className="
+            mx-auto
+            w-full
+            max-w-5xl
+            px-4
+            pt-4
+            sm:pt-6
+            pb-6
+            sm:pb-8
+          "
+        >
+          <ProfileCard
+            profile={profile}
+            isSelf={profile.isSelf === true}
+          />
+        </section>
 
-          {/* ===== Profile posts ===== */}
-          <div className="mx-auto max-w-5xl px-4 pb-12">
-            <ProfilePosts userId={profile.id} />
-          </div>
-        </main>
-      </ProfileLayout>
-    </>
-  );
+        {/* ===== Profile posts ===== */}
+        <section
+          aria-label="User posts"
+          className="
+            mx-auto
+            w-full
+            max-w-5xl
+            px-4
+            pb-8
+            sm:pb-12
+          "
+        >
+          <ProfilePosts userId={profile.id} />
+        </section>
+      </main>
+    </ProfileLayout>
+  </>
+);
+
 }
 
 export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {

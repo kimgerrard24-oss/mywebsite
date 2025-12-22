@@ -87,15 +87,38 @@ export default function ProfilePosts({
     );
   }
 
-  return (
-    <section className="mt-6" aria-label="User posts">
-      <h2 className="mb-4 text-lg font-semibold">Posts</h2>
+ return (
+  <section
+    className="
+      mt-4
+      sm:mt-6
+    "
+    aria-label="User posts"
+  >
+    <h2
+      className="
+        mb-3
+        sm:mb-4
+        text-base
+        sm:text-lg
+        font-semibold
+        text-gray-900
+      "
+    >
+      Posts
+    </h2>
 
-      <div className="space-y-4">
-        {posts.map((post) => (
-          <FeedItem key={post.id} post={post} />
-        ))}
-      </div>
-    </section>
-  );
+    <div
+      className="
+        space-y-3
+        sm:space-y-4
+      "
+    >
+      {posts.map((post) => (
+        <FeedItem key={post.id} post={post} />
+      ))}
+    </div>
+  </section>
+);
+
 }

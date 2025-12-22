@@ -26,9 +26,22 @@ export default function PublicUserPosts({ userId }: Props) {
     return <PublicUserEmptyState />;
   }
 
-  return (
-    <section aria-label="User posts">
-      {/* Future implementation */}
-    </section>
-  );
+ return (
+  <section
+    aria-label="User posts"
+    className="
+      w-full
+      mt-4
+      sm:mt-6
+      max-w-3xl
+      mx-auto
+      px-4
+      sm:px-6
+      lg:px-0
+    "
+  >
+    {/* Future implementation */}
+  </section>
+);
+
 }

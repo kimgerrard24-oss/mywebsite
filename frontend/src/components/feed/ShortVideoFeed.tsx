@@ -108,56 +108,88 @@ export default function VideoFeed() {
   }
 
   return (
-    <section
-      aria-label="Short video feed"
+  <section
+    aria-label="Short video feed"
+    className="
+      w-full
+      h-[calc(100vh-3.5rem)]
+      sm:h-[calc(100vh-4rem)]
+      bg-black
+      rounded-none
+      sm:rounded-xl
+      lg:rounded-2xl
+      overflow-hidden
+      flex
+      flex-col
+    "
+  >
+    {/* 🎬 Video Composer */}
+    <div
       className="
-        h-[calc(100vh-4rem)]
+        sticky
+        top-0
+        z-10
         bg-black
-        rounded-xl
-        lg:rounded-2xl
-        overflow-hidden
-        flex
-        flex-col
+        px-2
+        sm:px-3
+        md:px-4
+        py-2
       "
     >
-      {/* 🎬 Video Composer */}
-      <div className="sticky top-0 z-10 bg-black">
-        <VideoComposer onPosted={refreshLatest} />
-      </div>
+      <VideoComposer onPosted={refreshLatest} />
+    </div>
 
-      {/* 🎥 Video Feed */}
-      <div
-        ref={containerRef}
-        onScroll={handleScroll}
-        className="
-          flex-1
-          overflow-y-scroll
-          snap-y
-          snap-mandatory
-          scroll-smooth
-        "
-      >
-        {items.map((post) => (
-          <div
-            key={post.id}
-            className="
-              snap-center
-              h-[calc(100vh-4rem-56px)]
-              flex
-              items-center
-              justify-center
-            "
-          >
-            <VideoItem post={post} />
-          </div>
-        ))}
+    {/* 🎥 Video Feed */}
+    <div
+      ref={containerRef}
+      onScroll={handleScroll}
+      className="
+        flex-1
+        overflow-y-scroll
+        overscroll-contain
+        snap-y
+        snap-mandatory
+        scroll-smooth
+      "
+      role="feed"
+      aria-busy={loading ? "true" : "false"}
+    >
+      {items.map((post) => (
+        <div
+          key={post.id}
+          className="
+            snap-center
+            h-[calc(100vh-3.5rem-56px)]
+            sm:h-[calc(100vh-4rem-56px)]
+            flex
+            items-center
+            justify-center
+            px-0
+            sm:px-2
+          "
+        >
+          <VideoItem post={post} />
+        </div>
+      ))}
 
-        {loading && (
-          <div className="py-6 text-center text-sm text-gray-400">
-            กำลังโหลดวิดีโอ…
-          </div>
-        )}
-      </div>
-    </section>
-  );
+      {loading && (
+        <div
+          className="
+            py-6
+            sm:py-8
+            text-center
+            text-xs
+            sm:text-sm
+            text-gray-400
+          "
+          role="status"
+          aria-live="polite"
+        >
+          กำลังโหลดวิดีโอ…
+        </div>
+      )}
+    </div>
+  </section>
+);
+
 }

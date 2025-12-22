@@ -26,27 +26,66 @@ export default function FeedModeSwitcher({
     onChange(next);
   }
 
-  return (
-    <div className="flex gap-2 lg:hidden mb-3">
-      <button
-        onClick={() => select("video")}
-        className={`flex-1 rounded-lg py-2 text-sm
-          ${mode === "video"
+ return (
+  <div
+    className="
+      flex
+      gap-2
+      mb-2
+      sm:mb-3
+      lg:hidden
+    "
+    role="tablist"
+    aria-label="Feed mode switcher"
+  >
+    <button
+      type="button"
+      onClick={() => select("video")}
+      role="tab"
+      aria-selected={mode === "video"}
+      className={`
+        flex-1
+        rounded-lg
+        py-2
+        sm:py-2.5
+        text-xs
+        sm:text-sm
+        font-medium
+        transition
+        ${
+          mode === "video"
             ? "bg-black text-white"
-            : "bg-white border"}`}
-      >
-        🎬 วิดีโอ
-      </button>
+            : "bg-white border border-gray-300 hover:bg-gray-50"
+        }
+      `}
+    >
+      🎬 วิดีโอ
+    </button>
 
-      <button
-        onClick={() => select("text")}
-        className={`flex-1 rounded-lg py-2 text-sm
-          ${mode === "text"
+    <button
+      type="button"
+      onClick={() => select("text")}
+      role="tab"
+      aria-selected={mode === "text"}
+      className={`
+        flex-1
+        rounded-lg
+        py-2
+        sm:py-2.5
+        text-xs
+        sm:text-sm
+        font-medium
+        transition
+        ${
+          mode === "text"
             ? "bg-black text-white"
-            : "bg-white border"}`}
-      >
-        📄 โพสต์
-      </button>
-    </div>
-  );
+            : "bg-white border border-gray-300 hover:bg-gray-50"
+        }
+      `}
+    >
+      📄 โพสต์
+    </button>
+  </div>
+);
+
 }

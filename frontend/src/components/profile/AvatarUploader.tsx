@@ -28,38 +28,74 @@ export function AvatarUploader() {
   }
 
   return (
-    <div className="flex flex-col gap-2">
-      <input
-        ref={inputRef}
-        type="file"
-        accept="image/*"
-        hidden
-        onChange={handleFileChange}
-      />
+  <div
+    className="
+      w-full
+      flex
+      flex-col
+      gap-2
+      sm:gap-3
+    "
+  >
+    <input
+      ref={inputRef}
+      type="file"
+      accept="image/*"
+      hidden
+      onChange={handleFileChange}
+      aria-hidden="true"
+    />
 
-      <button
-        type="button"
-        disabled={loading}
-        onClick={() => inputRef.current?.click()}
+    <button
+      type="button"
+      disabled={loading}
+      onClick={() => inputRef.current?.click()}
+      className="
+        inline-flex
+        items-center
+        justify-center
+        w-full
+        sm:w-auto
+        rounded-md
+        sm:rounded-lg
+        border
+        border-gray-300
+        bg-white
+        px-3
+        sm:px-4
+        py-2
+        sm:py-2.5
+        text-sm
+        sm:text-base
+        font-medium
+        text-gray-700
+        hover:bg-gray-50
+        focus:outline-none
+        focus:ring-2
+        focus:ring-blue-500
+        disabled:opacity-60
+        disabled:cursor-not-allowed
+        transition
+      "
+      aria-busy={loading}
+    >
+      {loading ? "กำลังอัปโหลดรูปโปรไฟล์…" : "เปลี่ยนรูปโปรไฟล์"}
+    </button>
+
+    {error && (
+      <p
         className="
-          inline-flex items-center justify-center
-          rounded-md border border-gray-300
-          bg-white px-4 py-2
-          text-sm font-medium text-gray-700
-          hover:bg-gray-50
-          disabled:opacity-60
-          disabled:cursor-not-allowed
+          text-xs
+          sm:text-sm
+          text-red-600
         "
+        role="alert"
       >
-        {loading ? "กำลังอัปโหลดรูปโปรไฟล์…" : "เปลี่ยนรูปโปรไฟล์"}
-      </button>
+        {error}
+      </p>
+    )}
+  </div>
+);
 
-      {error && (
-        <p className="text-sm text-red-600">
-          {error}
-        </p>
-      )}
-    </div>
-  );
 }
 

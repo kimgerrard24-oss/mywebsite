@@ -178,74 +178,156 @@ const ProfilePage: NextPage<ProfilePageProps> = ({
   const siteUrl =
     process.env.NEXT_PUBLIC_SITE_URL || "https://www.phlyphant.com";
 
-  return (
-    <>
-      <Head>
-        <title>โปรไฟล์ของฉัน | Phlyphant</title>
-        <meta
-          name="description"
-          content="ดูและจัดการข้อมูลโปรไฟล์ของคุณบน Phlyphant โซเชียลมีเดียสำหรับทุกคน"
-        />
-        <link rel="canonical" href={`${siteUrl}/profile`} />
-        <meta property="og:title" content="โปรไฟล์ของฉัน | Phlyphant" />
-        <meta
-          property="og:description"
-          content="ดูและจัดการข้อมูลโปรไฟล์ของคุณบน Phlyphant"
-        />
-        <meta property="og:url" content={`${siteUrl}/profile`} />
-        <meta property="og:type" content="profile" />
-      </Head>
+return (
+  <>
+    <Head>
+      <title>โปรไฟล์ของฉัน | Phlyphant</title>
+      <meta
+        name="description"
+        content="ดูและจัดการข้อมูลโปรไฟล์ของคุณบน Phlyphant โซเชียลมีเดียสำหรับทุกคน"
+      />
+      <link rel="canonical" href={`${siteUrl}/profile`} />
+      <meta property="og:title" content="โปรไฟล์ของฉัน | Phlyphant" />
+      <meta
+        property="og:description"
+        content="ดูและจัดการข้อมูลโปรไฟล์ของคุณบน Phlyphant"
+      />
+      <meta property="og:url" content={`${siteUrl}/profile`} />
+      <meta property="og:type" content="profile" />
+    </Head>
 
-      <main className="min-h-screen bg-gray-50 text-gray-900">
-        <header className="w-full bg-white shadow-sm sticky top-0 z-20">
-          <nav className="max-w-5xl mx-auto px-4 py-4 flex items-center justify-between">
-            <Link
-              href="/feed"
-              prefetch={false}
-              className="text-2xl font-semibold tracking-tight text-blue-600"
-            >
-              PhlyPhant
-            </Link>
-
-            <div className="flex items-center gap-4">
-              <Link
-                href="/feed"
-                prefetch={false}
-                className="text-sm hover:text-blue-600"
-              >
-                Feed
-              </Link>
-              
-            </div>
-          </nav>
-        </header>
-
-        <div className="max-w-5xl mx-auto px-4 pt-4">
+    <main
+      className="
+        min-h-screen
+        bg-gray-50
+        text-gray-900
+        flex
+        flex-col
+      "
+    >
+      {/* ================= Header ================= */}
+      <header
+        className="
+          w-full
+          bg-white
+          shadow-sm
+          sticky
+          top-0
+          z-20
+        "
+      >
+        <nav
+          className="
+            max-w-5xl
+            mx-auto
+            px-3
+            sm:px-4
+            md:px-6
+            py-3
+            sm:py-4
+            flex
+            items-center
+            justify-between
+            gap-3
+          "
+        >
           <Link
             href="/feed"
             prefetch={false}
-            className="text-sm text-blue-600 hover:underline"
+            className="
+              text-xl
+              sm:text-2xl
+              font-semibold
+              tracking-tight
+              text-blue-600
+              shrink-0
+            "
           >
-            ← Back to feed
+            PhlyPhant
           </Link>
-        </div>
 
-        <div className="mx-auto max-w-5xl px-4 pb-12 pt-4 sm:px-6 lg:px-8">
-          {loading && <ProfileSkeleton />}
-          {!loading && error && <ProfileSkeleton errorMessage={error} />}
+          <div
+            className="
+              flex
+              items-center
+              gap-3
+              sm:gap-4
+            "
+          >
+            <Link
+              href="/feed"
+              prefetch={false}
+              className="
+                text-sm
+                font-medium
+                hover:text-blue-600
+                transition
+              "
+            >
+              Feed
+            </Link>
+          </div>
+        </nav>
+      </header>
 
-          {!loading && !error && profile && (
-            <>
-              <ProfileCard profile={profile} />
+      {/* ================= Back Link ================= */}
+      <div
+        className="
+          max-w-5xl
+          mx-auto
+          px-3
+          sm:px-4
+          md:px-6
+          pt-3
+          sm:pt-4
+        "
+      >
+        <Link
+          href="/feed"
+          prefetch={false}
+          className="
+            inline-block
+            text-sm
+            text-blue-600
+            hover:underline
+          "
+        >
+          ← Back to feed
+        </Link>
+      </div>
 
-              {/* ✅ NEW: profile posts (reusable, production-safe) */}
+      {/* ================= Content ================= */}
+      <div
+        className="
+          mx-auto
+          w-full
+          max-w-5xl
+          px-3
+          sm:px-6
+          lg:px-8
+          pb-10
+          sm:pb-12
+          pt-4
+        "
+      >
+        {loading && <ProfileSkeleton />}
+        {!loading && error && <ProfileSkeleton errorMessage={error} />}
+
+        {!loading && !error && profile && (
+          <>
+            <ProfileCard profile={profile} />
+
+            {/* ✅ profile posts */}
+            <div className="mt-6 sm:mt-8">
               <ProfilePosts userId={profile.id} />
-            </>
-          )}
-        </div>
-      </main>
-    </>
-  );
+            </div>
+          </>
+        )}
+      </div>
+    </main>
+  </>
+);
+
 };
 
 export default ProfilePage;

@@ -84,53 +84,97 @@ export default function UserSearchPanel({
     [onResultCountChange, variant],
   );
 
-  return (
-    <div
-      className={
-        variant === "feed"
-          ? "rounded-xl border border-gray-200 bg-white p-4"
-          : variant === "navbar"
-          ? "relative"
-          : ""
-      }
-    >
-      {/* ===== Search Input ===== */}
-      <UserSearchInput
-  onSearch={handleSearch}
-  variant={variant}
-/>
-
- {/* ===== Results / Helper ===== */}
-{query && (
+return (
   <div
     className={
-      variant === "navbar"
-        ? "absolute left-0 right-0 mt-2 z-50 rounded-md border bg-white shadow-lg"
-        : "mt-4"
+      variant === "feed"
+        ? `
+          w-full
+          rounded-lg
+          sm:rounded-xl
+          border
+          border-gray-200
+          bg-white
+          p-3
+          sm:p-4
+        `
+        : variant === "navbar"
+        ? `
+          relative
+          w-full
+        `
+        : `
+          w-full
+        `
     }
   >
-    <UserSearchList
-      query={query}
-      loading={loading}
-      error={error}
-      users={users}
+    {/* ===== Search Input ===== */}
+    <UserSearchInput
+      onSearch={handleSearch}
       variant={variant}
     />
+
+    {/* ===== Results / Helper ===== */}
+    {query && (
+      <div
+        className={
+          variant === "navbar"
+            ? `
+              absolute
+              left-0
+              right-0
+              mt-2
+              z-50
+              rounded-md
+              sm:rounded-lg
+              border
+              border-gray-200
+              bg-white
+              shadow-lg
+              max-h-[60vh]
+              overflow-y-auto
+            `
+            : `
+              mt-3
+              sm:mt-4
+            `
+        }
+        aria-live="polite"
+      >
+        <UserSearchList
+          query={query}
+          loading={loading}
+          error={error}
+          users={users}
+          variant={variant}
+        />
+      </div>
+    )}
+
+    {/* ===== View all (feed only) ===== */}
+    {variant === "feed" && query && users.length > 0 && (
+      <div
+        className="
+          mt-2
+          sm:mt-3
+          text-right
+        "
+      >
+        <a
+          href={`/users/search?query=${encodeURIComponent(query)}`}
+          className="
+            text-xs
+            sm:text-sm
+            font-medium
+            text-blue-600
+            hover:underline
+          "
+        >
+          View all results
+        </a>
+      </div>
+    )}
   </div>
-)}
+);
 
-
-      {/* ===== View all (feed only) ===== */}
-      {variant === "feed" && query && users.length > 0 && (
-        <div className="mt-3 text-right">
-          <a
-            href={`/users/search?query=${encodeURIComponent(query)}`}
-            className="text-sm font-medium text-blue-600 hover:underline"
-          >
-            View all results
-          </a>
-        </div>
-      )}
-    </div>
-  );
 }

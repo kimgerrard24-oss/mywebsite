@@ -82,9 +82,28 @@ export default function VideoComposer({ onPosted }: Props) {
   }
 
 return (
-  <div className="px-2 py-2 border-b border-white/10 bg-black space-y-1">
-    {/* ===== Caption (COMPACT) ===== */}
+  <div
+    className="
+      w-full
+      px-2
+      sm:px-3
+      md:px-4
+      py-2
+      border-b
+      border-white/10
+      bg-black
+      space-y-1
+      sm:space-y-2
+    "
+    role="form"
+    aria-label="Video caption composer"
+  >
+    {/* ===== Caption ===== */}
+    <label className="sr-only" htmlFor="video-caption">
+      Video caption
+    </label>
     <textarea
+      id="video-caption"
       rows={1}
       maxLength={MAX_CAPTION_LENGTH}
       placeholder="คำบรรยาย..."
@@ -95,29 +114,59 @@ return (
         w-full
         resize-none
         rounded
+        sm:rounded-md
         bg-black/40
         border
         border-white/10
         px-2
+        sm:px-3
         py-1
+        sm:py-1.5
         text-xs
+        sm:text-sm
         text-white
         placeholder-white/50
         focus:outline-none
         focus:ring-1
         focus:ring-blue-500
+        disabled:opacity-60
       "
     />
 
     {/* ===== Actions row ===== */}
-    <div className="flex items-center justify-between gap-2">
-      {/* File picker (compact) */}
+    <div
+      className="
+        flex
+        items-center
+        justify-between
+        gap-2
+        sm:gap-3
+      "
+    >
+      {/* File picker */}
       <input
         type="file"
         accept="video/*"
         onChange={handleFileChange}
         disabled={posting}
-        className="text-[11px] text-white/70"
+        className="
+          block
+          max-w-full
+          truncate
+          text-[10px]
+          sm:text-xs
+          text-white/70
+          file:mr-2
+          file:rounded
+          file:border-0
+          file:bg-white/10
+          file:px-2
+          file:py-1
+          file:text-white
+          file:text-xs
+          hover:file:bg-white/20
+          disabled:opacity-60
+        "
       />
 
       {/* Submit */}
@@ -126,13 +175,20 @@ return (
         disabled={!file || posting}
         className="
           px-3
+          sm:px-4
           py-1
+          sm:py-1.5
           rounded
+          sm:rounded-md
           bg-blue-600
           text-xs
+          sm:text-sm
           text-white
+          font-medium
           disabled:opacity-50
           disabled:cursor-not-allowed
+          hover:bg-blue-700
+          transition
         "
       >
         {posting ? "อัปโหลด…" : "โพสต์"}
@@ -141,11 +197,19 @@ return (
 
     {/* ===== Error ===== */}
     {error && (
-      <p className="text-[11px] text-red-400">
+      <p
+        className="
+          text-[10px]
+          sm:text-xs
+          text-red-400
+        "
+        role="alert"
+      >
         {error}
       </p>
     )}
   </div>
 );
+
 
 }

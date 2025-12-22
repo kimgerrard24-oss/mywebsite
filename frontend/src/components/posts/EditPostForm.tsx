@@ -85,64 +85,172 @@ export default function EditPostForm({
   }
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="space-y-4"
+  <form
+    onSubmit={handleSubmit}
+    className="
+      w-full
+      flex
+      flex-col
+      gap-3
+      sm:gap-4
+    "
+    aria-label="Edit post"
+  >
+    <label htmlFor="edit-content" className="sr-only">
+      Post content
+    </label>
+
+    <textarea
+      id="edit-content"
+      value={content}
+      onChange={(e) => setContent(e.target.value)}
+      maxLength={2000}
+      rows={6}
+      required
+      disabled={submitting}
+      className="
+        w-full
+        rounded-lg
+        sm:rounded-xl
+        border
+        border-gray-300
+        p-3
+        sm:p-4
+        text-sm
+        sm:text-base
+        leading-relaxed
+        focus:outline-none
+        focus:ring-2
+        focus:ring-blue-500
+        disabled:opacity-60
+        resize-y
+      "
+    />
+
+    {/* ===== Media picker (UNCHANGED UI / responsive only) ===== */}
+    <div
+      className="
+        flex
+        flex-col
+        sm:flex-row
+        sm:items-center
+        sm:justify-between
+        gap-2
+        sm:gap-3
+        text-sm
+      "
     >
-      <textarea
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
-        maxLength={2000}
-        rows={6}
-        className="w-full rounded-lg border p-3 focus:outline-none focus:ring"
-        required
-        disabled={submitting}
-      />
-
-      {/* ===== Media picker (UNCHANGED UI) ===== */}
-      <div className="flex items-center justify-between text-sm">
-        <label className="cursor-pointer text-gray-600">
-          <input
-            type="file"
-            multiple
-            accept="image/*,video/*"
-            onChange={handleFileChange}
-            disabled={submitting}
-            className="hidden"
-          />
-          Add photo / video
-        </label>
-
-        {files.length > 0 && (
-          <span className="text-xs text-gray-500">
-            {files.length} file(s) selected
-          </span>
-        )}
-      </div>
-
-      {(error || localError) && (
-        <p className="text-sm text-red-600">
-          {error ?? localError}
-        </p>
-      )}
-
-      <div className="flex gap-3">
-        <button
-          type="submit"
+      <label
+        className="
+          inline-flex
+          items-center
+          cursor-pointer
+          text-gray-600
+          hover:text-gray-800
+          transition
+        "
+      >
+        <input
+          type="file"
+          multiple
+          accept="image/*,video/*"
+          onChange={handleFileChange}
           disabled={submitting}
-          className="rounded bg-blue-600 px-4 py-2 text-white disabled:opacity-50"
-        >
-          {submitting ? 'Saving…' : 'Save'}
-        </button>
+          className="hidden"
+        />
+        Add photo / video
+      </label>
 
-        <button
-          type="button"
-          onClick={() => router.back()}
-          className="rounded border px-4 py-2"
+      {files.length > 0 && (
+        <span
+          className="
+            text-xs
+            sm:text-sm
+            text-gray-500
+          "
         >
-          Cancel
-        </button>
-      </div>
-    </form>
-  );
+          {files.length} file(s) selected
+        </span>
+      )}
+    </div>
+
+    {(error || localError) && (
+      <p
+        className="
+          text-xs
+          sm:text-sm
+          text-red-600
+        "
+        role="alert"
+      >
+        {error ?? localError}
+      </p>
+    )}
+
+    <div
+      className="
+        flex
+        flex-col-reverse
+        sm:flex-row
+        gap-2
+        sm:gap-3
+        sm:justify-end
+        pt-1
+        sm:pt-2
+      "
+    >
+      <button
+        type="button"
+        onClick={() => router.back()}
+        className="
+          inline-flex
+          items-center
+          justify-center
+          rounded-lg
+          sm:rounded-xl
+          border
+          border-gray-300
+          px-4
+          sm:px-5
+          py-2
+          sm:py-2.5
+          text-sm
+          sm:text-base
+          hover:bg-gray-50
+          transition
+        "
+      >
+        Cancel
+      </button>
+
+      <button
+        type="submit"
+        disabled={submitting}
+        className="
+          inline-flex
+          items-center
+          justify-center
+          rounded-lg
+          sm:rounded-xl
+          bg-blue-600
+          px-4
+          sm:px-5
+          py-2
+          sm:py-2.5
+          text-sm
+          sm:text-base
+          font-medium
+          text-white
+          hover:bg-blue-700
+          disabled:opacity-50
+          disabled:cursor-not-allowed
+          transition
+        "
+      >
+        {submitting ? "Saving…" : "Save"}
+      </button>
+    </div>
+  </form>
+);
+
 }

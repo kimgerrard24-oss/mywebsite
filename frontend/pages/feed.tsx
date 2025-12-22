@@ -51,18 +51,9 @@ export default function FeedPage({
     {/* ================= SEO ================= */}
     <Head>
       <title>{t.feed.pageTitle}</title>
-      <meta
-        name="description"
-        content={t.feed.pageDescription}
-      />
-      <meta
-        property="og:title"
-        content={t.feed.pageTitle}
-      />
-      <meta
-        property="og:description"
-        content={t.feed.ogDescription}
-      />
+      <meta name="description" content={t.feed.pageDescription} />
+      <meta property="og:title" content={t.feed.pageTitle} />
+      <meta property="og:description" content={t.feed.ogDescription} />
     </Head>
 
     {/* ================= Root Layout ================= */}
@@ -76,149 +67,253 @@ export default function FeedPage({
         overflow-hidden
       "
     >
-{/* ================= Header (LOCKED) ================= */}
-<header className="sticky top-0 z-20 w-full bg-white shadow-sm">
-  <nav
-    className="
-      max-w-6xl
-      mx-auto
-      px-4
-      h-14
-      flex
-      items-center
-      justify-between
-      gap-4
-    "
-  >
-    {/* ===== Left: Logo ===== */}
-    <Link
-      href="/feed"
-      className="
-        text-xl
-        font-semibold
-        tracking-tight
-        text-blue-600
-        shrink-0
-        leading-none
-      "
-    >
-      PhlyPhant
-    </Link>
-
-    {/* ===== Center: Search (GLOBAL) ===== */}
-    <div className="flex-1 flex justify-center">
-      <div className="w-full max-w-md hidden md:block">
-        <UserSearchPanel variant="navbar" />
-      </div>
-    </div>
-
-    {/* ===== Right: Actions ===== */}
-    <div className="flex items-center gap-3 shrink-0">
-      <LanguageSwitcher currentLang={lang} />
-
-      <Link href="/profile" aria-label="Go to profile">
-  <img
-    src={user?.avatarUrl || "/images/default-avatar.png"}
-    alt="Avatar"
-    className="
-      w-9
-      h-9
-      rounded-full
-      border
-      object-cover
-      flex-shrink-0
-      cursor-pointer
-      hover:ring-2
-      hover:ring-blue-500
-      transition
-    "
-  />
-</Link>
-
-
-      <button
-        type="button"
-        onClick={handleLogout}
-        className="text-sm font-medium hover:text-red-600 transition"
+      {/* ================= Header (LOCKED) ================= */}
+      <header
+        className="
+          sticky
+          top-0
+          z-20
+          w-full
+          bg-white
+          shadow-sm
+        "
       >
-        {t.feed.nav.logout}
-      </button>
-    </div>
-  </nav>
- </header>
+        <nav
+          aria-label="Primary navigation"
+          className="
+            mx-auto
+            flex
+            h-14
+            max-w-6xl
+            items-center
+            justify-between
+            gap-2
+            px-3
+            sm:px-4
+            md:px-6
+            sm:gap-4
+          "
+        >
+          {/* ===== Left: Logo ===== */}
+          <Link
+            href="/feed"
+            className="
+              shrink-0
+              text-lg
+              sm:text-xl
+              font-semibold
+              tracking-tight
+              leading-none
+              text-blue-600
+              focus:outline-none
+              focus-visible:ring-2
+              focus-visible:ring-blue-500
+              rounded
+            "
+          >
+            PhlyPhant
+          </Link>
 
-{/* ===== Mobile Search ===== */}
-<div className="px-4 pt-3 md:hidden">
-  <UserSearchPanel variant="page" />
-</div>
+          {/* ===== Center: Search (GLOBAL) ===== */}
+          <div
+            className="
+              flex-1
+              flex
+              justify-center
+              px-2
+            "
+          >
+            <div
+              className="
+                hidden
+                w-full
+                max-w-md
+                md:block
+              "
+            >
+              <UserSearchPanel variant="navbar" />
+            </div>
+          </div>
 
+          {/* ===== Right: Actions ===== */}
+          <div
+            className="
+              flex
+              shrink-0
+              items-center
+              gap-2
+              sm:gap-3
+            "
+          >
+            <LanguageSwitcher currentLang={lang} />
 
-  {/* ===== Mobile Feed Mode Switcher ===== */}
-<div className="px-4 pt-3 lg:hidden">
-  <FeedModeSwitcher onChange={setFeedMode} />
-</div>
+            <Link
+              href="/profile"
+              aria-label="Go to profile"
+              className="
+                focus:outline-none
+                focus-visible:ring-2
+                focus-visible:ring-blue-500
+                rounded-full
+              "
+            >
+              <img
+                src={user?.avatarUrl || '/images/default-avatar.png'}
+                alt="User avatar"
+                className="
+                  h-8
+                  w-8
+                  sm:h-9
+                  sm:w-9
+                  rounded-full
+                  border
+                  object-cover
+                  cursor-pointer
+                  transition
+                  hover:ring-2
+                  hover:ring-blue-500
+                "
+              />
+            </Link>
 
-{/* ================= Feeds Area (SCROLL SEPARATE) ================= */}
-<section className="flex-1 overflow-hidden">
-    <div
-    className="
-      grid
-      grid-cols-1
-      lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]
-    "
-  >
-    {/* ===== Left: Text Feed ===== */}
-    <aside
-      className={`
-        border-r
-        bg-gray-50
-        flex
-        flex-col
-        ${feedMode === "video" ? "hidden" : "flex"}
-        lg:flex
-      `}
-    >
-      {/* 🔒 Sticky Composer */}
-      <div className="sticky top-14 z-10 bg-gray-50">
-        <div className="max-w-3xl mx-auto px-4 py-2">
-          <PostComposer
-            onPostCreated={() => {
-              refreshFeedRef.current?.();
-            }}
-          />
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="
+                hidden
+                sm:inline-block
+                text-sm
+                font-medium
+                transition-colors
+                hover:text-red-600
+                focus:outline-none
+                focus-visible:ring-2
+                focus-visible:ring-red-500
+                rounded
+              "
+            >
+              {t.feed.nav.logout}
+            </button>
+          </div>
+        </nav>
+      </header>
+
+      {/* ===== Mobile Search ===== */}
+      <section
+        className="
+          px-3
+          pt-3
+          sm:px-4
+          md:hidden
+        "
+        aria-label="Search users"
+      >
+        <UserSearchPanel variant="page" />
+      </section>
+
+      {/* ===== Mobile Feed Mode Switcher ===== */}
+      <section
+        className="
+          px-3
+          pt-3
+          sm:px-4
+          lg:hidden
+        "
+        aria-label="Feed mode switcher"
+      >
+        <FeedModeSwitcher onChange={setFeedMode} />
+      </section>
+
+      {/* ================= Feeds Area (SCROLL SEPARATE) ================= */}
+      <section
+        className="
+          flex-1
+          overflow-hidden
+        "
+        aria-label="Feeds"
+      >
+        <div
+          className="
+            grid
+            h-[calc(100vh-56px)]
+            grid-cols-1
+            lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]
+          "
+        >
+          {/* ===== Left: Text Feed ===== */}
+          <aside
+            aria-label="Text feed"
+            className={`
+              border-r
+              bg-gray-50
+              flex
+              flex-col
+              h-full
+              overflow-y-auto
+              ${feedMode === 'video' ? 'hidden' : 'flex'}
+              lg:flex
+            `}
+          >
+            {/* Sticky Composer */}
+            <div
+              className="
+                sticky
+                top-0
+                z-10
+                bg-gray-50
+                border-b
+                border-gray-100
+              "
+            >
+              <div
+                className="
+                  mx-auto
+                  max-w-3xl
+                  px-3
+                  py-2
+                  sm:px-4
+                "
+              >
+                <PostComposer
+                  onPostCreated={() =>
+                    refreshFeedRef.current?.()
+                  }
+                />
+              </div>
+            </div>
+
+            {/* Feed list */}
+            <TextFeed
+              user={user}
+              initialItems={feedItems}
+              lang={lang}
+              showComposer={false}
+              onRefreshReady={(fn) => {
+                refreshFeedRef.current = fn;
+              }}
+            />
+          </aside>
+
+          {/* ===== Right: Video Feed ===== */}
+          <aside
+            aria-label="Video feed"
+            className={`
+              h-full
+              overflow-y-auto
+              bg-black
+              ${feedMode === 'text' ? 'hidden' : 'block'}
+              lg:block
+            `}
+          >
+            <VideoFeed />
+          </aside>
         </div>
-      </div>
-
-      {/* 🔽 Feed list (ปล่อยให้ page scroll) */}
-      <div className="flex-1 overflow-y-auto">
-        <TextFeed
-          user={user}
-          initialItems={feedItems}
-          lang={lang}
-          showComposer={false}
-          onRefreshReady={(fn) => {
-            refreshFeedRef.current = fn;
-          }}
-        />
-      </div>
-    </aside>
-
-    {/* ===== Right: Video Feed ===== */}
-    <aside
-      className={`
-        bg-black
-        ${feedMode === "text" ? "hidden" : "block"}
-        lg:block
-      `}
-    >
-      <VideoFeed />
-    </aside>
-  </div>
-</section>
-
+      </section>
     </main>
   </>
- );
+);
+
+
 }
 
 /* ================= SSR ================= */

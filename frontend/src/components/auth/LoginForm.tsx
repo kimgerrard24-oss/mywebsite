@@ -85,91 +85,200 @@ export default function LoginForm() {
     }
   }
 
-  return (
-    <form onSubmit={handleSubmit} aria-describedby="login-error" noValidate>
-      <div className="space-y-4">
-        <label className="block">
-          <span className="text-sm font-medium text-slate-700">อีเมล</span>
-          <input
-            type="email"
-            inputMode="email"
-            autoComplete="email"
-            required
-            value={form.email}
-            onChange={(e) => onChange("email", e.target.value)}
-            className="mt-1 block w-full rounded-lg border border-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-300"
-            aria-label="Email"
-            aria-required="true"
-            placeholder="you@example.com"
-          />
-        </label>
+ return (
+  <form
+    onSubmit={handleSubmit}
+    aria-describedby="login-error"
+    noValidate
+    className="
+      w-full
+      max-w-sm
+      sm:max-w-md
+      mx-auto
+    "
+  >
+    <fieldset className="space-y-4 sm:space-y-5">
+      <legend className="sr-only">Login form</legend>
 
-        <label className="block">
-          <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-slate-700">
-              รหัสผ่าน
-            </span>
-            <button
-              type="button"
-              tabIndex={0}
-              onClick={() => setVisible((v) => !v)}
-              className="text-sm text-slate-500 underline"
-              aria-pressed={visible}
-            >
-              {visible ? "ซ่อน" : "แสดง"}
-            </button>
-          </div>
-          <input
-            type={visible ? "text" : "password"}
-            autoComplete="current-password"
-            required
-            value={form.password}
-            onChange={(e) => onChange("password", e.target.value)}
-            className="mt-1 block w-full rounded-lg border border-slate-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-slate-300"
-            aria-label="Password"
-            aria-required="true"
-            placeholder="••••••••"
-            minLength={8}
-          />
-        </label>
+      {/* Email */}
+      <label className="block">
+        <span className="text-xs sm:text-sm font-medium text-slate-700">
+          อีเมล
+        </span>
 
-        <div className="flex items-center justify-between gap-4">
-          <label className="inline-flex items-center text-sm">
-            <input
-              type="checkbox"
-              checked={form.remember}
-              onChange={(e) => onChange("remember", e.target.checked)}
-              className="mr-2"
-              aria-label="Remember me"
-            />
-            จดจำฉัน
-          </label>
+        <input
+          type="email"
+          inputMode="email"
+          autoComplete="email"
+          required
+          value={form.email}
+          onChange={(e) => onChange('email', e.target.value)}
+          aria-label="Email"
+          aria-required="true"
+          placeholder="you@example.com"
+          className="
+            mt-1
+            block
+            w-full
+            rounded-md
+            sm:rounded-lg
+            border
+            border-slate-200
+            px-3
+            py-2
+            text-sm
+            shadow-sm
+            focus:outline-none
+            focus-visible:ring-2
+            focus-visible:ring-slate-300
+          "
+        />
+      </label>
 
-          <a
-            href="/auth/forgot"
-            className="text-sm text-slate-600 hover:underline"
-          >
-            ลืมรหัสผ่าน?
-          </a>
-        </div>
+      {/* Password */}
+      <label className="block">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs sm:text-sm font-medium text-slate-700">
+            รหัสผ่าน
+          </span>
 
-        {errorMsg ? (
-          <div id="login-error" role="alert" className="text-sm text-red-600">
-            {errorMsg}
-          </div>
-        ) : null}
-
-        <div>
           <button
-            type="submit"
-            disabled={loading}
-            className="w-full inline-flex items-center justify-center rounded-lg bg-slate-800 text-white px-4 py-2 text-sm font-medium disabled:opacity-60"
-            aria-disabled={loading}
+            type="button"
+            tabIndex={0}
+            onClick={() => setVisible((v) => !v)}
+            aria-pressed={visible}
+            className="
+              text-xs
+              sm:text-sm
+              text-slate-500
+              underline
+              hover:text-slate-700
+              focus:outline-none
+              focus-visible:ring-2
+              focus-visible:ring-slate-300
+              rounded
+            "
           >
-            {loading ? "กำลังเข้าสู่ระบบ..." : "เข้าสู่ระบบ"}
+            {visible ? 'ซ่อน' : 'แสดง'}
           </button>
         </div>
+
+        <input
+          type={visible ? 'text' : 'password'}
+          autoComplete="current-password"
+          required
+          value={form.password}
+          onChange={(e) => onChange('password', e.target.value)}
+          aria-label="Password"
+          aria-required="true"
+          placeholder="••••••••"
+          minLength={8}
+          className="
+            mt-1
+            block
+            w-full
+            rounded-md
+            sm:rounded-lg
+            border
+            border-slate-200
+            px-3
+            py-2
+            text-sm
+            shadow-sm
+            focus:outline-none
+            focus-visible:ring-2
+            focus-visible:ring-slate-300
+          "
+        />
+      </label>
+
+      {/* Remember + Forgot */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <label className="inline-flex items-center text-xs sm:text-sm text-slate-700">
+          <input
+            type="checkbox"
+            checked={form.remember}
+            onChange={(e) => onChange('remember', e.target.checked)}
+            aria-label="Remember me"
+            className="
+              mr-2
+              h-4
+              w-4
+              rounded
+              border-slate-300
+              focus-visible:ring-2
+              focus-visible:ring-slate-300
+            "
+          />
+          จดจำฉัน
+        </label>
+
+        <a
+          href="/auth/forgot"
+          className="
+            text-xs
+            sm:text-sm
+            text-slate-600
+            hover:underline
+            focus:outline-none
+            focus-visible:ring-2
+            focus-visible:ring-slate-300
+            rounded
+          "
+        >
+          ลืมรหัสผ่าน?
+        </a>
       </div>
-    </form>
-  );
+
+      {/* Error */}
+      {errorMsg ? (
+        <div
+          id="login-error"
+          role="alert"
+          className="
+            text-xs
+            sm:text-sm
+            text-red-600
+          "
+        >
+          {errorMsg}
+        </div>
+      ) : null}
+
+      {/* Submit */}
+      <div>
+        <button
+          type="submit"
+          disabled={loading}
+          aria-disabled={loading}
+          className="
+            inline-flex
+            w-full
+            items-center
+            justify-center
+            rounded-md
+            sm:rounded-lg
+            bg-slate-800
+            px-4
+            py-2
+            sm:py-2.5
+            text-sm
+            font-medium
+            text-white
+            transition-colors
+            hover:bg-slate-900
+            focus:outline-none
+            focus-visible:ring-2
+            focus-visible:ring-slate-400
+            disabled:opacity-60
+            disabled:cursor-not-allowed
+          "
+        >
+          {loading ? 'กำลังเข้าสู่ระบบ...' : 'เข้าสู่ระบบ'}
+        </button>
+      </div>
+    </fieldset>
+  </form>
+);
+
 }

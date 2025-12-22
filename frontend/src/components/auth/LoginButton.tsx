@@ -16,9 +16,51 @@ export default function LoginButton({ provider, label }: Props) {
     window.location.href = url;
   };
 
-  return (
-    <button onClick={onClick} style={{ padding: '8px 12px', cursor: 'pointer' }}>
-      {label ?? (provider === 'google' ? 'Sign in with Google' : 'Sign in with Facebook')}
-    </button>
-  );
+ return (
+  <button
+    type="button"
+    onClick={onClick}
+    aria-label={
+      label ??
+      (provider === 'google'
+        ? 'Sign in with Google'
+        : 'Sign in with Facebook')
+    }
+    className="
+      inline-flex
+      w-full
+      sm:w-auto
+      items-center
+      justify-center
+      gap-2
+      rounded-md
+      sm:rounded-lg
+      border
+      border-slate-300
+      bg-white
+      px-4
+      sm:px-5
+      py-2
+      sm:py-2.5
+      text-sm
+      sm:text-base
+      font-medium
+      text-slate-800
+      shadow-sm
+      transition-colors
+      hover:bg-slate-50
+      focus:outline-none
+      focus-visible:ring-2
+      focus-visible:ring-slate-400
+      focus-visible:ring-offset-2
+      disabled:cursor-not-allowed
+    "
+  >
+    {label ??
+      (provider === 'google'
+        ? 'Sign in with Google'
+        : 'Sign in with Facebook')}
+  </button>
+);
+
 }

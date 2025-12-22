@@ -63,54 +63,144 @@ export default function CoverUploader({ currentCoverUrl }: Props) {
 
   const imageSrc = previewUrl ?? coverUrl;
 
-  return (
-    <article aria-labelledby="cover-heading">
-      <h2 id="cover-heading" className="text-lg font-medium">
-        Cover photo
-      </h2>
+ return (
+  <article
+    aria-labelledby="cover-heading"
+    className="
+      w-full
+      max-w-4xl
+      mx-auto
+    "
+  >
+    <h2
+      id="cover-heading"
+      className="
+        text-base
+        sm:text-lg
+        font-medium
+      "
+    >
+      Cover photo
+    </h2>
 
-      <p className="mt-1 text-sm text-gray-600">
-        This image appears at the top of your profile
-      </p>
+    <p
+      className="
+        mt-1
+        text-xs
+        sm:text-sm
+        text-gray-600
+      "
+    >
+      This image appears at the top of your profile
+    </p>
 
-      <div className="mt-4 overflow-hidden rounded-lg border">
-        {imageSrc ? (
-          <img
-            src={imageSrc}
-            alt="Cover image"
-            className="h-48 w-full object-cover"
-          />
-        ) : (
-          <div className="flex h-48 items-center justify-center text-gray-400">
-            No cover photo
-          </div>
-        )}
-      </div>
-
-      <div className="mt-4 flex items-center gap-4">
-        <label
-          className={`cursor-pointer rounded-md px-4 py-2 text-sm text-white ${
-            loading ? 'bg-gray-400 cursor-not-allowed' : 'bg-black'
-          }`}
+    <div
+      className="
+        mt-3
+        sm:mt-4
+        overflow-hidden
+        rounded-lg
+        sm:rounded-xl
+        border
+      "
+    >
+      {imageSrc ? (
+        <img
+          src={imageSrc}
+          alt="Cover image"
+          loading="lazy"
+          className="
+            h-36
+            sm:h-48
+            md:h-56
+            w-full
+            object-cover
+          "
+        />
+      ) : (
+        <div
+          className="
+            flex
+            h-36
+            sm:h-48
+            md:h-56
+            items-center
+            justify-center
+            text-xs
+            sm:text-sm
+            text-gray-400
+          "
         >
-          {loading ? 'Uploading…' : 'Change cover'}
-          <input
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={onFileChange}
-            disabled={loading}
-          />
-        </label>
+          No cover photo
+        </div>
+      )}
+    </div>
 
-        {success && (
-          <span className="text-sm text-green-600">
-            Cover updated successfully
-          </span>
-        )}
-      </div>
+    <div
+      className="
+        mt-3
+        sm:mt-4
+        flex
+        flex-col
+        sm:flex-row
+        sm:items-center
+        gap-2
+        sm:gap-4
+      "
+    >
+      <label
+        className={`
+          inline-flex
+          items-center
+          justify-center
+          cursor-pointer
+          rounded-md
+          sm:rounded-lg
+          px-3
+          sm:px-4
+          py-2
+          text-xs
+          sm:text-sm
+          font-medium
+          text-white
+          transition
+          ${
+            loading
+              ? "bg-gray-400 cursor-not-allowed"
+              : "bg-black hover:bg-gray-800"
+          }
+        `}
+      >
+        {loading ? "Uploading…" : "Change cover"}
+        <input
+          type="file"
+          accept="image/*"
+          className="hidden"
+          onChange={onFileChange}
+          disabled={loading}
+          aria-hidden="true"
+        />
+      </label>
 
+      {success && (
+        <span
+          className="
+            text-xs
+            sm:text-sm
+            text-green-600
+          "
+          role="status"
+          aria-live="polite"
+        >
+          Cover updated successfully
+        </span>
+      )}
+    </div>
+
+    <div className="mt-2 sm:mt-3">
       <UploadProgress loading={loading} error={error} />
-    </article>
-  );
+    </div>
+  </article>
+);
+
 }

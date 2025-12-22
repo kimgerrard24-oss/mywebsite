@@ -56,50 +56,154 @@ export default function ProfileForm({ user }: Props) {
     }
   }
 
-  return (
-    <form onSubmit={onSubmit} className="space-y-6">
-      <div>
-        <label className="block text-sm font-medium">
-          Display name
-        </label>
-        <input
-          type="text"
-          value={displayName}
-          onChange={(e) => setDisplayName(e.target.value)}
-          maxLength={50}
-          className="mt-1 w-full rounded border px-3 py-2"
-        />
-      </div>
+ return (
+  <form
+    onSubmit={onSubmit}
+    className="
+      w-full
+      max-w-2xl
+      space-y-4
+      sm:space-y-6
+    "
+    aria-label="Edit profile form"
+  >
+    {/* ===== Display name ===== */}
+    <div>
+      <label
+        htmlFor="display-name"
+        className="
+          block
+          text-xs
+          sm:text-sm
+          font-medium
+          text-gray-700
+        "
+      >
+        Display name
+      </label>
+      <input
+        id="display-name"
+        type="text"
+        value={displayName}
+        onChange={(e) => setDisplayName(e.target.value)}
+        maxLength={50}
+        className="
+          mt-1
+          w-full
+          rounded-md
+          sm:rounded-lg
+          border
+          border-gray-300
+          px-3
+          sm:px-4
+          py-2
+          text-sm
+          sm:text-base
+          focus:outline-none
+          focus:ring-2
+          focus:ring-blue-500
+        "
+      />
+    </div>
 
-      <div>
-        <label className="block text-sm font-medium">
-          Bio
-        </label>
-        <textarea
-          value={bio}
-          onChange={(e) => setBio(e.target.value)}
-          maxLength={160}
-          rows={4}
-          className="mt-1 w-full rounded border px-3 py-2"
-        />
-      </div>
+    {/* ===== Bio ===== */}
+    <div>
+      <label
+        htmlFor="bio"
+        className="
+          block
+          text-xs
+          sm:text-sm
+          font-medium
+          text-gray-700
+        "
+      >
+        Bio
+      </label>
+      <textarea
+        id="bio"
+        value={bio}
+        onChange={(e) => setBio(e.target.value)}
+        maxLength={160}
+        rows={4}
+        className="
+          mt-1
+          w-full
+          rounded-md
+          sm:rounded-lg
+          border
+          border-gray-300
+          px-3
+          sm:px-4
+          py-2
+          text-sm
+          sm:text-base
+          leading-relaxed
+          resize-y
+          focus:outline-none
+          focus:ring-2
+          focus:ring-blue-500
+        "
+      />
+    </div>
 
-      {error && (
-        <p className="text-sm text-red-600">{error}</p>
-      )}
-      {success && (
-        <p className="text-sm text-green-600">
-          Profile updated
-        </p>
-      )}
+    {/* ===== Feedback ===== */}
+    {error && (
+      <p
+        className="
+          text-xs
+          sm:text-sm
+          text-red-600
+        "
+        role="alert"
+      >
+        {error}
+      </p>
+    )}
+    {success && (
+      <p
+        className="
+          text-xs
+          sm:text-sm
+          text-green-600
+        "
+        role="status"
+        aria-live="polite"
+      >
+        Profile updated
+      </p>
+    )}
 
+    {/* ===== Action ===== */}
+    <div className="pt-1 sm:pt-2">
       <button
         type="submit"
         disabled={loading}
-        className="rounded bg-black px-4 py-2 text-white disabled:opacity-50"
+        className="
+          inline-flex
+          items-center
+          justify-center
+          rounded-md
+          sm:rounded-lg
+          bg-black
+          px-4
+          sm:px-5
+          py-2
+          sm:py-2.5
+          text-sm
+          sm:text-base
+          font-medium
+          text-white
+          hover:bg-gray-800
+          disabled:opacity-50
+          disabled:cursor-not-allowed
+          transition
+        "
       >
         {loading ? "Saving..." : "Save changes"}
       </button>
-    </form>
-  );
+    </div>
+  </form>
+);
+
 }

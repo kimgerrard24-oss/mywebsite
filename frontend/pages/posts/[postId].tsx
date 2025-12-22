@@ -32,58 +32,74 @@ export default function PostDetailPage({ post }: Props) {
     firstMedia?.type === "video" ? mediaSrc : undefined;
 
   return (
-    <>
-      <Head>
-        <title>{post.content.slice(0, 60)} | PhlyPhant</title>
+  <>
+    <Head>
+      <title>{post.content.slice(0, 60)} | PhlyPhant</title>
 
-        <meta
-          name="description"
-          content={post.content.slice(0, 160)}
-        />
+      <meta
+        name="description"
+        content={post.content.slice(0, 160)}
+      />
 
-        <link
-          rel="canonical"
-          href={`https://www.phlyphant.com/posts/${post.id}`}
-        />
+      <link
+        rel="canonical"
+        href={`https://www.phlyphant.com/posts/${post.id}`}
+      />
 
-        {/* ===== OpenGraph base ===== */}
-        <meta property="og:type" content="article" />
-        <meta
-          property="og:title"
-          content={post.content.slice(0, 60)}
-        />
-        <meta
-          property="og:description"
-          content={post.content.slice(0, 160)}
-        />
-        <meta
-          property="og:url"
-          content={`https://www.phlyphant.com/posts/${post.id}`}
-        />
+      {/* ===== OpenGraph base ===== */}
+      <meta property="og:type" content="article" />
+      <meta
+        property="og:title"
+        content={post.content.slice(0, 60)}
+      />
+      <meta
+        property="og:description"
+        content={post.content.slice(0, 160)}
+      />
+      <meta
+        property="og:url"
+        content={`https://www.phlyphant.com/posts/${post.id}`}
+      />
 
-        {/* ===== Media OG (optional, safe) ===== */}
-        {ogImage && (
-          <meta property="og:image" content={ogImage} />
-        )}
+      {/* ===== Media OG (optional, safe) ===== */}
+      {ogImage && (
+        <meta property="og:image" content={ogImage} />
+      )}
 
-        {ogVideo && (
-          <>
-            <meta property="og:video" content={ogVideo} />
-            <meta
-              property="og:video:type"
-              content="video/mp4"
-            />
-          </>
-        )}
-      </Head>
+      {ogVideo && (
+        <>
+          <meta property="og:video" content={ogVideo} />
+          <meta
+            property="og:video:type"
+            content="video/mp4"
+          />
+        </>
+      )}
+    </Head>
 
-      <main className="mx-auto max-w-2xl px-4 py-6">
-        <article>
-          <PostDetail post={post} />
-        </article>
-      </main>
-    </>
-  );
+    <main
+      className="
+        mx-auto
+        w-full
+        max-w-sm
+        sm:max-w-md
+        md:max-w-2xl
+        px-4
+        sm:px-6
+        py-6
+        sm:py-8
+      "
+    >
+      <article
+        aria-label="Post content"
+        className="w-full"
+      >
+        <PostDetail post={post} />
+      </article>
+    </main>
+  </>
+);
+
 }
 
 export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {

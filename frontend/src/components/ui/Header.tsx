@@ -13,34 +13,148 @@ export default function Header(){
     apiGet('/auth/me').then(setMe).catch(()=>setMe(null))
   },[])
   return (
-    <header className="bg-white shadow-sm">
-      <div className="container mx-auto px-4 py-3 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-3">
-          <Image
-                    src="/images/aaa.png"
-                    alt="aaa"
-                    width={50}
-                    height={30}
-                    priority
-                    className="mx-auto rounded-2xl shadow-lg"/>
-          <span className="font-bold">The Elephant</span>
+  <header
+    className="
+      bg-white
+      shadow-sm
+    "
+  >
+    <div
+      className="
+        mx-auto
+        w-full
+        max-w-7xl
+        px-3
+        sm:px-4
+        md:px-6
+        py-2
+        sm:py-3
+        flex
+        items-center
+        justify-between
+        gap-3
+      "
+    >
+      {/* ===== Logo ===== */}
+      <Link
+        href="/"
+        className="
+          flex
+          items-center
+          gap-2
+          sm:gap-3
+          shrink-0
+        "
+      >
+        <Image
+          src="/images/aaa.png"
+          alt="aaa"
+          width={50}
+          height={30}
+          priority
+          className="
+            h-6
+            sm:h-7
+            w-auto
+            rounded-xl
+            shadow-lg
+          "
+        />
+        <span
+          className="
+            text-sm
+            sm:text-base
+            md:text-lg
+            font-bold
+            text-gray-900
+            whitespace-nowrap
+          "
+        >
+          The Elephant
+        </span>
+      </Link>
+
+      {/* ===== Navigation ===== */}
+      <nav
+        className="
+          flex
+          items-center
+          gap-2
+          sm:gap-3
+          md:gap-4
+          text-sm
+          sm:text-base
+        "
+        aria-label="Main navigation"
+      >
+        <Link
+          href="/explore"
+          className="
+            hover:underline
+          "
+        >
+          Explore
         </Link>
-        <nav className="flex items-center gap-4">
-          <Link href="/explore">Explore</Link>
-          {me ? (
-            <>
-              <Link href="/home">Home</Link>
-              <Link href="/profile/me">Profile</Link>
-              <Link href="/messages">Messages</Link>
-            </>
-          ) : (
-            <>
-              <Link href="/auth/login" className="px-3 py-1 bg-blue-600 text-white rounded">Login</Link>
-              <Link href="/auth/register" className="px-3 py-1 border rounded">Sign Up</Link>
-            </>
-          )}
-        </nav>
-      </div>
-    </header>
-  )
+
+        {me ? (
+          <>
+            <Link
+              href="/home"
+              className="hover:underline"
+            >
+              Home
+            </Link>
+            <Link
+              href="/profile/me"
+              className="hover:underline"
+            >
+              Profile
+            </Link>
+            <Link
+              href="/messages"
+              className="hover:underline"
+            >
+              Messages
+            </Link>
+          </>
+        ) : (
+          <>
+            <Link
+              href="/auth/login"
+              className="
+                px-3
+                py-1
+                rounded
+                bg-blue-600
+                text-white
+                text-xs
+                sm:text-sm
+                hover:bg-blue-700
+                transition
+              "
+            >
+              Login
+            </Link>
+            <Link
+              href="/auth/register"
+              className="
+                px-3
+                py-1
+                rounded
+                border
+                text-xs
+                sm:text-sm
+                hover:bg-gray-50
+                transition
+              "
+            >
+              Sign Up
+            </Link>
+          </>
+        )}
+      </nav>
+    </div>
+  </header>
+);
+
 }

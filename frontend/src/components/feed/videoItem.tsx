@@ -19,16 +19,22 @@ export default function VideoItem({ post, onLike }: Props) {
 
   if (!video?.url) return null;
 
-  // ✅ ensure autoplay หลัง mount (fail-soft)
+  /**
+   * ✅ RESET VIDEO STATE ทุกครั้งที่เปลี่ยน post
+   * ป้องกันเสียงคลิปก่อนหน้า
+   */
   useEffect(() => {
     const v = videoRef.current;
     if (!v) return;
 
+    v.pause();
     v.muted = true;
-    v.play().catch(() => {
-      // browser policy → fail-soft
-    });
-  }, []);
+    v.currentTime = 0;
+    v.load(); // 🔥 สำคัญมาก
+    setMuted(true);
+
+    v.play().catch(() => {});
+  }, [post.id]);
 
   function handleTap() {
     const now = Date.now();
@@ -37,7 +43,6 @@ export default function VideoItem({ post, onLike }: Props) {
     if (now - lastTap.current < 300) {
       onLike?.(post.id);
     } else if (videoRef.current) {
-      // ▶️ single tap = play / pause
       if (videoRef.current.paused) {
         videoRef.current.play().catch(() => {});
       } else {
@@ -48,7 +53,7 @@ export default function VideoItem({ post, onLike }: Props) {
     lastTap.current = now;
   }
 
-  // 🔊 toggle sound (user interaction → policy-safe)
+  // 🔊 toggle sound (policy-safe)
   function toggleSound() {
     const v = videoRef.current;
     if (!v) return;
@@ -57,79 +62,91 @@ export default function VideoItem({ post, onLike }: Props) {
     v.muted = nextMuted;
     setMuted(nextMuted);
 
-    if (!nextMuted && v.paused) {
+    if (!nextMuted) {
       v.play().catch(() => {});
     }
   }
 
   return (
-    <article
+  <article
+    className="
+      relative
+      h-screen
+      w-full
+      snap-start
+      bg-black
+      flex
+      items-center
+      justify-center
+    "
+    aria-label="Video post"
+  >
+    <div
       className="
         relative
-        h-screen
+        h-full
         w-full
-        snap-start
+        max-w-full
+        sm:max-w-[420px]
+        md:max-w-[480px]
+        lg:max-w-[420px]
+        aspect-[9/16]
         bg-black
-        flex
-        items-center
-        justify-center
+        overflow-hidden
       "
-      aria-label="Video post"
     >
-      <div
+      <video
+        key={post.id} // 🔥 บังคับ remount
+        ref={videoRef}
+        data-video
+        src={video.url}
+        muted={muted}
+        autoPlay
+        loop
+        playsInline
+        preload="auto"
+        onClick={handleTap}
         className="
-          relative
+          absolute
+          inset-0
           h-full
           w-full
-          max-w-[420px]
-          aspect-[9/16]
-          bg-black
-          overflow-hidden
+          object-contain
+        "
+      />
+
+      {/* 🔊 Sound Toggle */}
+      <button
+        type="button"
+        onClick={toggleSound}
+        aria-label={muted ? "Unmute video" : "Mute video"}
+        className="
+          absolute
+          bottom-3
+          right-3
+          sm:bottom-4
+          sm:right-4
+          z-10
+          rounded-full
+          bg-black/60
+          px-2.5
+          py-1.5
+          sm:px-3
+          sm:py-2
+          text-xs
+          sm:text-sm
+          text-white
+          hover:bg-black/80
+          transition
+          focus:outline-none
+          focus:ring-2
+          focus:ring-white/40
         "
       >
-        <video
-          ref={videoRef}
-          data-video
-          src={video.url}
-          muted={muted}
-          autoPlay
-          loop
-          playsInline
-          preload="auto"
-          onClick={handleTap}
-          className="
-            absolute
-            inset-0
-            h-full
-            w-full
-            object-contain
-          "
-        />
+        {muted ? "🔇" : "🔊"}
+      </button>
+    </div>
+  </article>
+);
 
-        {/* 🔊 Sound Toggle Button */}
-        <button
-          type="button"
-          onClick={toggleSound}
-          aria-label={muted ? "Unmute video" : "Mute video"}
-          className="
-            absolute
-            bottom-4
-            right-4
-            z-10
-            rounded-full
-            bg-black/60
-            px-3
-            py-2
-            text-white
-            text-sm
-            hover:bg-black/80
-            transition
-          "
-        >
-          {muted ? "🔇" : "🔊"}
-        </button>
-      </div>
-    </article>
-  );
 }
-

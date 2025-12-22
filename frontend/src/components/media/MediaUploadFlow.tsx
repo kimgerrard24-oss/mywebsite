@@ -103,56 +103,120 @@ export default function MediaUploadFlow({
   const isLoading = uploading || completing;
   const error = uploadError || completeError;
 
-  return (
-    <section aria-label="Media upload" className="space-y-3">
-      {/* =========================
-          Existing upload UI
-         ========================= */}
-      <input
-        type="file"
-        accept={mediaType === "image" ? "image/*" : "video/*"}
-        onChange={handleChange}
-        disabled={isLoading}
-      />
+ return (
+  <section
+    aria-label="Media upload"
+    className="
+      w-full
+      space-y-2
+      sm:space-y-3
+      md:space-y-4
+    "
+  >
+    {/* =========================
+        Existing upload UI
+       ========================= */}
+    <input
+      type="file"
+      accept={mediaType === "image" ? "image/*" : "video/*"}
+      onChange={handleChange}
+      disabled={isLoading}
+      className="
+        block
+        w-full
+        text-xs
+        sm:text-sm
+        text-gray-700
+        file:mr-3
+        file:rounded-md
+        file:border
+        file:border-gray-300
+        file:bg-white
+        file:px-3
+        file:py-1.5
+        file:text-sm
+        file:font-medium
+        hover:file:bg-gray-50
+        disabled:opacity-60
+      "
+    />
 
-      {isLoading && (
-        <p className="text-sm text-gray-500">
-          กำลังอัปโหลดไฟล์…
-        </p>
-      )}
+    {isLoading && (
+      <p
+        className="
+          text-xs
+          sm:text-sm
+          text-gray-500
+        "
+        role="status"
+        aria-live="polite"
+      >
+        กำลังอัปโหลดไฟล์…
+      </p>
+    )}
 
-      {error && (
-        <p className="text-sm text-red-600">
-          {error}
-        </p>
-      )}
+    {error && (
+      <p
+        className="
+          text-xs
+          sm:text-sm
+          text-red-600
+        "
+        role="alert"
+      >
+        {error}
+      </p>
+    )}
 
-      {/* =========================
-          🔹 NEW: Media preview
-         ========================= */}
-      {metadata && (
-        <section
-          aria-label="Uploaded media preview"
-          className="rounded-lg border p-3"
-        >
-          {metadata.type === "image" && (
-            <img
-              src={metadata.url}
-              alt=""
-              className="w-full rounded"
-            />
-          )}
+    {/* =========================
+        🔹 Media preview
+       ========================= */}
+    {metadata && (
+      <section
+        aria-label="Uploaded media preview"
+        className="
+          rounded-lg
+          border
+          border-gray-200
+          p-2
+          sm:p-3
+          bg-white
+        "
+      >
+        {metadata.type === "image" && (
+          <img
+            src={metadata.url}
+            alt=""
+            loading="lazy"
+            className="
+              w-full
+              max-h-[60vh]
+              sm:max-h-[70vh]
+              object-contain
+              rounded-md
+              bg-black/5
+            "
+          />
+        )}
 
-          {metadata.type === "video" && (
-            <video
-              src={metadata.url}
-              controls
-              preload="metadata"
-              className="w-full rounded"
-            />
-          )}
-        </section>
-      )}
-    </section>
-  );
+        {metadata.type === "video" && (
+          <video
+            src={metadata.url}
+            controls
+            preload="metadata"
+            className="
+              w-full
+              max-h-[60vh]
+              sm:max-h-[70vh]
+              object-contain
+              rounded-md
+              bg-black
+            "
+          />
+        )}
+      </section>
+    )}
+  </section>
+);
+
 }

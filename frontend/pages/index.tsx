@@ -62,117 +62,276 @@ function LoginPageInner() {
     )}`;
   };
 
-  return (
-    <>
-      <Head>
-        <title>PhlyPhant – Login</title>
-        <meta
-          name="description"
-          content="เข้าสู่ระบบเพื่อเริ่มใช้งาน PhlyPhant แพลตฟอร์มโซเชียลของไทย"
-        />
-        <meta property="og:title" content="PhlyPhant – Login" />
-        <meta property="og:url" content="https://www.phlyphant.com/login" />
-        <meta property="og:type" content="website" />
-      </Head>
+return (
+  <>
+    <Head>
+      <title>PhlyPhant – Login</title>
+      <meta
+        name="description"
+        content="เข้าสู่ระบบเพื่อเริ่มใช้งาน PhlyPhant แพลตฟอร์มโซเชียลของไทย"
+      />
+      <meta property="og:title" content="PhlyPhant – Login" />
+      <meta property="og:url" content="https://www.phlyphant.com/login" />
+      <meta property="og:type" content="website" />
+    </Head>
 
-      <main className="min-h-screen flex flex-col bg-gray-50">
-        <header className="w-full py-6 border-b bg-white/80 backdrop-blur">
-          <nav className="container mx-auto px-4 flex items-center justify-between">
-            <a
-              href="/"
-              className="text-2xl font-bold text-blue-600"
-              aria-label="PhlyPhant Home"
-            >
-              PhlyPhant
-            </a>
-            <a
-              href="/"
-              className="text-gray-800 hover:text-blue-600 transition text-sm"
-            >
-              Home
-            </a>
-          </nav>
-        </header>
-
-        <section
-          className="flex flex-col-reverse md:flex-row flex-1 container mx-auto px-4 py-10 gap-10"
-          aria-labelledby="login-heading"
+    <main className="min-h-screen flex flex-col bg-gray-50">
+      {/* Header */}
+      <header className="w-full border-b bg-white/80 backdrop-blur">
+        <nav
+          className="
+            mx-auto
+            flex
+            max-w-7xl
+            items-center
+            justify-between
+            px-4
+            py-4
+            sm:px-6
+            lg:px-8
+          "
+          aria-label="Primary navigation"
         >
-          <article className="flex-1 bg-white shadow-lg rounded-xl p-8 flex flex-col justify-center">
-            <header className="mb-6">
-              <h1
-                id="login-heading"
-                className="text-3xl font-bold mb-2 text-gray-900"
-              >
-                Login to PhlyPhant
-              </h1>
-              <p className="text-gray-600">
-                เข้าสู่ระบบเพื่อเริ่มใช้งานแพลตฟอร์มโซเชียลใหม่ล่าสุดของไทย
-              </p>
-            </header>
+          <a
+            href="/"
+            className="
+              text-xl
+              sm:text-2xl
+              font-bold
+              text-blue-600
+              focus:outline-none
+              focus-visible:ring-2
+              focus-visible:ring-blue-500
+              rounded
+            "
+            aria-label="PhlyPhant Home"
+          >
+            PhlyPhant
+          </a>
 
-            <LoginForm />
+          <a
+            href="/"
+            className="
+              text-sm
+              font-medium
+              text-gray-700
+              hover:text-blue-600
+              transition-colors
+              focus:outline-none
+              focus-visible:ring-2
+              focus-visible:ring-blue-500
+              rounded
+            "
+          >
+            Home
+          </a>
+        </nav>
+      </header>
 
-            <div className="mt-4 text-center">
-              <a
-                href="/auth/forgot-password"
-                className="text-sm text-blue-600 hover:underline"
-              >
-                Forgot password?
-              </a>
-            </div>
+      {/* Content */}
+      <section
+        aria-labelledby="login-heading"
+        className="
+          mx-auto
+          flex
+          w-full
+          max-w-7xl
+          flex-1
+          flex-col-reverse
+          gap-8
+          px-4
+          py-8
+          sm:px-6
+          md:flex-row
+          md:gap-10
+          lg:px-8
+          lg:py-12
+        "
+      >
+        {/* Login Card */}
+        <article
+          className="
+            flex
+            w-full
+            flex-1
+            flex-col
+            justify-center
+            rounded-xl
+            bg-white
+            p-6
+            sm:p-8
+            shadow-md
+            md:shadow-lg
+          "
+        >
+          <header className="mb-5 sm:mb-6">
+            <h1
+              id="login-heading"
+              className="
+                mb-2
+                text-2xl
+                sm:text-3xl
+                font-bold
+                text-gray-900
+              "
+            >
+              Login to PhlyPhant
+            </h1>
 
-            <div className="mt-4 text-center">
-              <a
-                href="/auth/register"
-                className="block w-full border border-blue-600 text-blue-600 py-3 rounded-lg font-medium hover:bg-blue-50 transition mt-4 text-center"
-              >
-                Register
-              </a>
-            </div>
+            <p className="text-sm sm:text-base text-gray-600">
+              เข้าสู่ระบบเพื่อเริ่มใช้งานแพลตฟอร์มโซเชียลใหม่ล่าสุดของไทย
+            </p>
+          </header>
 
-            <section className="mt-8 space-y-4" aria-label="Social login options">
-              <button
-                onClick={() => startOAuth("google")}
-                className="w-full flex items-center justify-center border py-3 rounded-lg hover:bg-gray-50 transition"
-              >
-                <img
-                  src="/icons/google.svg"
-                  alt="Google"
-                  className="w-5 h-5 mr-2"
-                />
-                Login with Google
-              </button>
+          <LoginForm />
 
-              <button
-                onClick={() => startOAuth("facebook")}
-                className="w-full flex items-center justify-center border py-3 rounded-lg hover:bg-gray-50 transition"
-              >
-                <img
-                  src="/icons/facebook.svg"
-                  alt="Facebook"
-                  className="w-5 h-5 mr-2"
-                />
-                Login with Facebook
-              </button>
-            </section>
-          </article>
+          <div className="mt-4 text-center">
+            <a
+              href="/auth/forgot-password"
+              className="
+                text-sm
+                text-blue-600
+                hover:underline
+                focus:outline-none
+                focus-visible:ring-2
+                focus-visible:ring-blue-500
+                rounded
+              "
+            >
+              Forgot password?
+            </a>
+          </div>
 
-          <aside className="flex-1 flex items-center justify-center">
-            <img
-              src="/images/social-hero.svg"
-              alt="PhlyPhant Social Media Illustration"
-              className="max-w-full h-auto"
-            />
-          </aside>
-        </section>
+          <div className="mt-4">
+            <a
+              href="/auth/register"
+              className="
+                block
+                w-full
+                rounded-lg
+                border
+                border-blue-600
+                px-4
+                py-3
+                text-center
+                text-sm
+                font-medium
+                text-blue-600
+                transition-colors
+                hover:bg-blue-50
+                focus:outline-none
+                focus-visible:ring-2
+                focus-visible:ring-blue-500
+              "
+            >
+              Register
+            </a>
+          </div>
 
-        <footer className="py-6 text-center text-gray-500 text-sm">
-          © {new Date().getFullYear()} PhlyPhant — All rights reserved.
-        </footer>
-      </main>
-    </>
-  );
+          {/* Social Login */}
+          <section
+            className="mt-8 space-y-3 sm:space-y-4"
+            aria-label="Social login options"
+          >
+            <button
+              onClick={() => startOAuth('google')}
+              type="button"
+              className="
+                inline-flex
+                w-full
+                items-center
+                justify-center
+                gap-2
+                rounded-lg
+                border
+                border-gray-300
+                bg-white
+                py-3
+                text-sm
+                font-medium
+                text-gray-800
+                transition-colors
+                hover:bg-gray-50
+                focus:outline-none
+                focus-visible:ring-2
+                focus-visible:ring-gray-400
+              "
+            >
+              <img
+                src="/icons/google.svg"
+                alt="Google"
+                className="h-5 w-5"
+              />
+              Login with Google
+            </button>
+
+            <button
+              onClick={() => startOAuth('facebook')}
+              type="button"
+              className="
+                inline-flex
+                w-full
+                items-center
+                justify-center
+                gap-2
+                rounded-lg
+                border
+                border-gray-300
+                bg-white
+                py-3
+                text-sm
+                font-medium
+                text-gray-800
+                transition-colors
+                hover:bg-gray-50
+                focus:outline-none
+                focus-visible:ring-2
+                focus-visible:ring-gray-400
+              "
+            >
+              <img
+                src="/icons/facebook.svg"
+                alt="Facebook"
+                className="h-5 w-5"
+              />
+              Login with Facebook
+            </button>
+          </section>
+        </article>
+
+        {/* Illustration */}
+        <aside
+          className="
+            flex
+            w-full
+            flex-1
+            items-center
+            justify-center
+          "
+          aria-hidden="true"
+        >
+          <img
+            src="/images/social-hero.svg"
+            alt="PhlyPhant Social Media Illustration"
+            className="
+              h-auto
+              max-w-xs
+              sm:max-w-sm
+              md:max-w-md
+              lg:max-w-lg
+            "
+          />
+        </aside>
+      </section>
+
+      {/* Footer */}
+      <footer className="py-4 sm:py-6 text-center text-xs sm:text-sm text-gray-500">
+        © {new Date().getFullYear()} PhlyPhant — All rights reserved.
+      </footer>
+    </main>
+  </>
+);
+
 }
 
 export default dynamic(() => Promise.resolve(LoginPageInner), { ssr: false });

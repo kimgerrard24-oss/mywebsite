@@ -13,18 +13,38 @@ export default function FeedList({
   emptyText,
 }: Props) {
   if (items.length === 0) {
-    return (
-      <p className="text-center text-sm text-gray-500">
-        {emptyText ?? 'No posts yet.'}
-      </p>
-    );
-  }
-
-  return (
-    <section className="space-y-6">
-      {items.map((post) => (
-        <FeedItem key={post.id} post={post} />
-      ))}
-    </section>
+   return (
+    <p
+      className="
+        w-full
+        text-center
+        text-xs
+        sm:text-sm
+        text-gray-500
+        py-6
+        sm:py-8
+      "
+      role="status"
+      aria-live="polite"
+    >
+      {emptyText ?? "No posts yet."}
+    </p>
   );
+}
+
+return (
+  <section
+    className="
+      w-full
+      space-y-4
+      sm:space-y-5
+      md:space-y-6
+    "
+    aria-label="Post feed"
+  >
+    {items.map((post) => (
+      <FeedItem key={post.id} post={post} />
+    ))}
+  </section>
+ );
 }
