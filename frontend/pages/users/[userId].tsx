@@ -5,7 +5,6 @@ import Link from "next/link";
 
 import ProfileLayout from "@/components/layout/ProfileLayout";
 import { ProfileCard } from "@/components/profile/profile-ProfileCard";
-
 import ProfilePosts from "@/components/profile/ProfilePosts";
 
 import { fetchPublicUserProfileServer } from "@/lib/api/user";
@@ -61,15 +60,15 @@ export default function UserProfilePage({ profile }: Props) {
             </Link>
           </div>
 
-          {/* ===== Profile card (read-only) ===== */}
+          {/* ===== Profile card ===== */}
           <div className="mx-auto max-w-5xl px-4 pt-4 pb-8">
             <ProfileCard
               profile={profile}
-              isSelf={false}
+              isSelf={profile.isSelf === true}
             />
           </div>
 
-          {/* ===== Shared ProfilePosts (same as /profile) ===== */}
+          {/* ===== Profile posts ===== */}
           <div className="mx-auto max-w-5xl px-4 pb-12">
             <ProfilePosts userId={profile.id} />
           </div>
@@ -87,7 +86,6 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
   }
 
   try {
-    // ===== Public profile (SSR) =====
     const { profile } = await fetchPublicUserProfileServer(
       userId,
       ctx.req.headers.cookie
@@ -97,7 +95,6 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
       return { notFound: true };
     }
 
-    // ===== User posts (SSR, fail-soft, kept for compatibility) =====
     let posts: PostFeedItem[] = [];
 
     try {

@@ -1,7 +1,7 @@
 // frontend/src/components/feed/videoItem.tsx
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { PostFeedItem } from "@/types/post-feed";
 
 type Props = {
@@ -14,6 +14,9 @@ export default function VideoItem({ post, onLike }: Props) {
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const lastTap = useRef<number>(0);
 
+  // 🔊 state ควบคุมเสียง
+  const [muted, setMuted] = useState(true);
+
   if (!video?.url) return null;
 
   // ✅ ensure autoplay หลัง mount (fail-soft)
@@ -21,13 +24,10 @@ export default function VideoItem({ post, onLike }: Props) {
     const v = videoRef.current;
     if (!v) return;
 
-    const tryPlay = () => {
-      v.play().catch(() => {
-        // browser policy → fail-soft
-      });
-    };
-
-    tryPlay();
+    v.muted = true;
+    v.play().catch(() => {
+      // browser policy → fail-soft
+    });
   }, []);
 
   function handleTap() {
@@ -46,6 +46,20 @@ export default function VideoItem({ post, onLike }: Props) {
     }
 
     lastTap.current = now;
+  }
+
+  // 🔊 toggle sound (user interaction → policy-safe)
+  function toggleSound() {
+    const v = videoRef.current;
+    if (!v) return;
+
+    const nextMuted = !muted;
+    v.muted = nextMuted;
+    setMuted(nextMuted);
+
+    if (!nextMuted && v.paused) {
+      v.play().catch(() => {});
+    }
   }
 
   return (
@@ -77,7 +91,7 @@ export default function VideoItem({ post, onLike }: Props) {
           ref={videoRef}
           data-video
           src={video.url}
-          muted
+          muted={muted}
           autoPlay
           loop
           playsInline
@@ -91,7 +105,31 @@ export default function VideoItem({ post, onLike }: Props) {
             object-contain
           "
         />
+
+        {/* 🔊 Sound Toggle Button */}
+        <button
+          type="button"
+          onClick={toggleSound}
+          aria-label={muted ? "Unmute video" : "Mute video"}
+          className="
+            absolute
+            bottom-4
+            right-4
+            z-10
+            rounded-full
+            bg-black/60
+            px-3
+            py-2
+            text-white
+            text-sm
+            hover:bg-black/80
+            transition
+          "
+        >
+          {muted ? "🔇" : "🔊"}
+        </button>
       </div>
     </article>
   );
 }
+

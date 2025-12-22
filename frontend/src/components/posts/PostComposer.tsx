@@ -126,10 +126,10 @@ return (
       bg-white
       border
       rounded-lg
-      px-3
-      py-2
+      px-2
+      py-1.5
       shadow-sm
-      space-y-2
+      space-y-1.5
     "
   >
     {/* ===== Textarea ===== */}
@@ -139,8 +139,8 @@ return (
     resize-none
     border
     rounded-md
-    px-3
-    py-2
+    px-2
+    py-1.5
     text-sm
     leading-snug
     placeholder-gray-400
@@ -198,7 +198,7 @@ return (
         onClick={handleSubmit}
         disabled={submitting}
         className="
-          px-3
+          px-2.5
           py-1
           rounded-md
           bg-blue-600

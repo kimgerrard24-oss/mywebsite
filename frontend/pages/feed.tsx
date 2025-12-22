@@ -73,7 +73,7 @@ export default function FeedPage({
         flex-col
         bg-gray-50
         text-gray-900
-        overflow-y-auto
+        overflow-hidden
       "
     >
 {/* ================= Header (LOCKED) ================= */}
@@ -116,25 +116,25 @@ export default function FeedPage({
     <div className="flex items-center gap-3 shrink-0">
       <LanguageSwitcher currentLang={lang} />
 
-      <Link
-        href="/profile"
-        className="hidden sm:block text-sm font-medium hover:text-blue-600 transition"
-      >
-        {t.feed.nav.profile}
-      </Link>
+      <Link href="/profile" aria-label="Go to profile">
+  <img
+    src={user?.avatarUrl || "/images/default-avatar.png"}
+    alt="Avatar"
+    className="
+      w-9
+      h-9
+      rounded-full
+      border
+      object-cover
+      flex-shrink-0
+      cursor-pointer
+      hover:ring-2
+      hover:ring-blue-500
+      transition
+    "
+  />
+</Link>
 
-      <img
-        src={user?.avatarUrl || "/images/default-avatar.png"}
-        alt="Avatar"
-        className="
-          w-9
-          h-9
-          rounded-full
-          border
-          object-cover
-          flex-shrink-0
-        "
-      />
 
       <button
         type="button"
@@ -147,14 +147,20 @@ export default function FeedPage({
   </nav>
  </header>
 
+{/* ===== Mobile Search ===== */}
+<div className="px-4 pt-3 md:hidden">
+  <UserSearchPanel variant="page" />
+</div>
+
+
   {/* ===== Mobile Feed Mode Switcher ===== */}
 <div className="px-4 pt-3 lg:hidden">
   <FeedModeSwitcher onChange={setFeedMode} />
 </div>
 
 {/* ================= Feeds Area (SCROLL SEPARATE) ================= */}
-<section className="flex-1">
-  <div
+<section className="flex-1 overflow-hidden">
+    <div
     className="
       grid
       grid-cols-1
@@ -184,7 +190,7 @@ export default function FeedPage({
       </div>
 
       {/* 🔽 Feed list (ปล่อยให้ page scroll) */}
-      <div>
+      <div className="flex-1 overflow-y-auto">
         <TextFeed
           user={user}
           initialItems={feedItems}

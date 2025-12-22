@@ -8,11 +8,6 @@ type Props = {
 export default function ProfileLayout({ children }: Props) {
   return (
     <>
-      <header>
-        <nav>
-          <Link href="/">Home</Link>
-        </nav>
-      </header>
 
       {children}
 

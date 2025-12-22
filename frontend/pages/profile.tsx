@@ -215,13 +215,7 @@ const ProfilePage: NextPage<ProfilePageProps> = ({
               >
                 Feed
               </Link>
-              <Link
-                href="/dashboard"
-                prefetch={false}
-                className="text-sm hover:text-blue-600"
-              >
-                Dashboard
-              </Link>
+              
             </div>
           </nav>
         </header>
