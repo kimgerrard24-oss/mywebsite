@@ -254,12 +254,9 @@ export default function FeedPage({
               lg:flex
             `}
           >
-            {/* Sticky Composer */}
+            {/* Composer */}
             <div
               className="
-                sticky
-                top-0
-                z-10
                 bg-gray-50
                 border-b
                 border-gray-100

@@ -126,16 +126,16 @@ return (
       w-full
       bg-white
       border
-      rounded-lg
-      sm:rounded-xl
-      px-2
-      sm:px-3
-      md:px-4
-      py-1.5
-      sm:py-2
+      rounded-md
+      sm:rounded-lg
+      px-1.5
+      sm:px-2
+      md:px-3
+      py-1
+      sm:py-1.5
       shadow-sm
-      space-y-1.5
-      sm:space-y-2
+      space-y-1
+      sm:space-y-1.5
     "
   >
     {/* ===== Textarea ===== */}
@@ -150,12 +150,12 @@ return (
         border
         rounded-md
         sm:rounded-lg
-        px-2
-        sm:px-3
-        py-1.5
-        sm:py-2
-        text-xs
-        sm:text-sm
+        px-1.5
+        sm:px-2
+        py-1
+        sm:py-1.5
+        text-[11px]
+        sm:text-xs
         leading-snug
         placeholder-gray-400
         focus:outline-none
@@ -184,20 +184,14 @@ return (
     />
 
     {/* ===== Media ===== */}
-    <div
-      className="
-        flex
-        items-center
-        justify-between
-      "
-    >
+    <div className="flex items-center justify-between">
       <label
         className="
           inline-flex
           items-center
           cursor-pointer
-          text-[11px]
-          sm:text-xs
+          text-[10px]
+          sm:text-[11px]
           text-gray-600
           hover:text-gray-800
           transition
@@ -218,8 +212,8 @@ return (
     {files.length > 0 && (
       <p
         className="
-          text-[11px]
-          sm:text-xs
+          text-[10px]
+          sm:text-[11px]
           text-gray-500
         "
         role="status"
@@ -230,21 +224,20 @@ return (
     )}
 
     {/* ===== Action ===== */}
-    <div className="flex justify-end pt-0.5 sm:pt-1">
+    <div className="flex justify-end pt-0.5">
       <button
         type="button"
         onClick={handleSubmit}
         disabled={submitting}
         className="
-          px-2.5
-          sm:px-3
-          py-1
-          sm:py-1.5
+          px-2
+          sm:px-2.5
+          py-0.5
+          sm:py-1
           rounded-md
-          sm:rounded-lg
           bg-blue-600
-          text-[11px]
-          sm:text-xs
+          text-[10px]
+          sm:text-[11px]
           font-medium
           text-white
           hover:bg-blue-700
@@ -260,8 +253,8 @@ return (
     {error && (
       <p
         className="
-          text-[11px]
-          sm:text-xs
+          text-[10px]
+          sm:text-[11px]
           text-red-600
         "
         role="alert"

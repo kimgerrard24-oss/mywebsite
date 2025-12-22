@@ -12,15 +12,17 @@ type Props = {
 export default function VideoItem({ post, onLike }: Props) {
   const video = post.media.find((m) => m.type === "video");
   const videoRef = useRef<HTMLVideoElement | null>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
   const lastTap = useRef<number>(0);
 
-  // 🔊 state ควบคุมเสียง
+  // 🔊 sound state
   const [muted, setMuted] = useState(true);
+  const [volume, setVolume] = useState(0.8);
 
   if (!video?.url) return null;
 
   /**
-   * ✅ RESET VIDEO STATE ทุกครั้งที่เปลี่ยน post
+   * ✅ RESET VIDEO STATE เมื่อเปลี่ยน post
    * ป้องกันเสียงคลิปก่อนหน้า
    */
   useEffect(() => {
@@ -28,13 +30,14 @@ export default function VideoItem({ post, onLike }: Props) {
     if (!v) return;
 
     v.pause();
-    v.muted = true;
     v.currentTime = 0;
-    v.load(); // 🔥 สำคัญมาก
+    v.muted = true;
+    v.volume = volume;
+    v.load(); // 🔥 สำคัญ
     setMuted(true);
 
     v.play().catch(() => {});
-  }, [post.id]);
+  }, [post.id]); // ❗ only when post changes
 
   function handleTap() {
     const now = Date.now();
@@ -53,7 +56,7 @@ export default function VideoItem({ post, onLike }: Props) {
     lastTap.current = now;
   }
 
-  // 🔊 toggle sound (policy-safe)
+  // 🔊 toggle mute
   function toggleSound() {
     const v = videoRef.current;
     if (!v) return;
@@ -67,86 +70,132 @@ export default function VideoItem({ post, onLike }: Props) {
     }
   }
 
+  // 🔉 change volume
+  function handleVolumeChange(
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) {
+    const v = videoRef.current;
+    if (!v) return;
+
+    const nextVolume = Number(e.target.value);
+    v.volume = nextVolume;
+    setVolume(nextVolume);
+
+    if (v.muted && nextVolume > 0) {
+      v.muted = false;
+      setMuted(false);
+    }
+  }
+
+  // ⛶ fullscreen
+  function enterFullscreen() {
+    const el = containerRef.current;
+    if (!el) return;
+
+    if (el.requestFullscreen) {
+      el.requestFullscreen().catch(() => {});
+    }
+  }
+
   return (
-  <article
-    className="
-      relative
-      h-screen
-      w-full
-      snap-start
-      bg-black
-      flex
-      items-center
-      justify-center
-    "
-    aria-label="Video post"
-  >
-    <div
+    <article
       className="
         relative
-        h-full
+        h-screen
         w-full
-        max-w-full
-        sm:max-w-[420px]
-        md:max-w-[480px]
-        lg:max-w-[420px]
-        aspect-[9/16]
+        snap-start
         bg-black
-        overflow-hidden
+        flex
+        items-center
+        justify-center
       "
+      aria-label="Video post"
     >
-      <video
-        key={post.id} // 🔥 บังคับ remount
-        ref={videoRef}
-        data-video
-        src={video.url}
-        muted={muted}
-        autoPlay
-        loop
-        playsInline
-        preload="auto"
-        onClick={handleTap}
+      <div
+        ref={containerRef}
         className="
-          absolute
-          inset-0
+          relative
           h-full
           w-full
-          object-contain
-        "
-      />
-
-      {/* 🔊 Sound Toggle */}
-      <button
-        type="button"
-        onClick={toggleSound}
-        aria-label={muted ? "Unmute video" : "Mute video"}
-        className="
-          absolute
-          bottom-3
-          right-3
-          sm:bottom-4
-          sm:right-4
-          z-10
-          rounded-full
-          bg-black/60
-          px-2.5
-          py-1.5
-          sm:px-3
-          sm:py-2
-          text-xs
-          sm:text-sm
-          text-white
-          hover:bg-black/80
-          transition
-          focus:outline-none
-          focus:ring-2
-          focus:ring-white/40
+          max-w-full
+          sm:max-w-[420px]
+          md:max-w-[480px]
+          lg:max-w-[420px]
+          aspect-[9/16]
+          bg-black
+          overflow-hidden
         "
       >
-        {muted ? "🔇" : "🔊"}
-      </button>
-    </div>
-  </article>
-);
+        <video
+          key={post.id} // 🔥 force remount
+          ref={videoRef}
+          data-video
+          src={video.url}
+          muted={muted}
+          autoPlay
+          loop
+          playsInline
+          preload="auto"
+          onClick={handleTap}
+          className="
+            absolute
+            inset-0
+            h-full
+            w-full
+            object-contain
+          "
+        />
 
+        {/* ===== Controls ===== */}
+        <div
+          className="
+            absolute
+            bottom-3
+            right-3
+            z-10
+            flex
+            items-center
+            gap-2
+            bg-black/60
+            rounded-full
+            px-2.5
+            py-1.5
+            sm:px-3
+            sm:py-2
+          "
+        >
+          {/* 🔊 mute */}
+          <button
+            type="button"
+            onClick={toggleSound}
+            aria-label={muted ? "Unmute video" : "Mute video"}
+            className="text-white text-sm"
+          >
+            {muted ? "🔇" : "🔊"}
+          </button>
+
+          {/* 🔉 volume */}
+          <input
+            type="range"
+            min={0}
+            max={1}
+            step={0.05}
+            value={volume}
+            onChange={handleVolumeChange}
+            className="w-16 accent-white"
+          />
+
+          {/* ⛶ fullscreen */}
+          <button
+            type="button"
+            onClick={enterFullscreen}
+            aria-label="Fullscreen"
+            className="text-white text-sm"
+          >
+            ⛶
+          </button>
+        </div>
+      </div>
+    </article>
+  );
 }

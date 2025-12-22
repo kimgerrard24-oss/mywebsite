@@ -77,24 +77,22 @@ export default function VideoFeed() {
       root.querySelectorAll<HTMLVideoElement>("video[data-video]");
 
     const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          const video = entry.target as HTMLVideoElement;
+  (entries) => {
+    entries.forEach((entry) => {
+      const video = entry.target as HTMLVideoElement;
 
-          if (entry.intersectionRatio >= 0.6) {
-            videos.forEach((v) => v !== video && v.pause());
-            video.play().catch(() => {});
-          } else {
-            video.pause();
-          }
-        });
-      },
-      {
-        root,
-        threshold: [0.6],
-        rootMargin: `-${COMPOSER_HEIGHT}px 0px 0px 0px`,
+      if (entry.intersectionRatio >= 0.6) {
+        // ▶️ เล่นเฉพาะคลิปที่เห็น
+        video.play().catch(() => {});
+      } else {
+        // ⛔ หยุดคลิปอื่น
+        video.pause();
       }
-    );
+    });
+  },
+  { root, threshold: [0.6] }
+);
+
 
     videos.forEach((v) => observer.observe(v));
     return () => observer.disconnect();
