@@ -95,19 +95,30 @@ export default function UserSearchPanel({
       }
     >
       {/* ===== Search Input ===== */}
-      <UserSearchInput onSearch={handleSearch} />
+      <UserSearchInput
+  onSearch={handleSearch}
+  variant={variant}
+/>
 
-      {/* ===== Results / Helper ===== */}
-      {variant !== "navbar" && (
-        <div className="mt-4">
-          <UserSearchList
-            query={query}
-            loading={loading}
-            error={error}
-            users={users}
-          />
-        </div>
-      )}
+ {/* ===== Results / Helper ===== */}
+{query && (
+  <div
+    className={
+      variant === "navbar"
+        ? "absolute left-0 right-0 mt-2 z-50 rounded-md border bg-white shadow-lg"
+        : "mt-4"
+    }
+  >
+    <UserSearchList
+      query={query}
+      loading={loading}
+      error={error}
+      users={users}
+      variant={variant}
+    />
+  </div>
+)}
+
 
       {/* ===== View all (feed only) ===== */}
       {variant === "feed" && query && users.length > 0 && (

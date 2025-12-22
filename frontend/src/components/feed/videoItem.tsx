@@ -1,7 +1,7 @@
 // frontend/src/components/feed/videoItem.tsx
 "use client";
 
-import { useRef, useEffect } from "react";
+import { useRef } from "react";
 import type { PostFeedItem } from "@/types/post-feed";
 
 type Props = {
@@ -16,23 +16,14 @@ export default function VideoItem({ post, onLike }: Props) {
 
   if (!video?.url) return null;
 
-  // ▶️ AUTOPLAY เมื่อ component mount (คลิปแรกที่เข้า feed)
-  useEffect(() => {
-    const v = videoRef.current;
-    if (!v) return;
-
-    // browser policy-safe autoplay
-    v.play().catch(() => {
-      // fail-soft (Safari / Chrome mobile)
-    });
-  }, []);
-
   function handleTap() {
     const now = Date.now();
 
+    // ❤️ double tap = like
     if (now - lastTap.current < 300) {
       onLike?.(post.id);
     } else if (videoRef.current) {
+      // ▶️ single tap = play / pause
       if (videoRef.current.paused) {
         videoRef.current.play().catch(() => {});
       } else {

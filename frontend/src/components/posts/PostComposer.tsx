@@ -118,63 +118,100 @@ export default function PostComposer({
     router,
   ]);
 
-  return (
-    <section
-      aria-label="Create post"
-      className="bg-white border rounded-2xl p-4 shadow-sm space-y-3"
-    >
-      <textarea
-        className="w-full resize-none border rounded-xl p-3 text-sm
-                   focus:outline-none focus:ring-2 focus:ring-blue-500"
-        rows={3}
-        placeholder="คุณกำลังคิดอะไรอยู่?"
-        value={content}
-        maxLength={MAX_LENGTH}
-        onChange={(e) => setContent(e.target.value)}
-        disabled={submitting}
-      />
+ return (
+  <section
+    aria-label="Create post"
+    className="
+      bg-white
+      border
+      rounded-xl
+      px-4
+      py-3
+      shadow-sm
+      space-y-3
+    "
+  >
+    {/* ===== Textarea ===== */}
+    <textarea
+      className="
+        w-full
+        resize-none
+        border
+        rounded-lg
+        px-3
+        py-2
+        text-base
+        leading-relaxed
+        placeholder-gray-400
+        focus:outline-none
+        focus:ring-2
+        focus:ring-blue-500
+        focus:border-blue-500
+        transition
+      "
+      rows={2}
+      placeholder="คุณกำลังคิดอะไรอยู่?"
+      value={content}
+      maxLength={MAX_LENGTH}
+      onChange={(e) => setContent(e.target.value)}
+      disabled={submitting}
+    />
 
-      {/* ===== Media picker ===== */}
-      <div className="flex items-center justify-between">
-        <label className="text-sm text-gray-600 cursor-pointer">
-          <input
-            type="file"
-            multiple
-            accept="image/*,video/*"
-            onChange={handleFileChange}
-            disabled={submitting}
-            className="hidden"
-          />
-          เพิ่มรูป / วิดีโอ
-        </label>
-
-        <span className="text-xs text-gray-500">
-          เหลืออีก {remaining} ตัวอักษร
-        </span>
-      </div>
-
-      {files.length > 0 && (
-        <p className="text-xs text-gray-500">
-          เลือกไฟล์แล้ว {files.length} ไฟล์
-        </p>
-      )}
-
-      <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={handleSubmit}
+    {/* ===== Media + Counter ===== */}
+    <div className="flex items-center justify-between">
+      <label className="text-sm text-gray-600 cursor-pointer hover:text-gray-800 transition">
+        <input
+          type="file"
+          multiple
+          accept="image/*,video/*"
+          onChange={handleFileChange}
           disabled={submitting}
-          className="px-4 py-2 rounded-lg bg-blue-600 text-white
-                     text-sm font-medium disabled:opacity-50
-                     disabled:cursor-not-allowed hover:bg-blue-700 transition"
-        >
-          {submitting ? "กำลังโพสต์..." : "โพสต์"}
-        </button>
-      </div>
+          className="hidden"
+        />
+        เพิ่มรูป / วิดีโอ
+      </label>
 
-      {error && (
-        <p className="text-sm text-red-600">{error}</p>
-      )}
-    </section>
-  );
+      <span className="text-xs text-gray-400">
+        {remaining}
+      </span>
+    </div>
+
+    {files.length > 0 && (
+      <p className="text-xs text-gray-500">
+        เลือกไฟล์แล้ว {files.length} ไฟล์
+      </p>
+    )}
+
+    {/* ===== Action ===== */}
+    <div className="flex justify-end">
+      <button
+        type="button"
+        onClick={handleSubmit}
+        disabled={submitting}
+        className="
+          px-4
+          py-1.5
+          rounded-md
+          bg-blue-600
+          text-white
+          text-sm
+          font-medium
+          disabled:opacity-50
+          disabled:cursor-not-allowed
+          hover:bg-blue-700
+          transition
+        "
+      >
+        {submitting ? "กำลังโพสต์..." : "โพสต์"}
+      </button>
+    </div>
+
+    {error && (
+      <p className="text-sm text-red-600">
+        {error}
+      </p>
+    )}
+  </section>
+);
+
 }

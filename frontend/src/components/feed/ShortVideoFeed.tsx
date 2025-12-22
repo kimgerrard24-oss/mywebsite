@@ -7,7 +7,7 @@ import type { PostFeedItem } from "@/types/post-feed";
 import VideoItem from "@/components/feed/videoItem";
 import VideoComposer from "@/components/feed/VideoComposer";
 
-const COMPOSER_HEIGHT = 56; // px (ประมาณความสูง VideoComposer)
+const COMPOSER_HEIGHT = 56; // px
 
 export default function VideoFeed() {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -38,7 +38,6 @@ export default function VideoFeed() {
     }
   }
 
-  // 🔔 refresh หลังโพสต์คลิปใหม่
   async function refreshLatest() {
     try {
       const res = await getVideoFeed({ limit: 1 });
@@ -55,7 +54,25 @@ export default function VideoFeed() {
   }, []);
 
   /**
-   * 🎯 Play only video that is truly in center
+   * ✅ AUTOPLAY คลิปแรก เมื่อเข้า feed ครั้งแรก
+   * (ไม่แตะ observer / scroll)
+   */
+  useEffect(() => {
+    const root = containerRef.current;
+    if (!root || items.length === 0) return;
+
+    const firstVideo =
+      root.querySelector<HTMLVideoElement>("video[data-video]");
+
+    if (firstVideo) {
+      firstVideo.play().catch(() => {
+        // fail-soft: browser policy
+      });
+    }
+  }, [items]);
+
+  /**
+   * 🎯 Play only video in true center
    */
   useEffect(() => {
     const root = containerRef.current;
@@ -72,7 +89,6 @@ export default function VideoFeed() {
           const video = entry.target as HTMLVideoElement;
 
           if (entry.isIntersecting) {
-            // pause others
             videos.forEach((v) => {
               if (v !== video) v.pause();
             });
@@ -86,7 +102,6 @@ export default function VideoFeed() {
       {
         root,
         threshold: 0.75,
-        // ตัดบน-ล่างให้เหลือเฉพาะกลางจริง
         rootMargin: `-${COMPOSER_HEIGHT + 80}px 0px -80px 0px`,
       }
     );

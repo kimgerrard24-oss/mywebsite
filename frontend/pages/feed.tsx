@@ -18,6 +18,7 @@ import VideoFeed from "@/components/feed/ShortVideoFeed";
 import PostComposer from "@/components/posts/PostComposer";
 import FeedModeSwitcher from "@/components/common/FeedModeSwitcher";
 import { useState } from "react";
+import { useRef } from "react";
 
 type FeedProps = {
   user: any | null;
@@ -34,6 +35,7 @@ export default function FeedPage({
   const t = getDictionary(lang);
 
   const [feedMode, setFeedMode] = useState<"text" | "video">("video");
+  const refreshFeedRef = useRef<() => void>(() => {});
 
   const handleLogout = async () => {
     try {
@@ -155,6 +157,7 @@ export default function FeedPage({
   <div
     className="
       h-full
+      min-h-0
       grid
       grid-cols-1
       lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]
@@ -162,36 +165,28 @@ export default function FeedPage({
   >
     {/* ===== Left: Text Feed ===== */}
     <aside
-  className={`
-    h-full
-    border-r
-    bg-gray-50
-    flex
-    flex-col
-    min-h-0
-    ${feedMode === "video" ? "hidden" : "block"}
-    lg:block
-  `}
->
-   {/* 🔒 Sticky Composer */}
-<div
-  className="
-    sticky
-    top-14
-    z-10
-    bg-gray-50
-    border-b
-  "
->
-  <div className="max-w-3xl mx-auto px-4 py-4">
-    <PostComposer
-      onPostCreated={() => {
-        // ❗️ปล่อยว่างได้ หรือจะ hook ต่อทีหลังก็ได้
-      }}
-    />
-  </div>
-</div>
-
+      className={`
+        h-full
+        border-r
+        bg-gray-50
+        flex
+        flex-col
+        min-h-0
+        ${feedMode === "video" ? "hidden" : "block"}
+        lg:block
+      `}
+    >
+      {/* 🔒 Sticky Composer */}
+      <div className="sticky top-14 z-10 bg-gray-50 border-b">
+        <div className="max-w-3xl mx-auto px-4 py-4">
+          <PostComposer 
+          onPostCreated={() => {
+           refreshFeedRef.current?.();
+          }}
+          />
+          
+        </div>
+      </div>
 
       {/* 🔽 Scrollable Feed List */}
       <div
@@ -203,30 +198,31 @@ export default function FeedPage({
         "
       >
         <TextFeed
-  user={user}
-  initialItems={feedItems}
-  lang={lang}
-  showComposer={false}
-   />
+          user={user}
+          initialItems={feedItems}
+          lang={lang}
+          showComposer={false}
+          onRefreshReady={(fn) => {
+           refreshFeedRef.current = fn;
+          }}
+        />
       </div>
     </aside>
 
     {/* ===== Right: Video Feed ===== */}
-   <aside
-  className={`
-    h-full
-    bg-black
-    min-h-0
-    ${feedMode === "text" ? "hidden" : "block"}
-    lg:block
-  `}
->
-
+    <aside
+      className={`
+        h-full
+        bg-black
+        min-h-0
+        ${feedMode === "text" ? "hidden" : "block"}
+        lg:block
+      `}
+    >
       <VideoFeed />
     </aside>
   </div>
 </section>
-
 
     </main>
   </>

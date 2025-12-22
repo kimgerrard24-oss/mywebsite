@@ -25,10 +25,7 @@ export default function UserSearchList({
   users,
   variant,
 }: Props) {
-  // ===== Navbar: ไม่ render อะไรเลย =====
-  if (variant === "navbar") {
-    return null;
-  }
+  const isNavbar = variant === "navbar";
 
   if (!query) {
     return (

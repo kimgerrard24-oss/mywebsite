@@ -79,141 +79,171 @@ export default function TextFeed({
     []
   );
 
-  return (
-    <section
-      className="max-w-3xl mx-auto px-4 py-8 flex flex-col gap-6"
-      aria-label="User feed"
-    >
-      {/* ===== Composer (optional) ===== */}
-      {showComposer && (
-        <PostComposer onPostCreated={refreshFeed} />
-      )}
+return (
+  <section
+    className="
+      max-w-3xl
+      mx-auto
+      px-4
+      pt-6
+      pb-8
+      flex
+      flex-col
+      gap-6
+      min-h-0
+    "
+    aria-label="User feed"
+  >
+    {/* ===== Composer (optional) ===== */}
+    {showComposer && (
+      <PostComposer onPostCreated={refreshFeed} />
+    )}
 
-      {/* ===== Greeting ===== */}
-      <article className="bg-white p-5 sm:p-6 rounded-2xl shadow border">
-        <h2 className="text-lg sm:text-xl font-semibold">
-          {t.feed.greeting}{" "}
-          {user?.displayName ||
-            user?.email ||
-            t.feed.greetingFallback}
-        </h2>
-        <p className="text-gray-600 mt-1">
-          {t.feed.intro}
-        </p>
-      </article>
+    {/* ===== Greeting ===== */}
+    <article className="bg-white p-5 sm:p-6 rounded-2xl shadow border">
+      <h2 className="text-lg sm:text-xl font-semibold">
+        {t.feed.greeting}{" "}
+        {user?.displayName ||
+          user?.email ||
+          t.feed.greetingFallback}
+      </h2>
+      <p className="text-gray-600 mt-1">
+        {t.feed.intro}
+      </p>
+    </article>
 
-      {/* ===== Empty state ===== */}
-      {items.length === 0 && (
-        <p className="text-center text-gray-500">
-          {t.feed.empty}
-        </p>
-      )}
+    {/* ===== Empty state ===== */}
+    {items.length === 0 && (
+      <p className="text-center text-gray-500">
+        {t.feed.empty}
+      </p>
+    )}
 
-      {/* ===== Feed items ===== */}
-      {items.map((post) => (
-        <article
-          key={post.id}
-          className="bg-white shadow-sm border rounded-2xl p-4 sm:p-5 flex flex-col gap-4"
-        >
-          {/* ===== Header ===== */}
-          <header className="flex items-start justify-between gap-3">
-            <div className="flex items-start gap-3">
-              <Link href={`/users/${post.author.id}`}>
-                {post.author.avatarUrl ? (
-                  <img
-                    src={post.author.avatarUrl}
-                    alt={
-                      post.author.displayName ??
-                      t.feed.post.authorFallback
-                    }
-                    className="h-8 w-8 rounded-full object-cover"
-                  />
-                ) : (
-                  <div className="h-8 w-8 rounded-full bg-gray-300" />
-                )}
+    {/* ===== Feed items ===== */}
+    {items.map((post) => (
+      <article
+        key={post.id}
+        className="bg-white shadow-sm border rounded-2xl p-4 sm:p-5 flex flex-col gap-4"
+      >
+        {/* ===== Header ===== */}
+        <header className="flex items-start justify-between gap-3">
+          <div className="flex items-start gap-3">
+            <Link href={`/users/${post.author.id}`}>
+              {post.author.avatarUrl ? (
+                <img
+                  src={post.author.avatarUrl}
+                  alt={
+                    post.author.displayName ??
+                    t.feed.post.authorFallback
+                  }
+                  className="h-8 w-8 rounded-full object-cover"
+                />
+              ) : (
+                <div className="h-8 w-8 rounded-full bg-gray-300" />
+              )}
+            </Link>
+
+            <div className="flex flex-col leading-tight">
+              <Link
+                href={`/users/${post.author.id}`}
+                className="font-semibold text-sm hover:underline"
+              >
+                {post.author.displayName ??
+                  t.feed.post.authorFallback}
               </Link>
 
-              <div className="flex flex-col leading-tight">
-                <Link
-                  href={`/users/${post.author.id}`}
-                  className="font-semibold text-sm hover:underline"
-                >
-                  {post.author.displayName ??
-                    t.feed.post.authorFallback}
-                </Link>
-
-                <time
-                  className="text-gray-500 text-xs mt-0.5"
-                  dateTime={post.createdAt}
-                >
-                  {new Date(
-                    post.createdAt
-                  ).toLocaleString()}
-                </time>
-              </div>
+              <time
+                className="text-gray-500 text-xs mt-0.5"
+                dateTime={post.createdAt}
+              >
+                {new Date(
+                  post.createdAt
+                ).toLocaleString()}
+              </time>
             </div>
+          </div>
 
-            <PostActionMenu
-              postId={post.id}
-              canDelete={post.canDelete}
-              canEdit={post.canDelete}
-              canReport={!post.canDelete}
-              onDeleted={() =>
-                handlePostDeleted(post.id)
-              }
-            />
-          </header>
+          <PostActionMenu
+            postId={post.id}
+            canDelete={post.canDelete}
+            canEdit={post.canDelete}
+            canReport={!post.canDelete}
+            onDeleted={() =>
+              handlePostDeleted(post.id)
+            }
+          />
+        </header>
 
-          {/* ===== Content ===== */}
-          <p className="text-gray-800 leading-relaxed whitespace-pre-wrap">
-            {renderContentWithHashtags(
-              post.content
-            )}
-          </p>
+        {/* ===== Content ===== */}
+        <p className="text-gray-800 leading-relaxed whitespace-pre-wrap">
+          {renderContentWithHashtags(
+            post.content
+          )}
+        </p>
 
-          {/* ===== Media ===== */}
-          {Array.isArray(post.media) &&
-            post.media.length > 0 && (
-              <section className="mt-2 space-y-3">
-                {post.media.map((m) => (
-                  <figure
-                    key={m.id}
-                    className="overflow-hidden rounded-xl"
-                  >
-                    {m.type === "image" && (
-                      <img
-                        src={m.url}
-                        alt=""
-                        loading="lazy"
-                        className="w-full rounded-xl"
-                      />
-                    )}
+        {/* ===== Media (FIXED) ===== */}
+        {Array.isArray(post.media) &&
+          post.media.length > 0 && (
+            <section className="mt-2 space-y-3">
+              {post.media.map((m) => (
+                <figure
+                  key={m.id}
+                  className="
+                    overflow-hidden
+                    rounded-xl
+                    bg-gray-100
+                  "
+                >
+                  {m.type === "image" && (
+                    <img
+                      src={m.url}
+                      alt=""
+                      loading="lazy"
+                      className="
+                        w-full
+                        h-auto
+                        max-h-[80vh]
+                        object-contain
+                        rounded-xl
+                        bg-black/5
+                      "
+                    />
+                  )}
 
-                    {m.type === "video" && (
-                      <video
-                        src={m.url}
-                        controls
-                        preload="metadata"
-                        className="w-full rounded-xl"
-                      />
-                    )}
-                  </figure>
-                ))}
-              </section>
-            )}
+                  {m.type === "video" && (
+                    <video
+                      src={m.url}
+                      controls
+                      preload="metadata"
+                      className="
+                        w-full
+                        h-auto
+                        max-h-[80vh]
+                        object-contain
+                        rounded-xl
+                        bg-black
+                      "
+                    />
+                  )}
+                </figure>
+              ))}
+            </section>
+          )}
 
-          <footer className="flex gap-4 text-sm text-gray-600">
-            <span>
-              ❤️ {post.stats.likeCount}{" "}
-              {t.feed.post.likes}
-            </span>
-            <span>
-              💬 {post.stats.commentCount}{" "}
-              {t.feed.post.comments}
-            </span>
-          </footer>
-        </article>
-      ))}
-    </section>
-  );
+        <footer className="flex gap-4 text-sm text-gray-600">
+          <span>
+            ❤️ {post.stats.likeCount}{" "}
+            {t.feed.post.likes}
+          </span>
+          <span>
+            💬 {post.stats.commentCount}{" "}
+            {t.feed.post.comments}
+          </span>
+        </footer>
+      </article>
+    ))}
+  </section>
+);
+
+
 }
