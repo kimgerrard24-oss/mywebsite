@@ -10,13 +10,16 @@ export default function SplitFeedLayout({ left, right }: Props) {
   return (
     <div className="min-h-screen bg-gray-100">
       <div className="mx-auto max-w-7xl px-4">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-
+        <div
+          className="
+            grid
+            grid-cols-1
+            lg:grid-cols-[minmax(0,1fr)_420px]
+            gap-6
+          "
+        >
           {/* ===== Left: Text Feed ===== */}
-          <main
-            className="lg:col-span-2"
-            aria-label="Text feed"
-          >
+          <main aria-label="Text feed">
             {left}
           </main>
 
@@ -27,7 +30,6 @@ export default function SplitFeedLayout({ left, right }: Props) {
           >
             {right}
           </aside>
-
         </div>
       </div>
     </div>

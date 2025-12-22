@@ -69,100 +69,147 @@ export default function FeedPage({
         overflow-hidden
       "
     >
-      {/* ================= Header (LOCKED) ================= */}
-      <header className="shrink-0 w-full bg-white shadow-sm sticky top-0 z-20">
-        <nav className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-          <Link
-            href="/feed"
-            className="text-2xl font-semibold tracking-tight text-blue-600"
-          >
-            PhlyPhant
-          </Link>
+{/* ================= Header (LOCKED) ================= */}
+<header className="sticky top-0 z-20 w-full bg-white shadow-sm">
+  <nav
+    className="
+      max-w-6xl
+      mx-auto
+      px-4
+      h-14
+      flex
+      items-center
+      justify-between
+      gap-4
+    "
+  >
+    {/* ===== Left: Logo ===== */}
+    <Link
+      href="/feed"
+      className="
+        text-xl
+        font-semibold
+        tracking-tight
+        text-blue-600
+        shrink-0
+        leading-none
+      "
+    >
+      PhlyPhant
+    </Link>
 
-          <div className="flex items-center gap-3 sm:gap-4">
-            <LanguageSwitcher currentLang={lang} />
-
-            <Link
-              href="/dashboard"
-              className="hidden sm:block text-sm font-medium hover:text-blue-600 transition"
-            >
-              {t.feed.nav.dashboard}
-            </Link>
-
-            <Link
-              href="/profile"
-              className="hidden sm:block text-sm font-medium hover:text-blue-600 transition"
-            >
-              {t.feed.nav.profile}
-            </Link>
-
-            <img
-              src={
-                user?.avatarUrl ||
-                "/images/default-avatar.png"
-              }
-              className="w-9 h-9 sm:w-10 sm:h-10 rounded-full border object-cover"
-              alt="Avatar"
-            />
-
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="text-sm font-medium hover:text-red-600 transition"
-            >
-              {t.feed.nav.logout}
-            </button>
-          </div>
-        </nav>
-      </header>
-
-      {/* ================= Search (LOCKED) ================= */}
-      <section className="shrink-0 max-w-3xl mx-auto px-4 py-6">
+    {/* ===== Center: Search (GLOBAL) ===== */}
+    <div className="flex-1 flex justify-center">
+      <div className="w-full max-w-md hidden md:block">
         <UserSearchPanel variant="feed" />
-      </section>
+      </div>
+    </div>
 
-      {/* ================= Feeds Area (SCROLL SEPARATE) ================= */}
-      <section className="flex-1 overflow-hidden">
-        <div
-          className="
-            h-full
-            grid
-            grid-cols-1
-            lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]
-          "
-        >
-          {/* ===== Left: Text Feed (OWN SCROLL) ===== */}
-          <aside
-            className="
-              h-full
-              overflow-y-auto
-              overscroll-contain
-              border-r
-              bg-gray-50
-            "
-          >
-            <TextFeed
-              user={user}
-              initialItems={feedItems}
-              lang={lang}
-            />
-          </aside>
+    {/* ===== Right: Actions ===== */}
+    <div className="flex items-center gap-3 shrink-0">
+      <LanguageSwitcher currentLang={lang} />
 
-          {/* ===== Right: Video Feed (OWN SCROLL) ===== */}
-          <aside
-            className="
-              hidden
-              lg:block
-              h-full
-              overflow-y-auto
-              overscroll-contain
-              bg-black
-            "
-          >
-            <VideoFeed />
-          </aside>
-        </div>
-      </section>
+      <Link
+        href="/profile"
+        className="hidden sm:block text-sm font-medium hover:text-blue-600 transition"
+      >
+        {t.feed.nav.profile}
+      </Link>
+
+      <img
+        src={user?.avatarUrl || "/images/default-avatar.png"}
+        alt="Avatar"
+        className="
+          w-9
+          h-9
+          rounded-full
+          border
+          object-cover
+          flex-shrink-0
+        "
+      />
+
+      <button
+        type="button"
+        onClick={handleLogout}
+        className="text-sm font-medium hover:text-red-600 transition"
+      >
+        {t.feed.nav.logout}
+      </button>
+    </div>
+  </nav>
+ </header>
+
+
+  {/* ================= Feeds Area (SCROLL SEPARATE) ================= */}
+<section className="flex-1 overflow-hidden">
+  <div
+    className="
+      h-full
+      grid
+      grid-cols-1
+      lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]
+    "
+  >
+    {/* ===== Left: Text Feed (LOCKED COMPOSER) ===== */}
+    <aside
+      className="
+        h-full
+        border-r
+        bg-gray-50
+        flex
+        flex-col
+      "
+    >
+      {/* 🔒 Sticky Composer */}
+      <div
+        className="
+          sticky
+          top-14
+          z-10
+          bg-gray-50
+        "
+      >
+        {/* TextFeed ยังเหมือนเดิม */}
+        <TextFeed
+          user={user}
+          initialItems={[]}
+          lang={lang}
+        />
+      </div>
+
+      {/* 🔽 Scrollable Feed List */}
+      <div
+        className="
+          flex-1
+          overflow-y-auto
+          overscroll-contain
+        "
+      >
+        <TextFeed
+          user={user}
+          initialItems={feedItems}
+          lang={lang}
+        />
+      </div>
+    </aside>
+
+    {/* ===== Right: Video Feed (OWN SCROLL) ===== */}
+    <aside
+      className="
+        hidden
+        lg:block
+        h-full
+        overflow-y-auto
+        overscroll-contain
+        bg-black
+      "
+    >
+      <VideoFeed />
+    </aside>
+  </div>
+</section>
+
     </main>
   </>
  );
