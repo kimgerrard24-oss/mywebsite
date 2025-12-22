@@ -8,10 +8,11 @@ import type { PublicUserSearch } from "@/types/user-search";
 type Props = {
   /**
    * ใช้ควบคุม UX
-   * - "feed"  → quick search, lightweight
-   * - "page"  → full search experience
+   * - "feed"    → quick search, lightweight
+   * - "page"    → full search experience
+   * - "navbar"  → compact search for navbar
    */
-  variant?: "feed" | "page";
+  variant?: "feed" | "page" | "navbar";
 
   /**
    * optional callback
@@ -88,20 +89,27 @@ export default function UserSearchPanel({
       className={
         variant === "feed"
           ? "rounded-xl border border-gray-200 bg-white p-4"
+          : variant === "navbar"
+          ? "relative"
           : ""
       }
     >
+      {/* ===== Search Input ===== */}
       <UserSearchInput onSearch={handleSearch} />
 
-      <div className="mt-4">
-        <UserSearchList
-          query={query}
-          loading={loading}
-          error={error}
-          users={users}
-        />
-      </div>
+      {/* ===== Results / Helper ===== */}
+      {variant !== "navbar" && (
+        <div className="mt-4">
+          <UserSearchList
+            query={query}
+            loading={loading}
+            error={error}
+            users={users}
+          />
+        </div>
+      )}
 
+      {/* ===== View all (feed only) ===== */}
       {variant === "feed" && query && users.length > 0 && (
         <div className="mt-3 text-right">
           <a

@@ -1,4 +1,4 @@
-// frontend/src/conponents/feed/VideoComposer.tsx
+// frontend/src/components/feed/VideoComposer.tsx
 "use client";
 
 import { useState } from "react";
@@ -6,50 +6,88 @@ import { useMediaUpload } from "@/hooks/useMediaUpload";
 import { useMediaComplete } from "@/hooks/useMediaComplete";
 import { useCreatePost } from "@/hooks/useCreatePost";
 
-export default function VideoComposer() {
+type Props = {
+  onPosted?: () => void; // 🔑 แจ้ง VideoFeed เมื่อโพสต์สำเร็จ
+};
+
+export default function VideoComposer({ onPosted }: Props) {
   const [file, setFile] = useState<File | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [posting, setPosting] = useState(false);
 
   const { upload } = useMediaUpload();
   const { complete } = useMediaComplete();
-  const { submit, loading } = useCreatePost();
+  const { submit } = useCreatePost();
 
   async function handlePost() {
-    if (!file) return;
+    if (!file || posting) return;
 
-    const { objectKey } = await upload(file);
+    try {
+      setPosting(true);
+      setError(null);
 
-    const mediaId = await complete({
-      objectKey,
-      mimeType: file.type,
-      mediaType: "video",
-    });
+      // 1️⃣ upload
+      const { objectKey } = await upload(file);
 
-    await submit({
-      content: "",
-      mediaIds: [mediaId],
-    });
+      // 2️⃣ complete
+      const mediaId = await complete({
+        objectKey,
+        mimeType: file.type,
+        mediaType: "video",
+      });
 
-    setFile(null);
+      // 3️⃣ create post
+      await submit({
+        content: "",
+        mediaIds: [mediaId],
+      });
+
+      // reset
+      setFile(null);
+
+      // 🔔 notify parent
+      onPosted?.();
+    } catch (err) {
+      console.error("Video post failed:", err);
+      setError("ไม่สามารถโพสต์วิดีโอได้ กรุณาลองใหม่");
+    } finally {
+      setPosting(false);
+    }
   }
 
   return (
-    <div className="p-3 border-b border-white/10 bg-black">
+    <div className="p-3 border-b border-white/10 bg-black space-y-2">
       <input
         type="file"
         accept="video/*"
         onChange={(e) =>
           setFile(e.target.files?.[0] ?? null)
         }
+        disabled={posting}
         className="text-sm text-white"
       />
 
       <button
         onClick={handlePost}
-        disabled={!file || loading}
-        className="mt-2 w-full rounded bg-blue-600 py-2 text-sm text-white"
+        disabled={!file || posting}
+        className="
+          w-full
+          rounded
+          bg-blue-600
+          py-2
+          text-sm
+          text-white
+          disabled:opacity-50
+        "
       >
-        โพสต์คลิป
+        {posting ? "กำลังอัปโหลด…" : "โพสต์คลิป"}
       </button>
+
+      {error && (
+        <p className="text-xs text-red-400">
+          {error}
+        </p>
+      )}
     </div>
   );
 }

@@ -1,7 +1,4 @@
-// ==================================
-// file: components/short-video/VideoFeed.tsx
-// ==================================
-
+// components/short-video/VideoFeed.tsx
 "use client";
 
 import { useEffect, useRef, useState } from "react";
@@ -9,6 +6,8 @@ import { getVideoFeed } from "@/lib/api/posts";
 import type { PostFeedItem } from "@/types/post-feed";
 import VideoItem from "@/components/feed/videoItem";
 import VideoComposer from "@/components/feed/VideoComposer";
+
+const COMPOSER_HEIGHT = 56; // px (ประมาณความสูง VideoComposer)
 
 export default function VideoFeed() {
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -39,14 +38,24 @@ export default function VideoFeed() {
     }
   }
 
+  // 🔔 refresh หลังโพสต์คลิปใหม่
+  async function refreshLatest() {
+    try {
+      const res = await getVideoFeed({ limit: 1 });
+      if (res.items?.[0]) {
+        setItems((prev) => [res.items[0], ...prev]);
+      }
+    } catch (err) {
+      console.error("Refresh video feed failed", err);
+    }
+  }
+
   useEffect(() => {
     loadMore();
   }, []);
 
   /**
-   * ==================================
-   * 🎯 PLAY ONLY VIDEO IN CENTER
-   * ==================================
+   * 🎯 Play only video that is truly in center
    */
   useEffect(() => {
     const root = containerRef.current;
@@ -63,6 +72,11 @@ export default function VideoFeed() {
           const video = entry.target as HTMLVideoElement;
 
           if (entry.isIntersecting) {
+            // pause others
+            videos.forEach((v) => {
+              if (v !== video) v.pause();
+            });
+
             video.play().catch(() => {});
           } else {
             video.pause();
@@ -70,19 +84,14 @@ export default function VideoFeed() {
         });
       },
       {
-        root, // ✅ ใช้ container เป็น viewport
-        threshold: 0.6,
-        /**
-         * ✅ บังคับให้ต้องอยู่ "กลางจอ"
-         * - ตัดบน 20%
-         * - ตัดล่าง 20%
-         */
-        rootMargin: "-20% 0px -20% 0px",
+        root,
+        threshold: 0.75,
+        // ตัดบน-ล่างให้เหลือเฉพาะกลางจริง
+        rootMargin: `-${COMPOSER_HEIGHT + 80}px 0px -80px 0px`,
       }
     );
 
     videos.forEach((v) => observer.observe(v));
-
     return () => observer.disconnect();
   }, [items]);
 
@@ -99,65 +108,60 @@ export default function VideoFeed() {
   }
 
   return (
-  <section
-    aria-label="Short video feed"
-    className="
-      h-[calc(100vh-4rem)]
-      bg-black
-      rounded-xl
-      lg:rounded-2xl
-      overflow-hidden
-      flex
-      flex-col
-    "
-  >
-    {/* ==============================
-        🎬 Video Composer (FIXED)
-        ============================== */}
-    <div className="sticky top-0 z-10 bg-black">
-      <VideoComposer />
-    </div>
-
-    {/* ==============================
-        🎥 Video Feed (SCROLL + SNAP)
-        ============================== */}
-    <div
-      ref={containerRef}
-      onScroll={handleScroll}
+    <section
+      aria-label="Short video feed"
       className="
-        flex-1
-        overflow-y-scroll
-        snap-y snap-mandatory
+        h-[calc(100vh-4rem)]
+        bg-black
+        rounded-xl
+        lg:rounded-2xl
+        overflow-hidden
+        flex
+        flex-col
       "
     >
-      {items.map((post) => (
-        <div
-          key={post.id}
-          className="snap-start h-screen"
-        >
-          <VideoItem
-            post={post}
-            onLike={(postId) => {
-              // TODO: connect like API
-              console.log("like video:", postId);
-            }}
-          />
-        </div>
-      ))}
+      {/* 🎬 Video Composer */}
+      <div className="sticky top-0 z-10 bg-black">
+        <VideoComposer onPosted={refreshLatest} />
+      </div>
 
-      {loading && (
-        <div className="py-6 text-center text-sm text-gray-400">
-          กำลังโหลดวิดีโอ…
-        </div>
-      )}
+      {/* 🎥 Video Feed */}
+      <div
+        ref={containerRef}
+        onScroll={handleScroll}
+        className="
+          relative
+          flex-1
+          overflow-y-scroll
+          snap-y
+          snap-mandatory
+          scroll-smooth
+        "
+        style={{
+          scrollSnapType: "y mandatory",
+          scrollBehavior: "smooth",
+        }}
+      >
+        {items.map((post) => (
+          <div
+            key={post.id}
+            className="
+              snap-start
+              snap-always
+              h-[calc(100vh-4rem-56px)]
+              scroll-snap-stop-always
+            "
+          >
+            <VideoItem post={post} />
+          </div>
+        ))}
 
-      {!hasMore && items.length > 0 && (
-        <div className="py-6 text-center text-xs text-gray-500">
-          ไม่มีวิดีโอเพิ่มเติม
-        </div>
-      )}
-    </div>
-  </section>
-);
-
+        {loading && (
+          <div className="py-6 text-center text-sm text-gray-400">
+            กำลังโหลดวิดีโอ…
+          </div>
+        )}
+      </div>
+    </section>
+  );
 }

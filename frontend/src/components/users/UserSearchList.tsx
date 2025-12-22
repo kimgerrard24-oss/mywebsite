@@ -1,4 +1,5 @@
 // frontend/components/users/UserSearchList.tsx
+
 import Image from "next/image";
 import Link from "next/link";
 import type { PublicUserSearch } from "@/types/user-search";
@@ -8,6 +9,13 @@ type Props = {
   loading: boolean;
   error: string | null;
   users: PublicUserSearch[];
+
+  /**
+   * ใช้ควบคุม UX
+   * - "feed" / "page" → แสดง helper + list ปกติ
+   * - "navbar"        → ไม่แสดง helper / list
+   */
+  variant?: "feed" | "page" | "navbar";
 };
 
 export default function UserSearchList({
@@ -15,7 +23,13 @@ export default function UserSearchList({
   loading,
   error,
   users,
+  variant,
 }: Props) {
+  // ===== Navbar: ไม่ render อะไรเลย =====
+  if (variant === "navbar") {
+    return null;
+  }
+
   if (!query) {
     return (
       <p className="text-sm text-gray-500">
@@ -54,7 +68,13 @@ export default function UserSearchList({
         <li key={user.id}>
           <Link
             href={`/users/${user.id}`}
-            className="flex items-center gap-3 py-3 hover:bg-gray-50 transition rounded-md px-2"
+            className="
+              flex items-center gap-3
+              py-3 px-2
+              rounded-md
+              hover:bg-gray-50
+              transition
+            "
           >
             {user.avatarUrl ? (
               <Image
@@ -64,7 +84,7 @@ export default function UserSearchList({
                 height={40}
                 className="rounded-full object-cover"
                 unoptimized
-               />
+              />
             ) : (
               <div className="h-10 w-10 rounded-full bg-gray-300" />
             )}
@@ -83,4 +103,3 @@ export default function UserSearchList({
     </ul>
   );
 }
-

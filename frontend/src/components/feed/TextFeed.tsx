@@ -2,7 +2,7 @@
 // file: components/feed/TextFeed.tsx
 // ==============================
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 
 import type { PostFeedItem } from "@/types/post-feed";
@@ -18,12 +18,23 @@ type Props = {
   user: any | null;
   initialItems: PostFeedItem[];
   lang: Lang;
+
+  /** ควบคุมการแสดง Composer (UI only) */
+  showComposer?: boolean;
+
+  /**
+   * ให้ parent (feed.tsx) ดึง refreshFeed ไปใช้
+   * ❗️ไม่มีผลกับ logic เดิม
+   */
+  onRefreshReady?: (refreshFn: () => void) => void;
 };
 
 export default function TextFeed({
   user,
   initialItems,
   lang,
+  showComposer = true,
+  onRefreshReady,
 }: Props) {
   const t = getDictionary(lang);
 
@@ -54,6 +65,11 @@ export default function TextFeed({
     }
   }, [refreshing]);
 
+  // 🔗 expose refreshFeed ให้ parent ใช้
+  useEffect(() => {
+    onRefreshReady?.(refreshFeed);
+  }, [onRefreshReady, refreshFeed]);
+
   const handlePostDeleted = useCallback(
     (postId: string) => {
       setItems((prev) =>
@@ -68,8 +84,12 @@ export default function TextFeed({
       className="max-w-3xl mx-auto px-4 py-8 flex flex-col gap-6"
       aria-label="User feed"
     >
-      <PostComposer onPostCreated={refreshFeed} />
+      {/* ===== Composer (optional) ===== */}
+      {showComposer && (
+        <PostComposer onPostCreated={refreshFeed} />
+      )}
 
+      {/* ===== Greeting ===== */}
       <article className="bg-white p-5 sm:p-6 rounded-2xl shadow border">
         <h2 className="text-lg sm:text-xl font-semibold">
           {t.feed.greeting}{" "}
@@ -82,12 +102,14 @@ export default function TextFeed({
         </p>
       </article>
 
+      {/* ===== Empty state ===== */}
       {items.length === 0 && (
         <p className="text-center text-gray-500">
           {t.feed.empty}
         </p>
       )}
 
+      {/* ===== Feed items ===== */}
       {items.map((post) => (
         <article
           key={post.id}
