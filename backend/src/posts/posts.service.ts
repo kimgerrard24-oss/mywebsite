@@ -223,7 +223,10 @@ async getPublicFeed(params: {
   }
 
   // 2) Load post
-  const post = await this.repo.findPostById(postId);
+  const post = await this.repo.findPostById(
+  postId,
+  viewer?.userId,
+ );
   if (!post) return null;
 
   // 3) Visibility

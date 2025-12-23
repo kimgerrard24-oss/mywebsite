@@ -14,9 +14,10 @@ import { PostUpdatePolicy } from './policy/post-update.policy';
 import { PostLikePolicy } from './policy/post-like.policy';
 import { PostLikedEvent } from './events/post-liked.event';
 import { PostUnlikePolicy } from './policy/post-unlike.policy';
+import { CommentsModule } from '../comments/comments.module';
 
 @Module({
-  imports: [PrismaModule, AuthModule],
+  imports: [PrismaModule, AuthModule, CommentsModule],
   controllers: [PostsController],
   providers: [
     PostsService,

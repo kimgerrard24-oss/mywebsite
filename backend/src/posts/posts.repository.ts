@@ -106,46 +106,64 @@ export class PostsRepository {
 }
 
 
-  async findPostById(postId: string) {
-    return this.prisma.post.findUnique({
-      where: { id: postId },
-      select: {
-        id: true,
-        content: true,
+ async findPostById(
+  postId: string,
+  viewerUserId?: string,
+) {
+  return this.prisma.post.findUnique({
+    where: { id: postId },
+    select: {
+      id: true,
+      content: true,
 
-        isPublished: true,
-        isDeleted: true,
-        isHidden: true,
-        visibility: true,
+      isPublished: true,
+      isDeleted: true,
+      isHidden: true,
+      visibility: true,
 
-        createdAt: true,
+      createdAt: true,
 
-        author: {
-          select: {
-            id: true,
-            displayName: true,
-            avatarUrl: true,
-          },
+      author: {
+        select: {
+          id: true,
+          displayName: true,
+          avatarUrl: true,
         },
+      },
 
-        media: {
-          select: {
-            id: true,
-            media: {
-              select: {
-                id: true,
-                mediaType: true,
-                objectKey: true,
-                width: true,
-                height: true,
-                duration: true,
-              },
+      media: {
+        select: {
+          id: true,
+          media: {
+            select: {
+              id: true,
+              mediaType: true,
+              objectKey: true,
+              width: true,
+              height: true,
+              duration: true,
             },
           },
         },
       },
-    });
-  }
+
+      _count: {
+        select: {
+          likes: true,
+          comments: true,
+        },
+      },
+
+      likes: viewerUserId
+        ? {
+            where: { userId: viewerUserId },
+            select: { id: true },
+          }
+        : false,
+    },
+  });
+}
+
 
   async findById(postId: string): Promise<{
     id: string;

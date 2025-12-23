@@ -5,6 +5,9 @@ import PostActionMenu from "@/components/posts/PostActionMenu";
 import { renderContentWithHashtags } from "@/utils/renderContentWithHashtags";
 import PostLikeButton from "@/components/posts/PostLikeButton";
 import { usePostLike } from "@/hooks/usePostLike";
+import { useState } from "react";
+import CommentComposer from "@/components/comments/CommentComposer";
+import CommentList from "@/components/comments/CommentList";
 
 type Props = {
   post: PostFeedItem;
@@ -25,6 +28,11 @@ export default function FeedItem({ post }: Props) {
     initialLiked: post.isLikedByViewer ?? false,
     initialLikeCount: post.stats.likeCount,
   });
+  
+  const [showCommentBox, setShowCommentBox] = useState(false);
+  const [commentCount, setCommentCount] = useState(
+  post.stats.commentCount
+  );
 
   return (
     <article
@@ -233,8 +241,34 @@ export default function FeedItem({ post }: Props) {
           onClick={toggleLike}
         />
 
-        <span>💬 {post.stats.commentCount}</span>
+        <button
+      type="button"
+      onClick={() => setShowCommentBox((v) => !v)}
+      className="hover:underline"
+      aria-expanded={showCommentBox}
+        >
+        💬 {commentCount}
+        </button>
+
       </footer>
+
+       {showCommentBox && (
+  <section
+    className="mt-3 border-t pt-3"
+    aria-label="Post comments"
+  >
+    <CommentComposer
+      postId={post.id}
+      onCreated={() => {
+        // fail-soft update
+        setCommentCount((c) => c + 1);
+      }}
+    />
+     {/* 2️⃣ รายการคอมเมนต์ (GET /posts/:id/comments) */}
+    <CommentList postId={post.id} />
+  </section>
+  )}
+
     </article>
   );
 }

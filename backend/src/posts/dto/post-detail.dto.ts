@@ -20,6 +20,13 @@ export class PostDetailDto {
     url: string;
   }[];
 
+  stats!: {
+    likeCount: number;
+    commentCount: number;
+  };
+
+  isLikedByViewer!: boolean;
+
   canDelete!: boolean;
 
   static from(
@@ -37,12 +44,7 @@ export class PostDetailDto {
         avatarUrl: post.author.avatarUrl,
       },
 
-      /**
-       * ✅ FIX: map PostMedia → Media
-       * - post.media[] = PostMedia
-       * - post.media[].media = Media
-       * - ใช้ CDN URL แบบเดียวกับ feed (production-safe)
-       */
+     
       media: Array.isArray(post.media)
         ? post.media.map((pm: any) => ({
             id: pm.media.id,
@@ -53,6 +55,17 @@ export class PostDetailDto {
             url: buildCdnUrl(pm.media.objectKey),
           }))
         : [],
+
+     
+      stats: {
+        likeCount: post._count?.likes ?? 0,
+        commentCount: post._count?.comments ?? 0,
+      },
+
+      
+      isLikedByViewer: viewerUserId
+        ? Array.isArray(post.likes) && post.likes.length > 0
+        : false,
 
       canDelete: Boolean(
         viewerUserId && post.author.id === viewerUserId,

@@ -10,8 +10,7 @@ import { api } from "@/lib/api/api";
 import PostComposer from "@/components/posts/PostComposer";
 import PostActionMenu from "@/components/posts/PostActionMenu";
 import { renderContentWithHashtags } from "@/utils/renderContentWithHashtags";
-import PostLikeButton from "@/components/posts/PostLikeButton";
-import { usePostLike } from "@/hooks/usePostLike";
+import CommentComposer from '@/components/comments/CommentComposer';
 
 type Props = {
   user: any | null;
@@ -152,18 +151,6 @@ export default function TextFeed({
           ? "/profile"
           : `/users/${post.author.id}`;
 
-       
-        const {
-          liked,
-          likeCount,
-          loading: likeLoading,
-          toggleLike,
-        } = usePostLike({
-          postId: post.id,
-          initialLiked: post.isLikedByViewer ?? false,
-          initialLikeCount: post.stats.likeCount,
-        });
-
         return (
           <article
             key={post.id}
@@ -271,13 +258,6 @@ export default function TextFeed({
             {/* ===== Footer ===== */}
             <footer className="flex gap-4 text-xs sm:text-sm text-gray-600">
               {/* 🆕 Like button */}
-              <PostLikeButton
-                liked={liked}
-                likeCount={likeCount}
-                loading={likeLoading}
-                onClick={toggleLike}
-              />
-
               <span>
                 💬 {post.stats.commentCount} {t.feed.post.comments}
               </span>
