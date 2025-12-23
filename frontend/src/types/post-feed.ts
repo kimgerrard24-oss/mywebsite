@@ -25,6 +25,9 @@ export type PostFeedItem = {
   };
 
   canDelete: boolean;
+
+  isLikedByViewer: boolean;
+
 };
 
 export type PostFeedResponse = {

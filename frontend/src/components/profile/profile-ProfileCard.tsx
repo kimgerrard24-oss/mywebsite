@@ -43,8 +43,8 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
     aria-labelledby="profile-heading"
     className="
       mx-auto
-      mt-6
-      sm:mt-8
+      mt-3
+      sm:mt-4
       w-full
       max-w-3xl
       rounded-xl

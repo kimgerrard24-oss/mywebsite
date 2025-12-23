@@ -12,7 +12,6 @@ import type { UserProfile } from "@/lib/api/user";
 import { ProfileCard } from "@/components/profile/profile-ProfileCard";
 import { ProfileSkeleton } from "@/components/profile/ProfileSkeleton";
 
-// ✅ NEW: reusable posts component
 import ProfilePosts from "@/components/profile/ProfilePosts";
 
 interface ProfilePageProps {
@@ -246,55 +245,9 @@ return (
             PhlyPhant
           </Link>
 
-          <div
-            className="
-              flex
-              items-center
-              gap-3
-              sm:gap-4
-            "
-          >
-            <Link
-              href="/feed"
-              prefetch={false}
-              className="
-                text-sm
-                font-medium
-                hover:text-blue-600
-                transition
-              "
-            >
-              Feed
-            </Link>
-          </div>
+          
         </nav>
       </header>
-
-      {/* ================= Back Link ================= */}
-      <div
-        className="
-          max-w-5xl
-          mx-auto
-          px-3
-          sm:px-4
-          md:px-6
-          pt-3
-          sm:pt-4
-        "
-      >
-        <Link
-          href="/feed"
-          prefetch={false}
-          className="
-            inline-block
-            text-sm
-            text-blue-600
-            hover:underline
-          "
-        >
-          ← Back to feed
-        </Link>
-      </div>
 
       {/* ================= Content ================= */}
       <div
@@ -307,7 +260,8 @@ return (
           lg:px-8
           pb-10
           sm:pb-12
-          pt-4
+          pt-1 sm:pt-2
+          
         "
       >
         {loading && <ProfileSkeleton />}
@@ -326,8 +280,8 @@ return (
       </div>
     </main>
   </>
-);
+ );
 
-};
+ };
 
 export default ProfilePage;

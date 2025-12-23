@@ -57,6 +57,14 @@ export async function getPostsByTag(
   return res.json();
 }
 
+export async function likePost(postId: string): Promise<{
+  liked: boolean;
+  likeCount: number;
+}> {
+  const res = await api.post(`/posts/${postId}/like`);
+  return res.data;
+}
+
 export async function getVideoFeed(params?: {
   limit?: number;
   cursor?: string;

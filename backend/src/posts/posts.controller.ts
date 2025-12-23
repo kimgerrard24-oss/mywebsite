@@ -3,6 +3,7 @@ import {
   Body,
   Controller,
   HttpCode,
+  HttpStatus,
   Post,
   Req,
   Put,
@@ -24,6 +25,8 @@ import { DeletePostParamsDto } from './dto/delete-post.params.dto';
 import { UpdatePostDto } from './dto/update-post.dto';
 import { GetUserPostsQuery } from './dto/get-user-posts.query';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { PostLikeResponseDto } from './dto/post-like-response.dto';
+import { PostUnlikeResponseDto } from './dto/post-unlike-response.dto';
 
 @Controller('posts')
 export class PostsController {
@@ -56,7 +59,6 @@ async getFeed(
   @Query() query: GetPostsQueryDto & { mediaType?: string },
   @Req() req: Request,
 ) {
-  // SAFE: extract viewer userId (fail-soft)
   let viewerUserId: string | null = null;
 
   const user = req.user as
@@ -67,14 +69,11 @@ async getFeed(
     viewerUserId = user.userId;
   }
 
-  // SAFE: normalize limit
   const limit =
     typeof query.limit === 'number' && Number.isFinite(query.limit)
       ? Math.min(query.limit, 50)
       : 20;
 
-  // ✅ ADD (FAIL-SOFT)
-  // รองรับเฉพาะ mediaType=video เท่านั้น
   const mediaType =
     query.mediaType === 'video' ? 'video' : undefined;
 
@@ -83,7 +82,6 @@ async getFeed(
     limit,
     cursor: query.cursor ?? undefined,
 
-    // ✅ OPTIONAL (ไม่กระทบ behavior เดิม)
     mediaType,
   });
  }
@@ -160,7 +158,7 @@ async getFeed(
   return this.postsService.getUserPostFeed({
     targetUserId: userId,
     query,
-    viewer: req.user ?? null, // ✅ FIX
+    viewer: req.user ?? null, 
   });
 
  }
@@ -181,4 +179,51 @@ async getFeed(
     });
   }
   
+ @Post(':id/like')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AccessTokenCookieAuthGuard)
+  async likePost(
+    @Param('id') postId: string,
+    @Req() req: Request,
+  ): Promise<PostLikeResponseDto> {
+    const userId = req.user!.userId;
+
+    return this.postsService.toggleLike({
+      postId,
+      userId,
+    });
+  }
+  
+
+  @Delete(':id/unlike')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AccessTokenCookieAuthGuard)
+  async unlikePost(
+    @Param('id') postId: string,
+    @Req() req: Request,
+  ): Promise<PostUnlikeResponseDto> {
+    const userId = req.user!.userId;
+
+    return this.postsService.unlikePost({
+      postId,
+      userId,
+    });
+  }
+
+  @Get(':id/likes')
+ @UseGuards(AccessTokenCookieAuthGuard)
+ async getPostLikes(
+  @Param('id') postId: string,
+  @Req() req: Request & { user: { userId: string } },
+  @Query('cursor') cursor?: string,
+  @Query('limit') limit = '20',
+ ) {
+  return this.postsService.getLikes({
+    postId,
+    viewerUserId: req.user.userId,
+    cursor,
+    limit: Math.min(Number(limit) || 20, 50),
+  });
+ }
+
 }

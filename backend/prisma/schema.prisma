@@ -42,7 +42,7 @@ model User {
   refreshTokens             RefreshToken[]
   sessions                  Session[]
   activities                UserActivity[]
-
+  likedPosts                PostLike[]
   @@unique([provider, providerId])
 }
 
@@ -141,9 +141,25 @@ model Post {
   author       User           @relation(fields: [authorId], references: [id])
   media        PostMedia[]
   tags         PostTag[]
-
+  likes        PostLike[]
   @@index([authorId, publishedAt])
   @@index([isPublished, isDeleted, isHidden, publishedAt])
+}
+
+model PostLike {
+  id        String   @id @default(uuid())
+  postId    String
+  userId    String
+  createdAt DateTime @default(now())
+
+  // relations
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // constraints
+  @@unique([postId, userId]) 
+  @@index([postId])
+  @@index([userId])
 }
 
 model PostMedia {

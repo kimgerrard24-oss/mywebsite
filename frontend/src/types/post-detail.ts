@@ -18,5 +18,8 @@ export type PostDetail = {
     url?: string; // optional for backward compatibility
   }[];
 
+  likeCount: number;
+  isLikedByViewer: boolean;
+
   canDelete: boolean;
 };

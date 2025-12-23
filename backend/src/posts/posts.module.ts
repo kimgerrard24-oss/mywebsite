@@ -11,6 +11,9 @@ import { PostVisibilityService } from './services/post-visibility.service';
 import { PostCacheService } from './cache/post-cache.service';
 import { PostDeletePolicy } from './policy/post-delete.policy';
 import { PostUpdatePolicy } from './policy/post-update.policy';
+import { PostLikePolicy } from './policy/post-like.policy';
+import { PostLikedEvent } from './events/post-liked.event';
+import { PostUnlikePolicy } from './policy/post-unlike.policy';
 
 @Module({
   imports: [PrismaModule, AuthModule],
@@ -24,6 +27,9 @@ import { PostUpdatePolicy } from './policy/post-update.policy';
     PostCreatedEvent,
     PostVisibilityService,
     PostCacheService,
+    PostLikePolicy,
+    PostLikedEvent,
+    PostUnlikePolicy,
   ],
 })
 export class PostsModule {}

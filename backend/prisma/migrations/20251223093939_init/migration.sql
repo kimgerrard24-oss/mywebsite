@@ -137,6 +137,16 @@ CREATE TABLE "Post" (
 );
 
 -- CreateTable
+CREATE TABLE "PostLike" (
+    "id" TEXT NOT NULL,
+    "postId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "PostLike_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "PostMedia" (
     "id" TEXT NOT NULL,
     "postId" TEXT NOT NULL,
@@ -230,6 +240,15 @@ CREATE INDEX "Post_authorId_publishedAt_idx" ON "Post"("authorId", "publishedAt"
 CREATE INDEX "Post_isPublished_isDeleted_isHidden_publishedAt_idx" ON "Post"("isPublished", "isDeleted", "isHidden", "publishedAt");
 
 -- CreateIndex
+CREATE INDEX "PostLike_postId_idx" ON "PostLike"("postId");
+
+-- CreateIndex
+CREATE INDEX "PostLike_userId_idx" ON "PostLike"("userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "PostLike_postId_userId_key" ON "PostLike"("postId", "userId");
+
+-- CreateIndex
 CREATE INDEX "PostMedia_postId_idx" ON "PostMedia"("postId");
 
 -- CreateIndex
@@ -285,6 +304,12 @@ ALTER TABLE "PasswordResetToken" ADD CONSTRAINT "PasswordResetToken_userId_fkey"
 
 -- AddForeignKey
 ALTER TABLE "Post" ADD CONSTRAINT "Post_authorId_fkey" FOREIGN KEY ("authorId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PostLike" ADD CONSTRAINT "PostLike_postId_fkey" FOREIGN KEY ("postId") REFERENCES "Post"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PostLike" ADD CONSTRAINT "PostLike_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "PostMedia" ADD CONSTRAINT "PostMedia_mediaId_fkey" FOREIGN KEY ("mediaId") REFERENCES "Media"("id") ON DELETE CASCADE ON UPDATE CASCADE;

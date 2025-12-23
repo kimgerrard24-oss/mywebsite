@@ -59,23 +59,63 @@ async function jsonFetch<T>(
   }
 
   return (await res.json()) as T;
-}
+ }
+ 
+ export async function getPostLikes(params: {
+  postId: string;
+  cursor?: string | null;
+  limit?: number;
+}): Promise<{
+  items: Array<{
+    userId: string;
+    displayName: string | null;
+    avatarUrl: string | null;
+    likedAt: string;
+  }>;
+  nextCursor: string | null;
+}> {
+  const { postId, cursor, limit = 20 } = params;
 
-// deletePost
-export async function deletePost(postId: string): Promise<void> {
+  const res = await api.get(`/posts/${postId}/likes`, {
+    params: {
+      cursor: cursor ?? undefined,
+      limit,
+    },
+    withCredentials: true, // 🔒 HttpOnly cookie
+  });
+
+  return res.data;
+ }
+
+  export async function unlikePost(postId: string): Promise<{
+  liked: false;
+  likeCount: number;
+ }> {
+  const res = await api.delete<{
+    liked: false;
+    likeCount: number;
+  }>(`/posts/${postId}/unlike`, {
+    withCredentials: true,
+  });
+
+  return res.data;
+ }
+
+ // deletePost
+ export async function deletePost(postId: string): Promise<void> {
   await axios.delete(apiPath(`/posts/${postId}`), {
       withCredentials: true, 
   });
  }
 
-// AXIOS INSTANCE (CSR Only)
-export const api = axios.create({
+ // AXIOS INSTANCE (CSR Only)
+ export const api = axios.create({
   baseURL: API_BASE,
   withCredentials: true,
   timeout: 12000,
-});
+ });
 
-api.interceptors.request.use((cfg) => {
+ api.interceptors.request.use((cfg) => {
   const method = cfg.method?.toLowerCase();
   cfg.headers = cfg.headers ?? {};
 
@@ -217,6 +257,5 @@ export async function refreshAccessToken(): Promise<boolean> {
   } catch {
     return false;
   }
-  
   
 }

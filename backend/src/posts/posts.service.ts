@@ -16,16 +16,26 @@ import { CreatePostDto } from './dto/create-post.dto';
 import { GetUserPostsQuery } from './dto/get-user-posts.query';
 import { PostFeedItemDto } from './dto/post-feed-item.dto';
 import { parseHashtags } from './utils/parse-hashtags.util';
+import { PostLikePolicy } from './policy/post-like.policy';
+import { PostLikeResponseDto } from './dto/post-like-response.dto';
+import { PostLikedEvent } from './events/post-liked.event';
+import { PostUnlikePolicy } from './policy/post-unlike.policy';
+import { PostUnlikeResponseDto } from './dto/post-unlike-response.dto';
+import { PostLikeDto } from './dto/post-like.dto';
 
 @Injectable()
 export class PostsService {
   constructor(
     private readonly repo: PostsRepository,
     private readonly audit: PostAudit,
-    private readonly event: PostCreatedEvent,
+    private readonly postCreatedEvent: PostCreatedEvent,
     private readonly visibility: PostVisibilityService,
     private readonly cache: PostCacheService,
     private readonly prisma: PrismaService,
+    private readonly policy: PostLikePolicy,
+    private readonly postLikedEvent: PostLikedEvent,
+    private readonly unlikePolicy: PostUnlikePolicy,
+    private readonly postslikes: PostsRepository,
   ) {}
 
  async createPost(params: {
@@ -141,7 +151,7 @@ export class PostsService {
     authorId,
   });
 
-  this.event.emit({
+  this.postCreatedEvent.emit({
     id: post.id,
     authorId,
     createdAt: post.createdAt,
@@ -391,5 +401,78 @@ async deletePost(params: { postId: string; actorUserId: string }) {
 
     return { items, nextCursor };
   }
+  
 
+  async toggleLike(params: {
+    postId: string;
+    userId: string;
+  }): Promise<PostLikeResponseDto> {
+    const { postId, userId } = params;
+
+    const post = await this.repo.findPostForLike(postId);
+    this.policy.assertCanLike(post);
+
+    const result = await this.repo.toggleLike({
+      postId,
+      userId,
+    });
+
+    this.postLikedEvent.emit({
+      postId,
+      userId,
+      liked: result.liked,
+    });
+
+    return result;
+  }
+
+  async unlikePost(params: {
+    postId: string;
+    userId: string;
+  }): Promise<PostUnlikeResponseDto> {
+    const { postId, userId } = params;
+
+    const post = await this.repo.findPostForLike(postId);
+    this.unlikePolicy.assertCanUnlike(post);
+
+    // idempotent: unlike ซ้ำไม่ error
+    return this.repo.unlike({
+      postId,
+      userId,
+    });
+  }
+
+  async getLikes(params: {
+    postId: string;
+    viewerUserId: string;
+    cursor?: string;
+    limit: number;
+  }): Promise<{
+    items: PostLikeDto[];
+    nextCursor: string | null;
+  }> {
+    const { postId, cursor, limit } = params;
+
+    const exists = await this.postslikes.existsPost(postId);
+    if (!exists) {
+      throw new NotFoundException('Post not found');
+    }
+
+    const { rows, nextCursor } =
+      await this.repo.findLikesByPostId({
+        postId,
+        cursor,
+        limit,
+      });
+
+    return {
+      items: rows.map((row) => ({
+        userId: row.user.id,
+        displayName: row.user.displayName ?? null,
+        avatarUrl: row.user.avatarUrl ?? null,
+        likedAt: row.createdAt.toISOString(),
+      })),
+      nextCursor,
+    };
+  }
 }

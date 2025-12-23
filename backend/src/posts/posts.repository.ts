@@ -338,5 +338,183 @@ export class PostsRepository {
       : {}),
   });
  }
+ 
+ async findPostForLike(postId: string) {
+    return this.prisma.post.findFirst({
+      where: {
+        id: postId,
+        isDeleted: false,
+      },
+      select: {
+        id: true,
+        isDeleted: true,
+        isHidden: true,
+      },
+    });
+  }
 
+  async toggleLike(params: {
+    postId: string;
+    userId: string;
+  }): Promise<{ liked: boolean; likeCount: number }> {
+    const { postId, userId } = params;
+
+    return this.prisma.$transaction(async (tx) => {
+      const existing = await tx.postLike.findUnique({
+        where: {
+          postId_userId: {
+            postId,
+            userId,
+          },
+        },
+      });
+
+      if (existing) {
+        await tx.postLike.delete({
+          where: {
+            id: existing.id,
+          },
+        });
+
+        const post = await tx.post.update({
+          where: { id: postId },
+          data: { likeCount: { decrement: 1 } },
+          select: { likeCount: true },
+        });
+
+        return {
+          liked: false,
+          likeCount: post.likeCount,
+        };
+      }
+
+      await tx.postLike.create({
+        data: {
+          postId,
+          userId,
+        },
+      });
+
+      const post = await tx.post.update({
+        where: { id: postId },
+        data: { likeCount: { increment: 1 } },
+        select: { likeCount: true },
+      });
+
+      return {
+        liked: true,
+        likeCount: post.likeCount,
+      };
+    });
+  }
+
+  async unlike(params: {
+    postId: string;
+    userId: string;
+  }): Promise<{ liked: false; likeCount: number }> {
+    const { postId, userId } = params;
+
+    return this.prisma.$transaction(async (tx) => {
+      const existing = await tx.postLike.findUnique({
+        where: {
+          postId_userId: {
+            postId,
+            userId,
+          },
+        },
+      });
+
+      // 👉 idempotent: ไม่เคย like มาก่อน
+      if (!existing) {
+        const post = await tx.post.findUnique({
+          where: { id: postId },
+          select: { likeCount: true },
+        });
+
+        return {
+          liked: false,
+          likeCount: post?.likeCount ?? 0,
+        };
+      }
+
+      await tx.postLike.delete({
+        where: { id: existing.id },
+      });
+
+      const post = await tx.post.update({
+        where: { id: postId },
+        data: {
+          likeCount: {
+            decrement: 1,
+          },
+        },
+        select: { likeCount: true },
+      });
+
+      return {
+        liked: false,
+        likeCount: post.likeCount,
+      };
+    });
+  }
+
+   async existsPost(postId: string): Promise<boolean> {
+    const count = await this.prisma.post.count({
+      where: {
+        id: postId,
+        isDeleted: false,
+        isHidden: false,
+      },
+    });
+
+    return count > 0;
+  }
+
+  async findLikesByPostId(params: {
+    postId: string;
+    cursor?: string;
+    limit: number;
+  }): Promise<{
+    rows: Array<{
+      createdAt: Date;
+      user: {
+        id: string;
+        displayName: string | null;
+        avatarUrl: string | null;
+      };
+    }>;
+    nextCursor: string | null;
+  }> {
+    const { postId, cursor, limit } = params;
+
+    const rows = await this.prisma.postLike.findMany({
+      where: { postId },
+      take: limit + 1,
+      ...(cursor && {
+        skip: 1,
+        cursor: { id: cursor },
+      }),
+      orderBy: { createdAt: 'desc' },
+      select: {
+        id: true,
+        createdAt: true,
+        user: {
+          select: {
+            id: true,
+            displayName: true,
+            avatarUrl: true,
+          },
+        },
+      },
+    });
+
+    let nextCursor: string | null = null;
+
+    if (rows.length > limit) {
+      const next = rows.pop();
+      nextCursor = next!.id;
+    }
+
+    return { rows, nextCursor };
+  }
 }
