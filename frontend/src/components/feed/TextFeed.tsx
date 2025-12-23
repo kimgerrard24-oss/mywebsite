@@ -11,6 +11,9 @@ import PostComposer from "@/components/posts/PostComposer";
 import PostActionMenu from "@/components/posts/PostActionMenu";
 import { renderContentWithHashtags } from "@/utils/renderContentWithHashtags";
 import CommentComposer from '@/components/comments/CommentComposer';
+import { usePostLike } from "@/hooks/usePostLike";
+import PostLikeButton from "@/components/posts/PostLikeButton";
+import FeedItem from "@/components/feed/FeedItem";
 
 type Props = {
   user: any | null;
@@ -146,125 +149,12 @@ export default function TextFeed({
         </p>
       )}
 
-      {items.map((post) => {
-        const profileHref = post.canDelete
-          ? "/profile"
-          : `/users/${post.author.id}`;
-
-        return (
-          <article
-            key={post.id}
-            className="
-              bg-white
-              shadow-sm
-              border
-              rounded-xl
-              sm:rounded-2xl
-              p-3
-              sm:p-4
-              md:p-5
-              flex
-              flex-col
-              gap-3
-              sm:gap-4
-            "
-            aria-labelledby={`post-${post.id}`}
-          >
-            {/* ===== Header ===== */}
-            <header className="flex items-start justify-between gap-2 sm:gap-3">
-              <div className="flex items-start gap-2 sm:gap-3 min-w-0">
-                <Link href={profileHref} className="flex-shrink-0">
-                  {post.author.avatarUrl ? (
-                    <img
-                      src={post.author.avatarUrl}
-                      alt={post.author.displayName ?? "User"}
-                      className="h-8 w-8 sm:h-9 sm:w-9 rounded-full object-cover"
-                      loading="lazy"
-                    />
-                  ) : (
-                    <div
-                      className="h-8 w-8 sm:h-9 sm:w-9 rounded-full bg-gray-300"
-                      aria-hidden="true"
-                    />
-                  )}
-                </Link>
-
-                <div className="flex min-w-0 flex-col leading-tight">
-                  <Link
-                    href={profileHref}
-                    id={`post-${post.id}`}
-                    className="font-semibold text-sm sm:text-[0.95rem] hover:underline truncate"
-                  >
-                    {post.author.displayName ??
-                      t.feed.post.authorFallback}
-                  </Link>
-
-                  <time
-                    dateTime={post.createdAt}
-                    className="mt-0.5 text-xs text-gray-500 whitespace-nowrap"
-                  >
-                    {new Date(post.createdAt).toLocaleString()}
-                  </time>
-                </div>
-              </div>
-
-              <PostActionMenu
-                postId={post.id}
-                canDelete={post.canDelete}
-                canEdit={post.canDelete}
-                canReport={!post.canDelete}
-                onDeleted={() => handlePostDeleted(post.id)}
-              />
-            </header>
-
-            {/* ===== Content ===== */}
-            <p className="text-gray-800 text-sm sm:text-base leading-relaxed whitespace-pre-wrap break-words">
-              {renderContentWithHashtags(post.content)}
-            </p>
-
-            {/* ===== Media ===== */}
-            {Array.isArray(post.media) && post.media.length > 0 && (
-              <section
-                className="mt-2 sm:mt-3 space-y-2 sm:space-y-3"
-                aria-label="Post media"
-              >
-                {post.media.map((m) => (
-                  <figure
-                    key={m.id}
-                    className="overflow-hidden rounded-lg sm:rounded-xl bg-gray-100"
-                  >
-                    {m.type === "image" && (
-                      <img
-                        src={m.url}
-                        alt=""
-                        loading="lazy"
-                        className="w-full h-auto max-h-[70vh] sm:max-h-[80vh] object-contain bg-black/5"
-                      />
-                    )}
-
-                    {m.type === "video" && (
-                      <video
-                        src={m.url}
-                        controls
-                        preload="metadata"
-                        className="w-full h-auto max-h-[70vh] sm:max-h-[80vh] object-contain bg-black"
-                      />
-                    )}
-                  </figure>
-                ))}
-              </section>
-            )}
-
-            {/* ===== Footer ===== */}
-            <footer className="flex gap-4 text-xs sm:text-sm text-gray-600">
-              {/* 🆕 Like button */}
-              <span>
-                💬 {post.stats.commentCount} {t.feed.post.comments}
-              </span>
-            </footer>
-          </article>
-        );
-      })}
-    </section>
+      {items.map((post) => (
+      <FeedItem
+        key={post.id}
+        post={post}
+      />
+    ))}
+  </section>
   );
 }
