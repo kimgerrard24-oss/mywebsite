@@ -8,6 +8,7 @@ import { usePostLike } from "@/hooks/usePostLike";
 import { useState } from "react";
 import CommentComposer from "@/components/comments/CommentComposer";
 import CommentList from "@/components/comments/CommentList";
+import FollowButton from "@/components/follows/FollowButton";
 
 type Props = {
   post: PostFeedItem;
@@ -133,15 +134,24 @@ export default function FeedItem({ post, onDeleted }: Props) {
           </div>
         </div>
 
-        <PostActionMenu
-          postId={post.id}
-          canDelete={post.canDelete}
-          canEdit={post.canDelete}
-          canReport={!post.canDelete}
-          onDeleted={() => {
-          onDeleted?.(post.id);
-           }}
-        />
+        {/* ขวา: Follow + PostAction */}
+  <div className="flex items-center gap-2">
+    {/* Follow (render only) */}
+    <FollowButton
+      userId={post.author.id}
+      isFollowing={post.author.isFollowing}
+    />
+
+    <PostActionMenu
+      postId={post.id}
+      canDelete={post.canDelete}
+      canEdit={post.canDelete}
+      canReport={!post.canDelete}
+      onDeleted={() => {
+        onDeleted?.(post.id);
+      }}
+    />
+  </div>
       </header>
 
       {/* ================= Content ================= */}

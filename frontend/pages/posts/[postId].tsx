@@ -15,13 +15,6 @@ type Props = {
 export default function PostDetailPage({ post }: Props) {
   const router = useRouter();
 
-  /**
-   * ==============================
-   * Media SEO (SAFE / OPTIONAL)
-   * ==============================
-   * - ใช้เฉพาะตัวแรก
-   * - รองรับ cdnUrl + url (backward-safe)
-   */
   const firstMedia = post.media?.[0];
   const mediaSrc = firstMedia?.cdnUrl ?? firstMedia?.url;
 

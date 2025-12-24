@@ -362,7 +362,6 @@ async deletePost(params: { postId: string; actorUserId: string }) {
     scope: visibilityScope.scope,
   });
 
-  // ✅ FIX 2: ส่ง viewerUserId ให้ mapper
   const items = rows.map((row) =>
     PostFeedMapper.toDto(row, viewer?.userId ?? null),
   );

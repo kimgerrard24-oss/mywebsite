@@ -113,13 +113,18 @@ export class CommentsRepository {
 
 
    async deleteById(commentId: string) {
-    await this.prisma.comment.delete({
-      where: { id: commentId },
-    });
-  }
+  await this.prisma.comment.update({
+    where: { id: commentId },
+    data: {
+      isDeleted: true,
+      deletedAt: new Date(),
+    },
+  });
+}
+
   
 
-  async findByPostId(params: {
+ async findByPostId(params: {
   postId: string;
   limit: number;
   cursor?: string;
@@ -131,14 +136,14 @@ export class CommentsRepository {
       postId,
       isDeleted: false,
     },
-    take: limit + 1,
+    orderBy: {
+      createdAt: 'desc',
+    },
+    take: limit,
     ...(cursor && {
       skip: 1,
       cursor: { id: cursor },
     }),
-    orderBy: {
-      createdAt: 'desc',
-    },
     include: {
       author: {
         select: {
@@ -149,6 +154,7 @@ export class CommentsRepository {
       },
     },
   });
- }
+}
+
 
 }

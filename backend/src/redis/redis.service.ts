@@ -385,4 +385,25 @@ async sismember(key: string, member: string): Promise<boolean> {
   await this.set(key, value, ttlSeconds);
   }
 
+  /**
+   * Delete multiple keys safely in batches
+   * - Does NOT expose redis client
+   * - Fail-soft (cache best-effort)
+   */
+  async delMany(keys: string[]): Promise<void> {
+    if (!this.client || keys.length === 0) return;
+
+    const BATCH_SIZE = 100;
+
+    try {
+      for (let i = 0; i < keys.length; i += BATCH_SIZE) {
+        const batch = keys.slice(i, i + BATCH_SIZE);
+        await this.client.del(...batch);
+      }
+    } catch (err: any) {
+      this.logger.error(
+        `Redis delMany error: ${err?.message ?? String(err)}`
+      );
+    }
+  }
 }

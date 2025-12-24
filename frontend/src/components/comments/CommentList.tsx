@@ -2,6 +2,7 @@
 
 import { useEffect, useCallback } from "react";
 import CommentItem from "./CommentItem";
+import CommentComposer from "./CommentComposer";
 import { usePostComments } from "@/hooks/usePostComments";
 
 type Props = {
@@ -20,10 +21,20 @@ export default function CommentList({ postId }: Props) {
     removeItem,
   } = usePostComments({ postId });
 
+  /**
+   * =========================
+   * Initial load
+   * =========================
+   */
   useEffect(() => {
     loadInitialComments();
   }, [loadInitialComments]);
 
+  /**
+   * =========================
+   * Sync after UPDATE (PUT)
+   * =========================
+   */
   const handleUpdated = useCallback(
     (u: {
       id: string;
@@ -40,6 +51,11 @@ export default function CommentList({ postId }: Props) {
     [updateItem],
   );
 
+  /**
+   * =========================
+   * Sync after DELETE
+   * =========================
+   */
   const handleDeleted = useCallback(
     (commentId: string) => {
       removeItem(commentId);
@@ -49,6 +65,20 @@ export default function CommentList({ postId }: Props) {
 
   return (
     <section className="mt-3" aria-label="Post comments list">
+      {/* =========================
+          Create comment (POST)
+         ========================= */}
+      <CommentComposer
+        postId={postId}
+        onCreated={(comment) => {
+          // เพิ่มคอมเมนต์ใหม่เข้า list แบบ controlled
+          updateItem(comment.id, () => comment);
+        }}
+      />
+
+      {/* =========================
+          Comment items
+         ========================= */}
       {items.map((c) => (
         <CommentItem
           key={c.id}
@@ -60,12 +90,21 @@ export default function CommentList({ postId }: Props) {
         />
       ))}
 
+      {/* =========================
+          Error
+         ========================= */}
       {error && (
-        <p className="mt-2 text-xs text-red-600">
+        <p
+          className="mt-2 text-xs text-red-600"
+          role="alert"
+        >
           {error}
         </p>
       )}
 
+      {/* =========================
+          Pagination
+         ========================= */}
       {hasMore && (
         <button
           type="button"
@@ -79,3 +118,4 @@ export default function CommentList({ postId }: Props) {
     </section>
   );
 }
+

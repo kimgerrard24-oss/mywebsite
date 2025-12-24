@@ -25,6 +25,8 @@ import { PostsModule } from './posts/posts.module';
 import { MediaModule } from './media/media.module';
 import { ScheduleModule } from '@nestjs/schedule';
 import { AlertModule } from './alert/alert.module';
+import { FollowsModule } from './follows/follows.module';
+import { FollowingModule } from './following/following.module';
 
 @Module({
   imports: [
@@ -39,6 +41,8 @@ import { AlertModule } from './alert/alert.module';
     
     ScheduleModule.forRoot(),
     AlertModule,
+    FollowsModule,
+    FollowingModule,
     SecretsModule,
     FirebaseAdminModule,
     PrismaModule,

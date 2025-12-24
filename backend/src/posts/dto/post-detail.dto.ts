@@ -56,13 +56,10 @@ export class PostDetailDto {
           }))
         : [],
 
-     
-      stats: {
-  likeCount: post.likeCount ?? 0,
-  commentCount: post.commentCount ?? 0,
+ stats: {
+  likeCount: post._count?.likes ?? 0,
+  commentCount: post._count?.comments ?? 0,
 },
-
-
       
       isLikedByViewer: viewerUserId
         ? Array.isArray(post.likes) && post.likes.length > 0

@@ -28,10 +28,6 @@ export class PostsRepository {
   cursor?: string;
   viewerUserId: string | null;
 
-  /**
-   * 🔥 OPTIONAL
-   * - ใช้สำหรับ video feed (TikTok-style)
-   */
   mediaType?: 'video';
 }) {
   const limit = params.limit ?? 20;
@@ -53,11 +49,6 @@ export class PostsRepository {
       isDeleted: false,
       isHidden: false,
 
-      /**
-       * ✅ ADDITION (FAIL-SAFE)
-       * - ถ้า mediaType !== 'video' → object นี้เป็น {}
-       * - Prisma จะ ignore
-       */
       ...(params.mediaType === 'video'
         ? {
             media: {
@@ -86,7 +77,6 @@ export class PostsRepository {
         },
       },
 
-      // ✅ FIX: ดึง media มาด้วย (เดิม)
       media: {
         select: {
           media: {

@@ -43,6 +43,8 @@ model User {
   sessions                  Session[]
   activities                UserActivity[]
   likedPosts                PostLike[]
+  following Follow[] @relation("UserFollowing")
+  followers Follow[] @relation("UserFollowers")
   @@unique([provider, providerId])
 }
 
@@ -254,3 +256,28 @@ enum MediaType {
   IMAGE
   VIDEO
 }
+
+model Follow {
+  followerId  String
+  followingId String
+  createdAt   DateTime @default(now())
+
+  /// User who performs the follow action
+  follower  User @relation("UserFollowing", fields: [followerId], references: [id], onDelete: Cascade)
+
+  /// User who is being followed
+  following User @relation("UserFollowers", fields: [followingId], references: [id], onDelete: Cascade)
+
+  /// Composite primary key (prevent duplicate follow)
+  @@id([followerId, followingId])
+
+  /// GET /followers/:userId (ORDER BY createdAt DESC)
+  @@index([followingId, createdAt])
+
+  /// GET /following/:userId (ORDER BY createdAt DESC)
+  @@index([followerId, createdAt])
+}
+
+
+
+

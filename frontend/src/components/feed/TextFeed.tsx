@@ -107,10 +107,26 @@ export default function TextFeed({
       aria-label="User feed"
     >
       {showComposer && (
-        <div className="mb-1 sm:mb-2">
-          <PostComposer onPostCreated={refreshFeed} />
-        </div>
-      )}
+  <article
+    className="
+      w-full
+      rounded-lg
+      sm:rounded-xl
+      border
+      border-gray-200
+      bg-white
+      p-3
+      sm:p-4
+      md:p-5
+      mb-1
+      sm:mb-2
+    "
+    aria-label="Create post"
+  >
+    <PostComposer onPostCreated={refreshFeed} />
+  </article>
+)}
+
 
       {showGreeting && (
         <article

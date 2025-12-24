@@ -3,56 +3,74 @@ import { CommentItemDto } from '../dto/comment-item.dto';
 
 export class CommentMapper {
   /**
-   * =========================================
-   * Map Comment → CommentItemDto
-   * =========================================
+   * =====================================================
+   * Map Comment Entity → CommentItemDto (viewer-aware)
+   * =====================================================
    */
   static toItemDto(
     comment: any,
     viewerUserId: string | null,
   ): CommentItemDto {
-    const isEdited =
-      comment.updatedAt &&
-      comment.createdAt &&
-      comment.updatedAt.getTime() >
-        comment.createdAt.getTime();
+    if (!comment) {
+      throw new Error('CommentMapper: comment is null');
+    }
+
+    if (!comment.author) {
+      throw new Error(
+        'CommentMapper: author relation is missing',
+      );
+    }
 
     return {
       id: comment.id,
       content: comment.content,
+
       createdAt: comment.createdAt.toISOString(),
 
-      // ✏️ edit
-      isEdited,
-      editedAt: isEdited
-        ? comment.updatedAt.toISOString()
+      /**
+       * ✏️ Edit metadata
+       * ใช้ field จาก DB โดยตรง (source of truth)
+       */
+      isEdited: Boolean(comment.isEdited),
+      editedAt: comment.editedAt
+        ? comment.editedAt.toISOString()
         : undefined,
 
-      // 👤 author
+      /**
+       * 👤 Author
+       */
       author: {
         id: comment.author.id,
-        displayName: comment.author.displayName ?? null,
-        avatarUrl: comment.author.avatarUrl ?? null,
+        displayName:
+          comment.author.displayName ?? null,
+        avatarUrl:
+          comment.author.avatarUrl ?? null,
       },
 
-      // 🔐 permission
+      /**
+       * 🔐 Permission (viewer-aware)
+       */
       isOwner:
-        !!viewerUserId &&
+        Boolean(viewerUserId) &&
         comment.authorId === viewerUserId,
     };
   }
 
   /**
-   * =========================================
-   * Map list (pagination-safe)
-   * =========================================
+   * =====================================================
+   * Map list of comments (pagination-safe)
+   * =====================================================
    */
   static toItemDtos(
     comments: any[],
     viewerUserId: string | null,
   ): CommentItemDto[] {
-    return comments.map((c) =>
-      this.toItemDto(c, viewerUserId),
+    if (!Array.isArray(comments)) {
+      return [];
+    }
+
+    return comments.map((comment) =>
+      this.toItemDto(comment, viewerUserId),
     );
   }
 }

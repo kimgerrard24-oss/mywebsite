@@ -1,6 +1,5 @@
 // backend/src/comments/comments.service.ts
-import { 
-  ForbiddenException, 
+import {  
   Injectable, 
   NotFoundException } from '@nestjs/common';
 import { CommentsRepository } from './comments.repository';
@@ -55,17 +54,16 @@ export class CommentsService {
 
   this.readpolicy.assertCanRead(post);
 
-  const rows = await this.repo.findComments({
+  // ✅ ใช้ method ที่ include author + filter isDeleted
+  const rows = await this.repo.findByPostId({
     postId: params.postId,
     limit: params.limit,
     cursor: params.cursor,
   });
 
-  const items = rows.map((comment) =>
-    CommentMapper.toItemDto(
-      comment,
-      params.viewerUserId,
-    ),
+  const items = CommentMapper.toItemDtos(
+    rows,
+    params.viewerUserId,
   );
 
   const nextCursor =
@@ -78,6 +76,7 @@ export class CommentsService {
     nextCursor,
   };
 }
+
 
    async updateComment(params: {
     commentId: string;
