@@ -1,8 +1,11 @@
 // frontend/src/types/following.ts
 
-export type FollowingUser = {
+export type Following = {
   userId: string;
   displayName: string | null;
   avatarUrl: string | null;
-  followedAt: string;
+
+  isFollowing: boolean; 
+  canFollow: boolean;   
 };
+

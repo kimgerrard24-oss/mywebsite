@@ -13,7 +13,6 @@ export function useDeleteComment() {
         setError(null);
 
         await deleteComment(commentId);
-
         return true;
       } catch (err) {
         console.error('Delete comment failed:', err);
@@ -26,9 +25,6 @@ export function useDeleteComment() {
     [],
   );
 
-  return {
-    submit,
-    loading,
-    error,
-  };
+  return { submit, loading, error };
 }
+

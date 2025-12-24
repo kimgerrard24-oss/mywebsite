@@ -1,15 +1,16 @@
 // backend/src/comments/comments.module.ts
 import { Module } from '@nestjs/common';
-import { CommentsController } from './comments.controller';
+import { PostCommentsController } from './comments.controller';
 import { CommentsService } from './comments.service';
 import { CommentsRepository } from './comments.repository';
 import { CommentsPolicy } from './policy/comment.policy';
 import { AuthModule } from '../auth/auth.module';
 import { CommentReadPolicy } from './policy/comment-read.policy';
+import { CommentsController } from './update-delete/comments-controller';
 
 @Module({
   imports: [ AuthModule ],
-  controllers: [CommentsController],
+  controllers: [ PostCommentsController, CommentsController ],
   providers: [
     CommentsService,
     CommentsRepository,

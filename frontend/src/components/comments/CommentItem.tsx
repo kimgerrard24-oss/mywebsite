@@ -7,6 +7,7 @@ import { useDeleteComment } from "@/hooks/useDeleteComment";
 
 type Props = {
   comment: Comment;
+  
 
   /**
    * ระบุจาก parent เท่านั้น

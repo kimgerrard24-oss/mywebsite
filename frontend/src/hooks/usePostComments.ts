@@ -1,6 +1,6 @@
 // frontend/src/hooks/usePostComments.ts
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   createPostComment,
   getPostComments,
@@ -29,8 +29,32 @@ export function usePostComments({ postId }: Params) {
   const [nextCursor, setNextCursor] =
     useState<string | null>(null);
 
+  /**
+   * 🔥 สำคัญมาก
+   * ป้องกัน initial load ยิงซ้ำ
+   */
+  const [initialized, setInitialized] =
+    useState(false);
+
+  /**
+   * =========================
+   * Reset เมื่อ postId เปลี่ยน
+   * =========================
+   */
+  useEffect(() => {
+    setItems([]);
+    setNextCursor(null);
+    setInitialized(false);
+    setError(null);
+  }, [postId]);
+
+  /**
+   * =========================
+   * Initial load (ยิงได้ครั้งเดียว)
+   * =========================
+   */
   const loadInitialComments = useCallback(async () => {
-    if (loading) return;
+    if (loading || initialized) return;
 
     setLoading(true);
     setError(null);
@@ -40,13 +64,19 @@ export function usePostComments({ postId }: Params) {
 
       setItems(res.items);
       setNextCursor(res.nextCursor);
+      setInitialized(true); // 🔥 mark ว่าโหลดแล้ว
     } catch {
       setError("Failed to load comments");
     } finally {
       setLoading(false);
     }
-  }, [postId, loading]);
+  }, [postId, loading, initialized]);
 
+  /**
+   * =========================
+   * Load more (cursor-based)
+   * =========================
+   */
   const loadMoreComments = useCallback(async () => {
     if (loading || !nextCursor) return;
 
@@ -76,7 +106,9 @@ export function usePostComments({ postId }: Params) {
    * =========================
    */
   const submitComment = useCallback(
-    async (content: string): Promise<Comment | null> => {
+    async (
+      content: string,
+    ): Promise<Comment | null> => {
       if (loading) return null;
 
       setLoading(true);
@@ -88,7 +120,7 @@ export function usePostComments({ postId }: Params) {
           { content },
         );
 
-        // ✅ optimistic update
+        // optimistic update
         setItems((prev) => [comment, ...prev]);
 
         return comment;
@@ -104,7 +136,7 @@ export function usePostComments({ postId }: Params) {
 
   /**
    * =========================
-   * 🆕 PUT /comments/:id (state sync)
+   * PUT /comments/:id (state sync)
    * =========================
    */
   const updateItem = useCallback(
@@ -125,7 +157,7 @@ export function usePostComments({ postId }: Params) {
 
   /**
    * =========================
-   * 🆕 DELETE /comments/:id (state sync)
+   * DELETE /comments/:id (state sync)
    * =========================
    */
   const removeItem = useCallback(
@@ -152,7 +184,7 @@ export function usePostComments({ postId }: Params) {
     loadMoreComments,
     hasMore: Boolean(nextCursor),
 
-    // 🆕 controlled mutators
+    // controlled mutators
     updateItem,
     removeItem,
 

@@ -65,17 +65,7 @@ export default function CommentList({ postId }: Props) {
 
   return (
     <section className="mt-3" aria-label="Post comments list">
-      {/* =========================
-          Create comment (POST)
-         ========================= */}
-      <CommentComposer
-        postId={postId}
-        onCreated={(comment) => {
-          // เพิ่มคอมเมนต์ใหม่เข้า list แบบ controlled
-          updateItem(comment.id, () => comment);
-        }}
-      />
-
+      
       {/* =========================
           Comment items
          ========================= */}

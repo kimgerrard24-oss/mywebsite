@@ -23,7 +23,6 @@ export function useUpdateComment() {
         setError(null);
 
         const res = await updateComment(commentId, content);
-
         return res;
       } catch (err) {
         console.error('Update comment failed:', err);
@@ -36,9 +35,6 @@ export function useUpdateComment() {
     [],
   );
 
-  return {
-    submit,
-    loading,
-    error,
-  };
+  return { submit, loading, error };
 }
+

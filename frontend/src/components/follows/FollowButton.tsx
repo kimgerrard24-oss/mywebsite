@@ -12,13 +12,19 @@ export default function FollowButton({
   userId,
   isFollowing,
 }: Props) {
-  const { follow, loading, error } = useFollowUser({
+  const {
+    isFollowing: following,
+    follow,
+    loading,
+    error,
+  } = useFollowUser({
     userId,
     initialIsFollowing: isFollowing,
   });
 
   function handleClick(e: MouseEvent<HTMLButtonElement>) {
     e.preventDefault();
+    if (loading) return;
     follow();
   }
 
@@ -26,22 +32,29 @@ export default function FollowButton({
     <button
       type="button"
       onClick={handleClick}
-      disabled={loading || isFollowing}
-      aria-pressed={isFollowing}
+      disabled={loading}
+      aria-pressed={following}
       aria-busy={loading}
       className={`
         inline-flex items-center justify-center
         rounded-full px-4 py-1.5 text-sm font-medium
         transition
         ${
-          isFollowing
-            ? 'bg-gray-200 text-gray-700 cursor-default'
+          following
+            ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
             : 'bg-blue-600 text-white hover:bg-blue-700'
         }
         disabled:opacity-60
       `}
     >
-      {isFollowing ? 'Following' : loading ? 'Following…' : 'Follow'}
+      {loading
+        ? following
+          ? 'Unfollowing…'
+          : 'Following…'
+        : following
+          ? 'Following'
+          : 'Follow'}
+
       {error && (
         <span className="sr-only">
           Follow error: {error}

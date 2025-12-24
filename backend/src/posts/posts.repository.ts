@@ -96,7 +96,7 @@ export class PostsRepository {
 }
 
 
- async findPostById(
+async findPostById(
   postId: string,
   viewerUserId?: string,
 ) {
@@ -149,11 +149,10 @@ export class PostsRepository {
             where: { userId: viewerUserId },
             select: { id: true },
           }
-        : false,
+        : undefined,
     },
   });
-}
-
+ }
 
   async findById(postId: string): Promise<{
     id: string;

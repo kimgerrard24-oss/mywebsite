@@ -10,14 +10,12 @@ export async function createPostComment(
     `/posts/${postId}/comments`,
     payload,
     {
-      withCredentials: true
-
+      withCredentials: true,
     }
   );
 
   return res.data;
 }
-
 
 export async function getPostComments(params: {
   postId: string;
@@ -56,12 +54,13 @@ export async function updateComment(
     `/comments/${commentId}`,
     { content },
     {
-      withCredentials: true, // ✅ Cookie-based auth
+      withCredentials: true,
     },
   );
 
   return res.data;
 }
+
 
 export async function deleteComment(
   commentId: string,
@@ -69,9 +68,10 @@ export async function deleteComment(
   const res = await api.delete(
     `/comments/${commentId}`,
     {
-      withCredentials: true, // ✅ Cookie-based auth
+      withCredentials: true,
     },
   );
 
   return res.data;
 }
+

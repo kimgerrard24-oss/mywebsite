@@ -1,33 +1,34 @@
-// backend/src/comments/comment.controller.ts
 import {
   Body,
   Controller,
-  Param,
-  Delete,
   Get,
-  Put,
-  Query,
   Post,
+  Param,
+  Query,
   UseGuards,
 } from '@nestjs/common';
 import { AccessTokenCookieAuthGuard } from '../auth/guards/access-token-cookie.guard';
-import { CreateCommentDto } from './dto/create-comment.dto';
 import { CommentsService } from './comments.service';
-import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { CreateCommentDto } from './dto/create-comment.dto';
 import { GetPostCommentsQueryDto } from './dto/get-post-comments.query';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { SessionUser } from '../auth/services/validate-session.service';
-import { UpdateCommentDto } from './dto/update-comment.dto';
 
-@Controller('posts/:id/comments')
-export class CommentsController {
+@Controller('posts/:postId/comments')
+export class PostCommentsController {
   constructor(
     private readonly service: CommentsService,
   ) {}
 
+  /**
+   * =========================
+   * POST /posts/:postId/comments
+   * =========================
+   */
   @Post()
   @UseGuards(AccessTokenCookieAuthGuard)
   async createComment(
-    @Param('id') postId: string,
+    @Param('postId') postId: string,
     @Body() dto: CreateCommentDto,
     @CurrentUser() user: { userId: string; jti: string },
   ) {
@@ -38,10 +39,15 @@ export class CommentsController {
     });
   }
 
+  /**
+   * =========================
+   * GET /posts/:postId/comments
+   * =========================
+   */
   @Get()
   @UseGuards(AccessTokenCookieAuthGuard)
   async getPostComments(
-    @Param('id') postId: string,
+    @Param('postId') postId: string,
     @Query() query: GetPostCommentsQueryDto,
     @CurrentUser() user: SessionUser | null,
   ) {
@@ -52,34 +58,4 @@ export class CommentsController {
       cursor: query.cursor,
     });
   }
-
-  @Put(':id')
-@UseGuards(AccessTokenCookieAuthGuard)
-async updateComment(
-  @Param('id') commentId: string,
-  @Body() dto: UpdateCommentDto,
-  @CurrentUser() user: { userId: string },
-) {
-  return this.service.updateComment({
-    commentId,
-    content: dto.content,
-    viewerUserId: user.userId,
-  });
 }
-
-@Delete(':id')
-@UseGuards(AccessTokenCookieAuthGuard)
-async deleteComment(
-  @Param('id') commentId: string,
-  @CurrentUser() user: { userId: string },
-) {
-  await this.service.deleteComment({
-    commentId,
-    viewerUserId: user.userId,
-  });
-
-  return { success: true };
-}
-
-}
-
