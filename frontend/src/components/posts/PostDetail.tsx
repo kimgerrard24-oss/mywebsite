@@ -16,11 +16,6 @@ type Props = {
 export default function PostDetail({ post }: Props) {
   const router = useRouter();
 
-  /**
-   * ============================
-   * Likes (GET /posts/:id/likes)
-   * ============================
-   */
   const {
     likeCount,
     likes,
