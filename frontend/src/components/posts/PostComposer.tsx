@@ -120,23 +120,21 @@ export default function PostComposer({
   ]);
 
 return (
-  <section
+  <article
     aria-label="Create post"
-    className="
-      w-full
-      bg-white
-      border
-      rounded-md
-      sm:rounded-lg
-      px-1.5
-      sm:px-2
-      md:px-3
-      py-1
-      sm:py-1.5
-      shadow-sm
-      space-y-1
-      sm:space-y-1.5
-    "
+     className="
+    w-full
+    rounded-lg
+    sm:rounded-xl
+    border
+    border-gray-200
+    bg-white
+    p-3
+    sm:p-4
+    md:p-5
+    mb-3
+    space-y-2
+  "
   >
     {/* ===== Textarea ===== */}
     <label htmlFor="composer-content" className="sr-only">
@@ -262,7 +260,7 @@ return (
         {error}
       </p>
     )}
-  </section>
+  </article>
  );
 
 }

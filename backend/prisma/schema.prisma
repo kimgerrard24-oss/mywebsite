@@ -207,15 +207,23 @@ model Comment {
   id        String    @id @default(uuid())
   postId    String
   authorId  String
+
   content   String
+
+  isEdited  Boolean   @default(false)
+  editedAt  DateTime?
+
   isDeleted Boolean   @default(false)
   deletedAt DateTime?
+
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
-  author    User      @relation(fields: [authorId], references: [id])
-  post      Post      @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  author User @relation(fields: [authorId], references: [id])
+  post   Post @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   @@index([postId, createdAt])
+  @@index([authorId])
 }
 
 model Tag {

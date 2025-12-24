@@ -3,7 +3,9 @@ import {
   Body,
   Controller,
   Param,
+  Delete,
   Get,
+  Put,
   Query,
   Post,
   UseGuards,
@@ -14,6 +16,7 @@ import { CommentsService } from './comments.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { GetPostCommentsQueryDto } from './dto/get-post-comments.query';
 import type { SessionUser } from '../auth/services/validate-session.service';
+import { UpdateCommentDto } from './dto/update-comment.dto';
 
 @Controller('posts/:id/comments')
 export class CommentsController {
@@ -49,5 +52,34 @@ export class CommentsController {
       cursor: query.cursor,
     });
   }
+
+  @Put(':id')
+@UseGuards(AccessTokenCookieAuthGuard)
+async updateComment(
+  @Param('id') commentId: string,
+  @Body() dto: UpdateCommentDto,
+  @CurrentUser() user: { userId: string },
+) {
+  return this.service.updateComment({
+    commentId,
+    content: dto.content,
+    viewerUserId: user.userId,
+  });
+}
+
+@Delete(':id')
+@UseGuards(AccessTokenCookieAuthGuard)
+async deleteComment(
+  @Param('id') commentId: string,
+  @CurrentUser() user: { userId: string },
+) {
+  await this.service.deleteComment({
+    commentId,
+    viewerUserId: user.userId,
+  });
+
+  return { success: true };
+}
+
 }
 

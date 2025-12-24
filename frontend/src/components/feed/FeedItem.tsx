@@ -11,9 +11,10 @@ import CommentList from "@/components/comments/CommentList";
 
 type Props = {
   post: PostFeedItem;
+  onDeleted?: (postId: string) => void;
 };
 
-export default function FeedItem({ post }: Props) {
+export default function FeedItem({ post, onDeleted }: Props) {
   const profileHref = post.canDelete
     ? "/profile"
     : `/users/${post.author.id}`;
@@ -137,6 +138,9 @@ export default function FeedItem({ post }: Props) {
           canDelete={post.canDelete}
           canEdit={post.canDelete}
           canReport={!post.canDelete}
+          onDeleted={() => {
+          onDeleted?.(post.id);
+           }}
         />
       </header>
 
@@ -203,17 +207,20 @@ export default function FeedItem({ post }: Props) {
                   "
                 >
                   <video
-                    src={m.url}
-                    controls
-                    preload="metadata"
-                    className="
-                      absolute
-                      inset-0
-                      h-full
-                      w-full
-                      object-contain
-                    "
-                  />
+  src={m.url}
+  controls
+  preload="metadata"
+  playsInline
+  muted={false}
+  className="
+    absolute
+    inset-0
+    h-full
+    w-full
+    object-contain
+  "
+/>
+
                 </div>
               )}
             </figure>
@@ -262,6 +269,8 @@ export default function FeedItem({ post }: Props) {
       onCreated={() => {
         // fail-soft update
         setCommentCount((c) => c + 1);
+
+        setShowCommentBox(false);
       }}
     />
      {/* 2️⃣ รายการคอมเมนต์ (GET /posts/:id/comments) */}

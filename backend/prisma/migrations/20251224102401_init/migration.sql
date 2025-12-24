@@ -181,6 +181,8 @@ CREATE TABLE "Comment" (
     "postId" TEXT NOT NULL,
     "authorId" TEXT NOT NULL,
     "content" TEXT NOT NULL,
+    "isEdited" BOOLEAN NOT NULL DEFAULT false,
+    "editedAt" TIMESTAMP(3),
     "isDeleted" BOOLEAN NOT NULL DEFAULT false,
     "deletedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -274,6 +276,9 @@ CREATE INDEX "Media_cleanupAt_idx" ON "Media"("cleanupAt");
 
 -- CreateIndex
 CREATE INDEX "Comment_postId_createdAt_idx" ON "Comment"("postId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "Comment_authorId_idx" ON "Comment"("authorId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Tag_name_key" ON "Tag"("name");

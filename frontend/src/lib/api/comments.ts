@@ -42,3 +42,36 @@ export async function getPostComments(params: {
 
   return res.data;
 }
+
+export async function updateComment(
+  commentId: string,
+  content: string,
+): Promise<{
+  id: string;
+  content: string;
+  isEdited: boolean;
+  editedAt: string;
+}> {
+  const res = await api.put(
+    `/comments/${commentId}`,
+    { content },
+    {
+      withCredentials: true, // ✅ Cookie-based auth
+    },
+  );
+
+  return res.data;
+}
+
+export async function deleteComment(
+  commentId: string,
+): Promise<{ success: true }> {
+  const res = await api.delete(
+    `/comments/${commentId}`,
+    {
+      withCredentials: true, // ✅ Cookie-based auth
+    },
+  );
+
+  return res.data;
+}

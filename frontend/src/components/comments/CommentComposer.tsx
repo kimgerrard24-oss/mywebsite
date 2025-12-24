@@ -26,28 +26,48 @@ export default function CommentComposer({
   }
 
   return (
-    <form
-      onSubmit={handleSubmit}
-      className="mt-3 flex gap-2"
-      aria-label="Add a comment"
-    >
-      <textarea
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
-        rows={2}
-        maxLength={1000}
-        required
-        className="flex-1 resize-none rounded-md border px-3 py-2 text-sm focus:outline-none focus:ring"
-        placeholder="Write a comment..."
-      />
+ <form
+  onSubmit={handleSubmit}
+  className="mt-2 flex gap-1.5"
+  aria-label="Add a comment"
+>
+  <textarea
+    value={content}
+    onChange={(e) => setContent(e.target.value)}
+    rows={1}
+    maxLength={1000}
+    required
+    className="
+      flex-1
+      resize-none
+      rounded-md
+      border
+      px-2
+      py-1
+      text-xs
+      leading-snug
+      focus:outline-none
+      focus:ring
+    "
+    placeholder="Write a comment..."
+  />
 
-      <button
-        type="submit"
-        disabled={loading}
-        className="rounded-md bg-black px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
-      >
-        Post
-      </button>
-    </form>
+  <button
+    type="submit"
+    disabled={loading}
+    className="
+      rounded-md
+      bg-black
+      px-2.5
+      py-1
+      text-xs
+      font-medium
+      text-white
+      disabled:opacity-50
+    "
+  >
+    Post
+  </button>
+</form>
   );
 }

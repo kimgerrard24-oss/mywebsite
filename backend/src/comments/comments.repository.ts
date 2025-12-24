@@ -1,6 +1,7 @@
 // backend/src/comments/comments.repository.ts
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { CommentDeletePolicy } from './policy/comment-delete.policy';
 
 @Injectable()
 export class CommentsRepository {
@@ -80,4 +81,74 @@ export class CommentsRepository {
         : {}),
     });
   }
+
+  async findById(commentId: string) {
+    return this.prisma.comment.findUnique({
+      where: { id: commentId },
+      select: {
+        id: true,
+        authorId: true,
+      },
+    });
+  }
+
+  async updateContent(params: {
+  commentId: string;
+  content: string;
+}) {
+  return this.prisma.comment.update({
+    where: { id: params.commentId },
+    data: {
+      content: params.content,
+      isEdited: true,
+      editedAt: new Date(),
+    },
+    select: {
+      id: true,
+      content: true,
+      editedAt: true, 
+    },
+  });
+}
+
+
+   async deleteById(commentId: string) {
+    await this.prisma.comment.delete({
+      where: { id: commentId },
+    });
+  }
+  
+
+  async findByPostId(params: {
+  postId: string;
+  limit: number;
+  cursor?: string;
+}) {
+  const { postId, limit, cursor } = params;
+
+  return this.prisma.comment.findMany({
+    where: {
+      postId,
+      isDeleted: false,
+    },
+    take: limit + 1,
+    ...(cursor && {
+      skip: 1,
+      cursor: { id: cursor },
+    }),
+    orderBy: {
+      createdAt: 'desc',
+    },
+    include: {
+      author: {
+        select: {
+          id: true,
+          displayName: true,
+          avatarUrl: true,
+        },
+      },
+    },
+  });
+ }
+
 }

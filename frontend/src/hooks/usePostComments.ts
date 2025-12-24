@@ -1,7 +1,10 @@
 // frontend/src/hooks/usePostComments.ts
 
 import { useCallback, useState } from "react";
-import { createPostComment, getPostComments } from "@/lib/api/comments";
+import {
+  createPostComment,
+  getPostComments,
+} from "@/lib/api/comments";
 import type { Comment } from "@/types/comment";
 
 type Params = {
@@ -23,7 +26,8 @@ export function usePostComments({ postId }: Params) {
    * =========================
    */
   const [items, setItems] = useState<Comment[]>([]);
-  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [nextCursor, setNextCursor] =
+    useState<string | null>(null);
 
   const loadInitialComments = useCallback(async () => {
     if (loading) return;
@@ -33,6 +37,7 @@ export function usePostComments({ postId }: Params) {
 
     try {
       const res = await getPostComments({ postId });
+
       setItems(res.items);
       setNextCursor(res.nextCursor);
     } catch {
@@ -46,16 +51,20 @@ export function usePostComments({ postId }: Params) {
     if (loading || !nextCursor) return;
 
     setLoading(true);
+
     try {
       const res = await getPostComments({
         postId,
         cursor: nextCursor,
       });
 
-      setItems((prev) => [...prev, ...res.items]);
+      setItems((prev) => [
+        ...prev,
+        ...res.items,
+      ]);
       setNextCursor(res.nextCursor);
     } catch {
-      // fail-soft: ไม่ throw
+      // fail-soft
     } finally {
       setLoading(false);
     }
@@ -74,10 +83,12 @@ export function usePostComments({ postId }: Params) {
       setError(null);
 
       try {
-        const comment = await createPostComment(postId, { content });
+        const comment = await createPostComment(
+          postId,
+          { content },
+        );
 
-        // ✅ optimistic แต่ปลอดภัย
-        // backend เป็น authority อยู่แล้ว
+        // ✅ optimistic update
         setItems((prev) => [comment, ...prev]);
 
         return comment;
@@ -88,7 +99,42 @@ export function usePostComments({ postId }: Params) {
         setLoading(false);
       }
     },
-    [postId, loading]
+    [postId, loading],
+  );
+
+  /**
+   * =========================
+   * 🆕 PUT /comments/:id (state sync)
+   * =========================
+   */
+  const updateItem = useCallback(
+    (
+      commentId: string,
+      updater: (prev: Comment) => Comment,
+    ) => {
+      setItems((prev) =>
+        prev.map((c) =>
+          c.id === commentId
+            ? updater(c)
+            : c,
+        ),
+      );
+    },
+    [],
+  );
+
+  /**
+   * =========================
+   * 🆕 DELETE /comments/:id (state sync)
+   * =========================
+   */
+  const removeItem = useCallback(
+    (commentId: string) => {
+      setItems((prev) =>
+        prev.filter((c) => c.id !== commentId),
+      );
+    },
+    [],
   );
 
   /**
@@ -105,6 +151,10 @@ export function usePostComments({ postId }: Params) {
     loadInitialComments,
     loadMoreComments,
     hasMore: Boolean(nextCursor),
+
+    // 🆕 controlled mutators
+    updateItem,
+    removeItem,
 
     // shared
     loading,

@@ -58,9 +58,10 @@ export class PostDetailDto {
 
      
       stats: {
-        likeCount: post._count?.likes ?? 0,
-        commentCount: post._count?.comments ?? 0,
-      },
+  likeCount: post.likeCount ?? 0,
+  commentCount: post.commentCount ?? 0,
+},
+
 
       
       isLikedByViewer: viewerUserId

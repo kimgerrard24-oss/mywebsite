@@ -153,6 +153,7 @@ export default function TextFeed({
       <FeedItem
         key={post.id}
         post={post}
+        onDeleted={handlePostDeleted}
       />
     ))}
   </section>
