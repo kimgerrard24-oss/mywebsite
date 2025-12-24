@@ -2,10 +2,10 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { getFollowing } from '@/lib/api/following';
-import type { FollowingUser } from '@/types/following';
+import type { Following } from '@/types/following';
 
 type State = {
-  items: FollowingUser[];
+  items: Following[];
   loading: boolean;
   error: string | null;
   nextCursor: string | null;
@@ -39,8 +39,17 @@ export function useFollowing({
         limit: pageSize,
       });
 
+      // 🔑 map API response → Following domain model
+      const mappedItems: Following[] = res.items.map((u) => ({
+        userId: u.userId,
+        displayName: u.displayName ?? null,
+        avatarUrl: u.avatarUrl ?? null,
+        isFollowing: true,
+        canFollow: false,
+      }));
+
       setState((s) => ({
-        items: [...s.items, ...res.items],
+        items: [...s.items, ...mappedItems],
         nextCursor: res.nextCursor,
         loading: false,
         error: null,
@@ -57,7 +66,7 @@ export function useFollowing({
     }
   }, [userId, pageSize, state.loading, state.nextCursor]);
 
-  // initial load / reset when userId changes
+  // reset & initial load when userId changes
   useEffect(() => {
     setState({
       items: [],
@@ -65,7 +74,9 @@ export function useFollowing({
       error: null,
       nextCursor: null,
     });
+
     loadMore();
+    // intentionally omit loadMore from deps to avoid loop
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userId]);
 
