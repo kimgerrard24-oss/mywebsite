@@ -255,7 +255,7 @@ return (
   aria-label="Sign in with Google"
 >
   <img
-    src="/images/icons/signin-assets/Web (mobile + desktop)/svg/neutral/web_neutral_rd_SI.svg"
+    src="/images/icons/google.svg"
     alt="Sign in with Google"
     className="h-10"
   />

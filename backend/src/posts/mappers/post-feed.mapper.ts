@@ -19,8 +19,11 @@ export class PostFeedMapper {
         id: author?.id ?? 'unknown',
         displayName: author?.displayName ?? null,
         avatarUrl: author?.avatarUrl ?? null,
-        isFollowing: row.isFollowingByViewer ?? false,
 
+        // ✅ FIX: อ่านจาก followers ที่ query มา
+        isFollowing:
+          Array.isArray(author?.followers) &&
+          author.followers.length > 0,
       },
 
       media: Array.isArray(row.media)
@@ -32,13 +35,11 @@ export class PostFeedMapper {
                 : 'video',
 
             url: buildCdnUrl(pm.media.objectKey),
-
             objectKey: pm.media.objectKey,
           }))
         : [],
 
-          isSelf: viewerUserId === author.id,
-    
+      isSelf: viewerUserId === author?.id,
 
       stats: {
         likeCount: row.likeCount,

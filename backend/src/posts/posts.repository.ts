@@ -23,11 +23,10 @@ export class PostsRepository {
     });
   }
 
- async findPublicFeed(params: {
+async findPublicFeed(params: {
   limit?: number;
   cursor?: string;
   viewerUserId: string | null;
-
   mediaType?: 'video';
 }) {
   const limit = params.limit ?? 20;
@@ -74,6 +73,15 @@ export class PostsRepository {
           id: true,
           displayName: true,
           avatarUrl: true,
+
+          followers: params.viewerUserId
+            ? {
+                where: {
+                  followerId: params.viewerUserId,
+                },
+                take: 1,
+              }
+            : false,
         },
       },
 
@@ -93,7 +101,7 @@ export class PostsRepository {
       },
     },
   });
-}
+ }
 
 
 async findPostById(
