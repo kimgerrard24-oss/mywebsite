@@ -1,7 +1,7 @@
 // frontend/components/feed/FeedList.tsx
 
-import type { PostFeedItem } from '@/types/post-feed';
-import FeedItem from './FeedItem';
+import type { PostFeedItem } from "@/types/post-feed";
+import FeedItem from "./FeedItem";
 
 type Props = {
   items: PostFeedItem[];
@@ -13,6 +13,9 @@ type Props = {
   /** 🔔 follow events */
   onFollowSuccess: (userId: string) => void;
   onUnfollowSuccess: (userId: string) => void;
+
+  /** 🗑 optional delete handler (pass-through) */
+  onPostDeleted?: (postId: string) => void;
 };
 
 export default function FeedList({
@@ -21,6 +24,7 @@ export default function FeedList({
   isFollowingAuthor,
   onFollowSuccess,
   onUnfollowSuccess,
+  onPostDeleted,
 }: Props) {
   if (items.length === 0) {
     return (
@@ -59,6 +63,7 @@ export default function FeedList({
           isFollowingAuthor={isFollowingAuthor(post.author.id)}
           onFollowSuccess={onFollowSuccess}
           onUnfollowSuccess={onUnfollowSuccess}
+          onDeleted={onPostDeleted}
         />
       ))}
     </section>

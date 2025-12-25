@@ -1,10 +1,11 @@
 // frontend/pages/tags/[tag].tsx
 
-import type { GetServerSideProps } from 'next';
-import Head from 'next/head';
-import FeedList from '@/components/feed/FeedList';
-import type { PostFeedItem } from '@/types/post-feed';
-import { getPostsByTag } from '@/lib/api/posts';
+import type { GetServerSideProps } from "next";
+import Head from "next/head";
+import FeedList from "@/components/feed/FeedList";
+import type { PostFeedItem } from "@/types/post-feed";
+import { getPostsByTag } from "@/lib/api/posts";
+import { useCallback, useMemo } from "react";
 
 type Props = {
   tag: string;
@@ -12,6 +13,25 @@ type Props = {
 };
 
 export default function TagFeedPage({ tag, items }: Props) {
+  /**
+   * =================================================
+   * FOLLOW HANDLERS (read-only feed)
+   * =================================================
+   * Tag page ไม่ต้อง sync follow state แบบ realtime
+   * ใช้ snapshot จาก backend อย่างเดียว
+   */
+  const isFollowingAuthor = useCallback(
+    (userId: string) => {
+      const post = items.find(
+        (p) => p.author?.id === userId
+      );
+      return Boolean(post?.author?.isFollowing);
+    },
+    [items]
+  );
+
+  const noop = useCallback(() => {}, []);
+
   return (
     <>
       <Head>
@@ -30,6 +50,9 @@ export default function TagFeedPage({ tag, items }: Props) {
         <FeedList
           items={items}
           emptyText="ยังไม่มีโพสต์ในแฮชแท็กนี้"
+          isFollowingAuthor={isFollowingAuthor}
+          onFollowSuccess={noop}
+          onUnfollowSuccess={noop}
         />
       </main>
     </>
@@ -40,7 +63,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async ({
   params,
   req,
 }) => {
-  const tag = String(params?.tag ?? '').trim();
+  const tag = String(params?.tag ?? "").trim();
 
   if (!tag) {
     return { notFound: true };
