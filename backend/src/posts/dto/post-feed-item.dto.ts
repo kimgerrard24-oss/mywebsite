@@ -8,6 +8,7 @@ export class PostFeedItemDto {
     id: string;
     displayName: string | null;
     avatarUrl: string | null;
+    isFollowing: boolean;
   };
 
   media!: {

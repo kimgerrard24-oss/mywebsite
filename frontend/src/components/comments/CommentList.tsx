@@ -7,13 +7,13 @@ import { usePostComments } from "@/hooks/usePostComments";
 type Props = {
   postId: string;
 
-  /** 🔔 notify parent when comment count changes */
-  onCountChange?: (count: number) => void;
+  // ✅ แจ้ง parent เมื่อมีการลบคอมเมนต์สำเร็จ
+  onDeleted?: () => void;
 };
 
 export default function CommentList({
   postId,
-  onCountChange,
+  onDeleted,
 }: Props) {
   const {
     items,
@@ -37,15 +37,6 @@ export default function CommentList({
 
   /**
    * =========================
-   * Sync comment count to parent
-   * =========================
-   */
-  useEffect(() => {
-    onCountChange?.(items.length);
-  }, [items.length, onCountChange]);
-
-  /**
-   * =========================
    * Sync after UPDATE (PUT)
    * =========================
    */
@@ -62,7 +53,7 @@ export default function CommentList({
         editedAt: u.editedAt,
       }));
     },
-    [updateItem]
+    [updateItem],
   );
 
   /**
@@ -74,10 +65,10 @@ export default function CommentList({
     (commentId: string) => {
       removeItem(commentId);
 
-      // 🔔 notify parent immediately
-      onCountChange?.(items.length - 1);
+      // ✅ แจ้ง parent ให้ลด commentCount
+      onDeleted?.();
     },
-    [removeItem, onCountChange, items.length]
+    [removeItem, onDeleted],
   );
 
   return (

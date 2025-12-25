@@ -113,6 +113,10 @@ async findPostById(
 
       createdAt: true,
 
+      // ✅ FIX: ใช้ counter จาก Post table โดยตรง
+      likeCount: true,
+      commentCount: true,
+
       author: {
         select: {
           id: true,
@@ -137,13 +141,6 @@ async findPostById(
         },
       },
 
-      _count: {
-        select: {
-          likes: true,
-          comments: true,
-        },
-      },
-
       likes: viewerUserId
         ? {
             where: { userId: viewerUserId },
@@ -152,7 +149,8 @@ async findPostById(
         : undefined,
     },
   });
- }
+}
+
 
   async findById(postId: string): Promise<{
     id: string;

@@ -46,7 +46,7 @@ export default function FeedPage({
     router.replace("/");
   };
 
-return (
+ return (
   <>
     {/* ================= SEO ================= */}
     <Head>
@@ -64,6 +64,7 @@ return (
         flex-col
         bg-gray-50
         text-gray-900
+        overflow-hidden
       "
     >
       {/* ================= Header (LOCKED) ================= */}
@@ -114,14 +115,36 @@ return (
           </Link>
 
           {/* ===== Center: Search (GLOBAL) ===== */}
-          <div className="flex-1 flex justify-center px-2">
-            <div className="hidden w-full max-w-md md:block">
+          <div
+            className="
+              flex-1
+              flex
+              justify-center
+              px-2
+            "
+          >
+            <div
+              className="
+                hidden
+                w-full
+                max-w-md
+                md:block
+              "
+            >
               <UserSearchPanel variant="navbar" />
             </div>
           </div>
 
           {/* ===== Right: Actions ===== */}
-          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
+          <div
+            className="
+              flex
+              shrink-0
+              items-center
+              gap-2
+              sm:gap-3
+            "
+          >
             <LanguageSwitcher currentLang={lang} />
 
             <Link
@@ -135,7 +158,7 @@ return (
               "
             >
               <img
-                src={user?.avatarUrl || "/images/default-avatar.png"}
+                src={user?.avatarUrl || '/images/default-avatar.png'}
                 alt="User avatar"
                 className="
                   h-8
@@ -177,7 +200,12 @@ return (
 
       {/* ===== Mobile Search ===== */}
       <section
-        className="px-3 pt-3 sm:px-4 md:hidden"
+        className="
+          px-3
+          pt-3
+          sm:px-4
+          md:hidden
+        "
         aria-label="Search users"
       >
         <UserSearchPanel variant="page" />
@@ -185,19 +213,30 @@ return (
 
       {/* ===== Mobile Feed Mode Switcher ===== */}
       <section
-        className="px-3 pt-3 sm:px-4 lg:hidden"
+        className="
+          px-3
+          pt-3
+          sm:px-4
+          lg:hidden
+        "
         aria-label="Feed mode switcher"
       >
         <FeedModeSwitcher onChange={setFeedMode} />
       </section>
 
-      {/* ================= Feeds Area ================= */}
-      <section aria-label="Feeds">
+      {/* ================= Feeds Area (SCROLL SEPARATE) ================= */}
+      <section
+        className="
+          flex-1
+          overflow-hidden
+        "
+        aria-label="Feeds"
+      >
         <div
           className="
             grid
+            h-[calc(100vh-56px)]
             grid-cols-1
-            lg:h-[calc(100vh-56px)]
             lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]
           "
         >
@@ -209,15 +248,29 @@ return (
               bg-gray-50
               flex
               flex-col
-              ${feedMode === "video" ? "hidden" : "flex"}
+              h-full
+              overflow-y-auto
+              ${feedMode === 'video' ? 'hidden' : 'flex'}
               lg:flex
-              lg:h-full
-              lg:overflow-y-auto
             `}
           >
             {/* Composer */}
-            <div className="bg-gray-50 border-b border-gray-100">
-              <div className="mx-auto max-w-3xl px-3 py-2 sm:px-4">
+            <div
+              className="
+                bg-gray-50
+                border-b
+                border-gray-100
+              "
+            >
+              <div
+                className="
+                  mx-auto
+                  max-w-3xl
+                  px-3
+                  py-2
+                  sm:px-4
+                "
+              >
                 <PostComposer
                   onPostCreated={() =>
                     refreshFeedRef.current?.()
@@ -242,17 +295,14 @@ return (
           <aside
             aria-label="Video feed"
             className={`
+              h-full
+              overflow-y-auto
               bg-black
-              ${feedMode === "text" ? "hidden" : "block"}
+              ${feedMode === 'text' ? 'hidden' : 'block'}
               lg:block
-              lg:h-full
-              lg:overflow-y-auto
             `}
           >
-            {/* 🔥 render เฉพาะตอนที่ใช้งานจริง */}
-            {(feedMode !== "text" || typeof window === "undefined") && (
-              <VideoFeed />
-            )}
+            <VideoFeed />
           </aside>
         </div>
       </section>

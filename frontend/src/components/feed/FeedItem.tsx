@@ -36,6 +36,10 @@ export default function FeedItem({ post, onDeleted }: Props) {
   post.stats.commentCount
   );
 
+  const [isFollowing, setIsFollowing] = useState(
+  post.author.isFollowing
+);
+
   return (
     <article
       className="
@@ -137,10 +141,11 @@ export default function FeedItem({ post, onDeleted }: Props) {
         {/* ขวา: Follow + PostAction */}
   <div className="flex items-center gap-2">
     {/* Follow (render only) */}
-    <FollowButton
-      userId={post.author.id}
-      isFollowing={post.author.isFollowing}
-    />
+   <FollowButton
+  userId={post.author.id}
+  isFollowing={isFollowing}
+  onFollowed={() => setIsFollowing(true)}
+/>
 
     <PostActionMenu
       postId={post.id}
@@ -284,7 +289,13 @@ export default function FeedItem({ post, onDeleted }: Props) {
       }}
     />
      {/* 2️⃣ รายการคอมเมนต์ (GET /posts/:id/comments) */}
-    <CommentList postId={post.id} />
+    <CommentList
+  postId={post.id}
+  onDeleted={() => {
+    setCommentCount((c) => Math.max(0, c - 1));
+  }}
+/>
+
   </section>
   )}
 

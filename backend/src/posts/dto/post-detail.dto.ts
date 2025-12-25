@@ -20,13 +20,10 @@ export class PostDetailDto {
     url: string;
   }[];
 
-  stats!: {
-    likeCount: number;
-    commentCount: number;
-  };
+  likeCount!: number;
+  commentCount!: number;
 
   isLikedByViewer!: boolean;
-
   canDelete!: boolean;
 
   static from(
@@ -44,7 +41,6 @@ export class PostDetailDto {
         avatarUrl: post.author.avatarUrl,
       },
 
-     
       media: Array.isArray(post.media)
         ? post.media.map((pm: any) => ({
             id: pm.media.id,
@@ -56,11 +52,9 @@ export class PostDetailDto {
           }))
         : [],
 
- stats: {
-  likeCount: post._count?.likes ?? 0,
-  commentCount: post._count?.comments ?? 0,
-},
-      
+      likeCount: post.likeCount ?? 0,
+      commentCount: post.commentCount ?? 0,
+
       isLikedByViewer: viewerUserId
         ? Array.isArray(post.likes) && post.likes.length > 0
         : false,

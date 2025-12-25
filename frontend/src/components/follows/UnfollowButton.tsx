@@ -6,24 +6,40 @@ import { useUnfollowUser } from '@/hooks/useUnfollowUser';
 type Props = {
   userId: string;
   isFollowing: boolean;
+
+  onUnfollowed?: () => void;
 };
 
 export default function UnfollowButton({
   userId,
   isFollowing,
+  onUnfollowed,
 }: Props) {
   const { unfollow, loading, error } = useUnfollowUser({
-    userId,
-    initialIsFollowing: isFollowing,
-  });
+  userId,
+  initialIsFollowing: isFollowing,
+});
 
-  function handleClick(e: MouseEvent<HTMLButtonElement>) {
+
+  async function handleClick(
+    e: MouseEvent<HTMLButtonElement>
+  ) {
     e.preventDefault();
-    unfollow();
+    if (loading || !isFollowing) return;
+
+    try {
+      await unfollow();
+
+      // ✅ backend เป็นผู้ตัดสินจริง
+      onUnfollowed?.();
+    } catch {
+      // fail-soft: ไม่เปลี่ยน UI
+    }
   }
 
+  // ✅ render เฉพาะตอน follow อยู่
   if (!isFollowing) {
-    return null; // ไม่ render ถ้ายังไม่ได้ follow
+    return null;
   }
 
   return (

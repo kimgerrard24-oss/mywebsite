@@ -1,5 +1,6 @@
 // frontend/src/components/following/FollowingItem.tsx
 
+import { useState } from 'react';
 import Link from 'next/link';
 import FollowButton from '@/components/follows/FollowButton';
 import type { Following } from '@/types/following';
@@ -9,6 +10,11 @@ type Props = {
 };
 
 export default function FollowingItem({ following }: Props) {
+  // ✅ local UI state (source of truth ยังมาจาก backend)
+  const [isFollowing, setIsFollowing] = useState(
+    following.isFollowing
+  );
+
   return (
     <li
       className="
@@ -54,7 +60,8 @@ export default function FollowingItem({ following }: Props) {
       {following.canFollow && (
         <FollowButton
           userId={following.userId}
-          isFollowing={following.isFollowing}
+          isFollowing={isFollowing}
+          onFollowed={() => setIsFollowing(true)}
         />
       )}
     </li>

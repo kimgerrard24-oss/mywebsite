@@ -19,6 +19,8 @@ export class PostFeedMapper {
         id: author?.id ?? 'unknown',
         displayName: author?.displayName ?? null,
         avatarUrl: author?.avatarUrl ?? null,
+        isFollowing: row.isFollowingByViewer ?? false,
+
       },
 
       media: Array.isArray(row.media)
