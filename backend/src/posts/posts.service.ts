@@ -108,11 +108,6 @@ export class PostsService {
         });
       }
 
-      /**
-       * ===============================
-       * Hashtag Processing (FAIL-SOFT)
-       * ===============================
-       */
       try {
         const tags = parseHashtags(content);
 
@@ -337,14 +332,13 @@ async deletePost(params: { postId: string; actorUserId: string }) {
  }
  
 
- async getUserPostFeed(params: {
+async getUserPostFeed(params: {
   targetUserId: string;
   query: GetUserPostsQuery;
-  viewer: { userId: string } | null; // ✅ เพิ่ม viewer
- }) {
+  viewer: { userId: string } | null;
+}) {
   const { targetUserId, query, viewer } = params;
 
-  // ✅ FIX 1: ส่ง object ให้ resolveUserPostVisibility
   const visibilityScope =
     await this.visibility.resolveUserPostVisibility({
       targetUserId,
@@ -355,9 +349,12 @@ async deletePost(params: { postId: string; actorUserId: string }) {
     return { items: [], nextCursor: null };
   }
 
+  const effectiveLimit = query.limit ?? 20;
+
   const rows = await this.repo.findUserPosts({
     userId: targetUserId,
-    limit: query.limit,
+    viewerUserId: viewer?.userId ?? null,
+    limit: effectiveLimit,
     cursor: query.cursor,
     scope: visibilityScope.scope,
   });
@@ -367,7 +364,7 @@ async deletePost(params: { postId: string; actorUserId: string }) {
   );
 
   const nextCursor =
-    rows.length === query.limit
+    rows.length === effectiveLimit
       ? rows[rows.length - 1].id
       : null;
 
@@ -375,7 +372,9 @@ async deletePost(params: { postId: string; actorUserId: string }) {
     items,
     nextCursor,
   };
- }
+}
+
+
 
  async getPostsByTag(params: {
     tag: string;

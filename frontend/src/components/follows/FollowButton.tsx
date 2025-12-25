@@ -2,13 +2,14 @@
 
 import type { MouseEvent } from 'react';
 import { useFollowUser } from '@/hooks/useFollowUser';
+import { useUnfollowUser } from '@/hooks/useUnfollowUser';
 
 type Props = {
   userId: string;
   isFollowing: boolean;
 
-  // ✅ เพิ่ม: แจ้ง parent เมื่อ follow สำเร็จ
-  onFollowed?: () => void;
+  // แจ้ง parent เมื่อสถานะเปลี่ยน (fail-soft)
+  onFollowed?: (isFollowing: boolean) => void;
 };
 
 export default function FollowButton({
@@ -18,33 +19,48 @@ export default function FollowButton({
 }: Props) {
   const {
     follow,
-    loading,
-    error,
+    loading: followLoading,
+    error: followError,
   } = useFollowUser({
     userId,
-    initialIsFollowing: isFollowing, // ใช้เพื่อกัน UX กระพริบเท่านั้น
+    initialIsFollowing: isFollowing,
   });
 
+  const {
+    unfollow,
+    loading: unfollowLoading,
+    error: unfollowError,
+  } = useUnfollowUser({
+    userId,
+  });
+
+  const loading = followLoading || unfollowLoading;
+  const error = followError || unfollowError;
+
   async function handleClick(
-  e: MouseEvent<HTMLButtonElement>
-) {
-  e.preventDefault();
-  if (loading || isFollowing) return;
+    e: MouseEvent<HTMLButtonElement>
+  ) {
+    e.preventDefault();
+    if (loading) return;
 
-  try {
-    await follow();
-    onFollowed?.();
-  } catch {
-    // fail-soft: backend คือ authority
+    try {
+      if (isFollowing) {
+        await unfollow();
+        onFollowed?.(false);
+      } else {
+        await follow();
+        onFollowed?.(true);
+      }
+    } catch {
+      // fail-soft: backend คือ authority
+    }
   }
-}
-
 
   return (
     <button
       type="button"
       onClick={handleClick}
-      disabled={loading || isFollowing}
+      disabled={loading}
       aria-pressed={isFollowing}
       aria-busy={loading}
       className={`
@@ -53,14 +69,16 @@ export default function FollowButton({
         transition
         ${
           isFollowing
-            ? 'bg-gray-200 text-gray-700'
+            ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
             : 'bg-blue-600 text-white hover:bg-blue-700'
         }
         disabled:opacity-60
       `}
     >
       {loading
-        ? 'Following…'
+        ? isFollowing
+          ? 'Unfollowing…'
+          : 'Following…'
         : isFollowing
           ? 'Following'
           : 'Follow'}

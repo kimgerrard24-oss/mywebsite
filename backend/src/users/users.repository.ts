@@ -74,19 +74,46 @@ export class UsersRepository {
   // =====================================================
   // Public profile (used by /users/:id)
   // =====================================================
-  async findPublicUserById(userId: string) {
-    return this.prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        id: true,
-        displayName: true,
-        avatarUrl: true,
-        coverUrl: true,
-        bio: true,
-        createdAt: true,
+ async findPublicUserById(
+  userId: string,
+  params?: {
+    viewerUserId?: string | null;
+  },
+) {
+  const viewerUserId = params?.viewerUserId ?? null;
+
+  return this.prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      // ===== ของเดิม (ไม่แก้) =====
+      id: true,
+      displayName: true,
+      avatarUrl: true,
+      coverUrl: true,
+      bio: true,
+      createdAt: true,
+
+      // ===== เพิ่ม: จำนวน follower / following =====
+      _count: {
+        select: {
+          followers: true,
+          following: true,
+        },
       },
-    });
-  }
+
+      // ===== เพิ่ม: ใช้เช็ค isFollowing =====
+      followers: viewerUserId
+        ? {
+            where: {
+              followerId: viewerUserId,
+            },
+            take: 1,
+          }
+        : false,
+    },
+  });
+}
+
 
   async updateProfile(userId: string, dto: UpdateUserDto) {
     return this.prisma.user.update({

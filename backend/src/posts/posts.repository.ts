@@ -235,42 +235,65 @@ async findPostById(
     });
   }
 
-   async findUserPosts(params: {
-    userId: string;
-    limit?: number;
-    cursor?: string;
-    scope: 'public' | 'self';
-  }) {
-    const { userId, limit = 20, cursor } = params;
+ async findUserPosts(params: {
+  userId: string;
+  viewerUserId: string | null;
+  limit?: number;
+  cursor?: string;
+  scope: 'public' | 'self';
+}) {
+  const {
+    userId,
+    viewerUserId,
+    limit = 20,
+    cursor,
+  } = params;
 
-    return this.prisma.post.findMany({
-      where: {
-        authorId: userId,
-        isDeleted: false,
-        isHidden: false,
-      },
-      take: limit,
-      skip: cursor ? 1 : 0,
-      cursor: cursor ? { id: cursor } : undefined,
-      orderBy: {
-        createdAt: 'desc',
-      },
-      include: {
-        author: {
-          select: {
-            id: true,
-            displayName: true,
-            avatarUrl: true,
-          },
+  return this.prisma.post.findMany({
+    where: {
+      authorId: userId,
+      isDeleted: false,
+      isHidden: false,
+    },
+
+    take: limit,
+    skip: cursor ? 1 : 0,
+    cursor: cursor ? { id: cursor } : undefined,
+
+    orderBy: {
+      createdAt: 'desc',
+    },
+
+    include: {
+      author: {
+        select: {
+          id: true,
+          displayName: true,
+          avatarUrl: true,
+
+          // ✅ FIX: ตรวจว่าผู้ดู follow อยู่หรือไม่
+          followers: viewerUserId
+            ? {
+                where: {
+                  followerId: viewerUserId,
+                },
+                select: {
+                  followerId: true,
+                },
+                take: 1,
+              }
+            : false,
         },
-        media: {
-          include: {
-            media: true,
-          },
+      },
+
+      media: {
+        include: {
+          media: true,
         },
       },
-    });
-  }
+    },
+  });
+ }
 
   async findPostsByTag(params: {
     tag: string;

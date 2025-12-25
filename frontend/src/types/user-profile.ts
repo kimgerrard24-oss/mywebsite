@@ -7,6 +7,12 @@ export interface PublicUserProfile {
   bio: string | null;
   createdAt: string;
   isSelf: boolean;
+  isFollowing: boolean;
+
+  stats: {
+    followers: number;
+    following: number;
+  };
 }
 
 export interface UserProfile {

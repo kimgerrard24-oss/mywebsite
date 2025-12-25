@@ -14,6 +14,12 @@ export class UserProfileDto {
   updatedAt: Date;
   isSelf: boolean;
 
+  // ✅ เพิ่ม: statistics (optional / fail-soft)
+  stats?: {
+    followers: number;
+    following: number;
+  };
+
   constructor(
     user: any,
     options?: {
@@ -33,6 +39,14 @@ export class UserProfileDto {
     this.updatedAt = user.updatedAt;
 
     this.isSelf = options?.isSelf ?? false;
+
+    // ✅ map stats แบบปลอดภัย (ไม่บังคับมี)
+    if (user._count) {
+      this.stats = {
+        followers: user._count.followers ?? 0,
+        following: user._count.following ?? 0,
+      };
+    }
   }
 
   static fromUser(

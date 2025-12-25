@@ -1,4 +1,5 @@
-//  backend/src/users/dto/public-user-profile.dto.ts
+// backend/src/users/dto/public-user-profile.dto.ts
+
 export class PublicUserProfileDto {
   id!: string;
   displayName!: string | null;
@@ -12,4 +13,17 @@ export class PublicUserProfileDto {
    * ไม่เกี่ยวกับ permission
    */
   isSelf!: boolean;
+
+  /**
+   * viewer follow user นี้อยู่หรือไม่
+   */
+  isFollowing!: boolean;
+
+  /**
+   * follower / following counts
+   */
+  stats!: {
+    followers: number;
+    following: number;
+  };
 }

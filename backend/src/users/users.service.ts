@@ -197,30 +197,42 @@ export class UsersService {
   
   }
 
-  async getPublicProfile(params: {
-    targetUserId: string;
-    viewerUserId: string | null;
-  }): Promise<PublicUserProfileDto | null> {
-    const { targetUserId, viewerUserId } = params;
+ async getPublicProfile(params: {
+  targetUserId: string;
+  viewerUserId: string | null;
+}): Promise<PublicUserProfileDto | null> {
+  const { targetUserId, viewerUserId } = params;
 
-    const user = await this.repo.findPublicUserById(targetUserId);
-    if (!user) return null;
+  const user = await this.repo.findPublicUserById(targetUserId, {
+    viewerUserId,
+  });
+  if (!user) return null;
 
-    let isSelf = false;
-    if (viewerUserId && viewerUserId === user.id) {
-      isSelf = true;
-    }
+  const isSelf =
+    viewerUserId !== null && viewerUserId === user.id;
 
-    return {
-      id: user.id,
-      displayName: user.displayName,
-      avatarUrl: user.avatarUrl,
-      coverUrl: user.coverUrl ?? null,
-      bio: user.bio,
-      createdAt: user.createdAt,
-      isSelf,
-    };
-  }
+  return {
+    id: user.id,
+    displayName: user.displayName,
+    avatarUrl: user.avatarUrl,
+    coverUrl: user.coverUrl ?? null,
+    bio: user.bio,
+    createdAt: user.createdAt,
+
+    isSelf,
+
+    isFollowing:
+      !isSelf &&
+      Array.isArray(user.followers) &&
+      user.followers.length > 0,
+
+    stats: {
+      followers: user._count?.followers ?? 0,
+      following: user._count?.following ?? 0,
+    },
+  };
+}
+
   
    async updateProfile(userId: string, dto: UpdateUserDto) {
     const updated = await this.repo.updateProfile(userId, dto);
