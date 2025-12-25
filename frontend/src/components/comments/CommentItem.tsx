@@ -134,7 +134,6 @@ export default function CommentItem({
   </div>
 )}
 
-
       {/* ================= Content ================= */}
       {!editing ? (
         <p className="text-gray-900">
