@@ -9,6 +9,7 @@ import { CommentReadPolicy } from './policy/comment-read.policy';
 import { CommentDeletePolicy } from './policy/comment-delete.policy';
 import { CommentUpdatePolicy } from './policy/comment-update.policy';
 import { CommentMapper } from './mappers/comment.mapper';
+import { CommentItemDto } from './dto/comment-item.dto';
 
 @Injectable()
 export class CommentsService {
@@ -19,27 +20,39 @@ export class CommentsService {
   ) {}
 
   async createComment(params: {
-    postId: string;
-    authorId: string;
-    content: string;
-  }): Promise<CommentDto> {
-    const { postId, authorId, content } = params;
+  postId: string;
+  authorId: string;
+  content: string;
+}): Promise<CommentItemDto> {
+  const { postId, authorId, content } = params;
 
-    const post = await this.repo.findPostForComment(postId);
-    if (!post) {
-      throw new NotFoundException('Post not found');
-    }
-
-    this.commentpolicy.assertCanComment(post);
-
-    const comment = await this.repo.createComment({
-      postId,
-      authorId,
-      content,
-    });
-
-    return CommentDto.fromEntity(comment);
+  const post = await this.repo.findPostForComment(postId);
+  if (!post) {
+    throw new NotFoundException('Post not found');
   }
+
+  this.commentpolicy.assertCanComment(post);
+
+  await this.repo.createComment({
+    postId,
+    authorId,
+    content,
+  });
+
+  // 🔒 re-fetch with author (source of truth)
+  const rows = await this.repo.findByPostId({
+    postId,
+    limit: 1,
+  });
+
+  const [item] = CommentMapper.toItemDtos(
+    rows,
+    authorId,
+  );
+
+  return item;
+}
+
 
  async getPostComments(params: {
   postId: string;

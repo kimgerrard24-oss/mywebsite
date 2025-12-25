@@ -6,19 +6,11 @@ import {
   MouseEvent,
 } from "react";
 import FollowButton from "@/components/follows/FollowButton";
-import UnfollowButton from "@/components/follows/UnfollowButton";
+import { useUnfollowUser } from "@/hooks/useUnfollowUser";
 
 type Props = {
   userId: string;
-
-  /**
-   * initial state from backend (feed / profile)
-   */
   isFollowing: boolean;
-
-  /**
-   * optional callback for parent sync
-   */
   onChange?: (isFollowing: boolean) => void;
 };
 
@@ -30,37 +22,37 @@ export default function FollowController({
   const [isFollowing, setIsFollowing] =
     useState(initialIsFollowing);
   const [open, setOpen] = useState(false);
-  const containerRef = useRef<HTMLDivElement | null>(
-    null,
-  );
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
-  /**
-   * 🔒 sync state เมื่อ backend เปลี่ยน (SSR / refetch)
-   */
+  const {
+    unfollow,
+    loading: unfollowing,
+  } = useUnfollowUser({ userId });
+
+  // sync จาก backend (SSR / refetch)
   useEffect(() => {
     setIsFollowing(initialIsFollowing);
   }, [initialIsFollowing]);
 
-  /**
-   * 🔒 ปิด dropdown เมื่อคลิกข้างนอก
-   */
- useEffect(() => {
-  function handleClickOutside(e: globalThis.MouseEvent) {
-    if (
-      containerRef.current &&
-      !containerRef.current.contains(e.target as Node)
-    ) {
-      setOpen(false);
+  // ปิด dropdown เมื่อคลิกข้างนอก
+  useEffect(() => {
+    function handleClickOutside(e: globalThis.MouseEvent) {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(e.target as Node)
+      ) {
+        setOpen(false);
+      }
     }
-  }
 
-  document.addEventListener("mousedown", handleClickOutside);
-
-  return () => {
-    document.removeEventListener("mousedown", handleClickOutside);
-  };
-}, []);
-
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener(
+        "mousedown",
+        handleClickOutside,
+      );
+    };
+  }, []);
 
   function toggleMenu(e: MouseEvent) {
     e.preventDefault();
@@ -68,8 +60,17 @@ export default function FollowController({
     setOpen((v) => !v);
   }
 
-  function closeMenu() {
-    setOpen(false);
+  async function handleUnfollow() {
+    if (unfollowing) return;
+
+    try {
+      await unfollow(); // backend authority
+      setIsFollowing(false);
+      onChange?.(false);
+      setOpen(false);
+    } catch {
+      // fail-soft
+    }
   }
 
   return (
@@ -78,20 +79,19 @@ export default function FollowController({
       className="relative inline-block"
       onClick={(e) => e.stopPropagation()}
     >
-      {/* ================= FOLLOW ================= */}
+      {/* ===== FOLLOW ===== */}
       {!isFollowing && (
         <FollowButton
           userId={userId}
           isFollowing={false}
           onFollowed={() => {
-            // ✅ เปลี่ยน state หลัง backend สำเร็จ
             setIsFollowing(true);
             onChange?.(true);
           }}
         />
       )}
 
-      {/* ================= FOLLOWING + DROPDOWN ================= */}
+      {/* ===== FOLLOWING + DROPDOWN ===== */}
       {isFollowing && (
         <>
           <button
@@ -100,17 +100,10 @@ export default function FollowController({
             aria-haspopup="menu"
             aria-expanded={open}
             className="
-              inline-flex
-              items-center
-              gap-1
-              rounded-full
-              bg-gray-200
-              px-4
-              py-1.5
-              text-sm
-              font-medium
-              text-gray-700
-              hover:bg-gray-300
+              inline-flex items-center gap-1
+              rounded-full bg-gray-200
+              px-4 py-1.5 text-sm font-medium
+              text-gray-700 hover:bg-gray-300
               transition
             "
           >
@@ -122,42 +115,23 @@ export default function FollowController({
             <div
               role="menu"
               className="
-                absolute
-                right-0
-                z-20
-                mt-2
-                w-40
-                overflow-hidden
-                rounded-md
-                border
-                border-gray-200
-                bg-white
-                shadow-lg
+                absolute right-0 z-20 mt-2 w-40
+                rounded-md border border-gray-200
+                bg-white shadow-lg
               "
             >
-              {/* ===== Unfollow ===== */}
-              <div className="p-1">
-                <UnfollowButton
-                  userId={userId}
-                  isFollowing={true}
-                  onUnfollowed={() => {
-                    // ✅ เปลี่ยน state หลัง backend สำเร็จ
-                    setIsFollowing(false);
-                    onChange?.(false);
-                    closeMenu();
-                  }}
-                />
-              </div>
-
-              {/* ===== future actions ===== */}
-              {/*
               <button
                 type="button"
-                className="w-full px-4 py-2 text-left text-sm hover:bg-gray-50"
+                onClick={handleUnfollow}
+                disabled={unfollowing}
+                className="
+                  w-full px-4 py-2 text-left text-sm
+                  text-red-600 hover:bg-gray-50
+                  disabled:opacity-60
+                "
               >
-                Block
+                {unfollowing ? "Unfollowing…" : "Unfollow"}
               </button>
-              */}
             </div>
           )}
         </>
@@ -165,4 +139,3 @@ export default function FollowController({
     </div>
   );
 }
-
