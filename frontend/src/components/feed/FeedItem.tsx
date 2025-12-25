@@ -8,8 +8,7 @@ import { usePostLike } from "@/hooks/usePostLike";
 import { useEffect,useState } from "react";
 import CommentComposer from "@/components/comments/CommentComposer";
 import CommentList from "@/components/comments/CommentList";
-import FollowButton from "@/components/follows/FollowButton";
-import UnfollowButton from "@/components/follows/UnfollowButton";
+import FollowControl from "@/components/follows/FollowController";
 
 type Props = {
   post: PostFeedItem;
@@ -146,21 +145,14 @@ export default function FeedItem({ post, onDeleted }: Props) {
         {/* ขวา: Follow + PostAction */}
   <div className="flex items-center gap-2">
     {/* Follow (render only) */}
-   {!post.isSelf && (
-  isFollowing ? (
-    <UnfollowButton
-      userId={post.author.id}
-      isFollowing={isFollowing}
-      onUnfollowed={() => setIsFollowing(false)}
-    />
-  ) : (
-    <FollowButton
-      userId={post.author.id}
-      isFollowing={isFollowing}
-      onFollowed={() => setIsFollowing(true)}
-    />
-  )
-)}
+ {!post.isSelf && (
+  <FollowControl
+    userId={post.author.id}
+    isFollowing={post.author.isFollowing}
+  />
+ )}
+
+
 
 
 

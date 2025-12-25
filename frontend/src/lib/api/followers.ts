@@ -1,5 +1,4 @@
 // frontend/src/lib/api/followers.ts
-
 import { API_BASE } from '@/lib/api/api';
 
 export type FollowersApiResponse = {
@@ -24,10 +23,10 @@ export async function getFollowers(params: {
   if (limit) query.set('limit', String(limit));
 
   const res = await fetch(
-    `${API_BASE}/followers/${userId}?${query.toString()}`,
+    `${API_BASE}/follow/${userId}?${query.toString()}`,
     {
       method: 'GET',
-      credentials: 'include', // ✅ HttpOnly cookie
+      credentials: 'include',
       headers: {
         Accept: 'application/json',
       },
@@ -38,7 +37,6 @@ export async function getFollowers(params: {
     if (res.status === 401) {
       throw new Error('UNAUTHORIZED');
     }
-
     throw new Error('FETCH_FOLLOWERS_FAILED');
   }
 
