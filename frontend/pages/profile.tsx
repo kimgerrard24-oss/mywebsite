@@ -8,7 +8,7 @@ import type { GetServerSideProps, NextPage } from "next";
 import { useRouter } from "next/router";
 import Link from "next/link";
 
-import type { UserProfile } from "@/lib/api/user";
+import type { UserProfile } from "@/types/user-profile";
 import { ProfileCard } from "@/components/profile/profile-ProfileCard";
 import { ProfileSkeleton } from "@/components/profile/ProfileSkeleton";
 

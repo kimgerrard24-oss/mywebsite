@@ -1,22 +1,22 @@
 // frontend/src/components/profile/profile-ProfileCard.tsx
 import React from "react";
 import Link from "next/link";
-
-import type {
-  UserProfile,
-  PublicUserProfile,
-} from "@/lib/api/user";
-
+import type { UserProfile,PublicUserProfile } from "@/types/user-profile";
 import UserProfileStats from "@/components/profile/UserProfileStats";
 
 export interface ProfileCardProps {
   profile: UserProfile | PublicUserProfile | null;
-
-  /**
-   * true  = owner profile
-   * false = public profile
-   */
   isSelf?: boolean;
+}
+
+function isPublicUserProfile(
+  profile: UserProfile | PublicUserProfile
+): profile is PublicUserProfile {
+  return (
+    "stats" in profile &&
+    "isSelf" in profile &&
+    "isFollowing" in profile
+  );
 }
 
 const formatDate = (iso: string) => {
@@ -265,7 +265,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
         </dl>
 
         {/* ===== Followers / Following ===== */}
-        {"stats" in profile && (
+         {isPublicUserProfile(profile) && (
           <UserProfileStats profile={profile} />
         )}
       </div>

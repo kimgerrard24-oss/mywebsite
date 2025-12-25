@@ -1,7 +1,7 @@
 // components/profile/PublicUserProfile.tsx
 import UserProfileHeader from "./UserProfileHeader";
 import UserProfileStats from "./UserProfileStats";
-import type { PublicUserProfile } from "@/lib/api/user";
+import type { PublicUserProfile } from "@/types/user-profile";
 
 type Props = {
   profile: PublicUserProfile;

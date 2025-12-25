@@ -25,6 +25,11 @@ export interface UserProfile {
   createdAt: string;
   updatedAt?: string;
   name: string | null;
+
+   stats?: {
+    followers: number;
+    following: number;
+  };
 }
 
 export interface UpdateUserPayload {

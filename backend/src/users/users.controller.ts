@@ -74,28 +74,29 @@ export class UsersController {
   }
 
   @Get('me')
-  @UseGuards(AccessTokenCookieAuthGuard)
-  @Header(
-    'Cache-Control',
-    'no-store, no-cache, must-revalidate, proxy-revalidate',
-  )
-  @Header('Pragma', 'no-cache')
-  @Header('Expires', '0')
-  async getMe(
-    @CurrentUser() sessionUser: SessionUser,
-  ): Promise<UserProfileDto> {
-    if (!sessionUser?.userId) {
-      throw new UnauthorizedException('Authentication required');
-    }
-
-    try {
-      return await this.usersService.getMe(sessionUser.userId);
-    } catch (err) {
-      throw new BadRequestException(
-        'Authenticated user profile is not available',
-      );
-    }
+@UseGuards(AccessTokenCookieAuthGuard)
+@Header(
+  'Cache-Control',
+  'no-store, no-cache, must-revalidate, proxy-revalidate',
+)
+@Header('Pragma', 'no-cache')
+@Header('Expires', '0')
+async getMe(
+  @CurrentUser() sessionUser: SessionUser,
+) {
+  if (!sessionUser?.userId) {
+    throw new UnauthorizedException('Authentication required');
   }
+
+  /**
+   * IMPORTANT:
+   * - Service layer เป็น authority ทั้งหมด
+   * - Controller แค่ส่งผ่าน response
+   * - Payload ต้องตรงกับ public profile shape (มี stats)
+   */
+  return this.usersService.getMe(sessionUser.userId);
+}
+
 
     @Get('search')
   async searchUsers(

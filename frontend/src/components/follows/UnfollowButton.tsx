@@ -28,14 +28,16 @@ export default function UnfollowButton({
     e.preventDefault();
     e.stopPropagation();
 
-    // ป้องกัน double action
+    // ป้องกัน double action และ state ซ้อน
     if (loading || !isFollowing) return;
 
     try {
       await unfollow();
+
+      // ✅ เปลี่ยน state หลัง backend สำเร็จจริงเท่านั้น
       onUnfollowed?.();
     } catch {
-      // fail-soft
+      // fail-soft: backend เป็น authority
     }
   }
 

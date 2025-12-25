@@ -6,7 +6,7 @@ export class PublicUserProfileDto {
   avatarUrl!: string | null;
   coverUrl!: string | null;
   bio!: string | null;
-  createdAt!: Date;
+  createdAt!: string;
 
   /**
    * viewer === owner (ใช้ฝั่ง frontend)

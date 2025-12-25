@@ -168,34 +168,55 @@ export class UsersService {
    * - Auth is already validated by guard (JWT + Redis)
    * - This method should NOT be used to decide auth state
    */
-  async getMe(userId: string): Promise<UserProfileDto> {
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: {
-        id: true,
-        email: true,
-        displayName: true,
-        username: true,
-        name: true,
-        avatarUrl: true,
-        coverUrl: true,
-        bio: true,
-        createdAt: true,
-        updatedAt: true,
+async getMe(userId: string): Promise<PublicUserProfileDto> {
+  const user = await this.prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      email: true,
+      displayName: true,
+      username: true,
+      name: true,
+      avatarUrl: true,
+      coverUrl: true,
+      bio: true,
+      createdAt: true,
+      updatedAt: true,
+
+      _count: {
+        select: {
+          followers: true,
+          following: true,
+        },
       },
-    });
-
-    if (!user) {
-      throw new BadRequestException(
-        "Authenticated user profile not found"
-      );
-    }
-
-     return UserProfileDto.fromUser(user, {
-    isSelf: true,
+    },
   });
-  
+
+  if (!user) {
+    throw new BadRequestException(
+      'Authenticated user profile not found',
+    );
   }
+
+  return {
+    id: user.id,
+    displayName: user.displayName,
+    avatarUrl: user.avatarUrl,
+    coverUrl: user.coverUrl ?? null,
+    bio: user.bio,
+    createdAt: user.createdAt.toISOString(),
+
+    isSelf: true,
+    isFollowing: false, // self ไม่มี concept follow ตัวเอง
+
+    stats: {
+      followers: user._count.followers,
+      following: user._count.following,
+    },
+  };
+}
+
+
 
  async getPublicProfile(params: {
   targetUserId: string;
@@ -217,7 +238,7 @@ export class UsersService {
     avatarUrl: user.avatarUrl,
     coverUrl: user.coverUrl ?? null,
     bio: user.bio,
-    createdAt: user.createdAt,
+    createdAt: user.createdAt.toISOString(),
 
     isSelf,
 

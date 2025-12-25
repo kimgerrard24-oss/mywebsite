@@ -97,9 +97,9 @@ export default function FollowersPage({ userId }: Props) {
 export const getServerSideProps: GetServerSideProps<Props> = async (
   context,
 ) => {
-  const { id } = context.params ?? {};
+  const { userId } = context.params ?? {};
 
-  if (!id || typeof id !== 'string') {
+  if (!userId || typeof userId !== 'string') {
     return {
       notFound: true,
     };
@@ -107,7 +107,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async (
 
   return {
     props: {
-      userId: id,
+      userId,
     },
   };
 };

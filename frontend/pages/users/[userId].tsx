@@ -10,7 +10,7 @@ import ProfilePosts from "@/components/profile/ProfilePosts";
 import { fetchPublicUserProfileServer } from "@/lib/api/user";
 import { getUserPosts } from "@/lib/api/posts";
 
-import type { PublicUserProfile } from "@/lib/api/user";
+import type { PublicUserProfile } from "@/types/user-profile";
 import type { PostFeedItem } from "@/types/post-feed";
 
 type Props = {

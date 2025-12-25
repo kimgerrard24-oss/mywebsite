@@ -33,9 +33,11 @@ export default function FollowButton({
 
     try {
       await follow();
+
+      // ✅ เปลี่ยน state หลัง backend สำเร็จจริงเท่านั้น
       onFollowed?.(true);
     } catch {
-      // fail-soft
+      // fail-soft: backend คือ authority
     }
   }
 

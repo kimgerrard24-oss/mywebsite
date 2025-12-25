@@ -5,7 +5,7 @@ import PostActionMenu from "@/components/posts/PostActionMenu";
 import { renderContentWithHashtags } from "@/utils/renderContentWithHashtags";
 import PostLikeButton from "@/components/posts/PostLikeButton";
 import { usePostLike } from "@/hooks/usePostLike";
-import { useState } from "react";
+import { useEffect,useState } from "react";
 import CommentComposer from "@/components/comments/CommentComposer";
 import CommentList from "@/components/comments/CommentList";
 import FollowButton from "@/components/follows/FollowButton";
@@ -40,6 +40,10 @@ export default function FeedItem({ post, onDeleted }: Props) {
   const [isFollowing, setIsFollowing] = useState(
   post.author.isFollowing
 );
+  
+  useEffect(() => {
+  setIsFollowing(post.author.isFollowing);
+}, [post.author.isFollowing]);
 
   return (
     <article
@@ -143,26 +147,22 @@ export default function FeedItem({ post, onDeleted }: Props) {
   <div className="flex items-center gap-2">
     {/* Follow (render only) */}
    {!post.isSelf && (
-  <>
-    {!isFollowing ? (
-      <FollowButton
-        userId={post.author.id}
-        isFollowing={isFollowing}
-        onFollowed={() => {
-          setIsFollowing(true);
-        }}
-      />
-    ) : (
-      <UnfollowButton
-        userId={post.author.id}
-        isFollowing={isFollowing}
-        onUnfollowed={() => {
-          setIsFollowing(false);
-        }}
-      />
-    )}
-  </>
- )}
+  isFollowing ? (
+    <UnfollowButton
+      userId={post.author.id}
+      isFollowing={isFollowing}
+      onUnfollowed={() => setIsFollowing(false)}
+    />
+  ) : (
+    <FollowButton
+      userId={post.author.id}
+      isFollowing={isFollowing}
+      onFollowed={() => setIsFollowing(true)}
+    />
+  )
+)}
+
+
 
 
     <PostActionMenu

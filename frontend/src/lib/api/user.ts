@@ -7,6 +7,7 @@ import axios, { AxiosInstance, AxiosError } from "axios";
 import type { UpdateUserPayload } from "@/types/user-profile";
 import { api } from "./api";
 import type { PublicUserSearch } from "@/types/user-search";
+import { UserProfile,PublicUserProfile } from "@/types/user-profile";
 
 function normalizeBaseUrl(url: string): string {
   return url.replace(/\/+$/, "");
@@ -20,33 +21,6 @@ const PUBLIC_API_BASE_URL = normalizeBaseUrl(
     "https://api.phlyphant.com"
 );
 
-export interface UserProfile {
-  id: string;
-  email: string;
-  displayName: string | null;
-  avatarUrl: string | null;
-  coverUrl?: string | null;
-  bio: string | null;
-  createdAt: string;
-  updatedAt?: string;
-  name: string | null;
-}
-
-export interface PublicUserProfile {
-  id: string;
-  displayName: string | null;
-  avatarUrl: string | null;
-  coverUrl: string | null;
-  bio: string | null;
-  createdAt: string;
-  isSelf: boolean;
-  isFollowing: boolean;
-
-  stats: {
-    followers: number;
-    following: number;
-  };
-}
 
 export async function updateUserAvatar(file: File) {
   const formData = new FormData();
