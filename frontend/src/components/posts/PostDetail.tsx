@@ -8,6 +8,7 @@ import PostActionMenu from "@/components/posts/PostActionMenu";
 import { renderContentWithHashtags } from "@/utils/renderContentWithHashtags";
 import { usePostLike } from "@/hooks/usePostLike";
 import PostLikeList from "@/components/posts/PostLikeList";
+import PostLikeButton from "@/components/posts/PostLikeButton";
 
 type Props = {
   post: PostDetailType;
@@ -17,17 +18,24 @@ export default function PostDetail({ post }: Props) {
   const router = useRouter();
 
   const {
-    likeCount,
-    likes,
-    likesLoading,
-    likesError,
-    hasMoreLikes,
-    loadLikes,
-  } = usePostLike({
-    postId: post.id,
-    initialLiked: post.isLikedByViewer ?? false,
-    initialLikeCount: post.likeCount ?? 0,
-  });
+  // like / unlike
+  liked,
+  likeCount,
+  loading,
+  toggleLike,
+
+  // likes list
+  likes,
+  likesLoading,
+  likesError,
+  hasMoreLikes,
+  loadLikes,
+} = usePostLike({
+  postId: post.id,
+  initialLiked: post.isLikedByViewer ?? false,
+  initialLikeCount: post.likeCount ?? 0,
+});
+
 
   const [showLikes, setShowLikes] = useState(false);
 
@@ -219,17 +227,24 @@ export default function PostDetail({ post }: Props) {
         "
         aria-label="Post likes"
       >
-        <button
-          type="button"
-          onClick={openLikes}
-          className="
-            text-sm
-            text-gray-600
-            hover:underline
-          "
-        >
-          {likeCount} likes
-        </button>
+         {/* 🔥 Like / Unlike (same as feed) */}
+  <div className="flex items-center gap-4">
+    <PostLikeButton
+      liked={liked}
+      likeCount={likeCount}
+      loading={loading}
+      onClick={toggleLike}
+    />
+
+    {/* 👉 เปิดรายชื่อคนกดไลค์ */}
+    <button
+      type="button"
+      onClick={openLikes}
+      className="text-sm text-gray-600 hover:underline"
+    >
+      View likes
+    </button>
+  </div>
 
         {showLikes && (
           <div className="mt-3">

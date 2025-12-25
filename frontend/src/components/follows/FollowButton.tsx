@@ -6,11 +6,15 @@ import { useFollowUser } from '@/hooks/useFollowUser';
 type Props = {
   userId: string;
   isFollowing: boolean;
+
+  /** 🔔 notify parent when follow success */
+  onSuccess?: () => void;
 };
 
 export default function FollowButton({
   userId,
   isFollowing,
+  onSuccess,
 }: Props) {
   const {
     isFollowing: following,
@@ -22,10 +26,18 @@ export default function FollowButton({
     initialIsFollowing: isFollowing,
   });
 
-  function handleClick(e: MouseEvent<HTMLButtonElement>) {
+  async function handleClick(
+    e: MouseEvent<HTMLButtonElement>
+  ) {
     e.preventDefault();
     if (loading) return;
-    follow();
+
+    try {
+      await follow();
+      onSuccess?.(); // ✅ success = no throw
+    } catch {
+      // ❌ fail-soft: hook already handles error state
+    }
   }
 
   return (

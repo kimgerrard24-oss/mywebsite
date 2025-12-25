@@ -229,74 +229,73 @@ return (
           </div>
 
           {/* Social Login */}
-          <section
-            className="mt-8 space-y-3 sm:space-y-4"
-            aria-label="Social login options"
-          >
-            <button
-              onClick={() => startOAuth('google')}
-              type="button"
-              className="
-                inline-flex
-                w-full
-                items-center
-                justify-center
-                gap-2
-                rounded-lg
-                border
-                border-gray-300
-                bg-white
-                py-3
-                text-sm
-                font-medium
-                text-gray-800
-                transition-colors
-                hover:bg-gray-50
-                focus:outline-none
-                focus-visible:ring-2
-                focus-visible:ring-gray-400
-              "
-            >
-              <img
-                src="/icons/google.svg"
-                alt="Google"
-                className="h-5 w-5"
-              />
-              Login with Google
-            </button>
+<section
+  className="mt-8 space-y-3 sm:space-y-4"
+  aria-label="Social login options"
+>
+  {/* Google */}
+  <button
+  onClick={() => startOAuth("google")}
+  type="button"
+  className="
+    inline-flex
+    w-full
+    items-center
+    justify-center
+    gap-3
+    rounded-lg
+    border
+    border-gray-300
+    bg-white
+    py-3
+    text-sm
+    font-medium
+    text-gray-800
+    hover:bg-gray-50
+  "
+>
+  <img
+    src="/images/icons/signin-assets/svg/neutral/web_neutral_rd_SI.svg"
+    alt="Sign in with Google"
+    className="h-5"
+  />
+  Login with Google
+</button>
 
-            <button
-              onClick={() => startOAuth('facebook')}
-              type="button"
-              className="
-                inline-flex
-                w-full
-                items-center
-                justify-center
-                gap-2
-                rounded-lg
-                border
-                border-gray-300
-                bg-white
-                py-3
-                text-sm
-                font-medium
-                text-gray-800
-                transition-colors
-                hover:bg-gray-50
-                focus:outline-none
-                focus-visible:ring-2
-                focus-visible:ring-gray-400
-              "
-            >
-              <img
-                src="/icons/facebook.svg"
-                alt="Facebook"
-                className="h-5 w-5"
-              />
-              Login with Facebook
-            </button>
-          </section>
+  {/* Facebook (ยังใช้ custom ได้) */}
+  <button
+    onClick={() => startOAuth("facebook")}
+    type="button"
+    className="
+      inline-flex
+      w-full
+      items-center
+      justify-center
+      gap-2
+      rounded-lg
+      border
+      border-gray-300
+      bg-white
+      py-3
+      text-sm
+      font-medium
+      text-gray-800
+      transition-colors
+      hover:bg-gray-50
+      focus:outline-none
+      focus-visible:ring-2
+      focus-visible:ring-gray-400
+    "
+  >
+    <img
+      src="/icons/facebook.svg"
+      alt="Facebook"
+      className="h-5 w-5"
+    />
+    Login with Facebook
+  </button>
+</section>
+
         </article>
 
         {/* Illustration */}

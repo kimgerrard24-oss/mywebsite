@@ -6,20 +6,33 @@ import { useUnfollowUser } from '@/hooks/useUnfollowUser';
 type Props = {
   userId: string;
   isFollowing: boolean;
+
+  /** 🔔 notify parent when unfollow success */
+  onSuccess?: () => void;
 };
 
 export default function UnfollowButton({
   userId,
   isFollowing,
+  onSuccess,
 }: Props) {
   const { unfollow, loading, error } = useUnfollowUser({
     userId,
     initialIsFollowing: isFollowing,
   });
 
-  function handleClick(e: MouseEvent<HTMLButtonElement>) {
+  async function handleClick(
+    e: MouseEvent<HTMLButtonElement>
+  ) {
     e.preventDefault();
-    unfollow();
+    if (loading) return;
+
+    try {
+      await unfollow();
+      onSuccess?.(); // ✅ success = no throw
+    } catch {
+      // ❌ fail-soft: hook already manages error state
+    }
   }
 
   if (!isFollowing) {

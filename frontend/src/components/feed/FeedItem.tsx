@@ -9,13 +9,27 @@ import { useState } from "react";
 import CommentComposer from "@/components/comments/CommentComposer";
 import CommentList from "@/components/comments/CommentList";
 import FollowButton from "@/components/follows/FollowButton";
+import UnfollowButton from "@/components/follows/UnfollowButton";
 
 type Props = {
   post: PostFeedItem;
   onDeleted?: (postId: string) => void;
+
+  /** 🔑 follow state from TextFeed */
+  isFollowingAuthor: boolean;
+
+  /** 🔔 notify TextFeed */
+  onFollowSuccess: (userId: string) => void;
+  onUnfollowSuccess: (userId: string) => void;
 };
 
-export default function FeedItem({ post, onDeleted }: Props) {
+export default function FeedItem({
+  post,
+  onDeleted,
+  isFollowingAuthor,
+  onFollowSuccess,
+  onUnfollowSuccess,
+}: Props) {
   const profileHref = post.canDelete
     ? "/profile"
     : `/users/${post.author.id}`;
@@ -30,10 +44,10 @@ export default function FeedItem({ post, onDeleted }: Props) {
     initialLiked: post.isLikedByViewer ?? false,
     initialLikeCount: post.stats.likeCount,
   });
-  
+
   const [showCommentBox, setShowCommentBox] = useState(false);
   const [commentCount, setCommentCount] = useState(
-  post.stats.commentCount
+    post.stats.commentCount
   );
 
   return (
@@ -134,24 +148,37 @@ export default function FeedItem({ post, onDeleted }: Props) {
           </div>
         </div>
 
-        {/* ขวา: Follow + PostAction */}
-  <div className="flex items-center gap-2">
-    {/* Follow (render only) */}
-    <FollowButton
-      userId={post.author.id}
-      isFollowing={post.author.isFollowing}
-    />
+        {/* ===== Right: Follow + PostAction ===== */}
+        <div className="flex items-center gap-2">
+          {/* 🔑 FOLLOW (render from feed authority only) */}
+          {isFollowingAuthor ? (
+            <UnfollowButton
+              userId={post.author.id}
+              isFollowing={true}
+              onSuccess={() => {
+                onUnfollowSuccess(post.author.id);
+              }}
+            />
+          ) : (
+            <FollowButton
+              userId={post.author.id}
+              isFollowing={false}
+              onSuccess={() => {
+                onFollowSuccess(post.author.id);
+              }}
+            />
+          )}
 
-    <PostActionMenu
-      postId={post.id}
-      canDelete={post.canDelete}
-      canEdit={post.canDelete}
-      canReport={!post.canDelete}
-      onDeleted={() => {
-        onDeleted?.(post.id);
-      }}
-    />
-  </div>
+          <PostActionMenu
+            postId={post.id}
+            canDelete={post.canDelete}
+            canEdit={post.canDelete}
+            canReport={!post.canDelete}
+            onDeleted={() => {
+              onDeleted?.(post.id);
+            }}
+          />
+        </div>
       </header>
 
       {/* ================= Content ================= */}
@@ -217,20 +244,19 @@ export default function FeedItem({ post, onDeleted }: Props) {
                   "
                 >
                   <video
-  src={m.url}
-  controls
-  preload="metadata"
-  playsInline
-  muted={false}
-  className="
-    absolute
-    inset-0
-    h-full
-    w-full
-    object-contain
-  "
-/>
-
+                    src={m.url}
+                    controls
+                    preload="metadata"
+                    playsInline
+                    muted={false}
+                    className="
+                      absolute
+                      inset-0
+                      h-full
+                      w-full
+                      object-contain
+                    "
+                  />
                 </div>
               )}
             </figure>
@@ -250,7 +276,6 @@ export default function FeedItem({ post, onDeleted }: Props) {
           text-gray-600
         "
       >
-        {/* 🆕 Like button (แทน span เดิมอย่างเดียว) */}
         <PostLikeButton
           liked={liked}
           likeCount={likeCount}
@@ -259,35 +284,35 @@ export default function FeedItem({ post, onDeleted }: Props) {
         />
 
         <button
-      type="button"
-      onClick={() => setShowCommentBox((v) => !v)}
-      className="hover:underline"
-      aria-expanded={showCommentBox}
+          type="button"
+          onClick={() => setShowCommentBox((v) => !v)}
+          className="hover:underline"
+          aria-expanded={showCommentBox}
         >
-        💬 {commentCount}
+          💬 {commentCount}
         </button>
-
       </footer>
 
-       {showCommentBox && (
-  <section
-    className="mt-3 border-t pt-3"
-    aria-label="Post comments"
-  >
-    <CommentComposer
-      postId={post.id}
-      onCreated={() => {
-        // fail-soft update
-        setCommentCount((c) => c + 1);
-
-        setShowCommentBox(false);
-      }}
-    />
-     {/* 2️⃣ รายการคอมเมนต์ (GET /posts/:id/comments) */}
-    <CommentList postId={post.id} />
-  </section>
-  )}
-
+      {showCommentBox && (
+        <section
+          className="mt-3 border-t pt-3"
+          aria-label="Post comments"
+        >
+          <CommentComposer
+            postId={post.id}
+            onCreated={() => {
+              setCommentCount((c) => c + 1);
+              setShowCommentBox(false);
+            }}
+          />
+          <CommentList
+  postId={post.id}
+  onCountChange={(count) => {
+    setCommentCount(count);
+  }}
+/>
+        </section>
+      )}
     </article>
   );
 }

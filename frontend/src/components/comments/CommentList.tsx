@@ -2,14 +2,19 @@
 
 import { useEffect, useCallback } from "react";
 import CommentItem from "./CommentItem";
-import CommentComposer from "./CommentComposer";
 import { usePostComments } from "@/hooks/usePostComments";
 
 type Props = {
   postId: string;
+
+  /** 🔔 notify parent when comment count changes */
+  onCountChange?: (count: number) => void;
 };
 
-export default function CommentList({ postId }: Props) {
+export default function CommentList({
+  postId,
+  onCountChange,
+}: Props) {
   const {
     items,
     loading,
@@ -32,6 +37,15 @@ export default function CommentList({ postId }: Props) {
 
   /**
    * =========================
+   * Sync comment count to parent
+   * =========================
+   */
+  useEffect(() => {
+    onCountChange?.(items.length);
+  }, [items.length, onCountChange]);
+
+  /**
+   * =========================
    * Sync after UPDATE (PUT)
    * =========================
    */
@@ -48,7 +62,7 @@ export default function CommentList({ postId }: Props) {
         editedAt: u.editedAt,
       }));
     },
-    [updateItem],
+    [updateItem]
   );
 
   /**
@@ -59,13 +73,15 @@ export default function CommentList({ postId }: Props) {
   const handleDeleted = useCallback(
     (commentId: string) => {
       removeItem(commentId);
+
+      // 🔔 notify parent immediately
+      onCountChange?.(items.length - 1);
     },
-    [removeItem],
+    [removeItem, onCountChange, items.length]
   );
 
   return (
     <section className="mt-3" aria-label="Post comments list">
-      
       {/* =========================
           Comment items
          ========================= */}
@@ -108,4 +124,3 @@ export default function CommentList({ postId }: Props) {
     </section>
   );
 }
-

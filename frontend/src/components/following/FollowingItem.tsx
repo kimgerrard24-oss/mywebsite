@@ -3,12 +3,21 @@
 import Link from 'next/link';
 import FollowButton from '@/components/follows/FollowButton';
 import type { Following } from '@/types/following';
+import { useState } from 'react';
 
 type Props = {
   following: Following;
 };
 
 export default function FollowingItem({ following }: Props) {
+  /**
+   * 🔑 local follow state (only for this list item)
+   * ไม่กระทบ feed / profile
+   */
+  const [isFollowing, setIsFollowing] = useState(
+    following.isFollowing
+  );
+
   return (
     <li
       className="
@@ -54,7 +63,10 @@ export default function FollowingItem({ following }: Props) {
       {following.canFollow && (
         <FollowButton
           userId={following.userId}
-          isFollowing={following.isFollowing}
+          isFollowing={isFollowing}
+          onSuccess={() => {
+            setIsFollowing(true);
+          }}
         />
       )}
     </li>
