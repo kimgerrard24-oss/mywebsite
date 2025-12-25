@@ -1,4 +1,5 @@
 // frontend/src/types/comment.ts
+
 export type Comment = {
   id: string;
   content: string;
