@@ -2,7 +2,6 @@
 
 import type { MouseEvent } from 'react';
 import { useFollowUser } from '@/hooks/useFollowUser';
-import { useUnfollowUser } from '@/hooks/useUnfollowUser';
 
 type Props = {
   userId: string;
@@ -19,40 +18,24 @@ export default function FollowButton({
 }: Props) {
   const {
     follow,
-    loading: followLoading,
-    error: followError,
-  } = useFollowUser({
-    userId,
-    initialIsFollowing: isFollowing,
-  });
-
-  const {
-    unfollow,
-    loading: unfollowLoading,
-    error: unfollowError,
-  } = useUnfollowUser({
-    userId,
-  });
-
-  const loading = followLoading || unfollowLoading;
-  const error = followError || unfollowError;
+    loading,
+    error,
+  } = useFollowUser(userId);
 
   async function handleClick(
     e: MouseEvent<HTMLButtonElement>
   ) {
     e.preventDefault();
-    if (loading) return;
+    e.stopPropagation();
+
+    // ป้องกัน double action และ state ซ้อน
+    if (loading || isFollowing) return;
 
     try {
-      if (isFollowing) {
-        await unfollow();
-        onFollowed?.(false);
-      } else {
-        await follow();
-        onFollowed?.(true);
-      }
+      await follow();
+      onFollowed?.(true);
     } catch {
-      // fail-soft: backend คือ authority
+      // fail-soft
     }
   }
 
@@ -69,19 +52,13 @@ export default function FollowButton({
         transition
         ${
           isFollowing
-            ? 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+            ? 'bg-gray-200 text-gray-700'
             : 'bg-blue-600 text-white hover:bg-blue-700'
         }
         disabled:opacity-60
       `}
     >
-      {loading
-        ? isFollowing
-          ? 'Unfollowing…'
-          : 'Following…'
-        : isFollowing
-          ? 'Following'
-          : 'Follow'}
+      {loading ? 'Following…' : 'Follow'}
 
       {error && (
         <span className="sr-only">

@@ -162,9 +162,7 @@ export default function FeedItem({ post, onDeleted }: Props) {
       />
     )}
   </>
-)}
-
-
+ )}
 
 
     <PostActionMenu

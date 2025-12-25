@@ -2,48 +2,32 @@
 
 import { useCallback, useState } from 'react';
 import { followUser } from '@/lib/api/follows';
-import type { FollowState } from '@/types/follow';
 
-type Params = {
-  userId: string;
-  initialIsFollowing: boolean;
-};
-
-export function useFollowUser({
-  userId,
-  initialIsFollowing,
-}: Params) {
-  const [state, setState] = useState<FollowState>({
-    isFollowing: initialIsFollowing,
-    loading: false,
-    error: null,
-  });
+export function useFollowUser(userId: string) {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const follow = useCallback(async () => {
-    if (state.loading || state.isFollowing) return;
+    if (loading) return;
 
-    setState((s) => ({ ...s, loading: true, error: null }));
+    setLoading(true);
+    setError(null);
 
     try {
       await followUser(userId);
-
-      // optimistic success
-      setState({
-        isFollowing: true,
-        loading: false,
-        error: null,
-      });
     } catch (err) {
-      setState((s) => ({
-        ...s,
-        loading: false,
-        error: err instanceof Error ? err.message : 'FOLLOW_FAILED',
-      }));
+      setError(
+        err instanceof Error ? err.message : 'FOLLOW_FAILED',
+      );
+      throw err;
+    } finally {
+      setLoading(false);
     }
-  }, [userId, state.loading, state.isFollowing]);
+  }, [userId, loading]);
 
   return {
-    ...state,
     follow,
+    loading,
+    error,
   };
 }

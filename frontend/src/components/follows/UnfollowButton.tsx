@@ -14,7 +14,11 @@ export default function UnfollowButton({
   isFollowing,
   onUnfollowed,
 }: Props) {
-  const { unfollow, loading, error } = useUnfollowUser({
+  const {
+    unfollow,
+    loading,
+    error,
+  } = useUnfollowUser({
     userId,
   });
 
@@ -22,12 +26,13 @@ export default function UnfollowButton({
     e: MouseEvent<HTMLButtonElement>
   ) {
     e.preventDefault();
+    e.stopPropagation();
+
+    // ป้องกัน double action
     if (loading || !isFollowing) return;
 
     try {
       await unfollow();
-
-      // backend คือ authority
       onUnfollowed?.();
     } catch {
       // fail-soft
