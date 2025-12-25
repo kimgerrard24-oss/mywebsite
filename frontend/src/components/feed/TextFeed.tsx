@@ -10,7 +10,7 @@ import { api } from "@/lib/api/api";
 import PostComposer from "@/components/posts/PostComposer";
 import PostActionMenu from "@/components/posts/PostActionMenu";
 import { renderContentWithHashtags } from "@/utils/renderContentWithHashtags";
-import CommentComposer from "@/components/comments/CommentComposer";
+import CommentComposer from '@/components/comments/CommentComposer';
 import { usePostLike } from "@/hooks/usePostLike";
 import PostLikeButton from "@/components/posts/PostLikeButton";
 import FeedItem from "@/components/feed/FeedItem";
@@ -21,6 +21,7 @@ type Props = {
   lang: Lang;
 
   showComposer?: boolean;
+  
   onRefreshReady?: (refreshFn: () => void) => void;
 };
 
@@ -39,23 +40,6 @@ export default function TextFeed({
     useState(false);
 
   const [showGreeting, setShowGreeting] = useState(false);
-
-  /**
-   * ===============================
-   * 🔑 FOLLOW STATE (Feed Authority)
-   * ===============================
-   */
-  const [followingUserIds, setFollowingUserIds] = useState<Set<string>>(
-    () => {
-      const initial = new Set<string>();
-      initialItems.forEach((post) => {
-        if (post.author?.isFollowing) {
-          initial.add(post.author.id);
-        }
-      });
-      return initial;
-    }
-  );
 
   useEffect(() => {
     const seen = localStorage.getItem("feed_greeting_seen");
@@ -80,17 +64,6 @@ export default function TextFeed({
 
       if (Array.isArray(res.data?.items)) {
         setItems(res.data.items);
-
-        // 🔄 re-sync follow snapshot from refreshed feed
-        setFollowingUserIds(() => {
-          const next = new Set<string>();
-          res.data.items.forEach((post) => {
-            if (post.author?.isFollowing) {
-              next.add(post.author.id);
-            }
-          });
-          return next;
-        });
       }
     } catch (err) {
       console.error("Refresh feed failed:", err);
@@ -113,27 +86,6 @@ export default function TextFeed({
     []
   );
 
-  /**
-   * ===============================
-   * FOLLOW STATE MUTATORS
-   * ===============================
-   */
-  const handleFollowSuccess = useCallback((userId: string) => {
-    setFollowingUserIds((prev) => {
-      const next = new Set(prev);
-      next.add(userId);
-      return next;
-    });
-  }, []);
-
-  const handleUnfollowSuccess = useCallback((userId: string) => {
-    setFollowingUserIds((prev) => {
-      const next = new Set(prev);
-      next.delete(userId);
-      return next;
-    });
-  }, []);
-
   return (
     <section
       className="
@@ -155,25 +107,26 @@ export default function TextFeed({
       aria-label="User feed"
     >
       {showComposer && (
-        <article
-          className="
-            w-full
-            rounded-lg
-            sm:rounded-xl
-            border
-            border-gray-200
-            bg-white
-            p-3
-            sm:p-4
-            md:p-5
-            mb-1
-            sm:mb-2
-          "
-          aria-label="Create post"
-        >
-          <PostComposer onPostCreated={refreshFeed} />
-        </article>
-      )}
+  <article
+    className="
+      w-full
+      rounded-lg
+      sm:rounded-xl
+      border
+      border-gray-200
+      bg-white
+      p-3
+      sm:p-4
+      md:p-5
+      mb-1
+      sm:mb-2
+    "
+    aria-label="Create post"
+  >
+    <PostComposer onPostCreated={refreshFeed} />
+  </article>
+)}
+
 
       {showGreeting && (
         <article
@@ -213,17 +166,12 @@ export default function TextFeed({
       )}
 
       {items.map((post) => (
-        <FeedItem
-          key={post.id}
-          post={post}
-          onDeleted={handlePostDeleted}
-          isFollowingAuthor={followingUserIds.has(
-            post.author.id
-          )}
-          onFollowSuccess={handleFollowSuccess}
-          onUnfollowSuccess={handleUnfollowSuccess}
-        />
-      ))}
-    </section>
+      <FeedItem
+        key={post.id}
+        post={post}
+        onDeleted={handlePostDeleted}
+      />
+    ))}
+  </section>
   );
 }
