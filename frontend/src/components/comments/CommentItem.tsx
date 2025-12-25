@@ -115,6 +115,26 @@ export default function CommentItem({
       className="py-2 text-sm"
       aria-label="Comment"
     >
+     {/* ================= Author ================= */}
+{comment.author && (
+  <div className="mb-1 flex items-center gap-2">
+    {comment.author.avatarUrl ? (
+      <img
+        src={comment.author.avatarUrl}
+        alt={comment.author.displayName ?? "User"}
+        className="h-6 w-6 rounded-full object-cover"
+      />
+    ) : (
+      <div className="h-6 w-6 rounded-full bg-gray-300" />
+    )}
+
+    <span className="text-xs font-medium text-gray-800">
+      {comment.author.displayName ?? "Unknown user"}
+    </span>
+  </div>
+)}
+
+
       {/* ================= Content ================= */}
       {!editing ? (
         <p className="text-gray-900">

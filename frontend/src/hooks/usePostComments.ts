@@ -115,13 +115,13 @@ export function usePostComments({ postId }: Params) {
       setError(null);
 
       try {
-        const comment = await createPostComment(
-          postId,
-          { content },
-        );
+       const comment = await createPostComment(postId, { content });
 
-        // optimistic update
-        setItems((prev) => [comment, ...prev]);
+// 🔒 ใช้ response จาก backend โดยตรง (มี author ครบ)
+if (comment?.author) {
+  setItems((prev) => [comment, ...prev]);
+}
+
 
         return comment;
       } catch {
