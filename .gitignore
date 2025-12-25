@@ -218,3 +218,8 @@ sentry.server.config.ts
 !caddy/Caddyfile
 
 postgres-data
+
+# ============================================================
+# ================= Allow Frontend Public Assets =============
+# ============================================================
+!frontend/public/**

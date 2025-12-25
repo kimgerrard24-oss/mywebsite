@@ -1,3 +1,4 @@
+// frontend/src/components/profile/UserProfileStats.tsx
 import Link from "next/link";
 import type { PublicUserProfile } from "@/types/user-profile";
 
@@ -6,6 +7,9 @@ type Props = {
 };
 
 export default function UserProfileStats({ profile }: Props) {
+  const followers = profile.stats?.followers ?? 0;
+  const following = profile.stats?.following ?? 0;
+
   return (
     <section
       aria-label="Profile statistics"
@@ -34,7 +38,7 @@ export default function UserProfileStats({ profile }: Props) {
             className="hover:underline"
           >
             <strong className="font-medium text-gray-900">
-              {profile.stats.followers}
+              {followers}
             </strong>{" "}
             <span>Followers</span>
           </Link>
@@ -47,7 +51,7 @@ export default function UserProfileStats({ profile }: Props) {
             className="hover:underline"
           >
             <strong className="font-medium text-gray-900">
-              {profile.stats.following}
+              {following}
             </strong>{" "}
             <span>Following</span>
           </Link>

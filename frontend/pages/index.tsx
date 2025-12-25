@@ -298,16 +298,16 @@ return (
 
         {/* Illustration */}
         <aside
-          className="
+           className="
             flex
             w-full
             flex-1
             items-center
             justify-center
-          "
-          aria-hidden="true"
-        >
-          <img
+           "
+           aria-hidden="true"
+            >
+           <img
             src="/images/social-hero.svg"
             alt="PhlyPhant Social Media Illustration"
             className="
