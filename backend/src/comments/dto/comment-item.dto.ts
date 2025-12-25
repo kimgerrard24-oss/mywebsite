@@ -13,5 +13,6 @@ export class CommentItemDto {
     avatarUrl: string | null;
   };
 
+  
   isOwner!: boolean;
 }
