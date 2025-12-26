@@ -10,6 +10,7 @@ import { CommentDeletePolicy } from './policy/comment-delete.policy';
 import { CommentUpdatePolicy } from './policy/comment-update.policy';
 import { CommentMapper } from './mappers/comment.mapper';
 import { CommentItemDto } from './dto/comment-item.dto';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class CommentsService {
@@ -17,6 +18,7 @@ export class CommentsService {
     private readonly repo: CommentsRepository,
     private readonly commentpolicy: CommentsPolicy,
     private readonly readpolicy: CommentReadPolicy,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async createComment(params: {
@@ -38,6 +40,20 @@ export class CommentsService {
     authorId,
     content,
   });
+
+  // 🔔 CREATE NOTIFICATION (fail-soft)
+  if (post.authorId !== authorId) {
+    try {
+      await this.notifications.createNotification({
+        userId: post.authorId,
+        actorUserId: authorId,
+        type: 'comment',
+        entityId: postId,
+      });
+    } catch {
+      // ❗ notification fail ต้องไม่ทำให้ comment fail
+    }
+  }
 
   // 🔒 re-fetch with author (source of truth)
   const rows = await this.repo.findByPostId({

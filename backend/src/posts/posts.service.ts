@@ -22,6 +22,7 @@ import { PostLikedEvent } from './events/post-liked.event';
 import { PostUnlikePolicy } from './policy/post-unlike.policy';
 import { PostUnlikeResponseDto } from './dto/post-unlike-response.dto';
 import { PostLikeDto } from './dto/post-like.dto';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class PostsService {
@@ -36,6 +37,7 @@ export class PostsService {
     private readonly postLikedEvent: PostLikedEvent,
     private readonly unlikePolicy: PostUnlikePolicy,
     private readonly postslikes: PostsRepository,
+    private readonly notifications: NotificationsService,
   ) {}
 
  async createPost(params: {
@@ -404,28 +406,51 @@ async getUserPostFeed(params: {
   }
   
 
-  async toggleLike(params: {
-    postId: string;
-    userId: string;
-  }): Promise<PostLikeResponseDto> {
-    const { postId, userId } = params;
+ async toggleLike(params: {
+  postId: string;
+  userId: string;
+}): Promise<PostLikeResponseDto> {
+  const { postId, userId } = params;
 
-    const post = await this.repo.findPostForLike(postId);
-    this.policy.assertCanLike(post);
-
-    const result = await this.repo.toggleLike({
-      postId,
-      userId,
-    });
-
-    this.postLikedEvent.emit({
-      postId,
-      userId,
-      liked: result.liked,
-    });
-
-    return result;
+  const post = await this.repo.findPostForLike(postId);
+  if (!post) {
+    throw new NotFoundException('Post not found');
   }
+
+  this.policy.assertCanLike(post);
+
+  const result = await this.repo.toggleLike({
+    postId,
+    userId,
+  });
+
+  // 🔔 CREATE NOTIFICATION (only when liked)
+  if (
+    result.liked === true &&
+    post.authorId !== userId
+  ) {
+    try {
+      await this.notifications.createNotification({
+        userId: post.authorId,
+        actorUserId: userId,
+        type: 'like',
+        entityId: postId,
+      });
+    } catch {
+      // fail-soft
+    }
+  }
+
+  this.postLikedEvent.emit({
+    postId,
+    userId,
+    liked: result.liked,
+  });
+
+  return result;
+}
+
+
 
   async unlikePost(params: {
     postId: string;

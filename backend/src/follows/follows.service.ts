@@ -10,6 +10,7 @@ import { FollowDeletePolicy } from './policy/follow-delete.policy';
 import { FollowersMapper } from './mappers/followers.mapper';
 import { FollowersReadPolicy } from './policy/followers-read.policy';
 import { FollowRemovedEvent } from './events/follow-removed.event';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class FollowsService {
@@ -19,29 +20,45 @@ export class FollowsService {
     private readonly eventcreate: FollowCreatedEvent,
     private readonly eventremove: FollowRemovedEvent,
     private readonly audit: FollowAudit,
+    private readonly notifications: NotificationsService,
   ) {}
 
   async follow(params: {
-    followerId: string;
-    followingId: string;
-  }): Promise<void> {
-    FollowCreatePolicy.assertCanFollow(params);
+  followerId: string;
+  followingId: string;
+}): Promise<void> {
+  FollowCreatePolicy.assertCanFollow(params);
 
-    const exists = await this.repo.exists(params);
-    if (exists) {
-      throw new ConflictException('ALREADY_FOLLOWING');
-    }
-
-    await this.repo.createFollow(params);
-
-    await this.cache.invalidateCounts([
-      params.followerId,
-      params.followingId,
-    ]);
-
-    await this.eventcreate.emit(params);
-    await this.audit.record(params);
+  const exists = await this.repo.exists(params);
+  if (exists) {
+    throw new ConflictException('ALREADY_FOLLOWING');
   }
+
+  await this.repo.createFollow(params);
+
+  // 🔔 CREATE NOTIFICATION (fail-soft)
+  if (params.followerId !== params.followingId) {
+    try {
+      await this.notifications.createNotification({
+        userId: params.followingId,     // ผู้รับ
+        actorUserId: params.followerId, // ผู้กระทำ
+        type: 'follow',
+        entityId: params.followerId,
+      });
+    } catch {
+      // notification fail ต้องไม่กระทบ follow
+    }
+  }
+
+  await this.cache.invalidateCounts([
+    params.followerId,
+    params.followingId,
+  ]);
+
+  await this.eventcreate.emit(params);
+  await this.audit.record(params);
+}
+
 
   async unfollow(params: {
     followerId: string;

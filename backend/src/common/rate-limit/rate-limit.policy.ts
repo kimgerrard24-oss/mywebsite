@@ -17,6 +17,12 @@ export type RateLimitAction =
   | 'oauth'
   | 'logout';
 
+export type RateLimitEscalationConfig = {
+  maxViolations: number;
+  windowSec: number;     // seconds
+  longBlockSec: number;  // seconds
+};
+
 export type RateLimitConfig = {
   // old structure (still used in service)
   points: number;
@@ -27,6 +33,8 @@ export type RateLimitConfig = {
   windowSec: number;
   max: number;
   blockDurationSec: number;
+
+  escalation?: RateLimitEscalationConfig;
 };
 
 /**
@@ -44,7 +52,13 @@ export const RateLimitPolicy: Record<RateLimitAction, RateLimitConfig> = {
     // new format (explicit)
     windowSec: 60,       // window
     max: 5,              // allow 5 attempts
-    blockDurationSec: 60 // block for 1 minute
+    blockDurationSec: 60, // block for 1 minute
+
+   escalation: {
+      maxViolations: 3,
+      windowSec: 86400,     // ทำผิดครบ 3 ครั้งภายใน 24 ชม.
+      longBlockSec: 21600,  // block 6 ชม.
+     },
   },
 
   register: {
@@ -55,6 +69,12 @@ export const RateLimitPolicy: Record<RateLimitAction, RateLimitConfig> = {
     windowSec: 60,
     max: 6,
     blockDurationSec: 600,
+
+  escalation: {
+      maxViolations: 3,
+      windowSec: 86400,     // ทำผิดครบ 3 ครั้งภายใน 24 ชม.
+      longBlockSec: 21600,  // block 6 ชม.
+     },
   },
 
   resetPassword: {
@@ -65,17 +85,29 @@ export const RateLimitPolicy: Record<RateLimitAction, RateLimitConfig> = {
     windowSec: 3600,
     max: 3,
     blockDurationSec: 1800,
+
+    escalation: {
+      maxViolations: 3,
+      windowSec: 86400,     // ทำผิดครบ 3 ครั้งภายใน 24 ชม.
+      longBlockSec: 21600,  // block 6 ชม.
+     },
   },
 
-  postCreate: {
-    points: 10,
-    duration: 60,
-    blockDuration: 120,
+ postCreate: {
+  points: 10,
+  duration: 60,
+  blockDuration: 120,
 
-    windowSec: 60,
-    max: 15,
-    blockDurationSec: 120,
+  windowSec: 60,
+  max: 15,
+  blockDurationSec: 120,
+
+  escalation: {
+    maxViolations: 3,
+    windowSec: 86400,     // ทำผิดครบ 3 ครั้งภายใน 24 ชม.
+    longBlockSec: 86400,  // block 24 ชม.
   },
+},
 
  commentUpdate: {
     points: 10,
@@ -85,6 +117,12 @@ export const RateLimitPolicy: Record<RateLimitAction, RateLimitConfig> = {
     windowSec: 60,
     max: 20,
     blockDurationSec: 120,
+
+    escalation: {
+      maxViolations: 3,
+      windowSec: 86400,     // ทำผิดครบ 3 ครั้งภายใน 24 ชม.
+      longBlockSec: 86400,  // block 24 ชม.
+     },
 },
 
  commentDelete: {
@@ -95,6 +133,12 @@ export const RateLimitPolicy: Record<RateLimitAction, RateLimitConfig> = {
     windowSec: 60,
     max: 20,
     blockDurationSec: 120,
+
+  escalation: {
+      maxViolations: 3,
+      windowSec: 86400,     // ทำผิดครบ 3 ครั้งภายใน 24 ชม.
+      longBlockSec: 86400,  // block 24 ชม.
+     },
 },
 
 
@@ -106,6 +150,12 @@ export const RateLimitPolicy: Record<RateLimitAction, RateLimitConfig> = {
     windowSec: 300,     
     max: 3,             
     blockDurationSec: 600, 
+
+  escalation: {
+      maxViolations: 3,
+      windowSec: 86400,     // ทำผิดครบ 3 ครั้งภายใน 24 ชม.
+      longBlockSec: 86400,  // block 24 ชม.
+     },  
   },
 
   updateCover: {
@@ -116,6 +166,12 @@ export const RateLimitPolicy: Record<RateLimitAction, RateLimitConfig> = {
     windowSec: 300,
     max: 3,
     blockDurationSec: 600,
+
+   escalation: {
+      maxViolations: 3,
+      windowSec: 86400,     // ทำผิดครบ 3 ครั้งภายใน 24 ชม.
+      longBlockSec: 86400,  // block 24 ชม.
+     }, 
   },
 
   commentCreate: {
@@ -126,16 +182,28 @@ export const RateLimitPolicy: Record<RateLimitAction, RateLimitConfig> = {
     windowSec: 60,
     max: 30,
     blockDurationSec: 120,
+
+   escalation: {
+      maxViolations: 3,
+      windowSec: 86400,     // ทำผิดครบ 3 ครั้งภายใน 24 ชม.
+      longBlockSec: 86400,  // block 24 ชม.
+     }, 
   },
 
   followUser: {
-    points: 50,
+    points: 100,
     duration: 3600,
     blockDuration: 3600,
 
     windowSec: 3600,
     max: 50,
     blockDurationSec: 3600,
+
+   escalation: {
+      maxViolations: 3,
+      windowSec: 86400,     // ทำผิดครบ 3 ครั้งภายใน 24 ชม.
+      longBlockSec: 86400,  // block 24 ชม.
+     }, 
   },
 
   unfollowUser: {
@@ -146,6 +214,12 @@ export const RateLimitPolicy: Record<RateLimitAction, RateLimitConfig> = {
     windowSec: 3600,
     max: 50,
     blockDurationSec: 3600,
+
+   escalation: {
+      maxViolations: 3,
+      windowSec: 86400,     // ทำผิดครบ 3 ครั้งภายใน 24 ชม.
+      longBlockSec: 86400,  // block 24 ชม.
+     }, 
   },
 
   messagingSend: {
@@ -156,16 +230,28 @@ export const RateLimitPolicy: Record<RateLimitAction, RateLimitConfig> = {
     windowSec: 60,
     max: 60,
     blockDurationSec: 300,
+
+   escalation: {
+      maxViolations: 3,
+      windowSec: 86400,     // ทำผิดครบ 3 ครั้งภายใน 24 ชม.
+      longBlockSec: 86400,  // block 24 ชม.
+     }, 
   },
 
   oauth: {
-    points: 20,
+    points: 10,
     duration: 60,
     blockDuration: 120,
 
     windowSec: 60,
     max: 20,
     blockDurationSec: 120,
+
+   escalation: {
+      maxViolations: 3,
+      windowSec: 86400,     // ทำผิดครบ 3 ครั้งภายใน 24 ชม.
+      longBlockSec: 86400,  // block 24 ชม.
+     }, 
   },
 
     logout: {
@@ -182,5 +268,7 @@ export const RateLimitPolicy: Record<RateLimitAction, RateLimitConfig> = {
     max: 20,              // allow max 20 per minute
     blockDurationSec: 60, // block 1 minute
   },
-
+  
 };
+
+

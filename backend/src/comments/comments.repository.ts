@@ -19,6 +19,7 @@ export class CommentsRepository {
       },
       select: {
         id: true,
+        authorId: true,
       },
     });
   }

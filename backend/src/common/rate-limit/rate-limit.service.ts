@@ -75,12 +75,33 @@ export class RateLimitService implements OnModuleDestroy {
       };
     }
 
+    const policy = RateLimitPolicy[action];
     const sanitized = this.sanitizeKey(key);
     const fullKey = `${action}:${sanitized}`;
 
     this.logger.debug(
       `Consume: action="${action}", raw="${key}", sanitized="${fullKey}"`,
     );
+
+    /**
+     * ======================================================
+     * 🔥 NEW: Long-block check (escalation)
+     * ======================================================
+     */
+    if (policy?.escalation) {
+      const longBlockKey = `rl:${action}:longblock:${sanitized}`;
+      const longBlocked = await this.redis.get(longBlockKey);
+
+      if (longBlocked) {
+        return {
+          limit: policy.max,
+          remaining: 0,
+          retryAfterSec: policy.escalation.longBlockSec,
+          reset: policy.escalation.longBlockSec,
+          blocked: true,
+        };
+      }
+    }
 
     try {
       const result = await limiter.consume(fullKey);
@@ -95,7 +116,37 @@ export class RateLimitService implements OnModuleDestroy {
       };
     } catch (err: any) {
       const retryAfterSec =
-        err?.msBeforeNext ? Math.ceil(err.msBeforeNext / 1000) : 60;
+        err?.msBeforeNext ? Math.ceil(err.msBeforeNext / 1000) : 120;
+
+      /**
+       * ======================================================
+       * 🔥 NEW: Escalation logic (violation counter)
+       * ======================================================
+       */
+      if (policy?.escalation) {
+        const violationKey = `rl:${action}:violation:${sanitized}`;
+
+        const count = await this.redis.incr(violationKey);
+
+        // set TTL only on first violation
+        if (count === 1) {
+          await this.redis.expire(
+            violationKey,
+            policy.escalation.windowSec,
+          );
+        }
+
+        // reached max violations → long block
+        if (count >= policy.escalation.maxViolations) {
+          const longBlockKey = `rl:${action}:longblock:${sanitized}`;
+          await this.redis.set(
+            longBlockKey,
+            '1',
+            'EX',
+            policy.escalation.longBlockSec,
+          );
+        }
+      }
 
       this.logger.warn(
         `RateLimit BLOCKED: action="${action}", key="${fullKey}", retryAfterSec=${retryAfterSec}s, reason="${err?.message || 'Exceeded limit'}"`,
@@ -182,3 +233,4 @@ export class RateLimitService implements OnModuleDestroy {
     }
   }
 }
+

@@ -78,4 +78,24 @@ export class NotificationsService {
 
     return { success: true };
   }
+
+  async createNotification(params: {
+  userId: string;        // ผู้รับ
+  actorUserId: string;  // ผู้กระทำ
+  type: 'comment' | 'like' | 'follow';
+  entityId: string;
+}) {
+  const { userId, actorUserId, type, entityId } = params;
+
+  // defensive
+  if (userId === actorUserId) return;
+
+  await this.repo.create({
+    userId,
+    actorUserId,
+    type,
+    entityId,
+  });
+}
+
 }

@@ -383,6 +383,7 @@ async findPostById(
       },
       select: {
         id: true,
+        authorId: true,
         isDeleted: true,
         isHidden: true,
       },
