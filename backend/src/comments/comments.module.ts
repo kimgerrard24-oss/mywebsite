@@ -7,9 +7,10 @@ import { CommentsPolicy } from './policy/comment.policy';
 import { AuthModule } from '../auth/auth.module';
 import { CommentReadPolicy } from './policy/comment-read.policy';
 import { CommentsController } from './update-delete/comments-controller';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [ AuthModule ],
+  imports: [ AuthModule, NotificationsModule, ],
   controllers: [ PostCommentsController, CommentsController ],
   providers: [
     CommentsService,

@@ -9,9 +9,10 @@ import { FollowAudit } from './audit/follow.audit';
 import { FollowRemovedEvent } from './events/follow-removed.event';
 import { FollowersMapper } from './mappers/followers.mapper';
 import { AuthModule } from '../auth/auth.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [ AuthModule ],
+  imports: [ AuthModule, NotificationsModule, ],
   controllers: [FollowsController],
   providers: [
     FollowsService,

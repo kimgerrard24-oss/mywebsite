@@ -11,9 +11,15 @@ import { AvatarService } from './avatar/avatar.service';
 import { R2Module } from '../r2/r2.module';
 import { CoverService } from './cover/cover.service';
 import { UserSearchPolicy } from './policies/user-search.policy';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [PrismaModule, AuthModule, R2Module, ],
+  imports: [
+    PrismaModule, 
+    AuthModule, 
+    R2Module, 
+    NotificationsModule, 
+  ],
   controllers: [UsersController],
   providers: [
     UsersService,  
