@@ -8,7 +8,11 @@ export type RateLimitAction =
   | 'postCreate'
   | 'commentCreate'
   | 'followUser'
+  | 'updateAvatar'
+  | 'updateCover'
   | 'unfollowUser'
+  | 'commentUpdate'   
+  | 'commentDelete'
   | 'messagingSend'
   | 'oauth'
   | 'logout';
@@ -64,7 +68,7 @@ export const RateLimitPolicy: Record<RateLimitAction, RateLimitConfig> = {
   },
 
   postCreate: {
-    points: 15,
+    points: 10,
     duration: 60,
     blockDuration: 120,
 
@@ -73,8 +77,49 @@ export const RateLimitPolicy: Record<RateLimitAction, RateLimitConfig> = {
     blockDurationSec: 120,
   },
 
+ commentUpdate: {
+    points: 10,
+    duration: 60,
+    blockDuration: 120,
+
+    windowSec: 60,
+    max: 20,
+    blockDurationSec: 120,
+},
+
+ commentDelete: {
+    points: 10,
+    duration: 60,
+    blockDuration: 120,
+    
+    windowSec: 60,
+    max: 20,
+    blockDurationSec: 120,
+},
+
+
+  updateAvatar: {
+    points: 5,
+    duration: 60,
+    blockDuration: 120, 
+
+    windowSec: 300,     
+    max: 3,             
+    blockDurationSec: 600, 
+  },
+
+  updateCover: {
+    points: 5,
+    duration: 60,
+    blockDuration: 120,
+
+    windowSec: 300,
+    max: 3,
+    blockDurationSec: 600,
+  },
+
   commentCreate: {
-    points: 30,
+    points: 20,
     duration: 60,
     blockDuration: 120,
 

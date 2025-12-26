@@ -13,6 +13,8 @@ import { CreateCommentDto } from './dto/create-comment.dto';
 import { GetPostCommentsQueryDto } from './dto/get-post-comments.query';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { SessionUser } from '../auth/services/validate-session.service';
+import { RateLimit } from '../common/rate-limit/rate-limit.decorator';
+import { RateLimitGuard } from '../common/rate-limit/rate-limit.guard';
 
 @Controller('posts/:postId/comments')
 export class PostCommentsController {
@@ -26,7 +28,8 @@ export class PostCommentsController {
    * =========================
    */
   @Post()
-  @UseGuards(AccessTokenCookieAuthGuard)
+  @RateLimit('commentCreate')
+  @UseGuards(AccessTokenCookieAuthGuard, RateLimitGuard)
   async createComment(
     @Param('postId') postId: string,
     @Body() dto: CreateCommentDto,

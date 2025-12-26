@@ -406,4 +406,16 @@ async sismember(key: string, member: string): Promise<boolean> {
       );
     }
   }
+
+  async getCache<T = any>(key: string): Promise<T | null> {
+    return this.get<T>(key);
+  }
+
+  async setCache(
+    key: string,
+    value: any,
+    ttlSeconds: number,
+  ): Promise<void> {
+    await this.set(key, value, ttlSeconds);
+  }
 }

@@ -27,6 +27,7 @@ import { GetUserPostsQuery } from './dto/get-user-posts.query';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { PostLikeResponseDto } from './dto/post-like-response.dto';
 import { PostUnlikeResponseDto } from './dto/post-unlike-response.dto';
+import { RateLimit } from '../common/rate-limit/rate-limit.decorator';
 
 @Controller('posts')
 export class PostsController {
@@ -34,6 +35,7 @@ export class PostsController {
 
   @Post()
   @HttpCode(201)
+  @RateLimit('postCreate')
   @UseGuards(AccessTokenCookieAuthGuard)
   async createPost(
     @Body() dto: CreatePostDto,
@@ -53,12 +55,13 @@ export class PostsController {
     };
    }
 
-@Get()
-@UseGuards(OptionalAuthGuard)
-async getFeed(
+
+  @Get()
+ @UseGuards(OptionalAuthGuard)
+ async getFeed(
   @Query() query: GetPostsQueryDto & { mediaType?: string },
   @Req() req: Request,
-) {
+ ) {
   let viewerUserId: string | null = null;
 
   const user = req.user as

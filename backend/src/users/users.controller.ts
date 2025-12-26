@@ -37,6 +37,7 @@ import { FileInterceptor } from '@nestjs/platform-express';
 import { coverMulterConfig } from './upload/multer-cover.config';
 import { SearchUsersQueryDto } from './dto/search-users.query.dto';
 import { PublicUserSearchDto } from './dto/public-user-search.dto';
+import { RateLimit } from '../common/rate-limit/rate-limit.decorator';
 
 @Controller('users')
 export class UsersController {
@@ -146,6 +147,7 @@ async getMe(
 
 @Post('update-avatar')
 @HttpCode(200)
+@RateLimit('updateAvatar')
 @UseGuards(AccessTokenCookieAuthGuard)
 @UseInterceptors(FileInterceptor('file', avatarMulterConfig))
 async updateAvatar(
@@ -170,11 +172,12 @@ async updateAvatar(
   });
 }
 
-@Post('update-cover')
-@HttpCode(200)
-@UseGuards(AccessTokenCookieAuthGuard)
-@UseInterceptors(FileInterceptor('file', coverMulterConfig))
-async updateCover(
+ @Post('update-cover')
+ @HttpCode(200)
+ @RateLimit('updateCover')
+ @UseGuards(AccessTokenCookieAuthGuard)
+ @UseInterceptors(FileInterceptor('file', coverMulterConfig))
+ async updateCover(
   @UploadedFile(new ImageValidationPipe())
   file: Express.Multer.File | undefined,
   @Req() req: Request,

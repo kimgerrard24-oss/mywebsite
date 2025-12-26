@@ -43,6 +43,8 @@ model User {
   sessions                  Session[]
   activities                UserActivity[]
   likedPosts                PostLike[]
+  notifications Notification[] 
+  actedNotifications Notification[]  @relation("NotificationActor")
   following Follow[] @relation("UserFollowing")
   followers Follow[] @relation("UserFollowers")
   @@unique([provider, providerId])
@@ -278,6 +280,45 @@ model Follow {
   @@index([followerId, createdAt])
 }
 
+model Notification {
+  id            String   @id @default(uuid())
+
+  /// เจ้าของ notification (คนที่ได้รับ)
+  userId        String
+
+  /// ประเภท notification (LIKE_POST, COMMENT_POST, FOLLOW, SYSTEM, etc.)
+  type          String
+
+  /// คนที่เป็นต้นเหตุ (nullable เช่น SYSTEM)
+  actorUserId  String?
+
+  /// entity หลักที่เกี่ยวข้อง (postId, commentId, etc.)
+  entityId      String?
+
+  /// สถานะการอ่าน
+  isRead        Boolean  @default(false)
+  readAt        DateTime?
+
+  /// เวลาเกิด notification
+  createdAt     DateTime @default(now())
+
+  /// relations
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  actor         User?    @relation("NotificationActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  /// =========================
+  /// Indexes (สำคัญมาก)
+  /// =========================
+
+  /// GET /notifications (ORDER BY createdAt DESC)
+  @@index([userId, createdAt])
+
+  /// unread badge / read-all
+  @@index([userId, isRead])
+
+  /// audit / debug / analytics
+  @@index([type])
+}
 
 
 

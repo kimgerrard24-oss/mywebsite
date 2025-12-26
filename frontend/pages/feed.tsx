@@ -19,6 +19,7 @@ import PostComposer from "@/components/posts/PostComposer";
 import FeedModeSwitcher from "@/components/common/FeedModeSwitcher";
 import { useState } from "react";
 import { useRef } from "react";
+import NotificationBell from '@/components/notifications/NotificationBell';
 
 type FeedProps = {
   user: any | null;
@@ -136,65 +137,69 @@ export default function FeedPage({
           </div>
 
           {/* ===== Right: Actions ===== */}
-          <div
-            className="
-              flex
-              shrink-0
-              items-center
-              gap-2
-              sm:gap-3
-            "
-          >
-            <LanguageSwitcher currentLang={lang} />
+<div
+  className="
+    flex
+    shrink-0
+    items-center
+    gap-2
+    sm:gap-3
+  "
+>
+  <LanguageSwitcher currentLang={lang} />
 
-            <Link
-              href="/profile"
-              aria-label="Go to profile"
-              className="
-                focus:outline-none
-                focus-visible:ring-2
-                focus-visible:ring-blue-500
-                rounded-full
-              "
-            >
-              <img
-                src={user?.avatarUrl || '/images/default-avatar.png'}
-                alt="User avatar"
-                className="
-                  h-8
-                  w-8
-                  sm:h-9
-                  sm:w-9
-                  rounded-full
-                  border
-                  object-cover
-                  cursor-pointer
-                  transition
-                  hover:ring-2
-                  hover:ring-blue-500
-                "
-              />
-            </Link>
+  {/* 🔔 NotificationBell วางตรงนี้ */}
+  <NotificationBell />
 
-            <button
-              type="button"
-              onClick={handleLogout}
-              className="
-                hidden
-                sm:inline-block
-                text-sm
-                font-medium
-                transition-colors
-                hover:text-red-600
-                focus:outline-none
-                focus-visible:ring-2
-                focus-visible:ring-red-500
-                rounded
-              "
-            >
-              {t.feed.nav.logout}
-            </button>
-          </div>
+  <Link
+    href="/profile"
+    aria-label="Go to profile"
+    className="
+      focus:outline-none
+      focus-visible:ring-2
+      focus-visible:ring-blue-500
+      rounded-full
+    "
+  >
+    <img
+      src={user?.avatarUrl || '/images/default-avatar.png'}
+      alt="User avatar"
+      className="
+        h-8
+        w-8
+        sm:h-9
+        sm:w-9
+        rounded-full
+        border
+        object-cover
+        cursor-pointer
+        transition
+        hover:ring-2
+        hover:ring-blue-500
+      "
+    />
+  </Link>
+
+  <button
+    type="button"
+    onClick={handleLogout}
+    className="
+      hidden
+      sm:inline-block
+      text-sm
+      font-medium
+      transition-colors
+      hover:text-red-600
+      focus:outline-none
+      focus-visible:ring-2
+      focus-visible:ring-red-500
+      rounded
+    "
+  >
+    {t.feed.nav.logout}
+  </button>
+</div>
+
         </nav>
       </header>
 

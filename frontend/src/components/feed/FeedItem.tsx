@@ -152,11 +152,6 @@ export default function FeedItem({ post, onDeleted }: Props) {
   />
  )}
 
-
-
-
-
-
     <PostActionMenu
       postId={post.id}
       canDelete={post.canDelete}

@@ -11,6 +11,7 @@ import { AccessTokenCookieAuthGuard } from '../../auth/guards/access-token-cooki
 import { CommentsService } from '../comments.service';
 import { UpdateCommentDto } from '../dto/update-comment.dto';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
+import { RateLimit } from '../../common/rate-limit/rate-limit.decorator';
 
 @Controller('comments')
 export class CommentsController {
@@ -24,6 +25,7 @@ export class CommentsController {
    * =========================
    */
   @Put(':id')
+  @RateLimit('commentUpdate') 
   @UseGuards(AccessTokenCookieAuthGuard)
   async updateComment(
     @Param('id') commentId: string,
@@ -43,6 +45,7 @@ export class CommentsController {
    * =========================
    */
   @Delete(':id')
+  @RateLimit('commentDelete')
   @UseGuards(AccessTokenCookieAuthGuard)
   async deleteComment(
     @Param('id') commentId: string,

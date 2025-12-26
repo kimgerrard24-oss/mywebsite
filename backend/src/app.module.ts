@@ -27,6 +27,7 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { AlertModule } from './alert/alert.module';
 import { FollowsModule } from './follows/follows.module';
 import { FollowingModule } from './following/following.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -41,6 +42,7 @@ import { FollowingModule } from './following/following.module';
     
     ScheduleModule.forRoot(),
     AlertModule,
+    NotificationsModule,
     FollowsModule,
     FollowingModule,
     SecretsModule,
