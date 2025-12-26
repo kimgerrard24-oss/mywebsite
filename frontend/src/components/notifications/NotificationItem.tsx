@@ -9,62 +9,84 @@ type Props = {
 };
 
 export default function NotificationItem({ item }: Props) {
-  // 🔹 state เดิม (ไม่กระทบ behavior เดิม)
   const [isRead, setIsRead] = useState(item.isRead);
-
-  // 🔹 hook ใหม่ (backend authority)
   const { markRead, isLoading } = useNotificationRead();
 
   async function handleMarkRead() {
     if (isRead) return;
 
-    // optimistic UI
     setIsRead(true);
-
     try {
       await markRead(item.id);
     } catch {
-      // rollback (fail-soft)
       setIsRead(false);
     }
   }
 
+  const actorName =
+    item.actor?.displayName ?? 'Someone';
+
   return (
     <li
       className={`
-        flex flex-col gap-1
+        flex gap-3
         rounded-md border p-3
         ${isRead ? 'bg-gray-50' : 'bg-white'}
       `}
       aria-live="polite"
     >
-      <span className="text-sm text-gray-800">
-        {item.type}
-      </span>
+      {/* ===== Avatar ===== */}
+      <div className="flex-shrink-0">
+        {item.actor?.avatarUrl ? (
+          <img
+            src={item.actor.avatarUrl}
+            alt={actorName}
+            className="h-8 w-8 rounded-full object-cover"
+          />
+        ) : (
+          <div
+            className="h-8 w-8 rounded-full bg-gray-300"
+            aria-hidden="true"
+          />
+        )}
+      </div>
 
-      <time
-        dateTime={item.createdAt}
-        className="text-xs text-gray-500"
-      >
-        {new Date(item.createdAt).toLocaleString()}
-      </time>
+      {/* ===== Content ===== */}
+      <div className="flex flex-col gap-1 min-w-0">
+        <span className="text-sm text-gray-800">
+          <strong className="font-medium">
+            {actorName}
+          </strong>{' '}
+          {item.type === 'comment' && 'commented on your post'}
+          {item.type === 'like' && 'liked your post'}
+          {item.type === 'follow' && 'started following you'}
+        </span>
 
-      {/* 🔹 ส่วนใหม่ (ไม่กระทบของเดิม) */}
-      {!isRead && (
-        <button
-          type="button"
-          onClick={handleMarkRead}
-          disabled={isLoading(item.id)}
-          className="
-            mt-1 self-start
-            text-xs text-blue-600
-            hover:underline
-            disabled:opacity-50
-          "
+        <time
+          dateTime={item.createdAt}
+          className="text-xs text-gray-500"
         >
-          {isLoading(item.id) ? 'Marking...' : 'Mark as read'}
-        </button>
-      )}
+          {new Date(item.createdAt).toLocaleString()}
+        </time>
+
+        {!isRead && (
+          <button
+            type="button"
+            onClick={handleMarkRead}
+            disabled={isLoading(item.id)}
+            className="
+              mt-1 self-start
+              text-xs text-blue-600
+              hover:underline
+              disabled:opacity-50
+            "
+          >
+            {isLoading(item.id)
+              ? 'Marking...'
+              : 'Mark as read'}
+          </button>
+        )}
+      </div>
     </li>
   );
 }

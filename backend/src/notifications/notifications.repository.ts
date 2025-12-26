@@ -8,29 +8,46 @@ export class NotificationsRepository {
     private readonly prisma: PrismaService,
   ) {}
 
-  async findMany(params: {
-    userId: string;
-    cursor: string | null;
-    limit: number;
-  }) {
-    const { userId, cursor, limit } = params;
+// backend/src/notifications/notifications.repository.ts
 
-    return this.prisma.notification.findMany({
-      where: {
-        userId,
+async findMany(params: {
+  userId: string;
+  cursor: string | null;
+  limit: number;
+}) {
+  const { userId, cursor, limit } = params;
+
+  return this.prisma.notification.findMany({
+    where: {
+      userId,
+    },
+
+    // ✅ JOIN actor user (สำหรับแสดงผล)
+    include: {
+      actor: {
+        select: {
+          id: true,
+          displayName: true,
+          avatarUrl: true,
+        },
       },
-      orderBy: {
-        createdAt: 'desc',
-      },
-      take: limit,
-      ...(cursor
-        ? {
-            cursor: { id: cursor },
-            skip: 1,
-          }
-        : {}),
-    });
-  }
+    },
+
+    orderBy: {
+      createdAt: 'desc',
+    },
+
+    take: limit,
+
+    ...(cursor
+      ? {
+          cursor: { id: cursor },
+          skip: 1,
+        }
+      : {}),
+  });
+}
+
 
    async findById(id: string) {
     return this.prisma.notification.findUnique({
