@@ -15,6 +15,7 @@ import { mapUnreadCount } from './mapper/chat-unread.mapper';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationRealtimeService } from '../notifications/realtime/notification-realtime.service';
 import { NotificationMapper } from '../notifications/mapper/notification.mapper';
+import { ChatRealtimeService } from './realtime/chat-realtime.service'
 
 @Injectable()
 export class ChatService {
@@ -23,6 +24,7 @@ export class ChatService {
     private readonly permission: ChatPermissionService,
     private readonly notifications: NotificationsService,
     private readonly notificationRealtime: NotificationRealtimeService,
+    private readonly chatRealtime: ChatRealtimeService, 
   ) {}
 
   async getOrCreateDirectChat(params: {
@@ -157,7 +159,7 @@ async sendMessage(params: {
     viewerUserId: senderUserId,
   });
 
-  // 3. Create message
+  // 3. Create message (DB = source of truth)
   const message = await this.repo.createMessage({
     chatId,
     senderUserId,
@@ -189,7 +191,7 @@ async sendMessage(params: {
           },
         });
 
-      // 🔔 REALTIME EMIT (delivery only)
+      // 🔔 Notification realtime (delivery only)
       this.notificationRealtime.emitNewNotification(
         receiverUserId,
         {
@@ -199,16 +201,25 @@ async sendMessage(params: {
     }
   } catch {
     /**
-     * ❗ notification / realtime fail ต้องไม่ทำให้ message fail
-     * chat message = primary action
-     * notification = side-effect
+     * ❗ notification fail ต้องไม่ทำให้ message fail
+     */
+  }
+
+  // 💬 CHAT REALTIME EMIT (fail-soft) ✅✅
+  try {
+    this.chatRealtime.emitNewMessage({
+      chatId,
+      message: ChatMessageDto.fromRow(message),
+    });
+  } catch {
+    /**
+     * ❗ chat realtime fail ต้องไม่ทำให้ message fail
+     * DB + REST คือ source of truth
      */
   }
 
   return ChatMessageDto.fromRow(message);
-}
-
-
+ }
 
 
    async getUnreadCount(params: {

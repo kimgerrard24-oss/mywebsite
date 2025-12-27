@@ -148,6 +148,25 @@ export default function FeedPage({
 >
   <LanguageSwitcher currentLang={lang} />
 
+  {/* 📨 Chat Rooms */}
+  <Link
+  href="/chat"
+  aria-label="Go to chats"
+  className="
+    relative
+    text-sm
+    font-medium
+    text-gray-700
+    hover:text-blue-600
+    focus:outline-none
+    focus-visible:ring-2
+    focus-visible:ring-blue-500
+    rounded
+  "
+>
+  Chats
+</Link>
+
   {/* 🔔 NotificationBell วางตรงนี้ */}
   <NotificationBell />
 

@@ -14,16 +14,22 @@ import { ChatTypingService } from './chat-typing.service';
 import { ChatRealtimeModule } from './realtime/chat-realtime.module';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { NotificationRealtimeModule } from '../notifications/realtime//notification-realtime.module';
+import { ChatReportController } from './chat-report.controller';
+import { ChatReportService } from './chat-report.service';
+import { ChatReportRepository } from './chat-report.repository';
 
 @Module({
   imports: [ChatRealtimeModule, AuthModule, NotificationsModule, NotificationRealtimeModule],
   controllers: [
      ChatController,
      ChatMessagesController,
-     ChatTypingController
+     ChatTypingController,
+     ChatReportController,
     ],
   providers: [
     ChatService,
+    ChatReportService,       
+    ChatReportRepository,     
     ChatRepository,
     ChatTypingService,
     ChatPermissionService,

@@ -1,5 +1,3 @@
-// frontend/src/components/chat/ChatMessageList.tsx
-
 import {
   forwardRef,
   useImperativeHandle,
@@ -9,6 +7,7 @@ import ChatMessageItem from "./ChatMessageItem";
 import ChatMessageEmptyState from "./ChatMessageEmptyState";
 import ChatMessageLoader from "./ChatMessageLoader";
 import { useChatMessages } from "@/hooks/useChatMessages";
+import { useAuth } from "@/hooks/useAuth";
 import type { ChatMessage } from "@/types/chat-message";
 
 /**
@@ -41,6 +40,12 @@ const ChatMessageList = forwardRef<
   { chatId, initialData },
   ref,
 ) {
+  /**
+   * viewer (source of truth from auth context)
+   */
+  const { user } = useAuth();
+  const viewerUserId = user?.id;
+
   /**
    * messages จาก GET (pagination) — read-only
    */
@@ -144,7 +149,10 @@ const ChatMessageList = forwardRef<
         <ChatMessageItem
           key={msg.id}
           message={msg}
-          isOwn
+          isOwn={
+            !!viewerUserId &&
+            msg.sender.id === viewerUserId
+          }
           onEdited={handleEditedMessage}
           onDeleted={handleDeletedMessage}
         />
