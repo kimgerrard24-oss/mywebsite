@@ -1,4 +1,4 @@
-// src/chat/realtime/chat-realtime.module.ts
+// backend/src/chat/realtime/chat-realtime.module.ts
 
 import { Module } from '@nestjs/common';
 import { ChatGateway } from './chat.gateway';

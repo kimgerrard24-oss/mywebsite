@@ -1,4 +1,4 @@
-// src/chat/realtime/chat-realtime.service.ts
+// backend/src/chat/realtime/chat-realtime.service.ts
 
 import { Injectable } from '@nestjs/common';
 import { Server } from 'socket.io';

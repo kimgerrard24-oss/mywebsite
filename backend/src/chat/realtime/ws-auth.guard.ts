@@ -1,4 +1,4 @@
-// src/chat/realtime/ws-auth.guard.ts
+// backend/src/chat/realtime/ws-auth.guard.ts
 
 import {
   CanActivate,
