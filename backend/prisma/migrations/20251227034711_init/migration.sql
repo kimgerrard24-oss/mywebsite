@@ -4,6 +4,9 @@ CREATE TYPE "PostVisibility" AS ENUM ('PUBLIC', 'PRIVATE');
 -- CreateEnum
 CREATE TYPE "MediaType" AS ENUM ('IMAGE', 'VIDEO');
 
+-- CreateEnum
+CREATE TYPE "ChatReportReason" AS ENUM ('SPAM', 'HARASSMENT', 'HATE_SPEECH', 'SCAM', 'SEXUAL_CONTENT', 'OTHER');
+
 -- CreateTable
 CREATE TABLE "User" (
     "id" TEXT NOT NULL,
@@ -231,6 +234,95 @@ CREATE TABLE "Notification" (
     CONSTRAINT "Notification_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "Chat" (
+    "id" TEXT NOT NULL,
+    "isGroup" BOOLEAN NOT NULL DEFAULT false,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Chat_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ChatParticipant" (
+    "chatId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "joinedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "leftAt" TIMESTAMP(3),
+
+    CONSTRAINT "ChatParticipant_pkey" PRIMARY KEY ("chatId","userId")
+);
+
+-- CreateTable
+CREATE TABLE "ChatMessage" (
+    "id" TEXT NOT NULL,
+    "chatId" TEXT NOT NULL,
+    "senderId" TEXT NOT NULL,
+    "content" TEXT NOT NULL,
+    "isEdited" BOOLEAN NOT NULL DEFAULT false,
+    "editedAt" TIMESTAMP(3),
+    "isDeleted" BOOLEAN NOT NULL DEFAULT false,
+    "deletedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ChatMessage_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ChatReadState" (
+    "chatId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "lastReadMessageId" TEXT,
+    "lastReadAt" TIMESTAMP(3),
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ChatReadState_pkey" PRIMARY KEY ("chatId","userId")
+);
+
+-- CreateTable
+CREATE TABLE "ChatMessageReport" (
+    "id" TEXT NOT NULL,
+    "messageId" TEXT NOT NULL,
+    "reporterId" TEXT NOT NULL,
+    "reason" TEXT NOT NULL,
+    "detail" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ChatMessageReport_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ChatTypingState" (
+    "chatId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "isTyping" BOOLEAN NOT NULL DEFAULT false,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "ChatTypingState_pkey" PRIMARY KEY ("chatId","userId")
+);
+
+-- CreateTable
+CREATE TABLE "UserBlock" (
+    "blockerId" TEXT NOT NULL,
+    "blockedId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "UserBlock_pkey" PRIMARY KEY ("blockerId","blockedId")
+);
+
+-- CreateTable
+CREATE TABLE "ChatReport" (
+    "id" TEXT NOT NULL,
+    "chatId" TEXT NOT NULL,
+    "reporterId" TEXT NOT NULL,
+    "reason" "ChatReportReason" NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "description" TEXT,
+
+    CONSTRAINT "ChatReport_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 
@@ -327,6 +419,54 @@ CREATE INDEX "Notification_userId_isRead_idx" ON "Notification"("userId", "isRea
 -- CreateIndex
 CREATE INDEX "Notification_type_idx" ON "Notification"("type");
 
+-- CreateIndex
+CREATE INDEX "Chat_isGroup_idx" ON "Chat"("isGroup");
+
+-- CreateIndex
+CREATE INDEX "Chat_updatedAt_idx" ON "Chat"("updatedAt");
+
+-- CreateIndex
+CREATE INDEX "ChatParticipant_userId_idx" ON "ChatParticipant"("userId");
+
+-- CreateIndex
+CREATE INDEX "ChatParticipant_chatId_idx" ON "ChatParticipant"("chatId");
+
+-- CreateIndex
+CREATE INDEX "ChatMessage_chatId_createdAt_idx" ON "ChatMessage"("chatId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "ChatMessage_senderId_idx" ON "ChatMessage"("senderId");
+
+-- CreateIndex
+CREATE INDEX "ChatReadState_userId_idx" ON "ChatReadState"("userId");
+
+-- CreateIndex
+CREATE INDEX "ChatReadState_chatId_lastReadAt_idx" ON "ChatReadState"("chatId", "lastReadAt");
+
+-- CreateIndex
+CREATE INDEX "ChatMessageReport_messageId_idx" ON "ChatMessageReport"("messageId");
+
+-- CreateIndex
+CREATE INDEX "ChatMessageReport_reporterId_idx" ON "ChatMessageReport"("reporterId");
+
+-- CreateIndex
+CREATE INDEX "UserBlock_blockedId_idx" ON "UserBlock"("blockedId");
+
+-- CreateIndex
+CREATE INDEX "UserBlock_blockerId_idx" ON "UserBlock"("blockerId");
+
+-- CreateIndex
+CREATE INDEX "ChatReport_chatId_idx" ON "ChatReport"("chatId");
+
+-- CreateIndex
+CREATE INDEX "ChatReport_reporterId_idx" ON "ChatReport"("reporterId");
+
+-- CreateIndex
+CREATE INDEX "ChatReport_createdAt_idx" ON "ChatReport"("createdAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ChatReport_chatId_reporterId_key" ON "ChatReport"("chatId", "reporterId");
+
 -- AddForeignKey
 ALTER TABLE "Session" ADD CONSTRAINT "Session_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
@@ -386,3 +526,45 @@ ALTER TABLE "Notification" ADD CONSTRAINT "Notification_userId_fkey" FOREIGN KEY
 
 -- AddForeignKey
 ALTER TABLE "Notification" ADD CONSTRAINT "Notification_actorUserId_fkey" FOREIGN KEY ("actorUserId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ChatParticipant" ADD CONSTRAINT "ChatParticipant_chatId_fkey" FOREIGN KEY ("chatId") REFERENCES "Chat"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ChatParticipant" ADD CONSTRAINT "ChatParticipant_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ChatMessage" ADD CONSTRAINT "ChatMessage_chatId_fkey" FOREIGN KEY ("chatId") REFERENCES "Chat"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ChatMessage" ADD CONSTRAINT "ChatMessage_senderId_fkey" FOREIGN KEY ("senderId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ChatReadState" ADD CONSTRAINT "ChatReadState_chatId_fkey" FOREIGN KEY ("chatId") REFERENCES "Chat"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ChatReadState" ADD CONSTRAINT "ChatReadState_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ChatMessageReport" ADD CONSTRAINT "ChatMessageReport_messageId_fkey" FOREIGN KEY ("messageId") REFERENCES "ChatMessage"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ChatMessageReport" ADD CONSTRAINT "ChatMessageReport_reporterId_fkey" FOREIGN KEY ("reporterId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ChatTypingState" ADD CONSTRAINT "ChatTypingState_chatId_fkey" FOREIGN KEY ("chatId") REFERENCES "Chat"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ChatTypingState" ADD CONSTRAINT "ChatTypingState_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "UserBlock" ADD CONSTRAINT "UserBlock_blockerId_fkey" FOREIGN KEY ("blockerId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "UserBlock" ADD CONSTRAINT "UserBlock_blockedId_fkey" FOREIGN KEY ("blockedId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ChatReport" ADD CONSTRAINT "ChatReport_chatId_fkey" FOREIGN KEY ("chatId") REFERENCES "Chat"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ChatReport" ADD CONSTRAINT "ChatReport_reporterId_fkey" FOREIGN KEY ("reporterId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;

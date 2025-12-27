@@ -43,6 +43,14 @@ model User {
   sessions                  Session[]
   activities                UserActivity[]
   likedPosts                PostLike[]
+  chatReports        ChatReport[] 
+  chatParticipants   ChatParticipant[]
+  sentChatMessages   ChatMessage[]      @relation("ChatMessageSender")
+  chatReadStates     ChatReadState[]
+  chatMessageReports ChatMessageReport[]
+  chatTypingStates   ChatTypingState[]
+  blockedUsers  UserBlock[] @relation("UserBlocker")
+  blockedBy     UserBlock[] @relation("UserBlocked")
   notifications Notification[] 
   actedNotifications Notification[]  @relation("NotificationActor")
   following Follow[] @relation("UserFollowing")
@@ -319,6 +327,162 @@ model Notification {
   /// audit / debug / analytics
   @@index([type])
 }
+
+model Chat {
+  id        String   @id @default(uuid())
+  isGroup   Boolean  @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // relations
+  participants ChatParticipant[]
+  messages     ChatMessage[]
+  readStates   ChatReadState[]
+  typingStates ChatTypingState[]
+  reports      ChatReport[]
+  @@index([isGroup])
+  @@index([updatedAt])
+}
+
+model ChatParticipant {
+  chatId  String
+  userId  String
+
+  joinedAt DateTime @default(now())
+  leftAt   DateTime?
+
+  // relations
+  chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([chatId, userId])
+  @@index([userId])
+  @@index([chatId])
+}
+
+model ChatMessage {
+  id        String   @id @default(uuid())
+  chatId   String
+  senderId String
+
+  content  String
+
+  // message state
+  isEdited  Boolean   @default(false)
+  editedAt  DateTime?
+  isDeleted Boolean   @default(false)
+  deletedAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  // relations
+  chat   Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  sender User @relation("ChatMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
+  reports ChatMessageReport[]
+
+  @@index([chatId, createdAt])
+  @@index([senderId])
+}
+
+model ChatReadState {
+  chatId String
+  userId String
+  lastReadMessageId  String?
+  lastReadAt DateTime?
+  updatedAt  DateTime @updatedAt
+  
+  // relations
+  chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([chatId, userId])
+  @@index([userId])
+  @@index([chatId, lastReadAt])
+}
+
+model ChatMessageReport {
+  id        String   @id @default(uuid())
+  messageId String
+  reporterId String
+
+  reason    String
+  detail    String?
+
+  createdAt DateTime @default(now())
+
+  // relations
+  message ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  reporter User        @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+  @@index([reporterId])
+}
+
+model ChatTypingState {
+  chatId String
+  userId String
+
+  isTyping Boolean @default(false)
+  updatedAt DateTime @updatedAt
+
+  // relations
+  chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([chatId, userId])
+}
+
+model UserBlock {
+  blockerId String
+  blockedId String
+
+  createdAt DateTime @default(now())
+
+  /// relations
+  blocker User @relation("UserBlocker", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked User @relation("UserBlocked", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  /// prevent duplicate block
+  @@id([blockerId, blockedId])
+
+  /// check who blocked me
+  @@index([blockedId])
+
+  /// check who I blocked
+  @@index([blockerId])
+}
+
+enum ChatReportReason {
+  SPAM
+  HARASSMENT
+  HATE_SPEECH
+  SCAM
+  SEXUAL_CONTENT
+  OTHER
+}
+
+model ChatReport {
+  id         String   @id @default(uuid())
+  chatId     String
+  reporterId String
+
+  reason ChatReportReason
+  createdAt DateTime @default(now())
+  description String?
+  // relations
+  chat     Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  reporter User @relation(fields: [reporterId], references: [id], onDelete: Cascade)
+
+  // prevent duplicate report per user per chat
+  @@unique([chatId, reporterId])
+
+  @@index([chatId])
+  @@index([reporterId])
+  @@index([createdAt])
+}
+
+
 
 
 

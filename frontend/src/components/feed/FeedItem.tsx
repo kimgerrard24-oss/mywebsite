@@ -144,6 +144,16 @@ export default function FeedItem({ post, onDeleted }: Props) {
 
         {/* ขวา: Follow + PostAction */}
   <div className="flex items-center gap-2">
+         {/* 💬 Chat */}
+  {!post.isSelf && (
+    <Link
+      href={`/chat/${post.author.id}`}
+      className="text-xs text-blue-600 hover:underline"
+    >
+      💬 แชท
+    </Link>
+  )}
+
     {/* Follow (render only) */}
  {!post.isSelf && (
   <FollowControl
