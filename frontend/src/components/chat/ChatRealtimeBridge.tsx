@@ -2,20 +2,16 @@
 
 import { useCallback } from 'react';
 import { useChatRealtime } from '@/hooks/useChatRealtime';
+import type { ChatMessage } from '@/types/chat-message';
 
 type Props = {
   chatId: string;
 
   /**
    * Inject message into existing chat state
-   * (เช่น setMessages หรือ update store)
+   * (เช่น ChatMessageList.appendMessage)
    */
-  onMessageReceived: (message: {
-    id: string;
-    senderId: string;
-    content: string;
-    createdAt: string;
-  }) => void;
+  onMessageReceived: (message: ChatMessage) => void;
 };
 
 /**
@@ -29,14 +25,11 @@ export default function ChatRealtimeBridge({
   const handleNewMessage = useCallback(
     (payload: {
       chatId: string;
-      message: {
-        id: string;
-        senderId: string;
-        content: string;
-        createdAt: string;
-      };
+      message: ChatMessage;
     }) => {
+      if (!payload) return;
       if (payload.chatId !== chatId) return;
+
       onMessageReceived(payload.message);
     },
     [chatId, onMessageReceived],
@@ -47,5 +40,5 @@ export default function ChatRealtimeBridge({
     onNewMessage: handleNewMessage,
   });
 
-  return null; // no UI
+  return null;
 }

@@ -2,15 +2,11 @@
 
 import { useEffect } from 'react';
 import { getSocket } from '@/lib/socket';
+import type { ChatMessage } from '@/types/chat-message';
 
 type NewMessagePayload = {
   chatId: string;
-  message: {
-    id: string;
-    senderId: string;
-    content: string;
-    createdAt: string;
-  };
+  message: ChatMessage;
 };
 
 type Params = {
@@ -22,15 +18,15 @@ export function useChatRealtime({ chatId, onNewMessage }: Params) {
   useEffect(() => {
     const socket = getSocket();
 
-    // connect once
+    // connect once (idempotent)
     if (!socket.connected) {
       socket.connect();
     }
 
-    // join chat room
+    // backend is authority: client can only request join
     socket.emit('chat:join', { chatId });
 
-    // listen event
+    // listen realtime message
     socket.on('chat:new-message', onNewMessage);
 
     return () => {

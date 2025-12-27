@@ -26,6 +26,16 @@ export class ChatController {
               private readonly chatRealtime: ChatRealtimeService,
             ) {}
 
+ @UseGuards(AccessTokenCookieAuthGuard)
+  @Get('rooms')
+  async getChatRooms(
+    @Req() req: Request,
+  ): Promise<ChatRoomListDto[]> {
+    const viewer = req.user as { userId: string; jti: string };
+
+    return this.chatService.getChatRooms(viewer.userId);
+  }
+
   /**
    * GET /chat/:userId
    * - เปิดห้องแชต 1–1
@@ -43,16 +53,6 @@ export class ChatController {
       viewerUserId: viewer.userId,
       targetUserId,
     });
-  }
-
-   @UseGuards(AccessTokenCookieAuthGuard)
-  @Get('rooms')
-  async getChatRooms(
-    @Req() req: Request,
-  ): Promise<ChatRoomListDto[]> {
-    const viewer = req.user as { userId: string; jti: string };
-
-    return this.chatService.getChatRooms(viewer.userId);
   }
 
    @UseGuards(AccessTokenCookieAuthGuard)
