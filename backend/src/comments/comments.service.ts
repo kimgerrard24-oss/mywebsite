@@ -11,6 +11,8 @@ import { CommentUpdatePolicy } from './policy/comment-update.policy';
 import { CommentMapper } from './mappers/comment.mapper';
 import { CommentItemDto } from './dto/comment-item.dto';
 import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationRealtimeService } from '../notifications/realtime/notification-realtime.service';
+import { NotificationMapper } from '../notifications/mapper/notification.mapper';
 
 @Injectable()
 export class CommentsService {
@@ -19,6 +21,7 @@ export class CommentsService {
     private readonly commentpolicy: CommentsPolicy,
     private readonly readpolicy: CommentReadPolicy,
     private readonly notifications: NotificationsService,
+    private readonly notificationRealtime: NotificationRealtimeService,
   ) {}
 
   async createComment(params: {
@@ -41,17 +44,29 @@ export class CommentsService {
     content,
   });
 
-  // 🔔 CREATE NOTIFICATION (fail-soft)
+  // 🔔 CREATE NOTIFICATION + REALTIME (fail-soft)
   if (post.authorId !== authorId) {
     try {
-      await this.notifications.createNotification({
-        userId: post.authorId,
-        actorUserId: authorId,
-        type: 'comment',
-        entityId: postId,
-      });
+      const notification =
+        await this.notifications.createNotification({
+          userId: post.authorId,
+          actorUserId: authorId,
+          type: 'comment',
+          entityId: postId,
+          payload: {
+            postId,
+          },
+        });
+
+      // 🔔 REALTIME EMIT (delivery only)
+this.notificationRealtime.emitNewNotification(
+  post.authorId,
+  {
+    notification: NotificationMapper.toDto(notification),
+  },
+);
     } catch {
-      // ❗ notification fail ต้องไม่ทำให้ comment fail
+      // ❗ notification / realtime fail ต้องไม่ทำให้ comment fail
     }
   }
 
@@ -68,6 +83,7 @@ export class CommentsService {
 
   return item;
 }
+
 
 
  async getPostComments(params: {

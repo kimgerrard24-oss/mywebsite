@@ -2,7 +2,7 @@
 
 import Head from "next/head";
 import type { GetServerSideProps } from "next";
-import { useRef } from "react";
+import { useRef, useCallback } from "react";
 import { requireSessionSSR } from "@/lib/auth/require-session-ssr";
 import {
   getChatMeta,
@@ -19,6 +19,9 @@ import ChatMessageList, {
 import ChatComposer from "@/components/chat/ChatComposer";
 import ChatReadObserver from "@/components/chat/ChatReadObserver";
 import ChatMessageComposer from "@/components/chat/ChatMessageComposer";
+
+// 🔔 Realtime
+import ChatRealtimeBridge from "@/components/chat/ChatRealtimeBridge";
 
 /**
  * ==============================
@@ -57,6 +60,19 @@ export default function ChatPage({
   const listRef =
     useRef<ChatMessageListHandle>(null);
 
+  /**
+   * 🔔 Realtime handler
+   * - inject message into existing list
+   * - no duplicate logic
+   * - no side effects
+   */
+  const handleRealtimeMessage = useCallback(
+    (msg: any) => {
+      listRef.current?.appendMessage(msg);
+    },
+    [],
+  );
+
   return (
     <>
       <Head>
@@ -71,6 +87,16 @@ export default function ChatPage({
       <ChatLayout>
         <ChatPermissionGuard meta={meta}>
           <ChatHeader meta={meta} />
+
+          {/* =========================
+              🔔 Realtime Bridge
+              - delivery only
+              - no UI
+              ========================= */}
+          <ChatRealtimeBridge
+            chatId={meta.id}
+            onMessageReceived={handleRealtimeMessage}
+          />
 
           {/* =========================
               Chat Messages
@@ -88,20 +114,13 @@ export default function ChatPage({
           <ChatReadObserver chatId={meta.id} />
 
           {/* =========================
-              Typing Trigger
-              - POST /chat/:chatId/typing
-              ========================= */}
-          <ChatMessageComposer
-            chatId={meta.id}
-          />
-
-          {/* =========================
               Chat Composer
               - POST /chat/:chatId/messages
               ========================= */}
           <ChatComposer
             chatId={meta.id}
             onMessageSent={(msg) => {
+              // เดิม: optimistic update
               listRef.current?.appendMessage(
                 msg,
               );
@@ -175,5 +194,5 @@ export const getServerSideProps: GetServerSideProps =
         return { notFound: true };
       }
     }
-    
   };
+

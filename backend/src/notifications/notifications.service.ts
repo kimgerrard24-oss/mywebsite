@@ -6,6 +6,10 @@ import { NotificationVisibilityPolicy } from './policy/notification-visibility.p
 import { NotificationCacheService } from './cache/notification-cache.service';
 import { NotificationRow } from './types/notification-row.type';
 
+// ✅ import type ใหม่
+import { NotificationCreateInput } from './types/notification-create.input';
+import { NotificationPayloadMap } from './types/notification-payload.type';
+
 @Injectable()
 export class NotificationsService {
   constructor(
@@ -33,7 +37,7 @@ export class NotificationsService {
       limit,
     });
 
-     const items = rows.map((row: NotificationRow) =>
+    const items = rows.map((row: NotificationRow) =>
       NotificationMapper.toDto(row),
     );
 
@@ -52,7 +56,7 @@ export class NotificationsService {
     return response;
   }
 
-   async markNotificationRead(params: {
+  async markNotificationRead(params: {
     notificationId: string;
     viewerUserId: string;
   }) {
@@ -79,23 +83,20 @@ export class NotificationsService {
     return { success: true };
   }
 
-  async createNotification(params: {
-  userId: string;        // ผู้รับ
-  actorUserId: string;  // ผู้กระทำ
-  type: 'comment' | 'like' | 'follow';
-  entityId: string;
-}) {
-  const { userId, actorUserId, type, entityId } = params;
+  // ✅ PRODUCTION-GRADE VERSION
+  async createNotification<
+    T extends keyof NotificationPayloadMap,
+  >(params: NotificationCreateInput<T>) {
+    const { userId, actorUserId, type, entityId } = params;
 
-  // defensive
-  if (userId === actorUserId) return;
+    // defensive
+    if (userId === actorUserId) return;
 
-  await this.repo.create({
-    userId,
-    actorUserId,
-    type,
-    entityId,
-  });
-}
-
+    await this.repo.create({
+      userId,
+      actorUserId,
+      type,
+      entityId,
+    });
+  }
 }

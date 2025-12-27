@@ -23,6 +23,8 @@ import { PostUnlikePolicy } from './policy/post-unlike.policy';
 import { PostUnlikeResponseDto } from './dto/post-unlike-response.dto';
 import { PostLikeDto } from './dto/post-like.dto';
 import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationRealtimeService } from '../notifications/realtime/notification-realtime.service';
+import { NotificationMapper } from '../notifications/mapper/notification.mapper';
 
 @Injectable()
 export class PostsService {
@@ -38,6 +40,7 @@ export class PostsService {
     private readonly unlikePolicy: PostUnlikePolicy,
     private readonly postslikes: PostsRepository,
     private readonly notifications: NotificationsService,
+    private readonly notificationRealtime: NotificationRealtimeService,
   ) {}
 
  async createPost(params: {
@@ -406,7 +409,7 @@ async getUserPostFeed(params: {
   }
   
 
- async toggleLike(params: {
+async toggleLike(params: {
   postId: string;
   userId: string;
 }): Promise<PostLikeResponseDto> {
@@ -424,20 +427,32 @@ async getUserPostFeed(params: {
     userId,
   });
 
-  // 🔔 CREATE NOTIFICATION (only when liked)
+  // 🔔 CREATE NOTIFICATION + REALTIME (only when liked, fail-soft)
   if (
     result.liked === true &&
     post.authorId !== userId
   ) {
     try {
-      await this.notifications.createNotification({
-        userId: post.authorId,
-        actorUserId: userId,
-        type: 'like',
-        entityId: postId,
-      });
+      const notification =
+        await this.notifications.createNotification({
+          userId: post.authorId,
+          actorUserId: userId,
+          type: 'like',
+          entityId: postId,
+          payload: {
+            postId,
+          },
+        });
+
+      // 🔔 REALTIME EMIT (delivery only)
+      this.notificationRealtime.emitNewNotification(
+        post.authorId,
+        {
+          notification: NotificationMapper.toDto(notification),
+        },
+      );
     } catch {
-      // fail-soft
+      // ❗ notification / realtime fail ต้องไม่กระทบ like
     }
   }
 
@@ -449,7 +464,6 @@ async getUserPostFeed(params: {
 
   return result;
 }
-
 
 
   async unlikePost(params: {

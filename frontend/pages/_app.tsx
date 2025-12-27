@@ -7,8 +7,9 @@ import "../sentry.server.config";
 import { useEffect, useRef } from "react";
 import { getFirebaseAuth } from "firebase/client";
 
-import { AuthProvider } from "@/context/AuthContext";     // ← ADD THIS
-import { UserProvider } from "@/stores/user.store";       // ← Hybrid Local Store
+import { AuthProvider } from "@/context/AuthContext";
+import { UserProvider } from "@/stores/user.store";
+import NotificationRealtimeBridge from "@/components/notifications/NotificationRealtimeBridge";
 
 function exposeFirebaseAuthSafeOnce() {
   if (typeof window === "undefined") return;
@@ -46,6 +47,9 @@ export default function App({ Component, pageProps }: AppProps) {
   return (
     <AuthProvider>
       <UserProvider>
+        {/* 🔔 Global Notification Realtime */}
+        <NotificationRealtimeBridge />
+
         <Component {...pageProps} />
       </UserProvider>
     </AuthProvider>

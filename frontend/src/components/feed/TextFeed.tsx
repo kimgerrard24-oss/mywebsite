@@ -6,14 +6,11 @@ import type { PostFeedItem } from "@/types/post-feed";
 import type { Lang } from "@/lib/i18n";
 import { getDictionary } from "@/lib/i18n";
 import { api } from "@/lib/api/api";
-
 import PostComposer from "@/components/posts/PostComposer";
-import PostActionMenu from "@/components/posts/PostActionMenu";
-import { renderContentWithHashtags } from "@/utils/renderContentWithHashtags";
-import CommentComposer from '@/components/comments/CommentComposer';
-import { usePostLike } from "@/hooks/usePostLike";
-import PostLikeButton from "@/components/posts/PostLikeButton";
 import FeedItem from "@/components/feed/FeedItem";
+
+// 🔹 Feed Realtime Store
+import { useFeedStore } from "@/stores/feed.store";
 
 type Props = {
   user: any | null;
@@ -21,7 +18,7 @@ type Props = {
   lang: Lang;
 
   showComposer?: boolean;
-  
+
   onRefreshReady?: (refreshFn: () => void) => void;
 };
 
@@ -40,6 +37,12 @@ export default function TextFeed({
     useState(false);
 
   const [showGreeting, setShowGreeting] = useState(false);
+
+  // 🔹 Feed Realtime state
+  const shouldRefresh =
+    useFeedStore((s) => s.shouldRefresh);
+  const markRefreshed =
+    useFeedStore((s) => s.markRefreshed);
 
   useEffect(() => {
     const seen = localStorage.getItem("feed_greeting_seen");
@@ -72,10 +75,19 @@ export default function TextFeed({
     }
   }, [refreshing]);
 
-  // 🔗 expose refreshFeed ให้ parent ใช้
+  // 🔗 expose refreshFeed ให้ parent ใช้ (ของเดิม)
   useEffect(() => {
     onRefreshReady?.(refreshFeed);
   }, [onRefreshReady, refreshFeed]);
+
+  // 🆕 Feed Realtime → trigger refresh
+  useEffect(() => {
+    if (!shouldRefresh) return;
+
+    refreshFeed().finally(() => {
+      markRefreshed();
+    });
+  }, [shouldRefresh, refreshFeed, markRefreshed]);
 
   const handlePostDeleted = useCallback(
     (postId: string) => {
@@ -107,26 +119,25 @@ export default function TextFeed({
       aria-label="User feed"
     >
       {showComposer && (
-  <article
-    className="
-      w-full
-      rounded-lg
-      sm:rounded-xl
-      border
-      border-gray-200
-      bg-white
-      p-3
-      sm:p-4
-      md:p-5
-      mb-1
-      sm:mb-2
-    "
-    aria-label="Create post"
-  >
-    <PostComposer onPostCreated={refreshFeed} />
-  </article>
-)}
-
+        <article
+          className="
+            w-full
+            rounded-lg
+            sm:rounded-xl
+            border
+            border-gray-200
+            bg-white
+            p-3
+            sm:p-4
+            md:p-5
+            mb-1
+            sm:mb-2
+          "
+          aria-label="Create post"
+        >
+          <PostComposer onPostCreated={refreshFeed} />
+        </article>
+      )}
 
       {showGreeting && (
         <article
@@ -166,12 +177,12 @@ export default function TextFeed({
       )}
 
       {items.map((post) => (
-      <FeedItem
-        key={post.id}
-        post={post}
-        onDeleted={handlePostDeleted}
-      />
-    ))}
-  </section>
+        <FeedItem
+          key={post.id}
+          post={post}
+          onDeleted={handlePostDeleted}
+        />
+      ))}
+    </section>
   );
 }

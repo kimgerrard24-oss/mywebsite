@@ -11,7 +11,8 @@ import { FollowersMapper } from './mappers/followers.mapper';
 import { FollowersReadPolicy } from './policy/followers-read.policy';
 import { FollowRemovedEvent } from './events/follow-removed.event';
 import { NotificationsService } from '../notifications/notifications.service';
-
+import { NotificationRealtimeService } from '../notifications/realtime/notification-realtime.service';
+import { NotificationMapper } from '../notifications/mapper/notification.mapper';
 @Injectable()
 export class FollowsService {
   constructor(
@@ -21,9 +22,10 @@ export class FollowsService {
     private readonly eventremove: FollowRemovedEvent,
     private readonly audit: FollowAudit,
     private readonly notifications: NotificationsService,
+    private readonly notificationRealtime: NotificationRealtimeService,
   ) {}
 
-  async follow(params: {
+ async follow(params: {
   followerId: string;
   followingId: string;
 }): Promise<void> {
@@ -36,17 +38,27 @@ export class FollowsService {
 
   await this.repo.createFollow(params);
 
-  // 🔔 CREATE NOTIFICATION (fail-soft)
+  // 🔔 CREATE NOTIFICATION + REALTIME (fail-soft)
   if (params.followerId !== params.followingId) {
     try {
-      await this.notifications.createNotification({
-        userId: params.followingId,     // ผู้รับ
-        actorUserId: params.followerId, // ผู้กระทำ
-        type: 'follow',
-        entityId: params.followerId,
-      });
+      const notification =
+        await this.notifications.createNotification({
+          userId: params.followingId,     // ผู้รับ
+          actorUserId: params.followerId, // ผู้กระทำ
+          type: 'follow',
+          entityId: params.followerId,
+          payload: {}, // follow ไม่มี payload เพิ่ม
+        });
+
+      // 🔔 REALTIME EMIT (delivery only)
+      this.notificationRealtime.emitNewNotification(
+        params.followingId,
+        {
+          notification: NotificationMapper.toDto(notification),
+        },
+      );
     } catch {
-      // notification fail ต้องไม่กระทบ follow
+      // ❗ notification / realtime fail ต้องไม่กระทบ follow
     }
   }
 
@@ -58,6 +70,7 @@ export class FollowsService {
   await this.eventcreate.emit(params);
   await this.audit.record(params);
 }
+
 
 
   async unfollow(params: {

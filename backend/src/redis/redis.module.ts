@@ -11,8 +11,6 @@ import {
 } from '@nestjs/common';
 import Redis from 'ioredis';
 import type { Redis as RedisClient, RedisOptions } from 'ioredis';
-
-// ✅ เพิ่ม (จำเป็นสำหรับ DI)
 import { RedisService } from './redis.service';
 
 function getRedisConfig() {

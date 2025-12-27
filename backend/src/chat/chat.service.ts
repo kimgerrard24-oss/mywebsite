@@ -12,12 +12,17 @@ import { ChatMetaDto } from './dto/chat-meta.dto';
 import { ChatMessageListDto } from './dto/chat-message-list.dto';
 import { ChatMessageDto } from './dto/chat-message.dto';
 import { mapUnreadCount } from './mapper/chat-unread.mapper';
+import { NotificationsService } from '../notifications/notifications.service';
+import { NotificationRealtimeService } from '../notifications/realtime/notification-realtime.service';
+import { NotificationMapper } from '../notifications/mapper/notification.mapper';
 
 @Injectable()
 export class ChatService {
   constructor(
     private readonly repo: ChatRepository,
     private readonly permission: ChatPermissionService,
+    private readonly notifications: NotificationsService,
+    private readonly notificationRealtime: NotificationRealtimeService,
   ) {}
 
   async getOrCreateDirectChat(params: {
@@ -133,34 +138,78 @@ export class ChatService {
     });
   }
 
-  async sendMessage(params: {
-    chatId: string;
-    senderUserId: string;
-    content: string;
-  }): Promise<ChatMessageDto> {
-    const { chatId, senderUserId, content } = params;
+async sendMessage(params: {
+  chatId: string;
+  senderUserId: string;
+  content: string;
+}): Promise<ChatMessageDto> {
+  const { chatId, senderUserId, content } = params;
 
-    // 1. Load chat
-    const chat = await this.repo.findChatById(chatId);
-    if (!chat) {
-      throw new NotFoundException('Chat not found');
-    }
-
-    // 2. Permission (participant + active + block)
-    await this.permission.assertCanAccessChat({
-      chat,
-      viewerUserId: senderUserId,
-    });
-
-    // 3. Create message
-    const message = await this.repo.createMessage({
-      chatId,
-      senderUserId,
-      content,
-    });
-
-    return ChatMessageDto.fromRow(message);
+  // 1. Load chat
+  const chat = await this.repo.findChatById(chatId);
+  if (!chat) {
+    throw new NotFoundException('Chat not found');
   }
+
+  // 2. Permission (participant + active + block)
+  await this.permission.assertCanAccessChat({
+    chat,
+    viewerUserId: senderUserId,
+  });
+
+  // 3. Create message
+  const message = await this.repo.createMessage({
+    chatId,
+    senderUserId,
+    content,
+  });
+
+  // 🔔 CREATE NOTIFICATION + REALTIME (fail-soft)
+  try {
+    /**
+     * หา receiver จาก participants
+     * (direct chat = 2 คน)
+     */
+    const receiverUserId =
+      chat.participants.find(
+        (p) => p.userId !== senderUserId,
+      )?.userId ?? null;
+
+    // ไม่ notify ตัวเอง
+    if (receiverUserId) {
+      const notification =
+        await this.notifications.createNotification({
+          userId: receiverUserId,
+          actorUserId: senderUserId,
+          type: 'chat_message',
+          entityId: chatId,
+          payload: {
+            chatId,
+            messageId: message.id,
+          },
+        });
+
+      // 🔔 REALTIME EMIT (delivery only)
+      this.notificationRealtime.emitNewNotification(
+        receiverUserId,
+        {
+          notification: NotificationMapper.toDto(notification),
+        },
+      );
+    }
+  } catch {
+    /**
+     * ❗ notification / realtime fail ต้องไม่ทำให้ message fail
+     * chat message = primary action
+     * notification = side-effect
+     */
+  }
+
+  return ChatMessageDto.fromRow(message);
+}
+
+
+
 
    async getUnreadCount(params: {
     chatId: string;

@@ -11,9 +11,12 @@ import { ChatMessagesService } from './chat-messages.service';
 import { ChatMessageAuditService } from './audit/chat-message-audit.service';
 import { ChatTypingController } from './chat-typing.controller';
 import { ChatTypingService } from './chat-typing.service';
+import { ChatRealtimeModule } from './realtime/chat-realtime.module';
+import { NotificationsModule } from '../notifications/notifications.module';
+import { NotificationRealtimeModule } from '../notifications/realtime//notification-realtime.module';
 
 @Module({
-  imports: [AuthModule],
+  imports: [ChatRealtimeModule, AuthModule, NotificationsModule, NotificationRealtimeModule],
   controllers: [
      ChatController,
      ChatMessagesController,

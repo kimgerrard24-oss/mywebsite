@@ -18,10 +18,13 @@ import { ChatMetaDto } from './dto/chat-meta.dto';
 import { ChatMessageListDto } from './dto/chat-message-list.dto';
 import { CreateChatMessageDto } from './dto/create-chat-message.dto';
 import { ChatMessageDto } from './dto/chat-message.dto';
+import { ChatRealtimeService } from './realtime/chat-realtime.service';
 
 @Controller('chat')
 export class ChatController {
-  constructor(private readonly chatService: ChatService) {}
+  constructor(private readonly chatService: ChatService,
+              private readonly chatRealtime: ChatRealtimeService,
+            ) {}
 
   /**
    * GET /chat/:userId
@@ -95,23 +98,38 @@ export class ChatController {
    * - Auth via cookie
    */
   @UseGuards(AccessTokenCookieAuthGuard)
-  @Post(':chatId/messages')
-  async sendMessage(
-    @Req() req: Request,
-    @Param('chatId') chatId: string,
-    @Body() body: CreateChatMessageDto,
-  ): Promise<ChatMessageDto> {
-    const viewer = req.user as {
-      userId: string;
-      jti: string;
-    };
+@Post(':chatId/messages')
+async sendMessage(
+  @Req() req: Request,
+  @Param('chatId') chatId: string,
+  @Body() body: CreateChatMessageDto,
+): Promise<ChatMessageDto> {
+  const viewer = req.user as {
+    userId: string;
+    jti: string;
+  };
 
-    return this.chatService.sendMessage({
-      chatId,
-      senderUserId: viewer.userId,
-      content: body.content,
-    });
-  }
+  // 1️⃣ DB = source of truth
+  const message = await this.chatService.sendMessage({
+    chatId,
+    senderUserId: viewer.userId,
+    content: body.content,
+  });
+
+  // 2️⃣ Realtime = delivery only (ใช้ DTO ตรง ๆ)
+  this.chatRealtime.emitNewMessage({
+    chatId,
+    message: {
+      id: message.id,
+      content: message.content,
+      sender: message.sender,
+      createdAt: message.createdAt,
+    },
+  });
+
+  return message;
+}
+
 
    @UseGuards(AccessTokenCookieAuthGuard)
   @Get(':chatId/unread-count')
