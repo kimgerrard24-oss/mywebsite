@@ -1,5 +1,3 @@
-// frontend/src/hooks/useDeleteChatMessage.ts
-
 import { useState } from "react";
 import { deleteChatMessage } from "@/lib/api/chat-messages";
 import type { ChatMessage } from "@/types/chat-message";
@@ -36,7 +34,7 @@ export function useDeleteChatMessage() {
       onSuccess(deleted);
     } catch {
       onRollback();
-      throw new Error("Delete failed");
+      // fail-soft: ไม่ throw เพื่อไม่ให้ error หลุดขึ้น UI
     } finally {
       setLoading(false);
     }

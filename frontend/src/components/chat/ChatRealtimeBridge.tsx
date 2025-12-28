@@ -12,6 +12,11 @@ type Props = {
    * (เช่น ChatMessageList.appendMessage)
    */
   onMessageReceived: (message: ChatMessage) => void;
+
+  /**
+   * Mark message as deleted in existing chat state
+   */
+  onMessageDeleted: (messageId: string) => void;
 };
 
 /**
@@ -21,6 +26,7 @@ type Props = {
 export default function ChatRealtimeBridge({
   chatId,
   onMessageReceived,
+  onMessageDeleted,
 }: Props) {
   const handleNewMessage = useCallback(
     (payload: {
@@ -35,10 +41,25 @@ export default function ChatRealtimeBridge({
     [chatId, onMessageReceived],
   );
 
+  const handleMessageDeleted = useCallback(
+    (payload: {
+      chatId: string;
+      messageId: string;
+    }) => {
+      if (!payload) return;
+      if (payload.chatId !== chatId) return;
+
+      onMessageDeleted(payload.messageId);
+    },
+    [chatId, onMessageDeleted],
+  );
+
   useChatRealtime({
     chatId,
     onNewMessage: handleNewMessage,
+    onMessageDeleted: handleMessageDeleted,
   });
 
   return null;
 }
+

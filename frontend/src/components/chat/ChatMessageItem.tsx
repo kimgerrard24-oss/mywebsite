@@ -123,8 +123,8 @@ export default function ChatMessageItem({
           </div>
         )}
 
-        {/* ACTIONS: แสดงชัดเจนสำหรับข้อความของตัวเอง */}
-        {isOwn && message.chatId && (
+        {/* ACTIONS: แสดงสำหรับข้อความของตัวเอง */}
+        {isOwn && (
           <div className="absolute -top-2 -right-2">
             <ChatMessageActions
               onEdit={() => setEditing(true)}
@@ -136,9 +136,15 @@ export default function ChatMessageItem({
               onCancel={() =>
                 setConfirmDelete(false)
               }
-              onConfirm={() =>
+              onConfirm={() => {
+                if (!message.chatId) {
+                  // fail-soft: ไม่มี chatId ไม่ควรลบ
+                  setConfirmDelete(false);
+                  return;
+                }
+
                 remove({
-                  chatId: message.chatId!,
+                  chatId: message.chatId,
                   message,
                   onOptimistic: () => {
                     setConfirmDelete(false);
@@ -148,8 +154,8 @@ export default function ChatMessageItem({
                     setConfirmDelete(false);
                   },
                   onSuccess: () => {},
-                })
-              }
+                });
+              }}
             />
           </div>
         )}
@@ -157,3 +163,4 @@ export default function ChatMessageItem({
     </div>
   );
 }
+

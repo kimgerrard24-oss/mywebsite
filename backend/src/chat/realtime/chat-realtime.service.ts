@@ -2,7 +2,11 @@
 
 import { Injectable } from '@nestjs/common';
 import { Server } from 'socket.io';
-import { WS_EVENTS, ChatNewMessageEvent } from './ws.types';
+import {
+  WS_EVENTS,
+  ChatNewMessageEvent,
+  ChatMessageDeletedEvent,
+} from './ws.types';
 
 @Injectable()
 export class ChatRealtimeService {
@@ -19,5 +23,14 @@ export class ChatRealtimeService {
     this.server
       .to(`chat:${event.chatId}`)
       .emit(WS_EVENTS.CHAT_NEW_MESSAGE, event);
+  }
+
+  emitMessageDeleted(event: ChatMessageDeletedEvent) {
+    if (!this.server) return;
+
+    // fan-out ตาม chat room
+    this.server
+      .to(`chat:${event.chatId}`)
+      .emit(WS_EVENTS.CHAT_MESSAGE_DELETED, event);
   }
 }

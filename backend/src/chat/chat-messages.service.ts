@@ -9,6 +9,7 @@ import { ChatMessageRepository } from './chat-message.repository';
 import { ChatPermissionService } from './chat-permission.service';
 import { ChatMessageMapper } from './mapper/chat-message.mapper';
 import { ChatMessageAuditService } from './audit/chat-message-audit.service';
+import { ChatRealtimeService } from './realtime/chat-realtime.service';
 
 @Injectable()
 export class ChatMessagesService {
@@ -16,6 +17,7 @@ export class ChatMessagesService {
     private readonly repo: ChatMessageRepository,
     private readonly permission: ChatPermissionService,
     private readonly audit: ChatMessageAuditService,
+    private readonly chatRealtime: ChatRealtimeService,
   ) {}
 
   async editMessage(params: {
@@ -53,56 +55,71 @@ export class ChatMessagesService {
     return ChatMessageMapper.toEditedResponse(updated);
   }
 
-  async deleteMessage(params: {
-    chatId: string;
-    messageId: string;
-    viewerUserId: string;
-    reason?: string;
-  }) {
-    const {
-      chatId,
-      messageId,
-      viewerUserId,
-      reason,
-    } = params;
+ async deleteMessage(params: {
+  chatId: string;
+  messageId: string;
+  viewerUserId: string;
+  reason?: string;
+}) {
+  const {
+    chatId,
+    messageId,
+    viewerUserId,
+    reason,
+  } = params;
 
-    const message = await this.repo.findForDelete({
-      chatId,
-      messageId,
-    });
+  const message = await this.repo.findForDelete({
+    chatId,
+    messageId,
+  });
 
-    if (!message) {
-      throw new NotFoundException('Message not found');
-    }
+  if (!message) {
+    throw new NotFoundException('Message not found');
+  }
 
-    // only sender can delete
-    if (message.senderId !== viewerUserId) {
-      throw new ForbiddenException(
-        'Cannot delete this message',
-      );
-    }
-
-    // sender must still be active
-    await this.permission.assertUserActive(
-      message.senderId,
+  // only sender can delete
+  if (message.senderId !== viewerUserId) {
+    throw new ForbiddenException(
+      'Cannot delete this message',
     );
+  }
 
-    const deleted = await this.repo.softDelete(
-      messageId,
-    );
+  // sender must still be active
+  await this.permission.assertUserActive(
+    message.senderId,
+  );
 
-    // audit (fail-soft)
+  const deleted = await this.repo.softDelete(
+    messageId,
+  );
+
+  // audit (fail-soft)
+  try {
     await this.audit.recordDelete({
       messageId,
       chatId,
       actorUserId: viewerUserId,
       reason,
     });
-
-    return ChatMessageMapper.toEditedResponse(
-      deleted,
-    );
+  } catch {
+    // audit fail must not break delete
   }
+
+  // 🔔 CHAT REALTIME DELETE (fail-soft)
+  try {
+    this.chatRealtime.emitMessageDeleted({
+      chatId,
+      messageId,
+    });
+  } catch {
+    // realtime fail must not break delete
+  }
+
+  return ChatMessageMapper.toEditedResponse(
+    deleted,
+  );
+}
+
 
    async markChatAsRead(params: {
     chatId: string;

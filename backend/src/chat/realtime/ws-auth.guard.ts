@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { Socket } from 'socket.io';
 import * as jwt from 'jsonwebtoken';
+import * as cookie from 'cookie';
 import { RedisService } from '../../redis/redis.service';
 
 type JwtPayload = {
@@ -25,12 +26,12 @@ export class WsAuthGuard implements CanActivate {
       return false;
     }
 
-    const cookies = Object.fromEntries(
-      cookieHeader.split(';').map((c) => {
-        const [k, ...v] = c.trim().split('=');
-        return [k, decodeURIComponent(v.join('='))];
-      }),
-    );
+    let cookies: Record<string, string>;
+    try {
+      cookies = cookie.parse(cookieHeader);
+    } catch {
+      return false;
+    }
 
     const token = cookies['phl_access'];
     if (!token) {
@@ -63,3 +64,4 @@ export class WsAuthGuard implements CanActivate {
     return true;
   }
 }
+

@@ -34,6 +34,7 @@ type Props = {
  */
 export type ChatMessageListHandle = {
   appendMessage: (msg: ChatMessageUI) => void;
+  markMessageDeleted: (messageId: string) => void;
 };
 
 const ChatMessageList = forwardRef<
@@ -70,9 +71,7 @@ const ChatMessageList = forwardRef<
   const [appendedItems, setAppendedItems] =
     useState<ChatMessageUI[]>([]);
   const [patchedItems, setPatchedItems] =
-    useState<Record<string, ChatMessageUI>>(
-      {},
-    );
+    useState<Record<string, ChatMessageUI>>({});
 
   /**
    * scroll anchor
@@ -82,56 +81,14 @@ const ChatMessageList = forwardRef<
   );
 
   /**
-   * expose method ให้ parent
+   * internal delete handler (single source of truth)
    */
-  useImperativeHandle(ref, () => ({
-    appendMessage(msg: ChatMessageUI) {
-      setAppendedItems((prev) => [
-        ...prev,
-        msg,
-      ]);
-    },
-  }));
-
-  /**
-   * auto scroll to bottom on new message
-   */
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({
-      behavior: "smooth",
-    });
-  }, [
-    fetchedItems.length,
-    appendedItems.length,
-  ]);
-
-  /**
-   * EDIT (overlay)
-   */
-  function handleEditedMessage(
-    updated: ChatMessageUI,
-  ) {
-    setPatchedItems((prev) => ({
-      ...prev,
-      [updated.id]: updated,
-    }));
-  }
-
-  /**
-   * DELETE (overlay, fail-soft)
-   */
-  function handleDeletedMessage(
-    messageId: string,
-  ) {
+  function markMessageDeleted(messageId: string) {
     setPatchedItems((prev) => {
       const base =
         prev[messageId] ??
-        fetchedItems.find(
-          (m) => m.id === messageId,
-        ) ??
-        appendedItems.find(
-          (m) => m.id === messageId,
-        );
+        fetchedItems.find((m) => m.id === messageId) ??
+        appendedItems.find((m) => m.id === messageId);
 
       if (!base) return prev;
 
@@ -146,13 +103,56 @@ const ChatMessageList = forwardRef<
   }
 
   /**
+   * expose method ให้ parent
+   */
+  useImperativeHandle(ref, () => ({
+    appendMessage(msg: ChatMessageUI) {
+      setAppendedItems((prev) => [...prev, msg]);
+    },
+    markMessageDeleted,
+  }));
+
+  /**
+   * initial scroll after hydration
+   */
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView();
+  }, []);
+
+  /**
+   * auto scroll to bottom on new message
+   */
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({
+      behavior: "smooth",
+    });
+  }, [fetchedItems.length, appendedItems.length]);
+
+  /**
+   * EDIT (overlay)
+   */
+  function handleEditedMessage(updated: ChatMessageUI) {
+    setPatchedItems((prev) => ({
+      ...prev,
+      [updated.id]: updated,
+    }));
+  }
+
+  /**
+   * DELETE (overlay)
+   */
+  function handleDeletedMessage(messageId: string) {
+    markMessageDeleted(messageId);
+  }
+
+  /**
    * merge:
-   * fetched → patched → appended
+   * fetched (ASC) → patched → appended
    */
   const mergedItems: ChatMessageUI[] = [
-    ...fetchedItems.map(
-      (m) => patchedItems[m.id] ?? m,
-    ),
+    ...[...fetchedItems]
+      .reverse()
+      .map((m) => patchedItems[m.id] ?? m),
     ...appendedItems.map(
       (m) => patchedItems[m.id] ?? m,
     ),

@@ -97,7 +97,7 @@ export class ChatController {
    * - Send message
    * - Auth via cookie
    */
-  @UseGuards(AccessTokenCookieAuthGuard)
+@UseGuards(AccessTokenCookieAuthGuard)
 @Post(':chatId/messages')
 async sendMessage(
   @Req() req: Request,
@@ -116,20 +116,8 @@ async sendMessage(
     content: body.content,
   });
 
-  // 2️⃣ Realtime = delivery only (ใช้ DTO ตรง ๆ)
-  this.chatRealtime.emitNewMessage({
-    chatId,
-    message: {
-      id: message.id,
-      content: message.content,
-      sender: message.sender,
-      createdAt: message.createdAt,
-    },
-  });
-
   return message;
 }
-
 
    @UseGuards(AccessTokenCookieAuthGuard)
   @Get(':chatId/unread-count')

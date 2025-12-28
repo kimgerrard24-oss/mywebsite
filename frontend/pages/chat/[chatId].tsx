@@ -61,14 +61,21 @@ export default function ChatPage({
     useRef<ChatMessageListHandle>(null);
 
   /**
-   * 🔔 Realtime handler
-   * - inject message into existing list
-   * - no duplicate logic
-   * - no side effects
+   * 🔔 Realtime: new message
    */
   const handleRealtimeMessage = useCallback(
     (msg: any) => {
       listRef.current?.appendMessage(msg);
+    },
+    [],
+  );
+
+  /**
+   * 🔔 Realtime: message deleted
+   */
+  const handleRealtimeDeleted = useCallback(
+    (messageId: string) => {
+    listRef.current?.markMessageDeleted(messageId);
     },
     [],
   );
@@ -93,19 +100,19 @@ export default function ChatPage({
               - delivery only
               - no UI
               ========================= */}
-          <ChatRealtimeBridge
-            chatId={meta.id}
-            onMessageReceived={handleRealtimeMessage}
-          />
+          {/* ...Head / Layout / Header เหมือนเดิม */}
 
-          {/* =========================
-              Chat Messages
-              ========================= */}
-          <ChatMessageList
-            ref={listRef}
-            chatId={meta.id}
-            initialData={initialMessages}
-          />
+      <ChatRealtimeBridge
+        chatId={meta.id}
+        onMessageReceived={handleRealtimeMessage}
+        onMessageDeleted={handleRealtimeDeleted}
+      />
+
+      <ChatMessageList
+        ref={listRef}
+        chatId={meta.id}
+        initialData={initialMessages}
+      />
 
           {/* =========================
               Read Observer
