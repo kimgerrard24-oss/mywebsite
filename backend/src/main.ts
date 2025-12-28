@@ -2,12 +2,8 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { createServer } from 'http';
-import { Server } from 'socket.io';
 import type { Express } from 'express';
 import cors from 'cors';
-import { createAdapter } from '@socket.io/redis-adapter';
-import IORedis from 'ioredis';
 import { json, urlencoded } from 'express';
 import './instrument';
 import * as Sentry from '@sentry/node';
@@ -21,6 +17,7 @@ import cookieParser from 'cookie-parser';
 import { FirebaseAdminService } from './firebase/firebase.service';
 import type { Request, Response } from 'express';
 import { initSentry } from './sentry';
+import { RedisIoAdapter } from './socket/redis-io.adapter';
 
 const logger = new Logger('bootstrap');
 
@@ -41,10 +38,6 @@ function redisOptions() {
       return Math.min(times * 100, 2000);
     },
   } as any;
-}
-
-function createRedisClient(): IORedis {
-  return new IORedis(getRedisUrl(), redisOptions());
 }
 
 function normalizeToOrigin(raw: string | undefined): string {
@@ -244,105 +237,10 @@ async function bootstrap(): Promise<void> {
 
   await nestApp.init();
 
-  const httpServer = createServer(expressApp);
+  const redisIoAdapter = new RedisIoAdapter(nestApp);
+ await redisIoAdapter.connectToRedis();
+ nestApp.useWebSocketAdapter(redisIoAdapter);
 
-  const io = new Server(httpServer, {
-    cors: {
-      origin: (origin, cb) => {
-        if (!origin) return cb(null, true);
-        const ok = corsRegex.some((r) => r.test(origin));
-        return ok ? cb(null, true) : cb(new Error('Socket CORS blocked'));
-      },
-      credentials: true,
-    },
-    path: '/socket.io',
-    transports: ['websocket', 'polling'],
-    allowUpgrades: true,
-    allowEIO3: true,
-    pingInterval: 25000,
-    pingTimeout: 20000,
-    upgradeTimeout: 20000,
-    maxHttpBufferSize: 1e8,
-  });
-
-  try {
-    const redisUrl = getRedisUrl();
-    const opts = redisOptions();
-    const pub = new IORedis(redisUrl, opts);
-    const sub = new IORedis(redisUrl, opts);
-
-    if (pub.status !== 'connecting' && pub.status !== 'ready') {
-      await pub.connect().catch((err) => {
-        throw new Error('Redis pub connection failed: ' + String(err));
-      });
-    }
-
-    if (sub.status !== 'connecting' && sub.status !== 'ready') {
-      try {
-        await sub.connect().catch((err) => {
-          throw new Error('Redis sub connection failed: ' + String(err));
-        });
-      } catch (e) {
-        try {
-          await pub.disconnect();
-        } catch {}
-        throw e;
-      }
-    }
-
-    io.adapter(createAdapter(pub, sub));
-    logger.log('Redis adapter enabled for socket.io');
-  } catch (e: unknown) {
-    logger.error('Redis adapter failed: ' + String(e));
-  }
-
-  const redisClient = createRedisClient();
-
-  redisClient.on('error', (err: unknown) => logger.error('Redis error', err));
-
-  try {
-    if (redisClient.status !== 'connecting' && redisClient.status !== 'ready') {
-      await redisClient.connect().catch((err) => {
-        logger.error('Redis client connect failed: ' + String(err));
-      });
-    }
-  } catch {}
-
-  io.use(async (socket, next) => {
-    try {
-      const headerCookie =
-        (socket.handshake.headers.cookie as string | undefined) ||
-        (socket.handshake.headers.Cookie as string | undefined) ||
-        '';
-      const raw = Array.isArray(headerCookie) ? headerCookie.join('; ') : headerCookie;
-      const parsed = cookie.parse(raw || '');
-      const sessionCookie =
-        parsed['__session'] || parsed[process.env.SESSION_COOKIE_NAME || 'session'];
-
-      if (!sessionCookie) {
-        (socket as any).user = null;
-        return next();
-      }
-
-      const firebase = nestApp.get(FirebaseAdminService);
-      const decoded = await firebase
-        .auth()
-        .verifySessionCookie(sessionCookie, true)
-        .catch(() => null);
-
-      (socket as any).user = decoded || null;
-      return next();
-    } catch {
-      (socket as any).user = null;
-      return next();
-    }
-  });
-
-  io.on('connection', (socket) => {
-    socket.on('ping', (cb) => {
-      cb({ pong: true, serverTime: Date.now() });
-    });
-  });
 
   process.on('unhandledRejection', (reason) => {
     logger.error('Unhandled Rejection:', String(reason));
@@ -367,9 +265,8 @@ if (!raw) {
 }
 const port = parseInt(raw, 10);
 
-httpServer.listen(port, '0.0.0.0', () => {
-  logger.log(`Backend running inside Docker & listening on port ${port}`);
-});
+await nestApp.listen(port, '0.0.0.0');
+logger.log(`Backend running inside Docker & listening on port ${port}`);
 
 }
 

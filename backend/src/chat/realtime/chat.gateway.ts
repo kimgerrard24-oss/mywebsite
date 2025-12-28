@@ -19,7 +19,6 @@ import { UseGuards } from '@nestjs/common';
     credentials: true,
   },
 })
-@UseGuards(WsAuthGuard)
 export class ChatGateway implements OnGatewayInit {
   @WebSocketServer()
   private server!: Server;
@@ -33,18 +32,11 @@ export class ChatGateway implements OnGatewayInit {
   }
 
   handleConnection(client: Socket) {
-    const user = (client as any).user;
-    if (!user) return;
-
-    // user-scoped room (future use: notification / presence)
-    client.join(`user:${user.userId}`);
+    // ❗ ห้ามพึ่ง guard ที่นี่
+    // auth จะถูกตรวจตอน join แทน
   }
 
-  /**
-   * Client ขอ join ห้องแชท
-   * backend เป็น authority
-   * ใช้ ACK เพื่อยืนยันว่า join สำเร็จจริง
-   */
+  @UseGuards(WsAuthGuard)
   @SubscribeMessage('chat:join')
   handleJoinChat(
     @ConnectedSocket() client: Socket,
@@ -52,12 +44,16 @@ export class ChatGateway implements OnGatewayInit {
   ): { joined: true } | void {
     if (!data?.chatId) return;
 
+    const user = (client as any).user;
+    if (!user) return;
+
+    client.join(`user:${user.userId}`);
     client.join(`chat:${data.chatId}`);
 
-    // ✅ ACK กลับไปให้ client
     return { joined: true };
   }
 
+  @UseGuards(WsAuthGuard)
   @SubscribeMessage('chat:leave')
   handleLeaveChat(
     @ConnectedSocket() client: Socket,
@@ -68,3 +64,4 @@ export class ChatGateway implements OnGatewayInit {
     client.leave(`chat:${data.chatId}`);
   }
 }
+
