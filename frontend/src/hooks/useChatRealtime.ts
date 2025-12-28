@@ -31,47 +31,61 @@ export function useChatRealtime({
     const socket = getSocket();
 
     /**
-     * Join chat room
-     * Must be executed whenever socket is connected
+     * Join chat room with ACK
+     * Subscribe events only after join success
      */
     const joinChat = () => {
-      socket.emit('chat:join', { chatId });
+      socket.emit(
+        'chat:join',
+        { chatId },
+        (ack: { joined?: boolean }) => {
+          if (!ack?.joined) {
+            console.warn(
+              'Failed to join chat room',
+              chatId,
+            );
+            return;
+          }
+
+          socket.off('chat:new-message', onNewMessage);
+          socket.on('chat:new-message', onNewMessage);
+
+          if (onMessageDeleted) {
+            socket.off(
+              'chat:message-deleted',
+              onMessageDeleted,
+            );
+            socket.on(
+              'chat:message-deleted',
+              onMessageDeleted,
+            );
+          }
+
+          console.log('Joined chat room', chatId);
+        },
+      );
     };
 
     /**
-     * Ensure socket is connected
+     * Ensure socket connection
      */
     if (!socket.connected) {
       socket.connect();
     }
 
     /**
-     * IMPORTANT:
-     * - join immediately if already connected
-     * - join again on every reconnect
+     * Join immediately if already connected
      */
     if (socket.connected) {
       joinChat();
     }
 
+    /**
+     * Re-join on every reconnect
+     */
     socket.on('connect', joinChat);
 
-    /**
-     * Listen realtime events
-     */
-    socket.on('chat:new-message', onNewMessage);
-
-    if (onMessageDeleted) {
-      socket.on(
-        'chat:message-deleted',
-        onMessageDeleted,
-      );
-    }
-
     return () => {
-      /**
-       * Cleanup listeners
-       */
       socket.off('connect', joinChat);
       socket.off('chat:new-message', onNewMessage);
 
