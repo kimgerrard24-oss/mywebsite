@@ -1,6 +1,6 @@
 // frontend/src/lib/api/chat-messages.ts
 import { api, client } from "@/lib/api/api";
-import type { ChatMessage } from '@/types/chat-message';
+import type { ChatMessage } from "@/types/chat-message";
 
 /**
  * SSR: GET /chat/:chatId/messages
@@ -83,7 +83,8 @@ export async function deleteChatMessage(params: {
   const res = await api.delete(
     `/chat/${chatId}/messages/${messageId}`,
     {
-      data: reason ? { reason } : undefined,
+      // ✅ ส่ง data เสมอ เพื่อให้ axios dispatch request แน่นอน
+      data: { reason: reason ?? null },
       withCredentials: true,
     },
   );

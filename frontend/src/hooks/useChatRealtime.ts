@@ -17,10 +17,6 @@ type MessageDeletedPayload = {
 type Params = {
   chatId: string;
   onNewMessage: (payload: NewMessagePayload) => void;
-
-  /**
-   * optional: realtime delete message
-   */
   onMessageDeleted?: (
     payload: MessageDeletedPayload,
   ) => void;
@@ -34,28 +30,35 @@ export function useChatRealtime({
   useEffect(() => {
     const socket = getSocket();
 
+    /**
+     * Join chat room
+     * MUST be called only after socket is connected
+     */
     const joinChat = () => {
       socket.emit(
         'chat:join',
         { chatId },
-        (ack: { joined?: boolean }) => {
-          // optional: debug only
-        },
+        () => {},
       );
     };
 
-    // ✅ join ทุกครั้งที่ socket connect / reconnect
-    socket.on('connect', joinChat);
-
-    // กรณี connect อยู่แล้ว (เช่น route change)
-    if (socket.connected) {
-      joinChat();
+    /**
+     * Ensure socket is connected
+     */
+    if (!socket.connected) {
+      socket.connect();
     }
 
-    // listen new message
+    /**
+     * Join room on every connect / reconnect
+     */
+    socket.on('connect', joinChat);
+
+    /**
+     * Listen realtime events
+     */
     socket.on('chat:new-message', onNewMessage);
 
-    // listen delete message (optional)
     if (onMessageDeleted) {
       socket.on(
         'chat:message-deleted',
@@ -64,6 +67,10 @@ export function useChatRealtime({
     }
 
     return () => {
+      /**
+       * Cleanup listeners
+       */
+      socket.off('connect', joinChat);
       socket.off('chat:new-message', onNewMessage);
 
       if (onMessageDeleted) {
@@ -73,14 +80,10 @@ export function useChatRealtime({
         );
       }
 
-      socket.off('connect', joinChat);
-
-      // leave room explicitly
+      /**
+       * Leave room explicitly
+       */
       socket.emit('chat:leave', { chatId });
     };
-  }, [
-    chatId,
-    onNewMessage,
-    onMessageDeleted,
-  ]);
+  }, [chatId, onNewMessage, onMessageDeleted]);
 }

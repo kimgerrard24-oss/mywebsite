@@ -1,6 +1,6 @@
 // frontend/src/components/chat/ChatRealtimeBridge.tsx
 
-import { useCallback } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 import { useChatRealtime } from '@/hooks/useChatRealtime';
 import type { ChatMessage } from '@/types/chat-message';
 
@@ -28,17 +28,26 @@ export default function ChatRealtimeBridge({
   onMessageReceived,
   onMessageDeleted,
 }: Props) {
+  /**
+   * ensure handlers are stable per chatId lifecycle
+   */
+  const chatIdRef = useRef(chatId);
+
+  useEffect(() => {
+    chatIdRef.current = chatId;
+  }, [chatId]);
+
   const handleNewMessage = useCallback(
     (payload: {
       chatId: string;
       message: ChatMessage;
     }) => {
       if (!payload) return;
-      if (payload.chatId !== chatId) return;
+      if (payload.chatId !== chatIdRef.current) return;
 
       onMessageReceived(payload.message);
     },
-    [chatId, onMessageReceived],
+    [onMessageReceived],
   );
 
   const handleMessageDeleted = useCallback(
@@ -47,11 +56,11 @@ export default function ChatRealtimeBridge({
       messageId: string;
     }) => {
       if (!payload) return;
-      if (payload.chatId !== chatId) return;
+      if (payload.chatId !== chatIdRef.current) return;
 
       onMessageDeleted(payload.messageId);
     },
-    [chatId, onMessageDeleted],
+    [onMessageDeleted],
   );
 
   useChatRealtime({
@@ -62,4 +71,3 @@ export default function ChatRealtimeBridge({
 
   return null;
 }
-

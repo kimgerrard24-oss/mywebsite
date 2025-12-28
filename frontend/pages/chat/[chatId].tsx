@@ -18,7 +18,6 @@ import ChatMessageList, {
 } from "@/components/chat/ChatMessageList";
 import ChatComposer from "@/components/chat/ChatComposer";
 import ChatReadObserver from "@/components/chat/ChatReadObserver";
-import ChatMessageComposer from "@/components/chat/ChatMessageComposer";
 
 // 🔔 Realtime
 import ChatRealtimeBridge from "@/components/chat/ChatRealtimeBridge";
@@ -57,28 +56,21 @@ export default function ChatPage({
   meta,
   initialMessages,
 }: Props) {
-  const listRef =
-    useRef<ChatMessageListHandle>(null);
+  const listRef = useRef<ChatMessageListHandle>(null);
 
   /**
    * 🔔 Realtime: new message
    */
-  const handleRealtimeMessage = useCallback(
-    (msg: any) => {
-      listRef.current?.appendMessage(msg);
-    },
-    [],
-  );
+  const handleRealtimeMessage = useCallback((msg: any) => {
+    listRef.current?.appendMessage(msg);
+  }, []);
 
   /**
    * 🔔 Realtime: message deleted
    */
-  const handleRealtimeDeleted = useCallback(
-    (messageId: string) => {
+  const handleRealtimeDeleted = useCallback((messageId: string) => {
     listRef.current?.markMessageDeleted(messageId);
-    },
-    [],
-  );
+  }, []);
 
   return (
     <>
@@ -96,41 +88,37 @@ export default function ChatPage({
           <ChatHeader meta={meta} />
 
           {/* =========================
-              🔔 Realtime Bridge
-              - delivery only
-              - no UI
+              Chat Messages (STATE OWNER)
               ========================= */}
-          {/* ...Head / Layout / Header เหมือนเดิม */}
+          <ChatMessageList
+            ref={listRef}
+            chatId={meta.id}
+            initialData={initialMessages}
+          />
 
-      <ChatRealtimeBridge
-        chatId={meta.id}
-        onMessageReceived={handleRealtimeMessage}
-        onMessageDeleted={handleRealtimeDeleted}
-      />
-
-      <ChatMessageList
-        ref={listRef}
-        chatId={meta.id}
-        initialData={initialMessages}
-      />
+          {/* =========================
+              🔔 Realtime Bridge
+              - mount AFTER state is ready
+              - delivery only
+              ========================= */}
+          <ChatRealtimeBridge
+            chatId={meta.id}
+            onMessageReceived={handleRealtimeMessage}
+            onMessageDeleted={handleRealtimeDeleted}
+          />
 
           {/* =========================
               Read Observer
-              - POST /chat/:chatId/read
               ========================= */}
           <ChatReadObserver chatId={meta.id} />
 
           {/* =========================
               Chat Composer
-              - POST /chat/:chatId/messages
               ========================= */}
           <ChatComposer
             chatId={meta.id}
             onMessageSent={(msg) => {
-              // เดิม: optimistic update
-              listRef.current?.appendMessage(
-                msg,
-              );
+              listRef.current?.appendMessage(msg);
             }}
           />
         </ChatPermissionGuard>
@@ -146,34 +134,22 @@ export default function ChatPage({
  */
 export const getServerSideProps: GetServerSideProps =
   async (ctx) => {
-    const redirect =
-      await requireSessionSSR(ctx);
+    const redirect = await requireSessionSSR(ctx);
     if (redirect) return redirect;
 
-    const id =
-      ctx.params?.chatId as string;
+    const id = ctx.params?.chatId as string;
 
-    /**
-     * Flow (สำคัญ):
-     * 1) ลองมองว่า id คือ chatId ก่อน
-     * 2) ถ้าไม่ใช่ → ถือว่าเป็น userId
-     * 3) backend เป็นคนตัดสิน + redirect
-     */
     try {
-      // 1️⃣ ลองโหลดแบบ chatId
-      const [meta, messages] =
-        await Promise.all([
-          getChatMeta({
-            chatId: id,
-            cookie:
-              ctx.req.headers.cookie ?? "",
-          }),
-          getChatMessagesSSR({
-            chatId: id,
-            cookie:
-              ctx.req.headers.cookie ?? "",
-          }),
-        ]);
+      const [meta, messages] = await Promise.all([
+        getChatMeta({
+          chatId: id,
+          cookie: ctx.req.headers.cookie ?? "",
+        }),
+        getChatMessagesSSR({
+          chatId: id,
+          cookie: ctx.req.headers.cookie ?? "",
+        }),
+      ]);
 
       return {
         props: {
@@ -182,14 +158,11 @@ export const getServerSideProps: GetServerSideProps =
         },
       };
     } catch {
-      // 2️⃣ ถ้าไม่ใช่ chatId → userId
       try {
-        const chat =
-          await getChatByUserId({
-            userId: id,
-            cookie:
-              ctx.req.headers.cookie ?? "",
-          });
+        const chat = await getChatByUserId({
+          userId: id,
+          cookie: ctx.req.headers.cookie ?? "",
+        });
 
         return {
           redirect: {
@@ -202,4 +175,3 @@ export const getServerSideProps: GetServerSideProps =
       }
     }
   };
-
