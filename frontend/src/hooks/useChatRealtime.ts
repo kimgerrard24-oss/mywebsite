@@ -32,14 +32,10 @@ export function useChatRealtime({
 
     /**
      * Join chat room
-     * MUST be called only after socket is connected
+     * Must be executed whenever socket is connected
      */
     const joinChat = () => {
-      socket.emit(
-        'chat:join',
-        { chatId },
-        () => {},
-      );
+      socket.emit('chat:join', { chatId });
     };
 
     /**
@@ -50,8 +46,14 @@ export function useChatRealtime({
     }
 
     /**
-     * Join room on every connect / reconnect
+     * IMPORTANT:
+     * - join immediately if already connected
+     * - join again on every reconnect
      */
+    if (socket.connected) {
+      joinChat();
+    }
+
     socket.on('connect', joinChat);
 
     /**

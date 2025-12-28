@@ -40,23 +40,23 @@ export async function getChatMessagesClient(params: {
   );
 }
 
+/**
+ * CSR: POST /chat/:chatId/messages
+ */
 export async function sendChatMessage(params: {
   chatId: string;
   content: string;
-}) {
-  const res = await api.post(
+}): Promise<ChatMessage> {
+  return client.post<ChatMessage>(
     `/chat/${params.chatId}/messages`,
-    {
-      content: params.content,
-    },
-    {
-      withCredentials: true,
-    },
+    { content: params.content },
   );
-
-  return res.data;
 }
 
+/**
+ * CSR: PATCH /chat/:chatId/messages/:messageId
+ * ⚠️ ใช้ api เพราะ client ไม่มี patch
+ */
 export async function editChatMessage(params: {
   chatId: string;
   messageId: string;
@@ -73,6 +73,10 @@ export async function editChatMessage(params: {
   return res.data;
 }
 
+/**
+ * CSR: DELETE /chat/:chatId/messages/:messageId
+ * ⚠️ ใช้ api เพราะ client ไม่มี delete
+ */
 export async function deleteChatMessage(params: {
   chatId: string;
   messageId: string;
@@ -83,8 +87,7 @@ export async function deleteChatMessage(params: {
   const res = await api.delete(
     `/chat/${chatId}/messages/${messageId}`,
     {
-      // ✅ ส่ง data เสมอ เพื่อให้ axios dispatch request แน่นอน
-      data: { reason: reason ?? null },
+      data: reason ? { reason } : undefined,
       withCredentials: true,
     },
   );
