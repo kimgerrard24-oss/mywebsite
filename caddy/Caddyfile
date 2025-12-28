@@ -21,26 +21,11 @@ phlyphant.com, www.phlyphant.com {
 
         Content-Security-Policy "
             default-src 'self';
-            script-src
-                'self'
-                'unsafe-inline'
-                https:
-                blob:;
-            worker-src
-                'self'
-                blob:;
-            img-src
-                'self'
-                data:
-                https:;
-            style-src
-                'self'
-                'unsafe-inline'
-                https:;
-            font-src
-                'self'
-                https:
-                data:;
+            script-src 'self' 'unsafe-inline' https: blob:;
+            worker-src 'self' blob:;
+            img-src 'self' data: https:;
+            style-src 'self' 'unsafe-inline' https:;
+            font-src 'self' https: data:;
             connect-src
                 'self'
                 https://api.phlyphant.com
@@ -48,7 +33,6 @@ phlyphant.com, www.phlyphant.com {
                 https://accounts.google.com
                 https://oauth2.googleapis.com
                 https://www.facebook.com
-                blob:
                 https://graph.facebook.com
                 https://*.sentry.io
                 https://o4510359449042944.ingest.us.sentry.io
@@ -92,12 +76,8 @@ api.phlyphant.com {
         Content-Security-Policy "
             default-src 'self';
             script-src 'self';
-            worker-src
-                'self'
-                blob:;
-            img-src
-                'self'
-                data:;
+            worker-src 'self' blob:;
+            img-src 'self' data:;
             frame-ancestors 'none';
             connect-src
                 'self'
@@ -115,16 +95,35 @@ api.phlyphant.com {
         "
     }
 
+    # ===============================
+    # Socket.IO (IMPORTANT)
+    # ===============================
     @socketio {
-        path /socket.io/*
+        path /socket.io*
     }
 
     handle @socketio {
-        reverse_proxy phlyphant-backend:4001
+        reverse_proxy phlyphant-backend:4001 {
+            transport http {
+                versions 1.1
+            }
+
+            header_up Host {host}
+            header_up X-Forwarded-For {remote}
+            header_up X-Real-IP {remote}
+            header_up X-Forwarded-Proto {scheme}
+            header_up Upgrade {http.request.header.Upgrade}
+            header_up Connection {http.request.header.Connection}
+            header_up Cookie {http.request.header.Cookie}
+        }
     }
 
     handle {
         reverse_proxy phlyphant-backend:4001 {
+            transport http {
+                versions 1.1
+            }
+
             header_up Host {host}
             header_up X-Forwarded-For {remote}
             header_up X-Real-IP {remote}
