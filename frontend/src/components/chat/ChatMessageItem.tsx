@@ -54,7 +54,11 @@ export default function ChatMessageItem({
    */
   if (message.isDeleted) {
     return (
-      <div className="py-1 text-xs italic text-gray-400">
+      <div
+        className={`mb-2 text-xs italic text-gray-400 ${
+          isOwn ? "text-right" : "text-left"
+        }`}
+      >
         Message deleted
       </div>
     );
@@ -62,26 +66,13 @@ export default function ChatMessageItem({
 
   /**
    * ==============================
-   * EDIT MODE
+   * EDIT MODE (เฉพาะของตัวเอง)
    * ==============================
    */
-  if (
-    editing &&
-    isOwn &&
-    message.chatId
-  ) {
+  if (editing && isOwn && message.chatId) {
     return (
-      <div className="mb-2 flex items-start gap-2">
-        <img
-          src={
-            message.sender.avatarUrl ??
-            "/avatar-placeholder.png"
-          }
-          className="h-8 w-8 rounded-full"
-          alt=""
-        />
-
-        <div className="flex-1">
+      <div className="mb-2 flex justify-end">
+        <div className="w-full max-w-md">
           <ChatMessageEditor
             chatId={message.chatId}
             messageId={message.id}
@@ -103,27 +94,46 @@ export default function ChatMessageItem({
    * ==============================
    */
   return (
-    <div className="group relative mb-2 flex items-start gap-2">
-      <img
-        src={
-          message.sender.avatarUrl ??
-          "/avatar-placeholder.png"
-        }
-        className="h-8 w-8 rounded-full"
-        alt=""
-      />
+    <div
+      className={`group mb-2 flex ${
+        isOwn ? "justify-end" : "justify-start"
+      }`}
+    >
+      {/* avatar เฉพาะฝั่งคู่สนทนา */}
+      {!isOwn && (
+        <img
+          src={
+            message.sender.avatarUrl ??
+            "/avatar-placeholder.png"
+          }
+          className="mr-2 h-8 w-8 rounded-full"
+          alt=""
+        />
+      )}
 
-      <div className="relative rounded-lg bg-gray-100 px-3 py-2">
-        <div className="text-xs font-semibold">
-          {message.sender.displayName ?? "User"}
-        </div>
+      <div
+        className={`relative max-w-md rounded-lg px-3 py-2 text-sm ${
+          isOwn
+            ? "bg-blue-600 text-white"
+            : "bg-gray-100 text-gray-900"
+        }`}
+      >
+        {!isOwn && (
+          <div className="mb-0.5 text-xs font-semibold">
+            {message.sender.displayName ?? "User"}
+          </div>
+        )}
 
-        <div className="text-sm">
-          {message.content}
-        </div>
+        <div>{message.content}</div>
 
         {message.isEdited && (
-          <div className="mt-0.5 text-[10px] text-gray-400">
+          <div
+            className={`mt-0.5 text-[10px] ${
+              isOwn
+                ? "text-blue-200"
+                : "text-gray-400"
+            }`}
+          >
             edited
           </div>
         )}
@@ -148,10 +158,14 @@ export default function ChatMessageItem({
               onConfirm={() =>
                 remove({
                   chatId: message.chatId!,
-                  message, // ✅ ChatMessageUI ⊂ ChatMessage
-                  onOptimistic: () =>
-                    onDeleted?.(message.id),
-                  onRollback: () => {},
+                  message,
+                  onOptimistic: () => {
+                    setConfirmDelete(false);
+                    onDeleted?.(message.id);
+                  },
+                  onRollback: () => {
+                    setConfirmDelete(false);
+                  },
                   onSuccess: () => {},
                 })
               }

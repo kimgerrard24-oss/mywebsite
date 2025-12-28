@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import { getNotifications } from '@/lib/api/notifications';
 import type { NotificationItem } from '@/types/notification';
 import NotificationList from './NotificationList';
+import { useNotificationStore } from '@/stores/notification.store';
 
 /**
  * NotificationBell
@@ -19,6 +20,15 @@ export default function NotificationBell() {
 
   const containerRef = useRef<HTMLDivElement | null>(null);
 
+  // ===== subscribe realtime unread count (source of truth) =====
+  const unreadCount = useNotificationStore(
+    (s) => s.unreadCount,
+  );
+
+  const hydrate = useNotificationStore(
+    (s) => s.hydrate,
+  );
+
   // ===== load notifications เมื่อเปิด dropdown =====
   useEffect(() => {
     if (!open) return;
@@ -30,10 +40,12 @@ export default function NotificationBell() {
       try {
         const res = await getNotifications({ limit: 20 });
         if (!cancelled) {
-          setItems(res.items ?? []);
+          const nextItems = res.items ?? [];
+          setItems(nextItems);
+          hydrate(nextItems); // sync store with backend (authority)
         }
       } catch {
-        // fail-soft: แค่ไม่แสดง notification
+        // fail-soft
       } finally {
         if (!cancelled) {
           setLoading(false);
@@ -46,7 +58,7 @@ export default function NotificationBell() {
     return () => {
       cancelled = true;
     };
-  }, [open]);
+  }, [open, hydrate]);
 
   // ===== click outside เพื่อปิด dropdown =====
   useEffect(() => {
@@ -67,8 +79,6 @@ export default function NotificationBell() {
       document.removeEventListener('mousedown', handleClickOutside);
     };
   }, [open]);
-
-  const unreadCount = items.filter((n) => !n.isRead).length;
 
   return (
     <div
@@ -95,12 +105,11 @@ export default function NotificationBell() {
           focus:ring-blue-500
         "
       >
-        {/* 🔔 Icon */}
         <span aria-hidden="true" className="text-lg">
           🔔
         </span>
 
-        {/* 🔴 Unread badge */}
+        {/* ===== Unread badge (realtime) ===== */}
         {unreadCount > 0 && (
           <span
             aria-label={`${unreadCount} unread notifications`}

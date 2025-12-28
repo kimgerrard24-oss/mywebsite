@@ -11,7 +11,7 @@ import {
 import { Server, Socket } from 'socket.io';
 import { ChatRealtimeService } from './chat-realtime.service';
 import { WsAuthGuard } from './ws-auth.guard';
-import { UseGuards } from '@nestjs/common'; 
+import { UseGuards } from '@nestjs/common';
 
 @WebSocketGateway({
   cors: {
@@ -36,21 +36,26 @@ export class ChatGateway implements OnGatewayInit {
     const user = (client as any).user;
     if (!user) return;
 
-    // user room (optional for notification later)
+    // user-scoped room (future use: notification / presence)
     client.join(`user:${user.userId}`);
   }
 
   /**
    * Client ขอ join ห้องแชท
-   * ❗ backend ยังเป็น authority (client ขอ แต่ backend ตัดสิน)
+   * backend เป็น authority
+   * ใช้ ACK เพื่อยืนยันว่า join สำเร็จจริง
    */
   @SubscribeMessage('chat:join')
   handleJoinChat(
     @ConnectedSocket() client: Socket,
     @MessageBody() data: { chatId: string },
-  ) {
+  ): { joined: true } | void {
     if (!data?.chatId) return;
+
     client.join(`chat:${data.chatId}`);
+
+    // ✅ ACK กลับไปให้ client
+    return { joined: true };
   }
 
   @SubscribeMessage('chat:leave')
@@ -59,6 +64,7 @@ export class ChatGateway implements OnGatewayInit {
     @MessageBody() data: { chatId: string },
   ) {
     if (!data?.chatId) return;
+
     client.leave(`chat:${data.chatId}`);
   }
 }
