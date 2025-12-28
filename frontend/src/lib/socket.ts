@@ -3,9 +3,6 @@
 // ==============================
 import { io, Socket } from "socket.io-client";
 
-// ============================
-// Production API Base
-// ============================
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL ||
   process.env.NEXT_PUBLIC_API_BASE ||
@@ -20,15 +17,10 @@ export function getSocket(): Socket {
 
   if (socketInstance) return socketInstance;
 
-  const socketUrl = API_BASE.replace("https://", "wss://");
-
-  socketInstance = io(socketUrl, {
+  socketInstance = io(API_BASE, {
     path: "/socket.io",
     withCredentials: true,
-    transports: ["websocket", "polling"],
-    autoConnect: true,          // ✅ ให้ socket จัดการ lifecycle เอง
-    reconnection: true,
-    secure: true,
+    transports: ["websocket"], // บังคับ websocket
   });
 
   (window as any).socket = socketInstance;
