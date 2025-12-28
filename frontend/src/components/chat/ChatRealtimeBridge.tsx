@@ -45,7 +45,18 @@ export default function ChatRealtimeBridge({
       if (!payload) return;
       if (payload.chatId !== chatIdRef.current) return;
 
-      onMessageReceived(payload.message);
+      /**
+       * IMPORTANT:
+       * Normalize realtime message to ensure:
+       * - new object reference
+       * - UI-ready shape
+       * - consistent behavior with fetched messages
+       */
+      const normalizedMessage: ChatMessage = {
+        ...payload.message,
+      };
+
+      onMessageReceived(normalizedMessage);
     },
     [onMessageReceived],
   );

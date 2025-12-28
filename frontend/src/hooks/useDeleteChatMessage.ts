@@ -27,7 +27,6 @@ export function useDeleteChatMessage() {
       onSuccess,
     } = params;
 
-    // ===== Validate input =====
     if (!chatId || !message?.id) {
       console.error(
         "Delete chat message aborted: invalid params",
@@ -36,7 +35,6 @@ export function useDeleteChatMessage() {
       return;
     }
 
-    // ===== Prevent duplicate delete for same message =====
     if (inFlightRef.current.has(message.id)) {
       return;
     }
@@ -48,12 +46,13 @@ export function useDeleteChatMessage() {
     onOptimistic();
 
     try {
-      const deleted = await deleteChatMessage({
+      await deleteChatMessage({
         chatId,
         messageId: message.id,
       });
 
-      onSuccess(deleted);
+      // confirm delete by id (UI layer decides how to mark delete)
+      onSuccess(message);
     } catch (err) {
       onRollback();
       console.error("Delete chat message failed", err);
