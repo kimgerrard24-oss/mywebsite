@@ -44,15 +44,10 @@ export function useChatRealtime({
       );
     };
 
-    // ensure socket connected
-    if (!socket.connected) {
-      socket.connect();
-    }
+    // ✅ join ทุกครั้งที่ socket connect / reconnect
+    socket.on('connect', joinChat);
 
-    // join after connect
-    socket.once('connect', joinChat);
-
-    // already connected (e.g. route change)
+    // กรณี connect อยู่แล้ว (เช่น route change)
     if (socket.connected) {
       joinChat();
     }
@@ -79,6 +74,8 @@ export function useChatRealtime({
       }
 
       socket.off('connect', joinChat);
+
+      // leave room explicitly
       socket.emit('chat:leave', { chatId });
     };
   }, [
@@ -87,4 +84,3 @@ export function useChatRealtime({
     onMessageDeleted,
   ]);
 }
-

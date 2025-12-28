@@ -4,7 +4,7 @@
 import { io, Socket } from "socket.io-client";
 
 // ============================
-// Production API Base ตาม env
+// Production API Base
 // ============================
 const API_BASE =
   process.env.NEXT_PUBLIC_API_BASE_URL ||
@@ -20,24 +20,17 @@ export function getSocket(): Socket {
 
   if (socketInstance) return socketInstance;
 
-  // ============================
-  // ใช้ WSS (Secure Websocket) เสมอ
-  // ============================
   const socketUrl = API_BASE.replace("https://", "wss://");
 
-  // ============================
-  // ตั้งค่าเพื่อให้เข้ากับ backend NestJS ของคุณเป๊ะ
-  // ============================
   socketInstance = io(socketUrl, {
     path: "/socket.io",
-    withCredentials: true,          // ส่ง session cookie ไป backend (HttpOnly)
+    withCredentials: true,
     transports: ["websocket", "polling"],
-    autoConnect: false,
+    autoConnect: true,          // ✅ ให้ socket จัดการ lifecycle เอง
     reconnection: true,
     secure: true,
   });
 
-  // Optional: expose to window for debugging
   (window as any).socket = socketInstance;
 
   socketInstance.on("connect", () => {
@@ -47,11 +40,6 @@ export function getSocket(): Socket {
   socketInstance.on("connect_error", (err) => {
     console.error("Socket connect error:", err);
   });
-
-  // หน่วงเล็กน้อยเพื่อให้ session cookie พร้อมก่อน connect
-  setTimeout(() => {
-    if (!socketInstance!.connected) socketInstance!.connect();
-  }, 300);
 
   return socketInstance;
 }

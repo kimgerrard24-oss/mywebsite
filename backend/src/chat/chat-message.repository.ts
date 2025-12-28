@@ -105,12 +105,16 @@ export class ChatMessageRepository {
    * หา message ล่าสุด
    */
   async findLastMessage(chatId: string) {
-    return this.prisma.chatMessage.findFirst({
-      where: { chatId },
-      orderBy: { createdAt: 'desc' },
-      select: { id: true },
-    });
-  }
+  return this.prisma.chatMessage.findFirst({
+    where: {
+      chatId,
+      isDeleted: false,
+    },
+    orderBy: { createdAt: 'desc' },
+    select: { id: true },
+  });
+}
+
 
   /**
    * upsert read state
