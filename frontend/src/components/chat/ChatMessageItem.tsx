@@ -17,21 +17,8 @@ type ChatMessageUI = ChatMessage & {
 
 type Props = {
   message: ChatMessageUI;
-
-  /**
-   * ระบุจาก parent (เช่น ChatMessageList)
-   * ว่าเป็นข้อความของ viewer หรือไม่
-   */
   isOwn?: boolean;
-
-  /**
-   * callback เมื่อแก้ไขสำเร็จ
-   */
   onEdited?: (msg: ChatMessageUI) => void;
-
-  /**
-   * callback เมื่อลบ (optimistic)
-   */
   onDeleted?: (id: string) => void;
 };
 
@@ -42,14 +29,13 @@ export default function ChatMessageItem({
   onDeleted,
 }: Props) {
   const [editing, setEditing] = useState(false);
-  const [confirmDelete, setConfirmDelete] =
-    useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const { remove } = useDeleteChatMessage();
 
   /**
    * ==============================
-   * DELETED STATE (UI-only)
+   * DELETED STATE
    * ==============================
    */
   if (message.isDeleted) {
@@ -66,7 +52,7 @@ export default function ChatMessageItem({
 
   /**
    * ==============================
-   * EDIT MODE (เฉพาะของตัวเอง)
+   * EDIT MODE
    * ==============================
    */
   if (editing && isOwn && message.chatId) {
@@ -95,11 +81,10 @@ export default function ChatMessageItem({
    */
   return (
     <div
-      className={`group mb-2 flex ${
+      className={`mb-2 flex ${
         isOwn ? "justify-end" : "justify-start"
       }`}
     >
-      {/* avatar เฉพาะฝั่งคู่สนทนา */}
       {!isOwn && (
         <img
           src={
@@ -138,16 +123,12 @@ export default function ChatMessageItem({
           </div>
         )}
 
-        {/* =========================
-            ACTIONS (เฉพาะของตัวเอง)
-            ========================= */}
+        {/* ACTIONS: แสดงชัดเจนสำหรับข้อความของตัวเอง */}
         {isOwn && message.chatId && (
-          <>
+          <div className="absolute -top-2 -right-2">
             <ChatMessageActions
               onEdit={() => setEditing(true)}
-              onDelete={() =>
-                setConfirmDelete(true)
-              }
+              onDelete={() => setConfirmDelete(true)}
             />
 
             <ChatConfirmDeleteModal
@@ -170,7 +151,7 @@ export default function ChatMessageItem({
                 })
               }
             />
-          </>
+          </div>
         )}
       </div>
     </div>

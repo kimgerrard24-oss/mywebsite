@@ -1,10 +1,8 @@
 // backend/src/chat/realtime/ws-auth.guard.ts
-
 import {
   CanActivate,
   ExecutionContext,
   Injectable,
-  UnauthorizedException,
 } from '@nestjs/common';
 import { Socket } from 'socket.io';
 import * as jwt from 'jsonwebtoken';
@@ -24,7 +22,7 @@ export class WsAuthGuard implements CanActivate {
 
     const cookieHeader = client.handshake.headers.cookie;
     if (!cookieHeader) {
-      throw new UnauthorizedException('Missing cookie');
+      return false;
     }
 
     const cookies = Object.fromEntries(
@@ -36,7 +34,7 @@ export class WsAuthGuard implements CanActivate {
 
     const token = cookies['phl_access'];
     if (!token) {
-      throw new UnauthorizedException('Missing access token');
+      return false;
     }
 
     let payload: JwtPayload;
@@ -46,17 +44,17 @@ export class WsAuthGuard implements CanActivate {
         process.env.JWT_ACCESS_SECRET!,
       ) as JwtPayload;
     } catch {
-      throw new UnauthorizedException('Invalid token');
+      return false;
     }
 
     const sessionKey = `session:access:${payload.jti}`;
     const exists = await this.redis.exists(sessionKey);
 
     if (!exists) {
-      throw new UnauthorizedException('Session expired');
+      return false;
     }
 
-    // attach user (authority = backend)
+    // attach user (backend authority)
     (client as any).user = {
       userId: payload.sub,
       jti: payload.jti,

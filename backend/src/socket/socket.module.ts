@@ -1,6 +1,7 @@
 // ==========================================
 // file: backend/src/socket/socket.module.ts
 // ==========================================
+
 import { Module } from '@nestjs/common';
 import { SocketGateway } from './socket.gateway';
 import { FirebaseAdminService } from '../firebase/firebase.service';

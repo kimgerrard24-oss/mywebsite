@@ -9,20 +9,27 @@ export default function ChatMessageActions({
   onEdit,
   onDelete,
 }: Props) {
+  if (!onEdit && !onDelete) return null;
+
   return (
-    <div className="absolute right-0 top-0 hidden gap-2 group-hover:flex">
+    <div className="flex items-center gap-2">
       {onEdit && (
         <button
+          type="button"
           onClick={onEdit}
-          className="text-xs text-gray-400"
+          className="text-xs text-gray-400 hover:text-gray-600"
+          aria-label="Edit message"
         >
           Edit
         </button>
       )}
+
       {onDelete && (
         <button
+          type="button"
           onClick={onDelete}
-          className="text-xs text-red-400"
+          className="text-xs text-red-400 hover:text-red-600"
+          aria-label="Delete message"
         >
           Delete
         </button>

@@ -1,7 +1,10 @@
+// frontend/src/components/chat/ChatMessageList.tsx
 import {
   forwardRef,
   useImperativeHandle,
   useState,
+  useEffect,
+  useRef,
 } from "react";
 import ChatMessageItem from "./ChatMessageItem";
 import ChatMessageEmptyState from "./ChatMessageEmptyState";
@@ -61,7 +64,7 @@ const ChatMessageList = forwardRef<
 
   /**
    * overlay state
-   * - appended: POST
+   * - appended: POST / realtime
    * - patched: EDIT / DELETE
    */
   const [appendedItems, setAppendedItems] =
@@ -70,6 +73,13 @@ const ChatMessageList = forwardRef<
     useState<Record<string, ChatMessageUI>>(
       {},
     );
+
+  /**
+   * scroll anchor
+   */
+  const bottomRef = useRef<HTMLDivElement | null>(
+    null,
+  );
 
   /**
    * expose method ให้ parent
@@ -82,6 +92,18 @@ const ChatMessageList = forwardRef<
       ]);
     },
   }));
+
+  /**
+   * auto scroll to bottom on new message
+   */
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({
+      behavior: "smooth",
+    });
+  }, [
+    fetchedItems.length,
+    appendedItems.length,
+  ]);
 
   /**
    * EDIT (overlay)
@@ -142,7 +164,7 @@ const ChatMessageList = forwardRef<
 
   return (
     <section
-      className="flex flex-1 flex-col-reverse overflow-y-auto px-4 py-2"
+      className="flex flex-1 flex-col overflow-y-auto px-4 py-2"
       aria-label="Chat messages"
     >
       {mergedItems.map((msg) => (
@@ -164,6 +186,8 @@ const ChatMessageList = forwardRef<
           onLoadMore={loadMore}
         />
       )}
+
+      <div ref={bottomRef} />
     </section>
   );
 });

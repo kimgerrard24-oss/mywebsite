@@ -48,6 +48,7 @@ phlyphant.com, www.phlyphant.com {
                 https://accounts.google.com
                 https://oauth2.googleapis.com
                 https://www.facebook.com
+                blob:
                 https://graph.facebook.com
                 https://*.sentry.io
                 https://o4510359449042944.ingest.us.sentry.io

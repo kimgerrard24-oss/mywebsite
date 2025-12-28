@@ -1,11 +1,8 @@
 // ==========================================
 // file: backend/src/socket/socket.gateway.ts
 // ==========================================
-import {
-  Logger,
-  Injectable,
-} from '@nestjs/common';
 
+import { Logger, Injectable } from '@nestjs/common';
 import {
   WebSocketGateway,
   OnGatewayInit,
@@ -14,7 +11,6 @@ import {
   SubscribeMessage,
   WebSocketServer,
 } from '@nestjs/websockets';
-
 import { Server, Socket } from 'socket.io';
 import * as cookie from 'cookie';
 import { FirebaseAdminService } from '../firebase/firebase.service';
@@ -35,17 +31,24 @@ import { FirebaseAdminService } from '../firebase/firebase.service';
   },
 })
 export class SocketGateway
-  implements OnGatewayInit, OnGatewayConnection, OnGatewayDisconnect
+  implements
+    OnGatewayInit,
+    OnGatewayConnection,
+    OnGatewayDisconnect
 {
   @WebSocketServer()
   server!: Server;
 
   private readonly logger = new Logger(SocketGateway.name);
 
-  constructor(private firebase: FirebaseAdminService) {}
+  constructor(
+    private readonly firebase: FirebaseAdminService,
+  ) {}
 
   afterInit() {
-    this.logger.log('Socket.IO Gateway initialized successfully');
+    this.logger.log(
+      'Socket.IO Gateway initialized successfully',
+    );
   }
 
   // =====================================================
@@ -62,17 +65,28 @@ export class SocketGateway
         return;
       }
 
-      const cookieName = process.env.SESSION_COOKIE_NAME || 'session';
+      const cookieName =
+        process.env.SESSION_COOKIE_NAME || 'session';
 
       // Cookie parsing
-      const raw = client.handshake.headers.cookie || '';
+      const raw =
+        client.handshake.headers.cookie || '';
       const parsed = cookie.parse(raw);
+
       let session = parsed[cookieName];
 
       // Bearer fallback
-      if (!session && client.handshake.headers.authorization) {
-        const auth = client.handshake.headers.authorization;
-        if (typeof auth === 'string' && auth.startsWith('Bearer ')) {
+      if (
+        !session &&
+        client.handshake.headers.authorization
+      ) {
+        const auth =
+          client.handshake.headers.authorization;
+
+        if (
+          typeof auth === 'string' &&
+          auth.startsWith('Bearer ')
+        ) {
           session = auth.substring(7).trim();
         }
       }
@@ -87,9 +101,10 @@ export class SocketGateway
       }
 
       // Verify Firebase Session Cookie
-      const decoded = await this.firebase
-        .auth()
-        .verifySessionCookie(session, false);
+      const decoded =
+        await this.firebase
+          .auth()
+          .verifySessionCookie(session, false);
 
       client.data.user = decoded;
 
@@ -107,11 +122,16 @@ export class SocketGateway
   }
 
   handleDisconnect(client: Socket) {
-    this.logger.log(`Client disconnected id=${client.id}`);
+    this.logger.log(
+      `Client disconnected id=${client.id}`,
+    );
   }
 
   @SubscribeMessage('message')
-  async handleMessage(client: Socket, payload: any) {
+  async handleMessage(
+    client: Socket,
+    payload: any,
+  ) {
     this.server.emit('message', payload);
   }
 }
