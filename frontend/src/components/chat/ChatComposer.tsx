@@ -28,13 +28,13 @@ export default function ChatComposer({
     error,
   } = useChatComposer({
     chatId,
-    onSent: () => {
-      // ❗ Realtime (Socket) เป็น authority
-      // ❗ ห้าม append message ที่นี่ เพื่อป้องกัน duplicate
+    onSent: (message) => {
+      // ✅ append self-message immediately (UX critical)
+      onMessageSent?.(message);
     },
   });
 
-  // ✅ Typing hook
+  // Typing hook
   const { notifyTyping } = useChatTyping(chatId);
 
   const { upload } = useMediaUpload();
@@ -48,7 +48,6 @@ export default function ChatComposer({
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-
     if (loading) return;
 
     const hasText =
@@ -56,10 +55,12 @@ export default function ChatComposer({
       content.trim().length > 0;
 
     const hasMedia = mediaIds.length > 0;
-
     if (!hasText && !hasMedia) return;
 
     await submit();
+
+    // stop typing immediately after send
+    setContent("");
   }
 
   function handleEmojiSelect(emoji: EmojiClickData) {
@@ -161,7 +162,7 @@ export default function ChatComposer({
           value={content}
           onChange={(e) => {
             setContent(e.target.value);
-            notifyTyping(); // ✅ trigger typing
+            notifyTyping();
           }}
           rows={1}
           placeholder="Type a message…"

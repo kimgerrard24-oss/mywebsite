@@ -17,7 +17,7 @@ export function useDeleteChatMessage() {
     message: ChatMessage;
     onOptimistic: () => void;
     onRollback: () => void;
-    onSuccess: (msg: ChatMessage) => void;
+    onSuccess: () => void;
   }) {
     const {
       chatId,
@@ -52,7 +52,7 @@ export function useDeleteChatMessage() {
       });
 
       // confirm delete by id (UI layer decides how to mark delete)
-      onSuccess(message);
+      onSuccess();
     } catch (err) {
       onRollback();
       console.error("Delete chat message failed", err);

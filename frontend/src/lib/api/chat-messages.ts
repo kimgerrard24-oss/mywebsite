@@ -95,13 +95,10 @@ export async function deleteChatMessage(params: {
 }): Promise<ChatMessage> {
   const { chatId, messageId, reason } = params;
 
-  const res = await api.delete(
+  return client.delete<ChatMessage>(
     `/chat/${chatId}/messages/${messageId}`,
-    {
-      data: reason ? { reason } : undefined,
-      withCredentials: true,
-    },
+    reason ? { data: { reason } } : undefined,
   );
-
-  return res.data;
 }
+
+

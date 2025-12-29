@@ -27,10 +27,6 @@ type Props = {
   }) => void;
 };
 
-/**
- * This component has no UI
- * It only bridges realtime events to state
- */
 export default function ChatRealtimeBridge({
   chatId,
   onMessageReceived,
@@ -64,19 +60,11 @@ export default function ChatRealtimeBridge({
           : [],
       };
 
-      // guard: prevent incomplete media render
-      if (
-        normalizedMessage.media.length > 0 &&
-        normalizedMessage.media.some(
-          (m) =>
-            !m ||
-            typeof m.url !== 'string' ||
-            m.url.length === 0,
-        )
-      ) {
-        return;
-      }
-
+      /**
+       * IMPORTANT:
+       * Do NOT drop message even if media is not ready yet
+       * Message will be patched later by authoritative POST or future realtime
+       */
       onMessageReceived(normalizedMessage);
     },
     [onMessageReceived],

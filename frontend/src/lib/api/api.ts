@@ -186,6 +186,18 @@ export const client = {
         : {}),
       credentials: "include",
     }),
+
+    delete: <T = any>(
+    path: string,
+    options?: { data?: any }
+  ) =>
+    jsonFetch<T>(apiPath(path), {
+      method: "DELETE",
+      ...(options?.data
+        ? { body: JSON.stringify(options.data) }
+        : {}),
+      credentials: "include",
+    }),
 };
 
 // AUTH / SESSION
