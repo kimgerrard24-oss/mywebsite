@@ -39,11 +39,23 @@ export type Message = {
 
 export type MediaMetadata = {
   id: string;
-  type: "image" | "video";
+
+  /**
+   * รองรับ media ทุกประเภทที่ backend อนุญาต
+   * backend = authority
+   */
+  type: "image" | "video" | "audio";
+
   url: string;
   objectKey: string;
   ownerUserId: string;
   postId: string | null;
   createdAt: string;
   isOwner: boolean;
+
+  /**
+   * optional (audio)
+   * backend อาจส่งมา
+   */
+  durationSec?: number | null;
 };

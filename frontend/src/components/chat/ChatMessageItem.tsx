@@ -1,7 +1,7 @@
 // frontend/src/components/chat/ChatMessageItem.tsx
 
 import { useState } from "react";
-import ChatMessageEditor from "./ChatMessageEditor";
+import Link from "next/link";
 import ChatMessageActions from "./ChatMessageActions";
 import ChatConfirmDeleteModal from "./ChatConfirmDeleteModal";
 import { useDeleteChatMessage } from "@/hooks/useDeleteChatMessage";
@@ -18,19 +18,16 @@ type ChatMessageUI = ChatMessage & {
 type Props = {
   message: ChatMessageUI;
   isOwn?: boolean;
-  onEdited?: (msg: ChatMessageUI) => void;
   onDeleted?: (id: string) => void;
 };
 
 export default function ChatMessageItem({
   message,
   isOwn = false,
-  onEdited,
   onDeleted,
 }: Props) {
-  const [editing, setEditing] = useState(false);
-  const [confirmDelete, setConfirmDelete] = useState(false);
-
+  const [confirmDelete, setConfirmDelete] =
+    useState(false);
   const { remove } = useDeleteChatMessage();
 
   /**
@@ -50,29 +47,28 @@ export default function ChatMessageItem({
     );
   }
 
-  /**
-   * ==============================
-   * EDIT MODE
-   * ==============================
-   */
-  if (editing && isOwn && message.chatId) {
-    return (
-      <div className="mb-2 flex justify-end">
-        <div className="w-full max-w-md">
-          <ChatMessageEditor
-            chatId={message.chatId}
-            messageId={message.id}
-            initialContent={message.content}
-            onSaved={(updated) => {
-              setEditing(false);
-              onEdited?.(updated as ChatMessageUI);
-            }}
-            onCancel={() => setEditing(false)}
-          />
-        </div>
-      </div>
-    );
-  }
+  const timeLabel = message.createdAt
+    ? new Date(message.createdAt).toLocaleTimeString(
+        [],
+        { hour: "2-digit", minute: "2-digit" },
+      )
+    : "";
+
+  const hasText =
+    typeof message.content === "string" &&
+    message.content.trim().length > 0;
+
+  const media =
+    Array.isArray(message.media)
+      ? message.media.filter(
+          (m) =>
+            m &&
+            typeof m.url === "string" &&
+            m.url.length > 0,
+        )
+      : [];
+
+  const hasMedia = media.length > 0;
 
   /**
    * ==============================
@@ -86,14 +82,23 @@ export default function ChatMessageItem({
       }`}
     >
       {!isOwn && (
-        <img
-          src={
-            message.sender.avatarUrl ??
-            "/avatar-placeholder.png"
-          }
-          className="mr-2 h-8 w-8 rounded-full"
-          alt=""
-        />
+        <Link
+          href={`/users/${message.sender.id}`}
+          className="mr-2 flex-shrink-0"
+        >
+          <img
+            src={
+              message.sender.avatarUrl ??
+              "/avatar-placeholder.png"
+            }
+            className="h-8 w-8 rounded-full cursor-pointer"
+            alt={
+              message.sender.displayName ??
+              "User avatar"
+            }
+            loading="lazy"
+          />
+        </Link>
       )}
 
       <div
@@ -109,58 +114,94 @@ export default function ChatMessageItem({
           </div>
         )}
 
-        <div>{message.content}</div>
-
-        {message.isEdited && (
-          <div
-            className={`mt-0.5 text-[10px] ${
-              isOwn
-                ? "text-blue-200"
-                : "text-gray-400"
-            }`}
-          >
-            edited
+        {/* ===== Text ===== */}
+        {hasText && (
+          <div className="whitespace-pre-wrap">
+            {message.content}
           </div>
         )}
 
-        {/* ACTIONS: แสดงสำหรับข้อความของตัวเอง */}
-        {isOwn && (
-          <div className="absolute -top-2 -right-2">
-            <ChatMessageActions
-              onEdit={() => setEditing(true)}
-              onDelete={() => setConfirmDelete(true)}
-            />
-
-            <ChatConfirmDeleteModal
-              open={confirmDelete}
-              onCancel={() =>
-                setConfirmDelete(false)
+        {/* ===== Media ===== */}
+        {hasMedia && (
+          <div className="mt-2 flex flex-col gap-2">
+            {media.map((m) => {
+              if (m.type === "image") {
+                return (
+                  <img
+                    key={m.id}
+                    src={m.url}
+                    alt=""
+                    loading="lazy"
+                    decoding="async"
+                    referrerPolicy="no-referrer"
+                    className="max-h-64 w-full rounded-md object-cover"
+                  />
+                );
               }
-              onConfirm={() => {
-                if (!message.chatId) {
-                  // fail-soft: ไม่มี chatId ไม่ควรลบ
-                  setConfirmDelete(false);
-                  return;
-                }
 
-                remove({
-                  chatId: message.chatId,
-                  message,
-                  onOptimistic: () => {
-                    setConfirmDelete(false);
-                    onDeleted?.(message.id);
-                  },
-                  onRollback: () => {
-                    setConfirmDelete(false);
-                  },
-                  onSuccess: () => {},
-                });
-              }}
-            />
+              if (m.type === "audio") {
+                return (
+                  <audio
+                    key={m.id}
+                    controls
+                    preload="metadata"
+                    src={m.url}
+                    controlsList="nodownload noplaybackrate"
+                    className="w-full"
+                  />
+                );
+              }
+
+              return null;
+            })}
           </div>
         )}
+
+        {/* ===== Footer ===== */}
+        <div
+          className={`mt-1 flex items-center justify-end gap-2 text-[10px] ${
+            isOwn
+              ? "text-blue-200"
+              : "text-gray-400"
+          }`}
+        >
+          <span>{timeLabel}</span>
+
+          {isOwn && (
+            <ChatMessageActions
+              onDelete={() =>
+                setConfirmDelete(true)
+              }
+            />
+          )}
+        </div>
+
+        <ChatConfirmDeleteModal
+          open={confirmDelete}
+          onCancel={() =>
+            setConfirmDelete(false)
+          }
+          onConfirm={() => {
+            if (!message.chatId) {
+              setConfirmDelete(false);
+              return;
+            }
+
+            remove({
+              chatId: message.chatId,
+              message,
+              onOptimistic: () => {
+                setConfirmDelete(false);
+                onDeleted?.(message.id);
+              },
+              onRollback: () => {
+                setConfirmDelete(false);
+              },
+              onSuccess: () => {},
+            });
+          }}
+        />
       </div>
     </div>
   );
 }
-

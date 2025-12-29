@@ -1,11 +1,12 @@
 // frontend/src/hooks/useChatMessages.ts
 import { useState } from "react";
 import { getChatMessagesClient } from "@/lib/api/chat-messages";
+import type { ChatMessage } from "@/types/chat-message";
 
 export function useChatMessages(params: {
   chatId: string;
   initialData: {
-    items: any[];
+    items: ChatMessage[]
     nextCursor: string | null;
   };
 }) {

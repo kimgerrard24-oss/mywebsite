@@ -143,9 +143,11 @@ export class ChatService {
 async sendMessage(params: {
   chatId: string;
   senderUserId: string;
-  content: string;
+  content?: string;
+  mediaIds?: string[];
 }): Promise<ChatMessageDto> {
-  const { chatId, senderUserId, content } = params;
+  const { chatId, senderUserId, content, mediaIds } =
+    params;
 
   // 1. Load chat
   const chat = await this.repo.findChatById(chatId);
@@ -159,12 +161,36 @@ async sendMessage(params: {
     viewerUserId: senderUserId,
   });
 
-  // 3. Create message (DB = source of truth)
+  // 3. Validate payload (must have content or media)
+  const hasContent =
+    typeof content === 'string' &&
+    content.trim().length > 0;
+
+  const hasMedia =
+    Array.isArray(mediaIds) &&
+    mediaIds.length > 0;
+
+  if (!hasContent && !hasMedia) {
+    throw new ForbiddenException(
+      'Message must contain text or media',
+    );
+  }
+
+  // 4. Create message (DB = source of truth)
   const message = await this.repo.createMessage({
     chatId,
     senderUserId,
-    content,
+    content: hasContent ? content!.trim() : null,
   });
+
+  // 5. Attach media (if any)
+  if (hasMedia) {
+    await this.repo.attachMediaToMessage({
+      messageId: message.id,
+      senderUserId,
+      mediaIds: mediaIds!,
+    });
+  }
 
   // 🔔 CREATE NOTIFICATION + REALTIME (fail-soft)
   try {
@@ -195,7 +221,8 @@ async sendMessage(params: {
       this.notificationRealtime.emitNewNotification(
         receiverUserId,
         {
-          notification: NotificationMapper.toDto(notification),
+          notification:
+            NotificationMapper.toDto(notification),
         },
       );
     }
@@ -205,7 +232,7 @@ async sendMessage(params: {
      */
   }
 
-  // 💬 CHAT REALTIME EMIT (fail-soft) ✅✅
+  // 💬 CHAT REALTIME EMIT (fail-soft)
   try {
     this.chatRealtime.emitNewMessage({
       chatId,

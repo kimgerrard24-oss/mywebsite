@@ -5,17 +5,23 @@ import { useCallback, useEffect, useState } from "react";
 import { useMediaUpload } from "@/hooks/useMediaUpload";
 import { useMediaComplete } from "@/hooks/useMediaComplete";
 import { getMediaById } from "@/lib/api/media";
-import { MediaMetadata } from "@/types/index"
-
+import type { MediaMetadata } from "@/types/index";
 
 type Props = {
-  mediaType: "image" | "video";
+  /**
+   * ประเภท media ที่อนุญาต
+   * backend เป็น authority
+   */
+  mediaType: "image" | "audio";
+
+  /**
+   * callback เมื่อ backend complete แล้ว
+   * (ส่ง mediaId กลับให้ parent)
+   */
   onCompleted: (mediaId: string) => void;
 
   /**
-   * 🔹 Optional
-   * ถ้ามี → แสดง media metadata จาก GET /media/:id
-   * ถ้าไม่มี → ไม่กระทบ behavior เดิม
+   * optional: preview media จาก backend
    */
   previewMediaId?: string;
 };
@@ -25,7 +31,9 @@ export default function MediaUploadFlow({
   onCompleted,
   previewMediaId,
 }: Props) {
-  const { upload, uploading, error: uploadError } = useMediaUpload();
+  const { upload, uploading, error: uploadError } =
+    useMediaUpload();
+
   const {
     complete,
     loading: completing,
@@ -37,7 +45,8 @@ export default function MediaUploadFlow({
 
   /**
    * =====================================
-   * 🔹 NEW: Load media metadata (fail-soft)
+   * Load media metadata (fail-soft)
+   * backend = source of truth
    * =====================================
    */
   useEffect(() => {
@@ -49,14 +58,14 @@ export default function MediaUploadFlow({
     getMediaById(previewMediaId)
       .then(setMetadata)
       .catch(() => {
-        // fail-soft: ไม่ให้กระทบ upload flow
+        // ❗ fail-soft
         setMetadata(null);
       });
   }, [previewMediaId]);
 
   /**
    * =====================================
-   * 🔹 Existing upload flow (UNCHANGED)
+   * Upload + Complete
    * =====================================
    */
   const handleChange = useCallback(
@@ -64,7 +73,10 @@ export default function MediaUploadFlow({
       const file = e.target.files?.[0];
       if (!file) return;
 
-      // 🔒 fail-fast: ป้องกัน mediaType mismatch
+      /**
+       * fail-fast (client side only)
+       * backend จะ validate ซ้ำอีกครั้ง
+       */
       if (
         mediaType === "image" &&
         !file.type.startsWith("image/")
@@ -74,16 +86,18 @@ export default function MediaUploadFlow({
       }
 
       if (
-        mediaType === "video" &&
-        !file.type.startsWith("video/")
+        mediaType === "audio" &&
+        !file.type.startsWith("audio/")
       ) {
         e.target.value = "";
         return;
       }
 
       try {
+        // 1️⃣ upload raw file → storage (R2)
         const { objectKey } = await upload(file);
 
+        // 2️⃣ notify backend → create Media record
         const mediaId = await complete({
           objectKey,
           mediaType,
@@ -92,8 +106,9 @@ export default function MediaUploadFlow({
 
         onCompleted(mediaId);
       } catch {
-        // errors are handled inside hooks (fail-soft)
+        // error handled inside hooks (fail-soft)
       } finally {
+        // allow re-select same file
         e.target.value = "";
       }
     },
@@ -103,120 +118,101 @@ export default function MediaUploadFlow({
   const isLoading = uploading || completing;
   const error = uploadError || completeError;
 
- return (
-  <section
-    aria-label="Media upload"
-    className="
-      w-full
-      space-y-2
-      sm:space-y-3
-      md:space-y-4
-    "
-  >
-    {/* =========================
-        Existing upload UI
-       ========================= */}
-    <input
-      type="file"
-      accept={mediaType === "image" ? "image/*" : "video/*"}
-      onChange={handleChange}
-      disabled={isLoading}
-      className="
-        block
-        w-full
-        text-xs
-        sm:text-sm
-        text-gray-700
-        file:mr-3
-        file:rounded-md
-        file:border
-        file:border-gray-300
-        file:bg-white
-        file:px-3
-        file:py-1.5
-        file:text-sm
-        file:font-medium
-        hover:file:bg-gray-50
-        disabled:opacity-60
-      "
-    />
-
-    {isLoading && (
-      <p
+  return (
+    <section
+      aria-label="Media upload"
+      className="space-y-2"
+    >
+      {/* =========================
+          File input
+         ========================= */}
+      <input
+        type="file"
+        accept={
+          mediaType === "image"
+            ? "image/*"
+            : "audio/*"
+        }
+        onChange={handleChange}
+        disabled={isLoading}
         className="
-          text-xs
-          sm:text-sm
-          text-gray-500
+          block
+          w-full
+          text-sm
+          text-gray-700
+          file:mr-3
+          file:rounded-md
+          file:border
+          file:border-gray-300
+          file:bg-white
+          file:px-3
+          file:py-1.5
+          file:text-sm
+          file:font-medium
+          hover:file:bg-gray-50
+          disabled:opacity-60
         "
-        role="status"
-        aria-live="polite"
-      >
-        กำลังอัปโหลดไฟล์…
-      </p>
-    )}
+      />
 
-    {error && (
-      <p
-        className="
-          text-xs
-          sm:text-sm
-          text-red-600
-        "
-        role="alert"
-      >
-        {error}
-      </p>
-    )}
+      {isLoading && (
+        <p
+          className="text-sm text-gray-500"
+          role="status"
+          aria-live="polite"
+        >
+          กำลังอัปโหลดไฟล์…
+        </p>
+      )}
 
-    {/* =========================
-        🔹 Media preview
-       ========================= */}
-    {metadata && (
-      <section
-        aria-label="Uploaded media preview"
-        className="
-          rounded-lg
-          border
-          border-gray-200
-          p-2
-          sm:p-3
-          bg-white
-        "
-      >
-        {metadata.type === "image" && (
-          <img
-            src={metadata.url}
-            alt=""
-            loading="lazy"
-            className="
-              w-full
-              max-h-[60vh]
-              sm:max-h-[70vh]
-              object-contain
-              rounded-md
-              bg-black/5
-            "
-          />
-        )}
+      {error && (
+        <p
+          className="text-sm text-red-600"
+          role="alert"
+        >
+          {error}
+        </p>
+      )}
 
-        {metadata.type === "video" && (
-          <video
-            src={metadata.url}
-            controls
-            preload="metadata"
-            className="
-              w-full
-              max-h-[60vh]
-              sm:max-h-[70vh]
-              object-contain
-              rounded-md
-              bg-black
-            "
-          />
-        )}
-      </section>
-    )}
-  </section>
-);
+      {/* =========================
+          Media preview (backend authority)
+         ========================= */}
+      {metadata && (
+        <section
+          aria-label="Uploaded media preview"
+          className="
+            rounded-lg
+            border
+            border-gray-200
+            p-2
+            bg-white
+          "
+        >
+          {metadata.type === "image" && (
+            <img
+              src={metadata.url}
+              alt=""
+              loading="lazy"
+              className="
+                w-full
+                max-h-[60vh]
+                object-contain
+                rounded-md
+                bg-black/5
+              "
+            />
+          )}
 
+          {metadata.type === "audio" && (
+            <audio
+              src={metadata.url}
+              controls
+              preload="metadata"
+              className="w-full"
+            />
+          )}
+        </section>
+      )}
+    </section>
+  );
 }
+

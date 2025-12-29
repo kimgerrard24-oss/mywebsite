@@ -66,7 +66,7 @@ const ChatMessageList = forwardRef<
   /**
    * overlay state
    * - appended: POST / realtime
-   * - patched: EDIT / DELETE
+   * - patched: DELETE
    */
   const [appendedItems, setAppendedItems] =
     useState<ChatMessageUI[]>([]);
@@ -90,12 +90,10 @@ const ChatMessageList = forwardRef<
         fetchedItems.find((m) => m.id === messageId) ??
         appendedItems.find((m) => m.id === messageId);
 
-      if (!base) return prev;
-
       return {
         ...prev,
         [messageId]: {
-          ...base,
+          ...(base ?? ({ id: messageId } as ChatMessageUI)),
           isDeleted: true,
         },
       };
@@ -127,16 +125,6 @@ const ChatMessageList = forwardRef<
       behavior: "smooth",
     });
   }, [fetchedItems.length, appendedItems.length]);
-
-  /**
-   * EDIT (overlay)
-   */
-  function handleEditedMessage(updated: ChatMessageUI) {
-    setPatchedItems((prev) => ({
-      ...prev,
-      [updated.id]: updated,
-    }));
-  }
 
   /**
    * DELETE (overlay)
@@ -175,7 +163,6 @@ const ChatMessageList = forwardRef<
             !!viewerUserId &&
             msg.sender.id === viewerUserId
           }
-          onEdited={handleEditedMessage}
           onDeleted={handleDeletedMessage}
         />
       ))}

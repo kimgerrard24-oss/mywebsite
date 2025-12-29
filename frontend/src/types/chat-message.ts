@@ -1,16 +1,35 @@
 // frontend/src/types/chat-message.ts
+
 export type ChatMessage = {
   id: string;
   chatId: string;
-  content: string;
-  senderId: string;
+
+  /**
+   * null when message contains only media
+   */
+  content: string | null;
+
+  senderId?: string;
+
   isEdited: boolean;
   editedAt: string | null;
-  createdAt: string;
   deletedAt?: string | null;
+  createdAt: string;
+
   sender: {
-    id?: string;
+    id: string;
     displayName: string | null;
     avatarUrl: string | null;
   };
+
+  /**
+   * media attachments (image / audio)
+   */
+  media: {
+    id: string;
+    type: 'image' | 'audio';
+    url: string;
+    mimeType: string;
+    durationSec?: number | null;
+  }[];
 };

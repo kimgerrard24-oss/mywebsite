@@ -22,11 +22,12 @@ import { ChatRealtimeService } from './realtime/chat-realtime.service';
 
 @Controller('chat')
 export class ChatController {
-  constructor(private readonly chatService: ChatService,
-              private readonly chatRealtime: ChatRealtimeService,
-            ) {}
+  constructor(
+    private readonly chatService: ChatService,
+    private readonly chatRealtime: ChatRealtimeService,
+  ) {}
 
- @UseGuards(AccessTokenCookieAuthGuard)
+  @UseGuards(AccessTokenCookieAuthGuard)
   @Get('rooms')
   async getChatRooms(
     @Req() req: Request,
@@ -39,7 +40,6 @@ export class ChatController {
   /**
    * GET /chat/:userId
    * - เปิดห้องแชต 1–1
-   * - Backend เป็น authority
    */
   @UseGuards(AccessTokenCookieAuthGuard)
   @Get(':userId')
@@ -55,7 +55,7 @@ export class ChatController {
     });
   }
 
-   @UseGuards(AccessTokenCookieAuthGuard)
+  @UseGuards(AccessTokenCookieAuthGuard)
   @Get(':chatId/meta')
   async getChatMeta(
     @Req() req: Request,
@@ -71,8 +71,6 @@ export class ChatController {
 
   /**
    * GET /chat/:chatId/messages
-   * - Cursor pagination
-   * - Permission enforced
    */
   @UseGuards(AccessTokenCookieAuthGuard)
   @Get(':chatId/messages')
@@ -94,10 +92,9 @@ export class ChatController {
 
   /**
    * POST /chat/:chatId/messages
-   * - Send message
-   * - Auth via cookie
+   * - รองรับ text / image / voice
    */
-@UseGuards(AccessTokenCookieAuthGuard)
+ @UseGuards(AccessTokenCookieAuthGuard)
 @Post(':chatId/messages')
 async sendMessage(
   @Req() req: Request,
@@ -109,17 +106,17 @@ async sendMessage(
     jti: string;
   };
 
-  // 1️⃣ DB = source of truth
   const message = await this.chatService.sendMessage({
     chatId,
     senderUserId: viewer.userId,
-    content: body.content,
+    content: body.content,        // ✅ ไม่ใช้ ?? null
+    mediaIds: body.mediaIds,
   });
 
   return message;
-}
+ }
 
-   @UseGuards(AccessTokenCookieAuthGuard)
+  @UseGuards(AccessTokenCookieAuthGuard)
   @Get(':chatId/unread-count')
   async getUnreadCount(
     @Param('chatId') chatId: string,

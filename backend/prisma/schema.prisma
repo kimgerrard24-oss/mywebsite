@@ -187,6 +187,12 @@ model PostMedia {
   @@index([mediaId])
 }
 
+enum MediaType {
+  IMAGE
+  VIDEO
+  AUDIO
+}
+
 model Media {
   id          String      @id @default(uuid())
 
@@ -208,7 +214,7 @@ model Media {
   cleanupFailCount Int        @default(0)
   lastCleanupError String?
   posts       PostMedia[]
-
+  chatMessageMedia ChatMessageMedia[]
   @@index([ownerUserId])
   @@index([mediaType])
   @@index([deletedAt])
@@ -260,11 +266,6 @@ model PostTag {
 enum PostVisibility {
   PUBLIC
   PRIVATE
-}
-
-enum MediaType {
-  IMAGE
-  VIDEO
 }
 
 model Follow {
@@ -366,7 +367,7 @@ model ChatMessage {
   chatId   String
   senderId String
 
-  content  String
+  content  String?
 
   // message state
   isEdited  Boolean   @default(false)
@@ -380,9 +381,24 @@ model ChatMessage {
   chat   Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
   sender User @relation("ChatMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
   reports ChatMessageReport[]
+  
+  media ChatMessageMedia[]
 
   @@index([chatId, createdAt])
   @@index([senderId])
+}
+
+model ChatMessageMedia {
+  id        String   @id @default(uuid())
+  messageId String
+  mediaId   String
+  createdAt DateTime @default(now())
+
+  message ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  media   Media       @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+
+  @@index([messageId])
+  @@index([mediaId])
 }
 
 model ChatReadState {

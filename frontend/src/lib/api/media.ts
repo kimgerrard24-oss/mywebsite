@@ -8,7 +8,7 @@ const API_BASE =
 
 export type MediaMetadataResponse = {
   id: string;
-  type: 'image' | 'video';
+  type: 'image' | 'video' | 'audio';
   url: string;
   objectKey: string;
   ownerUserId: string;
@@ -22,7 +22,7 @@ export type PresignValidateRequest = {
   fileName: string;
   fileSize: number;
   mimeType: string;
-  mediaType: "image" | "video";
+  mediaType: "image" | "video" | "audio";
 };
 
 export type PresignValidateResponse = {
@@ -46,10 +46,17 @@ export function buildPresignValidatePayload(
     throw new Error("Invalid file for presign validation");
   }
 
-  const mediaType: "image" | "video" =
-    file.type.startsWith("video/")
-      ? "video"
-      : "image";
+  let mediaType: "image" | "video" | "audio";
+
+  if (file.type.startsWith("image/")) {
+    mediaType = "image";
+  } else if (file.type.startsWith("video/")) {
+    mediaType = "video";
+  } else if (file.type.startsWith("audio/")) {
+    mediaType = "audio";
+  } else {
+    throw new Error("Unsupported media type");
+  }
 
   return {
     fileName: file.name,

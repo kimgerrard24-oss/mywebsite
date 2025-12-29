@@ -45,13 +45,24 @@ export async function getChatMessagesClient(params: {
  */
 export async function sendChatMessage(params: {
   chatId: string;
-  content: string;
+  content?: string;
+  mediaIds?: string[];
 }): Promise<ChatMessage> {
+  const { chatId, content, mediaIds } = params;
+
   return client.post<ChatMessage>(
-    `/chat/${params.chatId}/messages`,
-    { content: params.content },
+    `/chat/${chatId}/messages`,
+    {
+      ...(typeof content === "string" && content.trim()
+        ? { content: content.trim() }
+        : {}),
+      ...(Array.isArray(mediaIds) && mediaIds.length > 0
+        ? { mediaIds }
+        : {}),
+    },
   );
 }
+
 
 /**
  * CSR: PATCH /chat/:chatId/messages/:messageId

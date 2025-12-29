@@ -23,9 +23,11 @@ export function useMediaComplete() {
           throw new Error("Invalid objectKey");
         }
 
+        // ✅ รองรับ image + video + audio (voice)
         if (
           payload.mediaType !== "image" &&
-          payload.mediaType !== "video"
+          payload.mediaType !== "video" &&
+          payload.mediaType !== "audio"
         ) {
           throw new Error("Invalid mediaType");
         }

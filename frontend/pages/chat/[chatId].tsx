@@ -19,8 +19,8 @@ import ChatMessageList, {
 import ChatComposer from "@/components/chat/ChatComposer";
 import ChatReadObserver from "@/components/chat/ChatReadObserver";
 
-// 🔔 Realtime
 import ChatRealtimeBridge from "@/components/chat/ChatRealtimeBridge";
+import type { ChatMessage } from "@/types/chat-message";
 
 /**
  * ==============================
@@ -59,19 +59,35 @@ export default function ChatPage({
   const listRef = useRef<ChatMessageListHandle>(null);
 
   /**
-   * 🔔 Realtime: new message
-   * Backend is authority
+   * 🔔 Realtime: new message (delivery only)
    */
-  const handleRealtimeMessage = useCallback((msg: any) => {
-    listRef.current?.appendMessage(msg);
-  }, []);
+  const handleRealtimeMessage = useCallback(
+    (msg: ChatMessage) => {
+      listRef.current?.appendMessage(msg);
+    },
+    [],
+  );
 
   /**
    * 🔔 Realtime: message deleted
    */
-  const handleRealtimeDeleted = useCallback((messageId: string) => {
-    listRef.current?.markMessageDeleted(messageId);
-  }, []);
+  const handleRealtimeDeleted = useCallback(
+    (messageId: string) => {
+      listRef.current?.markMessageDeleted(messageId);
+    },
+    [],
+  );
+
+  /**
+   * POST success (authoritative message from backend)
+   * Must append immediately (do not wait for realtime)
+   */
+  const handleMessageSent = useCallback(
+    (message: ChatMessage) => {
+      listRef.current?.appendMessage(message);
+    },
+    [],
+  );
 
   return (
     <>
@@ -88,40 +104,23 @@ export default function ChatPage({
         <ChatPermissionGuard meta={meta}>
           <ChatHeader meta={meta} />
 
-          {/* =========================
-              Chat Messages (STATE OWNER)
-              ========================= */}
           <ChatMessageList
             ref={listRef}
             chatId={meta.id}
             initialData={initialMessages}
           />
 
-          {/* =========================
-              🔔 Realtime Bridge
-              - delivery only
-              ========================= */}
           <ChatRealtimeBridge
             chatId={meta.id}
             onMessageReceived={handleRealtimeMessage}
             onMessageDeleted={handleRealtimeDeleted}
           />
 
-          {/* =========================
-              Read Observer
-              ========================= */}
           <ChatReadObserver chatId={meta.id} />
 
-          {/* =========================
-              Chat Composer
-              - DO NOT append locally
-              - wait for realtime from backend
-              ========================= */}
           <ChatComposer
             chatId={meta.id}
-            onMessageSent={() => {
-              // intentionally empty
-            }}
+            onMessageSent={handleMessageSent}
           />
         </ChatPermissionGuard>
       </ChatLayout>

@@ -67,7 +67,7 @@ export class ChatRepository {
     });
   }
 
-    async findChatRoomsByUser(userId: string) {
+  async findChatRoomsByUser(userId: string) {
     return this.prisma.chat.findMany({
       where: {
         participants: {
@@ -102,7 +102,7 @@ export class ChatRepository {
           orderBy: {
             createdAt: 'desc',
           },
-          take: 1, // last message preview
+          take: 1,
         },
         readStates: {
           where: {
@@ -137,7 +137,7 @@ export class ChatRepository {
     });
   }
 
-   async findChatById(chatId: string) {
+  async findChatById(chatId: string) {
     return this.prisma.chat.findUnique({
       where: { id: chatId },
       include: {
@@ -187,6 +187,11 @@ export class ChatRepository {
             avatarUrl: true,
           },
         },
+        media: {
+          include: {
+            media: true,
+          },
+        },
       },
     });
   }
@@ -194,7 +199,7 @@ export class ChatRepository {
   async createMessage(params: {
     chatId: string;
     senderUserId: string;
-    content: string;
+    content: string | null;
   }) {
     const { chatId, senderUserId, content } = params;
 
@@ -212,10 +217,61 @@ export class ChatRepository {
             avatarUrl: true,
           },
         },
+        media: {
+          include: {
+            media: true,
+          },
+        },
       },
     });
   }
-  
+
+  /**
+   * Attach media (image / voice) to chat message
+   */
+async attachMediaToMessage(params: {
+  messageId: string;
+  senderUserId: string;
+  mediaIds: string[];
+}) {
+  const { messageId, senderUserId, mediaIds } = params;
+
+  if (mediaIds.length === 0) return;
+
+  /**
+   * 1) Validate media:
+   * - ต้องเป็นของผู้ส่ง
+   * - ต้องเป็น type ที่อนุญาตใน chat
+   * - ต้องยังไม่ถูกลบ
+   */
+  const medias = await this.prisma.media.findMany({
+    where: {
+      id: { in: mediaIds },
+      ownerUserId: senderUserId,
+      mediaType: {
+        in: ['IMAGE', 'AUDIO'], // รองรับ chat image + voice
+      },
+      deletedAt: null,
+    },
+    select: { id: true },
+  });
+
+  if (medias.length === 0) return;
+
+  /**
+   * 2) Attach media → message
+   * - skipDuplicates ป้องกัน insert ซ้ำ
+   */
+  await this.prisma.chatMessageMedia.createMany({
+    data: medias.map((m) => ({
+      messageId,
+      mediaId: m.id,
+    })),
+    skipDuplicates: true,
+  });
+}
+
+
   async findChatWithParticipants(chatId: string) {
     return this.prisma.chat.findUnique({
       where: { id: chatId },
@@ -235,12 +291,6 @@ export class ChatRepository {
     });
   }
 
-  /**
-   * unread = message ที่
-   * - อยู่ใน chat
-   * - sender ≠ viewer
-   * - createdAt > lastReadAt
-   */
   async countUnreadMessages(params: {
     chatId: string;
     userId: string;
@@ -272,7 +322,7 @@ export class ChatRepository {
     });
   }
 
-   async getChatOrFail(chatId: string) {
+  async getChatOrFail(chatId: string) {
     const chat = await this.prisma.chat.findUnique({
       where: { id: chatId },
       include: {
@@ -296,5 +346,4 @@ export class ChatRepository {
 
     return chat;
   }
-  
 }

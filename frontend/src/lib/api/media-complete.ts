@@ -11,7 +11,7 @@ const API_BASE = rawBase.replace(/\/+$/, "");
 
 export type MediaCompleteRequest = {
   objectKey: string;
-  mediaType: "image" | "video";
+  mediaType: "image" | "video" | "audio";
   mimeType: string;
 };
 

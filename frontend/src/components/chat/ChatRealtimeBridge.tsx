@@ -46,14 +46,17 @@ export default function ChatRealtimeBridge({
       if (payload.chatId !== chatIdRef.current) return;
 
       /**
-       * IMPORTANT:
+       * IMPORTANT (production-grade):
        * Normalize realtime message to ensure:
        * - new object reference
-       * - UI-ready shape
-       * - consistent behavior with fetched messages
+       * - media always exists (image / audio support)
+       * - consistent shape with REST responses
        */
       const normalizedMessage: ChatMessage = {
         ...payload.message,
+        media: Array.isArray(payload.message.media)
+          ? payload.message.media
+          : [],
       };
 
       onMessageReceived(normalizedMessage);

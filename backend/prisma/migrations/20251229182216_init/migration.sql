@@ -1,8 +1,8 @@
 -- CreateEnum
-CREATE TYPE "PostVisibility" AS ENUM ('PUBLIC', 'PRIVATE');
+CREATE TYPE "MediaType" AS ENUM ('IMAGE', 'VIDEO', 'AUDIO');
 
 -- CreateEnum
-CREATE TYPE "MediaType" AS ENUM ('IMAGE', 'VIDEO');
+CREATE TYPE "PostVisibility" AS ENUM ('PUBLIC', 'PRIVATE');
 
 -- CreateEnum
 CREATE TYPE "ChatReportReason" AS ENUM ('SPAM', 'HARASSMENT', 'HATE_SPEECH', 'SCAM', 'SEXUAL_CONTENT', 'OTHER');
@@ -259,7 +259,7 @@ CREATE TABLE "ChatMessage" (
     "id" TEXT NOT NULL,
     "chatId" TEXT NOT NULL,
     "senderId" TEXT NOT NULL,
-    "content" TEXT NOT NULL,
+    "content" TEXT,
     "isEdited" BOOLEAN NOT NULL DEFAULT false,
     "editedAt" TIMESTAMP(3),
     "isDeleted" BOOLEAN NOT NULL DEFAULT false,
@@ -267,6 +267,16 @@ CREATE TABLE "ChatMessage" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "ChatMessage_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ChatMessageMedia" (
+    "id" TEXT NOT NULL,
+    "messageId" TEXT NOT NULL,
+    "mediaId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ChatMessageMedia_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -438,6 +448,12 @@ CREATE INDEX "ChatMessage_chatId_createdAt_idx" ON "ChatMessage"("chatId", "crea
 CREATE INDEX "ChatMessage_senderId_idx" ON "ChatMessage"("senderId");
 
 -- CreateIndex
+CREATE INDEX "ChatMessageMedia_messageId_idx" ON "ChatMessageMedia"("messageId");
+
+-- CreateIndex
+CREATE INDEX "ChatMessageMedia_mediaId_idx" ON "ChatMessageMedia"("mediaId");
+
+-- CreateIndex
 CREATE INDEX "ChatReadState_userId_idx" ON "ChatReadState"("userId");
 
 -- CreateIndex
@@ -538,6 +554,12 @@ ALTER TABLE "ChatMessage" ADD CONSTRAINT "ChatMessage_chatId_fkey" FOREIGN KEY (
 
 -- AddForeignKey
 ALTER TABLE "ChatMessage" ADD CONSTRAINT "ChatMessage_senderId_fkey" FOREIGN KEY ("senderId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ChatMessageMedia" ADD CONSTRAINT "ChatMessageMedia_messageId_fkey" FOREIGN KEY ("messageId") REFERENCES "ChatMessage"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ChatMessageMedia" ADD CONSTRAINT "ChatMessageMedia_mediaId_fkey" FOREIGN KEY ("mediaId") REFERENCES "Media"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "ChatReadState" ADD CONSTRAINT "ChatReadState_chatId_fkey" FOREIGN KEY ("chatId") REFERENCES "Chat"("id") ON DELETE CASCADE ON UPDATE CASCADE;
