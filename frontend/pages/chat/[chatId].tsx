@@ -60,6 +60,7 @@ export default function ChatPage({
 
   /**
    * 🔔 Realtime: new message
+   * Backend is authority
    */
   const handleRealtimeMessage = useCallback((msg: any) => {
     listRef.current?.appendMessage(msg);
@@ -98,7 +99,6 @@ export default function ChatPage({
 
           {/* =========================
               🔔 Realtime Bridge
-              - mount AFTER state is ready
               - delivery only
               ========================= */}
           <ChatRealtimeBridge
@@ -114,11 +114,13 @@ export default function ChatPage({
 
           {/* =========================
               Chat Composer
+              - DO NOT append locally
+              - wait for realtime from backend
               ========================= */}
           <ChatComposer
             chatId={meta.id}
-            onMessageSent={(msg) => {
-              listRef.current?.appendMessage(msg);
+            onMessageSent={() => {
+              // intentionally empty
             }}
           />
         </ChatPermissionGuard>

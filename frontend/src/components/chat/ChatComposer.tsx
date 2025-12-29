@@ -1,11 +1,17 @@
 // frontend/src/components/chat/ChatComposer.tsx
+
 import { FormEvent } from "react";
 import { useChatComposer } from "@/hooks/useChatComposer";
 import ChatComposerError from "./ChatComposerError";
 
 type Props = {
   chatId: string;
-  onMessageSent?: (msg: any) => void;
+
+  /**
+   * ⚠️ ใช้สำหรับ side-effect เท่านั้น
+   * ❌ ห้าม append message ที่นี่
+   */
+  onMessageSent?: () => void;
 };
 
 export default function ChatComposer({
@@ -20,12 +26,19 @@ export default function ChatComposer({
     error,
   } = useChatComposer({
     chatId,
-    onSent: onMessageSent,
+    onSent: () => {
+      // delivery success only (no append)
+      onMessageSent?.();
+    },
   });
 
-  function handleSubmit(e: FormEvent) {
+  async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    submit();
+
+    if (loading) return;
+    if (!content.trim()) return;
+
+    await submit();
   }
 
   return (
