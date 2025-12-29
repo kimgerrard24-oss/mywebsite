@@ -14,18 +14,32 @@ type MessageDeletedPayload = {
   messageId: string;
 };
 
+type TypingPayload = {
+  chatId: string;
+  userId: string;
+  isTyping: boolean;
+};
+
 type Params = {
   chatId: string;
+
   onNewMessage: (payload: NewMessagePayload) => void;
+
   onMessageDeleted?: (
     payload: MessageDeletedPayload,
   ) => void;
+
+  /**
+   * Typing indicator (ephemeral)
+   */
+  onTyping?: (payload: TypingPayload) => void;
 };
 
 export function useChatRealtime({
   chatId,
   onNewMessage,
   onMessageDeleted,
+  onTyping,
 }: Params) {
   useEffect(() => {
     const socket = getSocket();
@@ -47,9 +61,11 @@ export function useChatRealtime({
             return;
           }
 
+          // ===== New message =====
           socket.off('chat:new-message', onNewMessage);
           socket.on('chat:new-message', onNewMessage);
 
+          // ===== Message deleted =====
           if (onMessageDeleted) {
             socket.off(
               'chat:message-deleted',
@@ -59,6 +75,12 @@ export function useChatRealtime({
               'chat:message-deleted',
               onMessageDeleted,
             );
+          }
+
+          // ===== Typing (ephemeral) =====
+          if (onTyping) {
+            socket.off('chat:typing', onTyping);
+            socket.on('chat:typing', onTyping);
           }
 
           console.log('Joined chat room', chatId);
@@ -87,6 +109,7 @@ export function useChatRealtime({
 
     return () => {
       socket.off('connect', joinChat);
+
       socket.off('chat:new-message', onNewMessage);
 
       if (onMessageDeleted) {
@@ -96,10 +119,19 @@ export function useChatRealtime({
         );
       }
 
+      if (onTyping) {
+        socket.off('chat:typing', onTyping);
+      }
+
       /**
        * Leave room explicitly
        */
       socket.emit('chat:leave', { chatId });
     };
-  }, [chatId, onNewMessage, onMessageDeleted]);
+  }, [
+    chatId,
+    onNewMessage,
+    onMessageDeleted,
+    onTyping,
+  ]);
 }

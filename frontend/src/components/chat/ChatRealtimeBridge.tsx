@@ -9,7 +9,6 @@ type Props = {
 
   /**
    * Inject message into existing chat state
-   * (เช่น ChatMessageList.appendMessage)
    */
   onMessageReceived: (message: ChatMessage) => void;
 
@@ -17,6 +16,15 @@ type Props = {
    * Mark message as deleted in existing chat state
    */
   onMessageDeleted: (messageId: string) => void;
+
+  /**
+   * Typing indicator (ephemeral)
+   */
+  onTyping?: (payload: {
+    chatId: string;
+    userId: string;
+    isTyping: boolean;
+  }) => void;
 };
 
 /**
@@ -27,6 +35,7 @@ export default function ChatRealtimeBridge({
   chatId,
   onMessageReceived,
   onMessageDeleted,
+  onTyping,
 }: Props) {
   /**
    * ensure handlers are stable per chatId lifecycle
@@ -37,6 +46,9 @@ export default function ChatRealtimeBridge({
     chatIdRef.current = chatId;
   }, [chatId]);
 
+  /**
+   * ===== New message =====
+   */
   const handleNewMessage = useCallback(
     (payload: {
       chatId: string;
@@ -45,13 +57,6 @@ export default function ChatRealtimeBridge({
       if (!payload) return;
       if (payload.chatId !== chatIdRef.current) return;
 
-      /**
-       * IMPORTANT (production-grade):
-       * Normalize realtime message to ensure:
-       * - new object reference
-       * - media always exists (image / audio support)
-       * - consistent shape with REST responses
-       */
       const normalizedMessage: ChatMessage = {
         ...payload.message,
         media: Array.isArray(payload.message.media)
@@ -59,11 +64,27 @@ export default function ChatRealtimeBridge({
           : [],
       };
 
+      // guard: prevent incomplete media render
+      if (
+        normalizedMessage.media.length > 0 &&
+        normalizedMessage.media.some(
+          (m) =>
+            !m ||
+            typeof m.url !== 'string' ||
+            m.url.length === 0,
+        )
+      ) {
+        return;
+      }
+
       onMessageReceived(normalizedMessage);
     },
     [onMessageReceived],
   );
 
+  /**
+   * ===== Message deleted =====
+   */
   const handleMessageDeleted = useCallback(
     (payload: {
       chatId: string;
@@ -77,10 +98,29 @@ export default function ChatRealtimeBridge({
     [onMessageDeleted],
   );
 
+  /**
+   * ===== Typing (ephemeral) =====
+   */
+  const handleTyping = useCallback(
+    (payload: {
+      chatId: string;
+      userId: string;
+      isTyping: boolean;
+    }) => {
+      if (!onTyping) return;
+      if (!payload) return;
+      if (payload.chatId !== chatIdRef.current) return;
+
+      onTyping(payload);
+    },
+    [onTyping],
+  );
+
   useChatRealtime({
     chatId,
     onNewMessage: handleNewMessage,
     onMessageDeleted: handleMessageDeleted,
+    onTyping: handleTyping,
   });
 
   return null;

@@ -2,7 +2,7 @@
 
 import Head from "next/head";
 import type { GetServerSideProps } from "next";
-import { useRef, useCallback } from "react";
+import { useRef, useCallback, useState } from "react";
 import { requireSessionSSR } from "@/lib/auth/require-session-ssr";
 import {
   getChatMeta,
@@ -18,8 +18,10 @@ import ChatMessageList, {
 } from "@/components/chat/ChatMessageList";
 import ChatComposer from "@/components/chat/ChatComposer";
 import ChatReadObserver from "@/components/chat/ChatReadObserver";
+import ChatTypingIndicator from "@/components/chat/ChatTypingIndicator";
 
 import ChatRealtimeBridge from "@/components/chat/ChatRealtimeBridge";
+import { useAuth } from "@/hooks/useAuth";
 import type { ChatMessage } from "@/types/chat-message";
 
 /**
@@ -42,6 +44,11 @@ type ChatMessages = {
   nextCursor: string | null;
 };
 
+type TypingUser = {
+  userId: string;
+  displayName: string | null;
+};
+
 type Props = {
   meta: ChatMeta;
   initialMessages: ChatMessages;
@@ -58,12 +65,28 @@ export default function ChatPage({
 }: Props) {
   const listRef = useRef<ChatMessageListHandle>(null);
 
+  const { user } = useAuth();
+  const viewerUserId = user?.id;
+
   /**
-   * 🔔 Realtime: new message (delivery only)
+   * ===== Typing state =====
+   */
+  const [typingUsers, setTypingUsers] =
+    useState<TypingUser[]>([]);
+
+  /**
+   * 🔔 Realtime: new message
    */
   const handleRealtimeMessage = useCallback(
     (msg: ChatMessage) => {
       listRef.current?.appendMessage(msg);
+
+      // clear typing only for sender
+      setTypingUsers((prev) =>
+        prev.filter(
+          (u) => u.userId !== msg.sender.id,
+        ),
+      );
     },
     [],
   );
@@ -79,8 +102,47 @@ export default function ChatPage({
   );
 
   /**
-   * POST success (authoritative message from backend)
-   * Must append immediately (do not wait for realtime)
+   * 🔔 Realtime: typing
+   * payload: { chatId, userId, isTyping }
+   */
+  const handleRealtimeTyping = useCallback(
+    (payload: {
+      chatId: string;
+      userId: string;
+      isTyping: boolean;
+    }) => {
+      if (payload.chatId !== meta.id) return;
+
+      // do not show self typing
+      if (payload.userId === viewerUserId) {
+        return;
+      }
+
+      setTypingUsers((prev) => {
+        if (payload.isTyping) {
+          if (prev.some((u) => u.userId === payload.userId)) {
+            return prev;
+          }
+
+          return [
+            ...prev,
+            {
+              userId: payload.userId,
+              displayName: meta.peer?.displayName ?? null,
+            },
+          ];
+        }
+
+        return prev.filter(
+          (u) => u.userId !== payload.userId,
+        );
+      });
+    },
+    [meta.id, meta.peer?.displayName, viewerUserId],
+  );
+
+  /**
+   * POST success (authoritative)
    */
   const handleMessageSent = useCallback(
     (message: ChatMessage) => {
@@ -110,10 +172,15 @@ export default function ChatPage({
             initialData={initialMessages}
           />
 
+          <ChatTypingIndicator
+            typingUsers={typingUsers}
+          />
+
           <ChatRealtimeBridge
             chatId={meta.id}
             onMessageReceived={handleRealtimeMessage}
             onMessageDeleted={handleRealtimeDeleted}
+            onTyping={handleRealtimeTyping}
           />
 
           <ChatReadObserver chatId={meta.id} />

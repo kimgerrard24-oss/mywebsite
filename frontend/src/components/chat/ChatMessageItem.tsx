@@ -177,30 +177,34 @@ export default function ChatMessageItem({
         </div>
 
         <ChatConfirmDeleteModal
-          open={confirmDelete}
-          onCancel={() =>
-            setConfirmDelete(false)
-          }
-          onConfirm={() => {
-            if (!message.chatId) {
-              setConfirmDelete(false);
-              return;
-            }
+  open={confirmDelete}
+  onCancel={() =>
+    setConfirmDelete(false)
+  }
+  onConfirm={() => {
+    if (!message.chatId) {
+      setConfirmDelete(false);
+      return;
+    }
 
-            remove({
-              chatId: message.chatId,
-              message,
-              onOptimistic: () => {
-                setConfirmDelete(false);
-                onDeleted?.(message.id);
-              },
-              onRollback: () => {
-                setConfirmDelete(false);
-              },
-              onSuccess: () => {},
-            });
-          }}
-        />
+    remove({
+      chatId: message.chatId,
+      message,
+      onOptimistic: () => {
+        // ปิด modal อย่างเดียว
+        setConfirmDelete(false);
+      },
+      onRollback: () => {
+        setConfirmDelete(false);
+      },
+      onSuccess: () => {
+        // commit delete หลัง backend สำเร็จ
+        onDeleted?.(message.id);
+      },
+    });
+  }}
+/>
+
       </div>
     </div>
   );

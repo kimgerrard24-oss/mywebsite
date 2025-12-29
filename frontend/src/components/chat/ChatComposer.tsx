@@ -3,6 +3,7 @@
 import { FormEvent, useRef, useState } from "react";
 import EmojiPicker, { EmojiClickData } from "emoji-picker-react";
 import { useChatComposer } from "@/hooks/useChatComposer";
+import { useChatTyping } from "@/hooks/useChatTyping";
 import { useMediaUpload } from "@/hooks/useMediaUpload";
 import { useMediaComplete } from "@/hooks/useMediaComplete";
 import ChatComposerError from "./ChatComposerError";
@@ -27,10 +28,14 @@ export default function ChatComposer({
     error,
   } = useChatComposer({
     chatId,
-    onSent: (message: ChatMessage) => {
-      onMessageSent?.(message);
+    onSent: () => {
+      // ❗ Realtime (Socket) เป็น authority
+      // ❗ ห้าม append message ที่นี่ เพื่อป้องกัน duplicate
     },
   });
+
+  // ✅ Typing hook
+  const { notifyTyping } = useChatTyping(chatId);
 
   const { upload } = useMediaUpload();
   const { complete } = useMediaComplete();
@@ -52,7 +57,6 @@ export default function ChatComposer({
 
     const hasMedia = mediaIds.length > 0;
 
-    // backend เป็น authority แต่ client ต้องกัน request ว่าง
     if (!hasText && !hasMedia) return;
 
     await submit();
@@ -87,10 +91,8 @@ export default function ChatComposer({
     if (!file) return;
 
     try {
-      // 1️⃣ upload raw file
       const { objectKey } = await upload(file);
 
-      // 2️⃣ backend complete → mediaId (authority)
       const mediaId = await complete({
         objectKey,
         mediaType: file.type.startsWith("audio/")
@@ -99,10 +101,8 @@ export default function ChatComposer({
         mimeType: file.type,
       });
 
-      // ✅ ใช้ mediaIds ของ hook (source of truth)
       setMediaIds((prev) => [...prev, mediaId]);
     } finally {
-      // allow reselect same file
       e.target.value = "";
     }
   }
@@ -134,7 +134,6 @@ export default function ChatComposer({
       />
 
       <div className="flex gap-2 items-end">
-        {/* Emoji */}
         <button
           type="button"
           onClick={() =>
@@ -146,7 +145,6 @@ export default function ChatComposer({
           🙂
         </button>
 
-        {/* Attach media */}
         <button
           type="button"
           onClick={() =>
@@ -161,7 +159,10 @@ export default function ChatComposer({
         <textarea
           ref={textareaRef}
           value={content}
-          onChange={(e) => setContent(e.target.value)}
+          onChange={(e) => {
+            setContent(e.target.value);
+            notifyTyping(); // ✅ trigger typing
+          }}
           rows={1}
           placeholder="Type a message…"
           className="flex-1 resize-none rounded-md border px-3 py-2 text-sm"

@@ -105,7 +105,24 @@ const ChatMessageList = forwardRef<
    */
   useImperativeHandle(ref, () => ({
     appendMessage(msg: ChatMessageUI) {
-      setAppendedItems((prev) => [...prev, msg]);
+      setAppendedItems((prev) => {
+        const index = prev.findIndex(
+          (m) => m.id === msg.id,
+        );
+
+        // 🔒 Patch existing message (media may arrive later)
+        if (index !== -1) {
+          const copy = [...prev];
+          copy[index] = {
+            ...copy[index],
+            ...msg,
+          };
+          return copy;
+        }
+
+        // ➕ New message
+        return [...prev, msg];
+      });
     },
     markMessageDeleted,
   }));

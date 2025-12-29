@@ -1,21 +1,16 @@
 // backend/src/chat/chat-typing.service.ts
-import { Injectable } from '@nestjs/common';
-import { Inject } from '@nestjs/common';
-import type { Redis } from 'ioredis';
 
-import { ChatRepository } from './chat.repository';
+import { Injectable } from '@nestjs/common';
+
 import { ChatPermissionService } from './chat-permission.service';
+import { ChatRealtimeService } from './realtime/chat-realtime.service';
 import { ChatTypingEvent } from './dto/chat-typing.event';
 
 @Injectable()
 export class ChatTypingService {
   constructor(
-    private readonly repo: ChatRepository,
     private readonly permission: ChatPermissionService,
-
-    // ✅ inject redis singleton ตรง ๆ
-    @Inject('REDIS_CLIENT')
-    private readonly redis: Redis,
+    private readonly realtime: ChatRealtimeService,
   ) {}
 
   async sendTyping(params: {
@@ -25,11 +20,20 @@ export class ChatTypingService {
   }) {
     const { chat, viewerUserId, isTyping } = params;
 
+    /**
+     * Permission check (backend authority)
+     */
     await this.permission.assertCanAccessChat({
       chat,
       viewerUserId,
     });
 
+    /**
+     * Ephemeral typing event
+     * - NOT persisted
+     * - NOT retried
+     * - Socket.IO is delivery-only
+     */
     const event: ChatTypingEvent = {
       chatId: chat.id,
       userId: viewerUserId,
@@ -37,10 +41,10 @@ export class ChatTypingService {
       at: Date.now(),
     };
 
-    // ✅ publish ตรง
-    await this.redis.publish(
-      `chat:typing:${chat.id}`,
-      JSON.stringify(event),
-    );
+    /**
+     * Emit via realtime layer
+     * Socket.IO + redis-adapter handles fan-out
+     */
+    this.realtime.emitTyping(event);
   }
 }

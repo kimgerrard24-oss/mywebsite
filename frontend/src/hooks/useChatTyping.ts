@@ -1,27 +1,67 @@
 // frontend/src/hooks/useChatTyping.ts
-import { useCallback, useRef } from 'react';
+
+import { useCallback, useEffect, useRef } from 'react';
 import { sendChatTyping } from '@/lib/api/chat-typing';
 
 /**
- * debounce typing (default 400ms)
+ * Typing notifier (production-grade)
+ * - send isTyping: true on first input
+ * - auto send isTyping: false after idle
+ * - fire-and-forget (ephemeral)
+ * - compatible with ChatRealtimeBridge
  */
 export function useChatTyping(
   chatId: string,
-  delayMs = 400,
+  idleMs = 2000,
 ) {
-  const timerRef = useRef<NodeJS.Timeout | null>(
-    null,
-  );
+  // ✅ browser-safe timeout type
+  const idleTimerRef =
+    useRef<ReturnType<typeof setTimeout> | null>(
+      null,
+    );
+
+  const isTypingRef = useRef(false);
 
   const notifyTyping = useCallback(() => {
-    if (timerRef.current) return;
+    // send "start typing" only once
+    if (!isTypingRef.current) {
+      isTypingRef.current = true;
 
-    timerRef.current = setTimeout(() => {
-      timerRef.current = null;
-    }, delayMs);
+      // fire-and-forget (do not await)
+      sendChatTyping(chatId, true);
+    }
 
-    sendChatTyping(chatId);
-  }, [chatId, delayMs]);
+    // reset idle timer
+    if (idleTimerRef.current) {
+      clearTimeout(idleTimerRef.current);
+    }
+
+    idleTimerRef.current = setTimeout(() => {
+      // send "stop typing" after idle
+      isTypingRef.current = false;
+      idleTimerRef.current = null;
+
+      sendChatTyping(chatId, false);
+    }, idleMs);
+  }, [chatId, idleMs]);
+
+  /**
+   * Cleanup on unmount / chatId change
+   * ensure stop-typing is sent
+   */
+  useEffect(() => {
+    return () => {
+      if (idleTimerRef.current) {
+        clearTimeout(idleTimerRef.current);
+        idleTimerRef.current = null;
+      }
+
+      if (isTypingRef.current) {
+        isTypingRef.current = false;
+        sendChatTyping(chatId, false);
+      }
+    };
+  }, [chatId]);
 
   return { notifyTyping };
 }
