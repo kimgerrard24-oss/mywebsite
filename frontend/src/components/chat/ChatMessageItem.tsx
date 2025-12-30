@@ -6,6 +6,7 @@ import ChatMessageActions from "./ChatMessageActions";
 import ChatConfirmDeleteModal from "./ChatConfirmDeleteModal";
 import { useDeleteChatMessage } from "@/hooks/useDeleteChatMessage";
 import type { ChatMessage } from "@/types/chat-message";
+import ChatImagePreviewModal from "./ChatImagePreviewModal";
 
 /**
  * UI-only extension
@@ -30,6 +31,8 @@ export default function ChatMessageItem({
 }: Props) {
   const [confirmDelete, setConfirmDelete] =
     useState(false);
+  const [previewImage, setPreviewImage] = useState<string | null>(null);
+  
   const { remove } = useDeleteChatMessage();
 
   /**
@@ -78,129 +81,152 @@ export default function ChatMessageItem({
    * ==============================
    */
   return (
-    <div
-      className={`mb-2 flex ${
-        isOwn ? "justify-end" : "justify-start"
-      }`}
-    >
-      {!isOwn && (
-        <Link
-          href={`/users/${message.sender.id}`}
-          className="mr-2 flex-shrink-0"
+  <div
+    className={`mb-2 flex ${
+      isOwn ? "justify-end" : "justify-start"
+    }`}
+  >
+    {!isOwn && (
+      <Link
+        href={`/users/${message.sender.id}`}
+        className="mr-2 flex-shrink-0"
+      >
+        <img
+          src={
+            message.sender.avatarUrl ??
+            "/avatar-placeholder.png"
+          }
+          className="h-8 w-8 rounded-full cursor-pointer"
+          alt={
+            message.sender.displayName ??
+            "User avatar"
+          }
+          loading="lazy"
+        />
+      </Link>
+    )}
+
+    {/* ===== Message Content Wrapper ===== */}
+    <div className="flex flex-col items-end max-w-xs sm:max-w-sm">
+      {/* ===== Media (OUTSIDE bubble) ===== */}
+      {hasMedia && (
+        <div
+          className={`mb-1 flex flex-col gap-2 ${
+            isOwn ? "items-end" : "items-start"
+          }`}
         >
-          <img
-            src={
-              message.sender.avatarUrl ??
-              "/avatar-placeholder.png"
+          {media.map((m) => {
+            if (m.type === "image") {
+              return (
+                <img
+  key={m.id}
+  src={m.url}
+  alt="Chat image"
+  loading="lazy"
+  decoding="async"
+  referrerPolicy="no-referrer"
+  className="
+    rounded-xl
+    max-w-[220px]
+    sm:max-w-[260px]
+    max-h-[260px]
+    object-cover
+    cursor-pointer
+  "
+  onClick={() => setPreviewImage(m.url)}
+/>
+
+              );
             }
-            className="h-8 w-8 rounded-full cursor-pointer"
-            alt={
-              message.sender.displayName ??
-              "User avatar"
+
+            if (m.type === "audio") {
+              return (
+                <audio
+                  key={m.id}
+                  controls
+                  preload="metadata"
+                  src={m.url}
+                  controlsList="nodownload noplaybackrate"
+                  className="max-w-[260px]"
+                />
+              );
             }
-            loading="lazy"
-          />
-        </Link>
+
+            return null;
+          })}
+        </div>
       )}
 
-      <div
-        className={`relative max-w-md rounded-lg px-3 py-2 text-sm ${
-          isOwn
-            ? "bg-blue-600 text-white"
-            : "bg-gray-100 text-gray-900"
-        }`}
-      >
-        {!isOwn && (
-          <div className="mb-0.5 text-xs font-semibold">
-            {message.sender.displayName ?? "User"}
-          </div>
-        )}
+      {/* ===== Bubble (TEXT ONLY) ===== */}
+      {hasText && (
+        <div
+          className={`relative rounded-lg px-3 py-2 text-sm ${
+            isOwn
+              ? "bg-blue-600 text-white"
+              : "bg-gray-100 text-gray-900"
+          }`}
+        >
+          {!isOwn && (
+            <div className="mb-0.5 text-xs font-semibold">
+              {message.sender.displayName ?? "User"}
+            </div>
+          )}
 
-        {/* ===== Text ===== */}
-        {hasText && (
           <div className="whitespace-pre-wrap">
             {message.content}
           </div>
-        )}
 
-        {/* ===== Media ===== */}
-        {hasMedia && (
-          <div className="mt-2 flex flex-col gap-2">
-            {media.map((m) => {
-              if (m.type === "image") {
-                return (
-                  <img
-                    key={m.id}
-                    src={m.url}
-                    alt=""
-                    loading="lazy"
-                    decoding="async"
-                    referrerPolicy="no-referrer"
-                    className="max-h-64 w-full rounded-md object-cover"
-                  />
-                );
-              }
+          {/* ===== Footer ===== */}
+          <div
+            className={`mt-1 flex items-center justify-end gap-2 text-[10px] ${
+              isOwn
+                ? "text-blue-200"
+                : "text-gray-400"
+            }`}
+          >
+            <span>{timeLabel}</span>
 
-              if (m.type === "audio") {
-                return (
-                  <audio
-                    key={m.id}
-                    controls
-                    preload="metadata"
-                    src={m.url}
-                    controlsList="nodownload noplaybackrate"
-                    className="w-full"
-                  />
-                );
-              }
-
-              return null;
-            })}
+            {isOwn && (
+              <ChatMessageActions
+                onDelete={() =>
+                  setConfirmDelete(true)
+                }
+              />
+            )}
           </div>
-        )}
 
-        {/* ===== Footer ===== */}
-        <div
-          className={`mt-1 flex items-center justify-end gap-2 text-[10px] ${
-            isOwn
-              ? "text-blue-200"
-              : "text-gray-400"
-          }`}
-        >
-          <span>{timeLabel}</span>
-
-          {isOwn && (
-            <ChatMessageActions
-              onDelete={() =>
-                setConfirmDelete(true)
-              }
-            />
-          )}
+          <ChatConfirmDeleteModal
+            open={confirmDelete}
+            onCancel={() => setConfirmDelete(false)}
+            onConfirm={() => {
+              remove({
+                chatId,
+                message,
+                onOptimistic: () => {
+                  onDeleted?.(message.id);
+                  setConfirmDelete(false);
+                },
+                onRollback: () => {
+                  setConfirmDelete(false);
+                },
+                onSuccess: () => {
+                  // noop
+                },
+              });
+            }}
+          />
         </div>
-
-        <ChatConfirmDeleteModal
-  open={confirmDelete}
-  onCancel={() => setConfirmDelete(false)}
-  onConfirm={() => {
-    remove({
-      chatId, 
-      message,
-      onOptimistic: () => {
-        onDeleted?.(message.id);
-        setConfirmDelete(false);
-      },
-      onRollback: () => {
-        setConfirmDelete(false);
-      },
-      onSuccess: () => {
-        // noop
-      },
-    });
-  }}
-/>
-
-
-      </div>
+      )}
     </div>
-  );
+
+    {previewImage && (
+  <ChatImagePreviewModal
+    src={previewImage}
+    onClose={() => setPreviewImage(null)}
+  />
+)}
+
+  </div>
+);
+
 }

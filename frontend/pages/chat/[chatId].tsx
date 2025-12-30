@@ -162,35 +162,40 @@ export default function ChatPage({
         </title>
       </Head>
 
-      <ChatLayout>
-        <ChatPermissionGuard meta={meta}>
-          <ChatHeader meta={meta} />
+      <ChatLayout
+  header={
+    <ChatPermissionGuard meta={meta}>
+      <ChatHeader meta={meta} />
+    </ChatPermissionGuard>
+  }
+  messages={
+    <>
+      <ChatMessageList
+        ref={listRef}
+        chatId={meta.id}
+        initialData={initialMessages}
+      />
 
-          <ChatMessageList
-            ref={listRef}
-            chatId={meta.id}
-            initialData={initialMessages}
-          />
+      <ChatTypingIndicator typingUsers={typingUsers} />
 
-          <ChatTypingIndicator
-            typingUsers={typingUsers}
-          />
+      <ChatRealtimeBridge
+        chatId={meta.id}
+        onMessageReceived={handleRealtimeMessage}
+        onMessageDeleted={handleRealtimeDeleted}
+        onTyping={handleRealtimeTyping}
+      />
 
-          <ChatRealtimeBridge
-            chatId={meta.id}
-            onMessageReceived={handleRealtimeMessage}
-            onMessageDeleted={handleRealtimeDeleted}
-            onTyping={handleRealtimeTyping}
-          />
+      <ChatReadObserver chatId={meta.id} />
+    </>
+  }
+  composer={
+    <ChatComposer
+      chatId={meta.id}
+      onMessageSent={handleMessageSent}
+    />
+  }
+/>
 
-          <ChatReadObserver chatId={meta.id} />
-
-          <ChatComposer
-            chatId={meta.id}
-            onMessageSent={handleMessageSent}
-          />
-        </ChatPermissionGuard>
-      </ChatLayout>
     </>
   );
 }
