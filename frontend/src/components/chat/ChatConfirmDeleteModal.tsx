@@ -15,16 +15,19 @@ export default function ChatConfirmDeleteModal({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+      className="fixed inset-0 z-50 flex items-center justify-center"
       role="dialog"
       aria-modal="true"
       aria-labelledby="chat-delete-title"
-      onClick={onCancel}
     >
+      {/* Backdrop */}
       <div
-        className="w-80 rounded-lg bg-white p-4"
-        onClick={(e) => e.stopPropagation()}
-      >
+        className="absolute inset-0 bg-black/40"
+        onClick={onCancel}
+      />
+
+      {/* Modal */}
+      <div className="relative z-10 w-80 rounded-lg bg-white p-4">
         <h3
           id="chat-delete-title"
           className="mb-2 text-sm font-semibold"

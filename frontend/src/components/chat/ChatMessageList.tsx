@@ -175,6 +175,7 @@ const ChatMessageList = forwardRef<
       {mergedItems.map((msg) => (
         <ChatMessageItem
           key={msg.id}
+          chatId={chatId}
           message={msg}
           isOwn={
             !!viewerUserId &&

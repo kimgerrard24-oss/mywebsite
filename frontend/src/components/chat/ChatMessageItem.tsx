@@ -16,12 +16,14 @@ type ChatMessageUI = ChatMessage & {
 };
 
 type Props = {
+  chatId: string;
   message: ChatMessageUI;
   isOwn?: boolean;
   onDeleted?: (id: string) => void;
 };
 
 export default function ChatMessageItem({
+  chatId,
   message,
   isOwn = false,
   onDeleted,
@@ -178,35 +180,25 @@ export default function ChatMessageItem({
 
         <ChatConfirmDeleteModal
   open={confirmDelete}
-  onCancel={() =>
-    setConfirmDelete(false)
-  }
+  onCancel={() => setConfirmDelete(false)}
   onConfirm={() => {
-    if (!message.chatId) {
-      setConfirmDelete(false);
-      return;
-    }
-remove({
-  chatId: message.chatId,
-  message,
-  onOptimistic: () => {
-    // 🔑 source of truth สำหรับ UI
-    onDeleted?.(message.id);
-    setConfirmDelete(false);
-  },
-  onRollback: () => {
-    // ตอนนี้คุณยังไม่ restore state ซึ่งก็โอเค
-    // เพราะ delete failure ถือว่า rare
-    setConfirmDelete(false);
-  },
-  onSuccess: () => {
-    // ❌ ไม่ต้องทำอะไรแล้ว
-    // backend + realtime เป็น eventual consistency
-  },
-});
-
+    remove({
+      chatId, 
+      message,
+      onOptimistic: () => {
+        onDeleted?.(message.id);
+        setConfirmDelete(false);
+      },
+      onRollback: () => {
+        setConfirmDelete(false);
+      },
+      onSuccess: () => {
+        // noop
+      },
+    });
   }}
 />
+
 
       </div>
     </div>

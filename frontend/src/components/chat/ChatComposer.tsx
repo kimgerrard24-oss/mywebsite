@@ -14,6 +14,12 @@ type Props = {
   onMessageSent?: (message: ChatMessage) => void;
 };
 
+type PendingPreview = {
+  id: string;
+  type: "image" | "audio";
+  previewUrl: string;
+};
+
 export default function ChatComposer({
   chatId,
   onMessageSent,
@@ -29,14 +35,11 @@ export default function ChatComposer({
   } = useChatComposer({
     chatId,
     onSent: (message) => {
-      // ✅ append self-message immediately (UX critical)
       onMessageSent?.(message);
     },
   });
 
-  // Typing hook
   const { notifyTyping } = useChatTyping(chatId);
-
   const { upload } = useMediaUpload();
   const { complete } = useMediaComplete();
 
@@ -45,6 +48,12 @@ export default function ChatComposer({
 
   const [showEmojiPicker, setShowEmojiPicker] =
     useState(false);
+
+  /**
+   * 🔹 Preview state (UI only)
+   */
+  const [pendingPreviews, setPendingPreviews] =
+    useState<PendingPreview[]>([]);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -59,7 +68,12 @@ export default function ChatComposer({
 
     await submit();
 
-    // stop typing immediately after send
+    // cleanup previews (memory safe)
+    pendingPreviews.forEach((p) =>
+      URL.revokeObjectURL(p.previewUrl),
+    );
+    setPendingPreviews([]);
+
     setContent("");
   }
 
@@ -91,18 +105,39 @@ export default function ChatComposer({
     const file = e.target.files?.[0];
     if (!file) return;
 
+    const previewUrl = URL.createObjectURL(file);
+    const mediaType = file.type.startsWith("audio/")
+      ? "audio"
+      : "image";
+
+    const previewId = crypto.randomUUID();
+
+    // 🔹 show preview immediately
+    setPendingPreviews((prev) => [
+      ...prev,
+      {
+        id: previewId,
+        type: mediaType,
+        previewUrl,
+      },
+    ]);
+
     try {
       const { objectKey } = await upload(file);
 
       const mediaId = await complete({
         objectKey,
-        mediaType: file.type.startsWith("audio/")
-          ? "audio"
-          : "image",
+        mediaType,
         mimeType: file.type,
       });
 
       setMediaIds((prev) => [...prev, mediaId]);
+    } catch {
+      // upload failed → remove preview
+      setPendingPreviews((prev) =>
+        prev.filter((p) => p.id !== previewId),
+      );
+      URL.revokeObjectURL(previewUrl);
     } finally {
       e.target.value = "";
     }
@@ -115,6 +150,37 @@ export default function ChatComposer({
       aria-label="Send message"
     >
       {error && <ChatComposerError message={error} />}
+
+      {/* ===== Media Preview ===== */}
+      {pendingPreviews.length > 0 && (
+        <div className="mb-2 flex flex-col gap-2">
+          {pendingPreviews.map((p) => {
+            if (p.type === "image") {
+              return (
+                <img
+                  key={p.id}
+                  src={p.previewUrl}
+                  className="max-h-40 rounded-md object-cover"
+                  alt=""
+                />
+              );
+            }
+
+            if (p.type === "audio") {
+              return (
+                <audio
+                  key={p.id}
+                  src={p.previewUrl}
+                  controls
+                  preload="metadata"
+                />
+              );
+            }
+
+            return null;
+          })}
+        </div>
+      )}
 
       {showEmojiPicker && (
         <div className="absolute bottom-14 left-3 z-50">

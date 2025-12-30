@@ -29,19 +29,31 @@ export class ChatMessageDto {
       createdAt: row.createdAt.toISOString(),
 
       sender: {
-        id: row.sender.id,
-        displayName: row.sender.displayName,
-        avatarUrl: row.sender.avatarUrl,
+        id: row.sender?.id,
+        displayName: row.sender?.displayName ?? null,
+        avatarUrl: row.sender?.avatarUrl ?? null,
       },
 
       media: Array.isArray(row.media)
-        ? row.media.map((m: any) => ({
-            id: m.media.id,
-            type: m.media.type,
-            url: m.media.url,
-            mimeType: m.media.mimeType,
-            durationSec: m.media.durationSec ?? null,
-          }))
+        ? row.media
+            .filter((m: any) => m?.media?.url)
+            .map((m: any) => {
+              const mimeType: string = m.media.mimeType;
+
+              const type: 'image' | 'audio' =
+                mimeType.startsWith('audio/')
+                  ? 'audio'
+                  : 'image';
+
+              return {
+                id: m.media.id,
+                type,
+                url: m.media.url,
+                mimeType,
+                durationSec:
+                  m.media.durationSec ?? null,
+              };
+            })
         : [],
     };
   }

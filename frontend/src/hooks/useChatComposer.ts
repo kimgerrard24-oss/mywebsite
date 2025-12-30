@@ -1,6 +1,9 @@
 // frontend/src/hooks/useChatComposer.ts
 import { useState } from "react";
-import { sendChatMessage, getChatMessageById, } from "@/lib/api/chat-messages";
+import {
+  sendChatMessage,
+  getChatMessageById,
+} from "@/lib/api/chat-messages";
 import type { ChatMessage } from "@/types/chat-message";
 
 export function useChatComposer(params: {
@@ -12,15 +15,9 @@ export function useChatComposer(params: {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  /**
-   * Submit chat message
-   * - backend is authority
-   * - supports text + image + voice
-   */
   async function submit() {
     if (loading) return;
 
-    // snapshot state (prevent race condition)
     const text =
       typeof content === "string" ? content.trim() : "";
 
@@ -33,67 +30,87 @@ export function useChatComposer(params: {
     const hasContent = text.length > 0;
     const hasMedia = mediaSnapshot.length > 0;
 
-    // must contain at least text or media
     if (!hasContent && !hasMedia) return;
 
     setLoading(true);
     setError(null);
 
     try {
-  const message = await sendChatMessage({
-    chatId: params.chatId,
-    ...(hasContent ? { content: text } : {}),
-    ...(hasMedia ? { mediaIds: mediaSnapshot } : {}),
-  });
-
-  // ✅ 1) append ทันที (UX สำคัญมาก)
-  params.onSent?.({
-    ...message,
-    media: Array.isArray(message.media)
-      ? message.media
-      : [],
-  });
-
-  // reset local state
-  setContent("");
-  setMediaIds([]);
-
-  // ✅ 2) patch message ด้วย authoritative data (media ครบ)
-  if (hasMedia) {
-    try {
-      const fullMessage = await getChatMessageById({
+      /**
+       * 1) Authoritative create
+       */
+      const baseMessage = await sendChatMessage({
         chatId: params.chatId,
-        messageId: message.id,
+        ...(hasContent ? { content: text } : {}),
+        ...(hasMedia ? { mediaIds: mediaSnapshot } : {}),
       });
 
-      params.onSent?.(fullMessage);
-    } catch (err) {
-      // fail-soft
-      console.warn(
-        "Failed to refetch message with media",
-        err,
-      );
-    }
-  }
-} catch (err) {
-  console.error("Send chat message failed:", err);
-  setError("Failed to send message");
-} finally {
-  setLoading(false);
-}
+      /**
+       * 2) Optimistic append
+       * - ห้าม assume ว่า media พร้อม render
+       */
+      params.onSent?.({
+        ...baseMessage,
+        media: [],
+      });
 
+      /**
+       * reset input state หลัง append เท่านั้น
+       */
+      setContent("");
+      setMediaIds([]);
+
+      /**
+       * 3) Refetch authoritative message (media + url + mime)
+       */
+      if (hasMedia) {
+        try {
+          const fullMessage = await getChatMessageById({
+            chatId: params.chatId,
+            messageId: baseMessage.id,
+          });
+
+          /**
+           * 🔑 normalize media ให้ UI ใช้ได้จริง
+           */
+          const normalized: ChatMessage = {
+            ...fullMessage,
+            media: Array.isArray(fullMessage.media)
+              ? fullMessage.media
+                  .filter(
+                    (m: any) =>
+                      typeof m?.url === "string" &&
+                      m.url.length > 0,
+                  )
+                  .map((m: any) => ({
+                    ...m,
+                    type: m.mimeType?.startsWith("image")
+                      ? "image"
+                      : m.mimeType?.startsWith("audio")
+                      ? "audio"
+                      : "file",
+                  }))
+              : [],
+          };
+
+          params.onSent?.(normalized);
+        } catch {
+          // fail-soft: message ยังอยู่ได้ แม้ media จะมาช้า
+        }
+      }
+    } catch (err) {
+      console.error("Send chat message failed:", err);
+      setError("Failed to send message");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return {
-    // text
     content,
     setContent,
-
-    // media (image / voice)
     mediaIds,
     setMediaIds,
-
-    // actions
     submit,
     loading,
     error,
