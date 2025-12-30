@@ -1,5 +1,7 @@
 // backend/src/chat/dto/chat-message.dto.ts
 
+import { buildCdnUrl } from '../../media/utils/build-cdn-url.util';
+
 export class ChatMessageDto {
   id!: string;
   content!: string | null;
@@ -36,9 +38,10 @@ export class ChatMessageDto {
 
       media: Array.isArray(row.media)
         ? row.media
-            .filter((m: any) => m?.media?.url)
+            .filter((m: any) => m?.media?.objectKey)
             .map((m: any) => {
-              const mimeType: string = m.media.mimeType;
+              const media = m.media;
+              const mimeType: string = media.mimeType;
 
               const type: 'image' | 'audio' =
                 mimeType.startsWith('audio/')
@@ -46,12 +49,11 @@ export class ChatMessageDto {
                   : 'image';
 
               return {
-                id: m.media.id,
+                id: media.id,
                 type,
-                url: m.media.url,
+                url: buildCdnUrl(media.objectKey),
                 mimeType,
-                durationSec:
-                  m.media.durationSec ?? null,
+                durationSec: media.duration ?? null,
               };
             })
         : [],
