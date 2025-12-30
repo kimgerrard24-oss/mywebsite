@@ -187,11 +187,10 @@ const message = await this.repo.createMessage({
 
 // 5. Attach media
 if (hasMedia) {
-  await this.repo.attachMediaToMessage({
-    messageId: message.id,
-    senderUserId,
-    mediaIds: mediaIds!,
-  });
+  await this.chatMessageRepo.attachMediaToMessage({
+  messageId: message.id,
+  mediaIds,
+});
 }
 
 // 🔑 6. Reload message with media (AUTHORITATIVE SNAPSHOT)

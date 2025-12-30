@@ -105,25 +105,27 @@ const ChatMessageList = forwardRef<
    */
   useImperativeHandle(ref, () => ({
     appendMessage(msg: ChatMessageUI) {
-      setAppendedItems((prev) => {
-        const index = prev.findIndex(
-          (m) => m.id === msg.id,
-        );
-
-        // 🔒 Patch existing message (media may arrive later)
-        if (index !== -1) {
-          const copy = [...prev];
-          copy[index] = {
-            ...copy[index],
-            ...msg,
-          };
-          return copy;
-        }
-
-        // ➕ New message
-        return [...prev, msg];
-      });
+  // 🔑 1) Patch by id (authoritative)
+  setPatchedItems((prev) => ({
+    ...prev,
+    [msg.id]: {
+      ...(prev[msg.id] ?? msg),
+      ...msg,
     },
+  }));
+
+  // 🔑 2) Append only if not exist anywhere
+  setAppendedItems((prev) => {
+    const exists =
+      prev.some((m) => m.id === msg.id) ||
+      fetchedItems.some((m) => m.id === msg.id);
+
+    if (exists) return prev;
+
+    return [...prev, msg];
+  });
+ },
+
     markMessageDeleted,
   }));
 

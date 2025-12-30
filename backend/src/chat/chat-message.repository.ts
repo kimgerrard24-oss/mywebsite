@@ -175,6 +175,60 @@ async findMessageById(params: {
   });
 }
 
+/**
+ * Attach media (image / audio) to chat message
+ *
+ * Assumptions (Production rules):
+ * - media ownership & permission ถูก validate แล้วใน media upload/complete flow
+ * - method นี้มีหน้าที่ "attach relation" เท่านั้น
+ * - fail-soft: media ที่ใช้ไม่ได้จะถูก ignore
+ */
+async attachMediaToMessage(params: {
+  messageId: string;
+  mediaIds: string[];
+}) {
+  const { messageId, mediaIds } = params;
+
+  // Guard: nothing to attach
+  if (!Array.isArray(mediaIds) || mediaIds.length === 0) {
+    return;
+  }
+
+  /**
+   * 1) Filter usable media
+   * - must exist
+   * - must not be deleted
+   * - must be allowed type for chat
+   */
+  const medias = await this.prisma.media.findMany({
+    where: {
+      id: { in: mediaIds },
+      deletedAt: null,
+      mediaType: {
+        in: ['IMAGE', 'AUDIO'], // chat supports image + voice
+      },
+    },
+    select: { id: true },
+  });
+
+  // Guard: no valid media
+  if (medias.length === 0) {
+    return;
+  }
+
+  /**
+   * 2) Attach media → message (idempotent)
+   * - skipDuplicates ป้องกัน insert ซ้ำ
+   */
+  await this.prisma.chatMessageMedia.createMany({
+    data: medias.map((m) => ({
+      messageId,
+      mediaId: m.id,
+    })),
+    skipDuplicates: true,
+  });
+}
+
 
 async findChatById(chatId: string) {
     return this.prisma.chat.findUnique({
