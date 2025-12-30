@@ -148,22 +148,21 @@ async sendMessage(params: {
   content?: string;
   mediaIds?: string[];
 }): Promise<ChatMessageDto> {
-  const { chatId, senderUserId, content, mediaIds } =
-    params;
+  const { chatId, senderUserId, content, mediaIds } = params;
 
-  // 1. Load chat
+  // 1) Load chat
   const chat = await this.repo.findChatById(chatId);
   if (!chat) {
     throw new NotFoundException('Chat not found');
   }
 
-  // 2. Permission (participant + active + block)
+  // 2) Permission (participant + active + block)
   await this.permission.assertCanAccessChat({
     chat,
     viewerUserId: senderUserId,
   });
 
-  // 3. Validate payload (must have content or media)
+  // 3) Validate payload (must have content or media)
   const hasContent =
     typeof content === 'string' &&
     content.trim().length > 0;
@@ -178,40 +177,65 @@ async sendMessage(params: {
     );
   }
 
-  // 4. Create message
-const message = await this.repo.createMessage({
-  chatId,
-  senderUserId,
-  content: hasContent ? content!.trim() : null,
-});
-
-// 5. Attach media
-if (hasMedia) {
-  await this.chatMessageRepo.attachMediaToMessage({
-  messageId: message.id,
-  mediaIds,
-});
-}
-
-// 🔑 6. Reload message with media (AUTHORITATIVE SNAPSHOT)
-const fullMessage =
-  await this.chatMessageRepo.findMessageById({
+  // 4) Create message (authoritative)
+  const message = await this.repo.createMessage({
     chatId,
-    messageId: message.id,
+    senderUserId,
+    content: hasContent ? content!.trim() : null,
   });
 
+  // 5) Attach media (fail-soft)
+  if (hasMedia) {
+    await this.chatMessageRepo.attachMediaToMessage({
+      messageId: message.id,
+      mediaIds: mediaIds!,
+    });
+  }
 
-// 🔔 CHAT REALTIME EMIT (fail-soft)
-try {
-  this.chatRealtime.emitNewMessage({
-    chatId,
-    message: ChatMessageDto.fromRow(fullMessage),
-  });
-} catch {}
+  /**
+   * 6) Reload message with media (AUTHORITATIVE SNAPSHOT)
+   * - retry once (fail-soft) to avoid async media race
+   */
+  let fullMessage =
+    await this.chatMessageRepo.findMessageById({
+      chatId,
+      messageId: message.id,
+    });
 
-// ✅ Return authoritative response
-return ChatMessageDto.fromRow(fullMessage);
+  if (
+    hasMedia &&
+    fullMessage &&
+    Array.isArray(fullMessage.media) &&
+    fullMessage.media.length === 0
+  ) {
+    // small delay before retry (non-blocking, production-safe)
+    await new Promise((r) => setTimeout(r, 50));
+
+    const retry =
+      await this.chatMessageRepo.findMessageById({
+        chatId,
+        messageId: message.id,
+      });
+
+    if (retry) {
+      fullMessage = retry;
+    }
+  }
+
+  // 7) Realtime emit (delivery only, fail-soft)
+  try {
+    this.chatRealtime.emitNewMessage({
+      chatId,
+      message: ChatMessageDto.fromRow(fullMessage),
+    });
+  } catch {
+    // realtime must never break message send
+  }
+
+  // 8) Return authoritative response
+  return ChatMessageDto.fromRow(fullMessage);
 }
+
 
 
    async getUnreadCount(params: {
