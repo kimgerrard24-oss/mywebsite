@@ -152,37 +152,54 @@ export default function ChatComposer({
       {error && <ChatComposerError message={error} />}
 
       {/* ===== Media Preview ===== */}
-      {pendingPreviews.length > 0 && (
-        <div className="mb-2 flex flex-col gap-2">
-          {pendingPreviews.map((p) => {
-            if (p.type === "image") {
-              return (
-                <div className="max-w-[240px] aspect-[4/5] overflow-hidden rounded-md bg-gray-100">
-  <img
-    src={p.previewUrl}
-    alt=""
-    className="h-full w-full object-cover"
-  />
-</div>
+{pendingPreviews.length > 0 && (
+  <div className="mb-2 flex flex-col gap-2">
+    {pendingPreviews.map((p) => {
+      if (p.type === "image") {
+        return (
+          <div
+            key={p.id}
+            className="
+              w-[180px]
+              max-w-full
+              rounded-md
+              overflow-hidden
+              bg-gray-100
+              border
+            "
+          >
+            <img
+              src={p.previewUrl}
+              alt=""
+              className="
+                w-full
+                h-auto
+                max-h-[240px]
+                object-contain
+                block
+              "
+            />
+          </div>
+        );
+      }
 
-              );
-            }
+      if (p.type === "audio") {
+        return (
+          <audio
+            key={p.id}
+            src={p.previewUrl}
+            controls
+            preload="metadata"
+            className="max-w-[240px]"
+          />
+        );
+      }
 
-            if (p.type === "audio") {
-              return (
-                <audio
-                  key={p.id}
-                  src={p.previewUrl}
-                  controls
-                  preload="metadata"
-                />
-              );
-            }
+      return null;
+    })}
+  </div>
+)}
 
-            return null;
-          })}
-        </div>
-      )}
 
       {showEmojiPicker && (
         <div className="absolute bottom-14 left-3 z-50">

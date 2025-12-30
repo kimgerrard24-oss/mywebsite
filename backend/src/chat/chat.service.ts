@@ -16,6 +16,7 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationRealtimeService } from '../notifications/realtime/notification-realtime.service';
 import { NotificationMapper } from '../notifications/mapper/notification.mapper';
 import { ChatRealtimeService } from './realtime/chat-realtime.service'
+import { ChatMessageRepository } from './chat-message.repository';
 
 @Injectable()
 export class ChatService {
@@ -25,6 +26,7 @@ export class ChatService {
     private readonly notifications: NotificationsService,
     private readonly notificationRealtime: NotificationRealtimeService,
     private readonly chatRealtime: ChatRealtimeService, 
+    private readonly chatMessageRepo: ChatMessageRepository,
   ) {}
 
   async getOrCreateDirectChat(params: {
@@ -194,7 +196,11 @@ if (hasMedia) {
 
 // 🔑 6. Reload message with media (AUTHORITATIVE SNAPSHOT)
 const fullMessage =
-  await this.repo.findMessageById(message.id);
+  await this.chatMessageRepo.findMessageById({
+    chatId,
+    messageId: message.id,
+  });
+
 
 // 🔔 CHAT REALTIME EMIT (fail-soft)
 try {
