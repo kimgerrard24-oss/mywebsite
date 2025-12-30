@@ -1,11 +1,11 @@
 // frontend/pages/chat/index.tsx
-import Head from 'next/head';
-import type { GetServerSideProps } from 'next';
-import { requireSessionSSR } from '@/lib/auth/require-session-ssr';
-import { getChatRooms } from '@/lib/api/chat';
-import ChatLayout from '@/components/chat/ChatLayout';
-import ChatRoomList from '@/components/chat/ChatRoomList';
-import ChatRoomEmptyState from '@/components/chat/ChatRoomEmptyState';
+import Head from "next/head";
+import type { GetServerSideProps } from "next";
+import { requireSessionSSR } from "@/lib/auth/require-session-ssr";
+import { getChatRooms } from "@/lib/api/chat";
+import ChatLayout from "@/components/chat/ChatLayout";
+import ChatRoomList from "@/components/chat/ChatRoomList";
+import ChatRoomEmptyState from "@/components/chat/ChatRoomEmptyState";
 
 type ChatRoom = {
   id: string;
@@ -36,13 +36,17 @@ export default function ChatRoomsPage({ rooms }: Props) {
         />
       </Head>
 
-      <ChatLayout>
-        {rooms.length === 0 ? (
-          <ChatRoomEmptyState />
-        ) : (
-          <ChatRoomList rooms={rooms} />
-        )}
-      </ChatLayout>
+      <ChatLayout
+        header={null}
+        messages={
+          rooms.length === 0 ? (
+            <ChatRoomEmptyState />
+          ) : (
+            <ChatRoomList rooms={rooms} />
+          )
+        }
+        composer={null}
+      />
     </>
   );
 }
@@ -54,7 +58,7 @@ export const getServerSideProps: GetServerSideProps =
 
     try {
       const rooms = await getChatRooms({
-        cookie: ctx.req.headers.cookie ?? '',
+        cookie: ctx.req.headers.cookie ?? "",
       });
 
       return {
