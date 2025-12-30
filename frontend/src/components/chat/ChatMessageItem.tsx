@@ -186,22 +186,25 @@ export default function ChatMessageItem({
       setConfirmDelete(false);
       return;
     }
+remove({
+  chatId: message.chatId,
+  message,
+  onOptimistic: () => {
+    // 🔑 source of truth สำหรับ UI
+    onDeleted?.(message.id);
+    setConfirmDelete(false);
+  },
+  onRollback: () => {
+    // ตอนนี้คุณยังไม่ restore state ซึ่งก็โอเค
+    // เพราะ delete failure ถือว่า rare
+    setConfirmDelete(false);
+  },
+  onSuccess: () => {
+    // ❌ ไม่ต้องทำอะไรแล้ว
+    // backend + realtime เป็น eventual consistency
+  },
+});
 
-    remove({
-      chatId: message.chatId,
-      message,
-      onOptimistic: () => {
-        // ปิด modal อย่างเดียว
-        setConfirmDelete(false);
-      },
-      onRollback: () => {
-        setConfirmDelete(false);
-      },
-      onSuccess: () => {
-        // commit delete หลัง backend สำเร็จ
-        onDeleted?.(message.id);
-      },
-    });
   }}
 />
 

@@ -176,77 +176,37 @@ async sendMessage(params: {
     );
   }
 
-  // 4. Create message (DB = source of truth)
-  const message = await this.repo.createMessage({
-    chatId,
+  // 4. Create message
+const message = await this.repo.createMessage({
+  chatId,
+  senderUserId,
+  content: hasContent ? content!.trim() : null,
+});
+
+// 5. Attach media
+if (hasMedia) {
+  await this.repo.attachMediaToMessage({
+    messageId: message.id,
     senderUserId,
-    content: hasContent ? content!.trim() : null,
+    mediaIds: mediaIds!,
   });
+}
 
-  // 5. Attach media (if any)
-  if (hasMedia) {
-    await this.repo.attachMediaToMessage({
-      messageId: message.id,
-      senderUserId,
-      mediaIds: mediaIds!,
-    });
-  }
+// 🔑 6. Reload message with media (AUTHORITATIVE SNAPSHOT)
+const fullMessage =
+  await this.repo.findMessageById(message.id);
 
-  // 🔔 CREATE NOTIFICATION + REALTIME (fail-soft)
-  try {
-    /**
-     * หา receiver จาก participants
-     * (direct chat = 2 คน)
-     */
-    const receiverUserId =
-      chat.participants.find(
-        (p) => p.userId !== senderUserId,
-      )?.userId ?? null;
+// 🔔 CHAT REALTIME EMIT (fail-soft)
+try {
+  this.chatRealtime.emitNewMessage({
+    chatId,
+    message: ChatMessageDto.fromRow(fullMessage),
+  });
+} catch {}
 
-    // ไม่ notify ตัวเอง
-    if (receiverUserId) {
-      const notification =
-        await this.notifications.createNotification({
-          userId: receiverUserId,
-          actorUserId: senderUserId,
-          type: 'chat_message',
-          entityId: chatId,
-          payload: {
-            chatId,
-            messageId: message.id,
-          },
-        });
-
-      // 🔔 Notification realtime (delivery only)
-      this.notificationRealtime.emitNewNotification(
-        receiverUserId,
-        {
-          notification:
-            NotificationMapper.toDto(notification),
-        },
-      );
-    }
-  } catch {
-    /**
-     * ❗ notification fail ต้องไม่ทำให้ message fail
-     */
-  }
-
-  // 💬 CHAT REALTIME EMIT (fail-soft)
-  try {
-    this.chatRealtime.emitNewMessage({
-      chatId,
-      message: ChatMessageDto.fromRow(message),
-    });
-  } catch {
-    /**
-     * ❗ chat realtime fail ต้องไม่ทำให้ message fail
-     * DB + REST คือ source of truth
-     */
-  }
-
-  return ChatMessageDto.fromRow(message);
- }
+// ✅ Return authoritative response
+return ChatMessageDto.fromRow(fullMessage);
+}
 
 
    async getUnreadCount(params: {

@@ -346,4 +346,25 @@ async attachMediaToMessage(params: {
 
     return chat;
   }
+
+  async findMessageById(messageId: string) {
+  return this.prisma.chatMessage.findUnique({
+    where: { id: messageId },
+    include: {
+      sender: {
+        select: {
+          id: true,
+          displayName: true,
+          avatarUrl: true,
+        },
+      },
+      media: {
+        include: {
+          media: true,
+        },
+      },
+    },
+  });
+}
+
 }
