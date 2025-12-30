@@ -235,4 +235,5 @@ return ChatMessageDto.fromRow(fullMessage);
 
     return mapUnreadCount(count);
   }
+  
 }

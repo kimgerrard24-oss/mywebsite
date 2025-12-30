@@ -8,6 +8,7 @@ import {
   Patch,
   Delete,
   Req,
+  Get,
   UseGuards,
   HttpCode,
 } from '@nestjs/common';
@@ -16,6 +17,7 @@ import { AccessTokenCookieAuthGuard } from '../auth/guards/access-token-cookie.g
 import { ChatMessagesService } from './chat-messages.service';
 import { EditChatMessageDto } from './dto/edit-chat-message.dto';
 import { DeleteChatMessageDto } from './dto/delete-chat-message.dto';
+import { ChatMessageDto } from './dto/chat-message.dto';
 
 @Controller('chat')
 @UseGuards(AccessTokenCookieAuthGuard)
@@ -72,4 +74,21 @@ export class ChatMessagesController {
       viewerUserId,
     });
   }
+  
+  @UseGuards(AccessTokenCookieAuthGuard)
+@Get(':chatId/messages/:messageId')
+async getMessageById(
+  @Req() req: Request,
+  @Param('chatId') chatId: string,
+  @Param('messageId') messageId: string,
+): Promise<ChatMessageDto> {
+  const viewer = req.user as { userId: string };
+
+  return this.service.getMessageById({
+    chatId,
+    messageId,
+    viewerUserId: viewer.userId,
+  });
+}
+
 }

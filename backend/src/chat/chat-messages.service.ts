@@ -10,6 +10,7 @@ import { ChatPermissionService } from './chat-permission.service';
 import { ChatMessageMapper } from './mapper/chat-message.mapper';
 import { ChatMessageAuditService } from './audit/chat-message-audit.service';
 import { ChatRealtimeService } from './realtime/chat-realtime.service';
+import { ChatMessageDto } from './dto/chat-message.dto';
 
 @Injectable()
 export class ChatMessagesService {
@@ -158,4 +159,36 @@ export class ChatMessagesService {
       lastReadMessageId: lastMessage?.id ?? null,
     });
   }
+
+  async getMessageById(params: {
+  chatId: string;
+  messageId: string;
+  viewerUserId: string;
+}): Promise<ChatMessageDto> {
+  const { chatId, messageId, viewerUserId } = params;
+
+  // load chat (permission)
+  const chat = await this.repo.findChatById(chatId);
+  if (!chat) {
+    throw new NotFoundException('Chat not found');
+  }
+
+  await this.permission.assertCanAccessChat({
+    chat,
+    viewerUserId,
+  });
+
+  // load message + media
+  const message = await this.repo.findMessageById({
+    chatId,
+    messageId,
+  });
+
+  if (!message || message.isDeleted) {
+    throw new NotFoundException('Message not found');
+  }
+
+  return ChatMessageDto.fromRow(message);
+}
+
 }

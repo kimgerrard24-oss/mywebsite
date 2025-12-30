@@ -146,4 +146,54 @@ export class ChatMessageRepository {
       },
     });
   }
+
+  async findMessageById(params: {
+  chatId: string;
+  messageId: string;
+}) {
+  const { chatId, messageId } = params;
+
+  return this.prisma.chatMessage.findFirst({
+    where: {
+      id: messageId,
+      chatId,
+    },
+    include: {
+      sender: {
+        select: {
+          id: true,
+          displayName: true,
+          avatarUrl: true,
+        },
+      },
+      media: {
+        include: {
+          media: true,
+        },
+      },
+    },
+  });
+}
+
+async findChatById(chatId: string) {
+    return this.prisma.chat.findUnique({
+      where: { id: chatId },
+      include: {
+        participants: {
+          where: { leftAt: null },
+          include: {
+            user: {
+              select: {
+                id: true,
+                active: true,
+                isDisabled: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
+
 }

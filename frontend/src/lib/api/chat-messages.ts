@@ -88,22 +88,38 @@ export async function editChatMessage(params: {
  * CSR: DELETE /chat/:chatId/messages/:messageId
  * ⚠️ ใช้ api เพราะ client ไม่มี delete
  */
+// frontend/src/lib/api/chat-messages.ts
+
 export async function deleteChatMessage(params: {
   chatId: string;
   messageId: string;
-  reason?: string;
 }): Promise<ChatMessage> {
-  const { chatId, messageId, reason } = params;
+  const { chatId, messageId } = params;
 
   const res = await api.delete<ChatMessage>(
     `/chat/${chatId}/messages/${messageId}`,
     {
-      data: reason ? { reason } : undefined,
       withCredentials: true,
     },
   );
 
   return res.data;
+}
+
+
+/**
+ * CSR: GET /chat/:chatId/messages/:messageId
+ * ใช้สำหรับ refetch message ที่ media attach เสร็จแล้ว
+ */
+export async function getChatMessageById(params: {
+  chatId: string;
+  messageId: string;
+}): Promise<ChatMessage> {
+  const { chatId, messageId } = params;
+
+  return client.get(
+    `/chat/${chatId}/messages/${messageId}`,
+  );
 }
 
 

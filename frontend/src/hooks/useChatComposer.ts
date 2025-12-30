@@ -1,6 +1,6 @@
 // frontend/src/hooks/useChatComposer.ts
 import { useState } from "react";
-import { sendChatMessage } from "@/lib/api/chat-messages";
+import { sendChatMessage, getChatMessageById, } from "@/lib/api/chat-messages";
 import type { ChatMessage } from "@/types/chat-message";
 
 export function useChatComposer(params: {
@@ -40,23 +40,48 @@ export function useChatComposer(params: {
     setError(null);
 
     try {
-      const message = await sendChatMessage({
+  const message = await sendChatMessage({
+    chatId: params.chatId,
+    ...(hasContent ? { content: text } : {}),
+    ...(hasMedia ? { mediaIds: mediaSnapshot } : {}),
+  });
+
+  // ✅ 1) append ทันที (UX สำคัญมาก)
+  params.onSent?.({
+    ...message,
+    media: Array.isArray(message.media)
+      ? message.media
+      : [],
+  });
+
+  // reset local state
+  setContent("");
+  setMediaIds([]);
+
+  // ✅ 2) patch message ด้วย authoritative data (media ครบ)
+  if (hasMedia) {
+    try {
+      const fullMessage = await getChatMessageById({
         chatId: params.chatId,
-        ...(hasContent ? { content: text } : {}),
-        ...(hasMedia ? { mediaIds: mediaSnapshot } : {}),
+        messageId: message.id,
       });
 
-      // reset local state after authoritative success
-      setContent("");
-      setMediaIds([]);
-
-      params.onSent?.(message);
+      params.onSent?.(fullMessage);
     } catch (err) {
-      console.error("Send chat message failed:", err);
-      setError("Failed to send message");
-    } finally {
-      setLoading(false);
+      // fail-soft
+      console.warn(
+        "Failed to refetch message with media",
+        err,
+      );
     }
+  }
+} catch (err) {
+  console.error("Send chat message failed:", err);
+  setError("Failed to send message");
+} finally {
+  setLoading(false);
+}
+
   }
 
   return {
