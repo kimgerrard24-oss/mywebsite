@@ -46,11 +46,22 @@ export function useChatComposer(params: {
       });
 
       /**
-       * 2) Refetch authoritative message (media + url + mime)
-       *    ใช้ message ตัวจริงเพียงครั้งเดียว
+       * 2) Optimistic append
+       * - ห้าม assume ว่า media พร้อม render
        */
-      let finalMessage: ChatMessage = baseMessage;
+      params.onSent?.({
+        ...baseMessage,
+      });
 
+      /**
+       * reset input state หลัง append เท่านั้น
+       */
+      setContent("");
+      setMediaIds([]);
+
+      /**
+       * 3) Refetch authoritative message (media + url + mime)
+       */
       if (hasMedia) {
         try {
           const fullMessage = await getChatMessageById({
@@ -58,7 +69,10 @@ export function useChatComposer(params: {
             messageId: baseMessage.id,
           });
 
-          finalMessage = {
+          /**
+           * 🔑 normalize media ให้ UI ใช้ได้จริง
+           */
+          const normalized: ChatMessage = {
             ...fullMessage,
             media: Array.isArray(fullMessage.media)
               ? fullMessage.media
@@ -77,21 +91,12 @@ export function useChatComposer(params: {
                   }))
               : [],
           };
+
+          params.onSent?.(normalized);
         } catch {
-          // fail-soft: ใช้ baseMessage ต่อไป
+          // fail-soft: message ยังอยู่ได้ แม้ media จะมาช้า
         }
       }
-
-      /**
-       * 3) Append authoritative message เพียงครั้งเดียว
-       */
-      params.onSent?.(finalMessage);
-
-      /**
-       * 4) reset input state หลัง append เท่านั้น
-       */
-      setContent("");
-      setMediaIds([]);
     } catch (err) {
       console.error("Send chat message failed:", err);
       setError("Failed to send message");
@@ -110,3 +115,5 @@ export function useChatComposer(params: {
     error,
   };
 }
+
+
