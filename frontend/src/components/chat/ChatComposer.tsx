@@ -157,12 +157,14 @@ export default function ChatComposer({
           {pendingPreviews.map((p) => {
             if (p.type === "image") {
               return (
-                <img
-                  key={p.id}
-                  src={p.previewUrl}
-                  className="max-h-40 rounded-md object-cover"
-                  alt=""
-                />
+                <div className="max-w-[240px] aspect-[4/5] overflow-hidden rounded-md bg-gray-100">
+  <img
+    src={p.previewUrl}
+    alt=""
+    className="h-full w-full object-cover"
+  />
+</div>
+
               );
             }
 

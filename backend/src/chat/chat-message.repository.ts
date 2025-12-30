@@ -146,8 +146,7 @@ export class ChatMessageRepository {
       },
     });
   }
-
-  async findMessageById(params: {
+async findMessageById(params: {
   chatId: string;
   messageId: string;
 }) {
@@ -157,6 +156,7 @@ export class ChatMessageRepository {
     where: {
       id: messageId,
       chatId,
+      isDeleted: false,
     },
     include: {
       sender: {
@@ -174,6 +174,7 @@ export class ChatMessageRepository {
     },
   });
 }
+
 
 async findChatById(chatId: string) {
     return this.prisma.chat.findUnique({
