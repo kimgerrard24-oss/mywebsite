@@ -176,7 +176,13 @@ export default function ChatPage({
         initialData={initialMessages}
       />
 
-      <ChatTypingIndicator typingUsers={typingUsers} />
+      <ChatMessageList
+  ref={listRef}
+  chatId={meta.id}
+  initialData={initialMessages}
+  typingUsers={typingUsers}
+/>
+
 
       <ChatRealtimeBridge
         chatId={meta.id}
