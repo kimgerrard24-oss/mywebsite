@@ -27,11 +27,16 @@ type Props = {
     items: ChatMessageUI[];
     nextCursor: string | null;
   };
+
+  /**
+   * 🔔 Typing users (ephemeral, realtime)
+   */
+  typingUsers?: {
+    userId: string;
+    displayName: string | null;
+  }[];
 };
 
-/**
- * Methods ที่ page / composer สามารถเรียกใช้ได้
- */
 export type ChatMessageListHandle = {
   appendMessage: (msg: ChatMessageUI) => void;
   markMessageDeleted: (messageId: string) => void;
@@ -41,7 +46,7 @@ const ChatMessageList = forwardRef<
   ChatMessageListHandle,
   Props
 >(function ChatMessageList(
-  { chatId, initialData },
+  { chatId, initialData, typingUsers },
   ref,
 ) {
   /**
@@ -63,26 +68,15 @@ const ChatMessageList = forwardRef<
     initialData,
   });
 
-  /**
-   * overlay state
-   * - appended: POST / realtime
-   * - patched: DELETE
-   */
   const [appendedItems, setAppendedItems] =
     useState<ChatMessageUI[]>([]);
   const [patchedItems, setPatchedItems] =
     useState<Record<string, ChatMessageUI>>({});
 
-  /**
-   * scroll anchor
-   */
   const bottomRef = useRef<HTMLDivElement | null>(
     null,
   );
 
-  /**
-   * internal delete handler (single source of truth)
-   */
   function markMessageDeleted(messageId: string) {
     setPatchedItems((prev) => {
       const base =
@@ -100,9 +94,6 @@ const ChatMessageList = forwardRef<
     });
   }
 
-  /**
-   * expose method ให้ parent
-   */
   useImperativeHandle(ref, () => ({
     appendMessage(msg: ChatMessageUI) {
       setAppendedItems((prev) => {
@@ -110,7 +101,6 @@ const ChatMessageList = forwardRef<
           (m) => m.id === msg.id,
         );
 
-        // 🔒 Patch existing message (media may arrive later)
         if (index !== -1) {
           const copy = [...prev];
           copy[index] = {
@@ -120,40 +110,26 @@ const ChatMessageList = forwardRef<
           return copy;
         }
 
-        // ➕ New message
         return [...prev, msg];
       });
     },
     markMessageDeleted,
   }));
 
-  /**
-   * initial scroll after hydration
-   */
   useEffect(() => {
     bottomRef.current?.scrollIntoView();
   }, []);
 
-  /**
-   * auto scroll to bottom on new message
-   */
   useEffect(() => {
     bottomRef.current?.scrollIntoView({
       behavior: "smooth",
     });
   }, [fetchedItems.length, appendedItems.length]);
 
-  /**
-   * DELETE (overlay)
-   */
   function handleDeletedMessage(messageId: string) {
     markMessageDeleted(messageId);
   }
 
-  /**
-   * merge:
-   * fetched (ASC) → patched → appended
-   */
   const mergedItems: ChatMessageUI[] = [
     ...[...fetchedItems]
       .reverse()
@@ -190,6 +166,18 @@ const ChatMessageList = forwardRef<
           loading={loading}
           onLoadMore={loadMore}
         />
+      )}
+
+      {/* 🔔 Typing indicator (ephemeral, realtime) */}
+      {typingUsers && typingUsers.length > 0 && (
+        <div className="mt-2 text-xs text-gray-400">
+          {typingUsers
+            .map(
+              (u) => u.displayName ?? "Someone",
+            )
+            .join(", ")}{" "}
+          is typing…
+        </div>
       )}
 
       <div ref={bottomRef} />

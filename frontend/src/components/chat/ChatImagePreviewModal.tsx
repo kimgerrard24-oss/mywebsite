@@ -1,4 +1,5 @@
 // frontend/src/components/chat/ChatImagePreviewModal.tsx
+
 import { useEffect, useRef, useState } from "react";
 import {
   TransformWrapper,
@@ -7,14 +8,7 @@ import {
 } from "react-zoom-pan-pinch";
 
 type Props = {
-  /**
-   * Public image URL (CDN / signed URL)
-   */
   src: string;
-
-  /**
-   * Close handler (single source of truth)
-   */
   onClose: () => void;
 };
 
@@ -40,36 +34,26 @@ export default function ChatImagePreviewModal({
    * ==============================
    */
 
-  // 🔒 Disable background scroll while modal open
   useEffect(() => {
     const originalOverflow = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-
     return () => {
       document.body.style.overflow = originalOverflow;
     };
   }, []);
 
-  // ⌨️ Close on ESC
   useEffect(() => {
     function handleKeydown(e: KeyboardEvent) {
-      if (e.key === "Escape") {
-        onClose();
-      }
+      if (e.key === "Escape") onClose();
     }
-
     window.addEventListener("keydown", handleKeydown);
-    return () => {
-      window.removeEventListener(
-        "keydown",
-        handleKeydown,
-      );
-    };
+    return () =>
+      window.removeEventListener("keydown", handleKeydown);
   }, [onClose]);
 
   /**
    * ==============================
-   * Swipe Down to Close (IG-like)
+   * Swipe Down to Close
    * ==============================
    */
   function handleTouchStart(
@@ -90,7 +74,6 @@ export default function ChatImagePreviewModal({
     const scale =
       transformRef.current?.state.scale ?? 1;
 
-    // ❗ Allow swipe-down only when NOT zoomed
     if (scale > 1) return;
 
     if (deltaY > 0) {
@@ -99,13 +82,9 @@ export default function ChatImagePreviewModal({
   }
 
   function handleTouchEnd() {
-    const threshold = 120;
-
-    if (dragOffset > threshold) {
+    if (dragOffset > 120) {
       onClose();
     }
-
-    // reset
     setDragOffset(0);
     startYRef.current = null;
   }
@@ -125,15 +104,11 @@ export default function ChatImagePreviewModal({
         bg-black/90
         backdrop-blur-sm
         overscroll-contain
-        transition-opacity
       "
       style={{
         opacity:
           dragOffset > 0
-            ? Math.max(
-                0.6,
-                1 - dragOffset / 400,
-              )
+            ? Math.max(0.6, 1 - dragOffset / 400)
             : 1,
       }}
       onClick={onClose}
@@ -145,22 +120,22 @@ export default function ChatImagePreviewModal({
         ref={transformRef}
         initialScale={1}
         minScale={1}
-        maxScale={4}
+        maxScale={5}
         centerOnInit
+        limitToBounds={false}
         doubleClick={{
-          mode: "toggle", // 🔑 double-tap zoom in ↔ reset
+          mode: "toggle",
         }}
-        pinch={{
-          disabled: false,
-        }}
-        panning={{
-          velocityDisabled: true,
-        }}
+        pinch={{ disabled: false }}
+        panning={{ velocityDisabled: true }}
       >
         <TransformComponent
           wrapperStyle={{
-            maxWidth: "100vw",
-            maxHeight: "100vh",
+            width: "100vw",
+            height: "100vh",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
             transform: `translateY(${dragOffset}px)`,
             transition:
               dragOffset === 0
@@ -180,14 +155,16 @@ export default function ChatImagePreviewModal({
             decoding="async"
             referrerPolicy="no-referrer"
             draggable={false}
-            className="
-              max-h-[90vh]
-              max-w-[90vw]
-              object-contain
-              select-none
-              touch-none
-            "
             onClick={(e) => e.stopPropagation()}
+            style={{
+              maxWidth: "none",
+              maxHeight: "none",
+              width: "auto",
+              height: "auto",
+              imageRendering: "auto",
+              touchAction: "none",
+              userSelect: "none",
+            }}
           />
         </TransformComponent>
       </TransformWrapper>
