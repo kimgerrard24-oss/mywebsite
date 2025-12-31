@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useMemo } from 'react';
 import { getNotifications } from '@/lib/api/notifications';
 import NotificationList from './NotificationList';
 import { useNotificationStore } from '@/stores/notification.store';
+import { useNotificationReadAll } from '@/hooks/useNotificationReadAll';
 import type { NotificationItem } from '@/types/notification';
 
 /**
@@ -23,16 +24,35 @@ export default function NotificationBell() {
   const storeItems = useNotificationStore((s) => s.items);
   const unreadCount = useNotificationStore((s) => s.unreadCount);
   const hydrate = useNotificationStore((s) => s.hydrate);
+  const clearUnread = useNotificationStore(
+    (s) => s.clearUnread,
+  );
+
+  // ===== backend hook =====
+  const { markAllRead } = useNotificationReadAll();
 
   /**
    * Narrow store items → UI domain type
-   * - backend guarantees valid notification.type
-   * - UI ต้อง strict
    */
   const items = useMemo(
     () => storeItems as NotificationItem[],
     [storeItems],
   );
+
+  // ===== toggle bell (open = read all) =====
+  function handleToggle() {
+    setOpen((prev) => {
+      const next = !prev;
+
+      // เปิด dropdown = ถือว่าอ่านแล้ว
+      if (next && unreadCount > 0) {
+        clearUnread();   // optimistic (store)
+        markAllRead();   // backend (fire-and-forget)
+      }
+
+      return next;
+    });
+  }
 
   // ===== load notifications เมื่อเปิด dropdown =====
   useEffect(() => {
@@ -45,7 +65,7 @@ export default function NotificationBell() {
       try {
         const res = await getNotifications({ limit: 20 });
         if (!cancelled) {
-          hydrate(res.items ?? []); // backend = authority
+          hydrate(res.items ?? []);
         }
       } catch {
         // fail-soft
@@ -75,11 +95,17 @@ export default function NotificationBell() {
     }
 
     if (open) {
-      document.addEventListener('mousedown', handleClickOutside);
+      document.addEventListener(
+        'mousedown',
+        handleClickOutside,
+      );
     }
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener(
+        'mousedown',
+        handleClickOutside,
+      );
     };
   }, [open]);
 
@@ -90,7 +116,7 @@ export default function NotificationBell() {
         aria-label="Notifications"
         aria-haspopup="true"
         aria-expanded={open}
-        onClick={() => setOpen((v) => !v)}
+        onClick={handleToggle}
         className="
           relative
           inline-flex

@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import NotificationItem from './NotificationItem';
 import type { NotificationItem as Item } from '@/types/notification';
 import { useNotificationReadAll } from '@/hooks/useNotificationReadAll';
+import { useNotificationStore } from '@/stores/notification.store';
 
 type Props = {
   items: Item[];
@@ -11,33 +12,40 @@ type Props = {
 
 export default function NotificationList({ items }: Props) {
   /**
-   * 🔹 state ภายใน (opt-in)
-   * - ใช้สำหรับ optimistic UI (read-all)
+   * state ภายใน (opt-in)
+   * ใช้สำหรับ optimistic UI (read-all)
    */
   const [localItems, setLocalItems] = useState(items);
 
   /**
-   * 🔹 sync เมื่อ source (props) เปลี่ยน
-   * - รองรับ realtime insert
-   * - ป้องกัน stale UI
+   * sync เมื่อ source (props) เปลี่ยน
    */
   useEffect(() => {
     setLocalItems(items);
   }, [items]);
 
   /**
-   * 🔹 hook ใหม่ (backend = authority)
+   * backend hook
    */
   const { markAllRead, loading } = useNotificationReadAll();
 
   /**
-   * 🔹 handler (ไม่กระทบ behavior เดิม)
+   * global store
+   */
+  const clearUnread =
+    useNotificationStore((s) => s.clearUnread);
+
+  /**
+   * handler
    */
   async function handleReadAll() {
-    // optimistic UI
+    // optimistic UI (local)
     setLocalItems((prev) =>
       prev.map((n) => ({ ...n, isRead: true })),
     );
+
+    // optimistic store (global)
+    clearUnread();
 
     try {
       await markAllRead();
@@ -48,7 +56,7 @@ export default function NotificationList({ items }: Props) {
   }
 
   /**
-   * 🔹 behavior เดิม 100%
+   * behavior เดิม
    */
   if (localItems.length === 0) {
     return (

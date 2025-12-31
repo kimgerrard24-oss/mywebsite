@@ -4,6 +4,7 @@ import { useState } from "react";
 import type { Comment } from "@/types/comment";
 import { useUpdateComment } from "@/hooks/useUpdateComment";
 import { useDeleteComment } from "@/hooks/useDeleteComment";
+import ReplyToggle from "@/components/comments/ReplyToggle";
 
 type Props = {
   comment: Comment;
@@ -172,7 +173,7 @@ export default function CommentItem({
         {new Date(comment.createdAt).toLocaleString()}
       </time>
 
-      {/* ================= Actions ================= */}
+            {/* ================= Actions ================= */}
       {(isEditable || isDeletable) && (
         <div className="mt-1 flex gap-3 text-xs">
           {/* ===== Edit ===== */}
@@ -248,6 +249,11 @@ export default function CommentItem({
         </div>
       )}
 
+      {/* ================= Reply ================= */}
+      <div className="mt-2">
+        <ReplyToggle commentId={comment.id} />
+      </div>
+
       {/* ================= Error ================= */}
       {error && (
         <p
@@ -257,6 +263,7 @@ export default function CommentItem({
           {error}
         </p>
       )}
+
     </article>
   );
 }

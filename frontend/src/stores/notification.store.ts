@@ -25,9 +25,15 @@ type NotificationState = {
   pushNotification: (item: NotificationItem) => void;
 
   /**
-   * optimistic read
+   * optimistic read (single)
    */
   markAsRead: (notificationId: string) => void;
+
+  /**
+   * optimistic read (all)
+   * used when opening notification bell
+   */
+  clearUnread: () => void;
 
   /**
    * hydrate from REST
@@ -56,21 +62,40 @@ export const useNotificationStore =
 
         return {
           items: nextItems,
-          unreadCount: state.unreadCount + 1,
+          unreadCount: item.isRead
+            ? state.unreadCount
+            : state.unreadCount + 1,
         };
       }),
 
     markAsRead: (notificationId) =>
+      set((state) => {
+        const target = state.items.find(
+          (n) => n.id === notificationId,
+        );
+        if (!target || target.isRead) {
+          return state;
+        }
+
+        return {
+          items: state.items.map((n) =>
+            n.id === notificationId
+              ? { ...n, isRead: true }
+              : n,
+          ),
+          unreadCount: Math.max(
+            0,
+            state.unreadCount - 1,
+          ),
+        };
+      }),
+
+    clearUnread: () =>
       set((state) => ({
         items: state.items.map((n) =>
-          n.id === notificationId
-            ? { ...n, isRead: true }
-            : n,
+          n.isRead ? n : { ...n, isRead: true },
         ),
-        unreadCount: Math.max(
-          0,
-          state.unreadCount - 1,
-        ),
+        unreadCount: 0,
       })),
 
     hydrate: (items) =>

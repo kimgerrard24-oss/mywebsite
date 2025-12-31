@@ -237,10 +237,17 @@ model Comment {
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
+  parentId  String?
+
+  parent   Comment?  @relation("CommentReplies",fields: [parentId],references: [id],onDelete: Cascade)
+  
+  replies  Comment[] @relation("CommentReplies")
+  
   author User @relation(fields: [authorId], references: [id])
   post   Post @relation(fields: [postId], references: [id], onDelete: Cascade)
 
   @@index([postId, createdAt])
+  @@index([parentId, createdAt])
   @@index([authorId])
 }
 

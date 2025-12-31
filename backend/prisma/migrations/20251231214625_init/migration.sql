@@ -190,9 +190,36 @@ CREATE TABLE "Comment" (
     "deletedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "parentId" TEXT,
 
     CONSTRAINT "Comment_pkey" PRIMARY KEY ("id")
 );
+
+-- =====================================================
+-- 🔒 Enforce ONE-LEVEL reply only (PRODUCTION SAFETY)
+-- =====================================================
+CREATE OR REPLACE FUNCTION enforce_one_level_reply()
+RETURNS trigger AS $$
+BEGIN
+  IF NEW."parentId" IS NOT NULL THEN
+    IF EXISTS (
+      SELECT 1
+      FROM "Comment"
+      WHERE id = NEW."parentId"
+        AND "parentId" IS NOT NULL
+    ) THEN
+      RAISE EXCEPTION 'Nested replies are not allowed';
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_comment_one_level_reply
+BEFORE INSERT OR UPDATE ON "Comment"
+FOR EACH ROW
+EXECUTE FUNCTION enforce_one_level_reply();
 
 -- CreateTable
 CREATE TABLE "Tag" (
@@ -403,6 +430,9 @@ CREATE INDEX "Media_cleanupAt_idx" ON "Media"("cleanupAt");
 CREATE INDEX "Comment_postId_createdAt_idx" ON "Comment"("postId", "createdAt");
 
 -- CreateIndex
+CREATE INDEX "Comment_parentId_createdAt_idx" ON "Comment"("parentId", "createdAt");
+
+-- CreateIndex
 CREATE INDEX "Comment_authorId_idx" ON "Comment"("authorId");
 
 -- CreateIndex
@@ -518,6 +548,9 @@ ALTER TABLE "PostMedia" ADD CONSTRAINT "PostMedia_postId_fkey" FOREIGN KEY ("pos
 
 -- AddForeignKey
 ALTER TABLE "Media" ADD CONSTRAINT "Media_ownerUserId_fkey" FOREIGN KEY ("ownerUserId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Comment" ADD CONSTRAINT "Comment_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "Comment"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Comment" ADD CONSTRAINT "Comment_authorId_fkey" FOREIGN KEY ("authorId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

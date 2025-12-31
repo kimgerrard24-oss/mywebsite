@@ -8,16 +8,22 @@ import { AuthModule } from '../auth/auth.module';
 import { CommentReadPolicy } from './policy/comment-read.policy';
 import { CommentsController } from './update-delete/comments-controller';
 import { NotificationsModule } from '../notifications/notifications.module';
-import { NotificationRealtimeModule } from '../notifications/realtime//notification-realtime.module';
+import { CommentsRepliesController } from './replies/comments-replies.controller';
+import { CommentsRepliesService } from './replies/comments-replies.service';
+import { CommentsRepliesRepository } from './replies/comments-replies.repository';
+import { CommentReplyPolicy } from './replies/policy/comment-reply.policy';
 
 @Module({
   imports: [ AuthModule, NotificationsModule],
-  controllers: [ PostCommentsController, CommentsController ],
+  controllers: [ PostCommentsController, CommentsController, CommentsRepliesController ],
   providers: [
     CommentsService,
     CommentsRepository,
     CommentsPolicy,
     CommentReadPolicy,
+    CommentsRepliesService,
+    CommentsRepliesRepository,
+    CommentReplyPolicy,
   ],
 })
 export class CommentsModule {}

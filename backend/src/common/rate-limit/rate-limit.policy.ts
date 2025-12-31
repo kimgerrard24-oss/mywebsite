@@ -7,6 +7,8 @@ export type RateLimitAction =
   | 'resetPassword'
   | 'postCreate'
   | 'commentCreate'
+  | 'commentReplyCreate'
+  | 'commentReplyRead'
   | 'followUser'
   | 'updateAvatar'
   | 'updateCover'
@@ -16,6 +18,7 @@ export type RateLimitAction =
   | 'messagingSend'
   | 'oauth'
   | 'logout';
+  
 
 export type RateLimitEscalationConfig = {
   maxViolations: number;
@@ -124,6 +127,38 @@ export const RateLimitPolicy: Record<RateLimitAction, RateLimitConfig> = {
       longBlockSec: 86400,  // block 24 ชม.
      },
 },
+ 
+commentReplyCreate: {
+  points: 20,
+  duration: 60,
+  blockDuration: 120,
+
+  windowSec: 60,
+  max: 20,                
+  blockDurationSec: 120,
+
+  escalation: {
+    maxViolations: 3,
+    windowSec: 86400,     // 24 ชม.
+    longBlockSec: 86400,  // block 24 ชม.
+  },
+},
+
+commentReplyRead: {
+  points: 60,
+  duration: 60,
+
+  windowSec: 60,
+  max: 120,              // อ่านได้เยอะกว่าเขียน
+  blockDurationSec: 60,
+
+  escalation: {
+    maxViolations: 3,
+    windowSec: 86400,
+    longBlockSec: 86400,
+  },
+},
+
 
  commentDelete: {
     points: 10,

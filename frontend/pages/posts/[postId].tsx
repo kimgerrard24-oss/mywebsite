@@ -20,6 +20,11 @@ type Props = {
 export default function PostDetailPage({ post }: Props) {
   const router = useRouter();
 
+  // ==============================
+  // 🆕 Comment state (UI-only, fail-soft)
+  // ==============================
+  const [commentCount, setCommentCount] = useState<number>(0);
+
   const firstMedia = post.media?.[0];
   const mediaSrc = firstMedia?.cdnUrl ?? firstMedia?.url;
 
@@ -28,8 +33,6 @@ export default function PostDetailPage({ post }: Props) {
 
   const ogVideo =
     firstMedia?.type === "video" ? mediaSrc : undefined;
-
-  
 
   return (
     <>
@@ -100,16 +103,30 @@ export default function PostDetailPage({ post }: Props) {
             className="mt-6 border-t pt-4"
             aria-label="Post comments"
           >
-            <CommentComposer postId={post.id} />
+            <CommentComposer
+              postId={post.id}
+              onCreated={() => {
+                // fail-soft
+                setCommentCount((c) => c + 1);
+              }}
+            />
 
-            <CommentList postId={post.id} />
-
+            <CommentList
+              postId={post.id}
+              onDeleted={() => {
+                setCommentCount((c) =>
+                  Math.max(0, c - 1)
+                );
+              }}
+            />
           </section>
         </article>
       </main>
     </>
   );
 }
+
+/* ================= SSR ================= */
 
 export const getServerSideProps: GetServerSideProps<Props> =
   async (ctx) => {
@@ -119,6 +136,7 @@ export const getServerSideProps: GetServerSideProps<Props> =
       return { notFound: true };
     }
 
+    // optional auth (SEO-safe)
     await requireSessionSSR(ctx, { optional: true });
 
     try {
