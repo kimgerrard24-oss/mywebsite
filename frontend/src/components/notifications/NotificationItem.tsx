@@ -2,40 +2,111 @@
 
 import type { NotificationItem as Item } from '@/types/notification';
 import { useNotificationRead } from '@/hooks/useNotificationRead';
-import { useState } from 'react';
+import { useRouter } from 'next/router';
+import { useState, useCallback } from 'react';
 
 type Props = {
   item: Item;
 };
 
 export default function NotificationItem({ item }: Props) {
+  const router = useRouter();
   const [isRead, setIsRead] = useState(item.isRead);
-  const { markRead, isLoading } = useNotificationRead();
+  const { markRead } = useNotificationRead();
 
-  async function handleMarkRead() {
-    if (isRead) return;
+  const resolveHref = useCallback((): string | null => {
+    const type = item.type as
+      | 'comment'
+      | 'like'
+      | 'follow'
+      | 'chat';
 
-    setIsRead(true);
-    try {
-      await markRead(item.id);
-    } catch {
-      setIsRead(false);
+    switch (type) {
+      case 'comment':
+      case 'like':
+        return item.entityId
+          ? `/posts/${item.entityId}`
+          : null;
+
+      case 'follow':
+        return item.actor?.id
+          ? `/users/${item.actor.id}`
+          : null;
+
+      case 'chat':
+        return item.entityId
+          ? `/chat/${item.entityId}`
+          : null;
+
+      default:
+        return null;
+    }
+  }, [item]);
+
+  async function handleClick() {
+    if (!isRead) {
+      setIsRead(true);
+      try {
+        await markRead(item.id);
+      } catch {
+        setIsRead(false);
+      }
+    }
+
+    const href = resolveHref();
+    if (href) {
+      router.push(href);
     }
   }
 
   const actorName =
     item.actor?.displayName ?? 'Someone';
 
+  const message = (() => {
+    const type = item.type as
+      | 'comment'
+      | 'like'
+      | 'follow'
+      | 'chat';
+
+    switch (type) {
+      case 'comment':
+        return 'commented on your post';
+      case 'like':
+        return 'liked your post';
+      case 'follow':
+        return 'started following you';
+      case 'chat':
+        return 'sent you a message';
+      default:
+        return null;
+    }
+  })();
+
   return (
     <li
+      role="button"
+      tabIndex={0}
+      onClick={handleClick}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          handleClick();
+        }
+      }}
       className={`
         flex gap-3
         rounded-md border p-3
+        cursor-pointer
+        transition-colors
+        hover:bg-gray-50
+        focus:outline-none
+        focus:ring-2
+        focus:ring-blue-500
         ${isRead ? 'bg-gray-50' : 'bg-white'}
       `}
       aria-live="polite"
     >
-      {/* ===== Avatar ===== */}
       <div className="flex-shrink-0">
         {item.actor?.avatarUrl ? (
           <img
@@ -51,15 +122,12 @@ export default function NotificationItem({ item }: Props) {
         )}
       </div>
 
-      {/* ===== Content ===== */}
       <div className="flex flex-col gap-1 min-w-0">
         <span className="text-sm text-gray-800">
           <strong className="font-medium">
             {actorName}
           </strong>{' '}
-          {item.type === 'comment' && 'commented on your post'}
-          {item.type === 'like' && 'liked your post'}
-          {item.type === 'follow' && 'started following you'}
+          {message}
         </span>
 
         <time
@@ -70,21 +138,9 @@ export default function NotificationItem({ item }: Props) {
         </time>
 
         {!isRead && (
-          <button
-            type="button"
-            onClick={handleMarkRead}
-            disabled={isLoading(item.id)}
-            className="
-              mt-1 self-start
-              text-xs text-blue-600
-              hover:underline
-              disabled:opacity-50
-            "
-          >
-            {isLoading(item.id)
-              ? 'Marking...'
-              : 'Mark as read'}
-          </button>
+          <span className="sr-only">
+            Unread notification
+          </span>
         )}
       </div>
     </li>

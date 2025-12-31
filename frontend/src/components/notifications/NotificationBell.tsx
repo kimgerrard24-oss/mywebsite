@@ -158,7 +158,10 @@ export default function NotificationBell() {
             </h2>
           </header>
 
-          <div className="max-h-[60vh] overflow-y-auto">
+          <div
+            className="max-h-[60vh] overflow-y-auto"
+            onClick={() => setOpen(false)}
+          >
             {loading ? (
               <p className="p-3 text-sm text-gray-500">
                 Loading notifications…
