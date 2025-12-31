@@ -47,7 +47,6 @@ export class CommentsRepliesController {
    * - Read replies (READ)
    */
   @Get()
-  @RateLimit('commentReplyRead')
   @UseGuards(AccessTokenCookieAuthGuard)
   async getReplies(
     @Param('commentId') commentId: string,

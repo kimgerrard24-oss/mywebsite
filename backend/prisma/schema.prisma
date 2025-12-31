@@ -249,6 +249,7 @@ model Comment {
   @@index([postId, createdAt])
   @@index([parentId, createdAt])
   @@index([authorId])
+  @@index([isDeleted, parentId])
 }
 
 model Tag {
