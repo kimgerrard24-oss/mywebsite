@@ -76,6 +76,7 @@ const ChatMessageList = forwardRef<
   const bottomRef = useRef<HTMLDivElement | null>(
     null,
   );
+  const lastMessageCountRef = useRef<number>(0);
 
   function markMessageDeleted(messageId: string) {
     setPatchedItems((prev) => {
@@ -121,10 +122,19 @@ const ChatMessageList = forwardRef<
   }, []);
 
   useEffect(() => {
+  const totalMessages =
+    fetchedItems.length + appendedItems.length;
+
+  // scroll เฉพาะตอนมีข้อความใหม่จริง
+  if (totalMessages > lastMessageCountRef.current) {
     bottomRef.current?.scrollIntoView({
       behavior: "smooth",
     });
-  }, [fetchedItems.length, appendedItems.length]);
+
+    lastMessageCountRef.current = totalMessages;
+  }
+}, [fetchedItems.length, appendedItems.length]);
+
 
   function handleDeletedMessage(messageId: string) {
     markMessageDeleted(messageId);

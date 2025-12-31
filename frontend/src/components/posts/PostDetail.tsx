@@ -31,10 +31,19 @@ export default function PostDetail({ post }: Props) {
 
   const [showLikes, setShowLikes] = useState(false);
 
-  const openLikes = () => {
-    setShowLikes(true);
-    loadLikes({ reset: true });
-  };
+  const toggleLikes = () => {
+  setShowLikes((prev) => {
+    const next = !prev;
+
+    // โหลด likes เฉพาะตอน "เปิด"
+    if (next) {
+      loadLikes({ reset: true });
+    }
+
+    return next;
+  });
+ };
+
 
   return (
     <>
@@ -220,15 +229,13 @@ export default function PostDetail({ post }: Props) {
         aria-label="Post likes"
       >
         <button
-          type="button"
-          onClick={openLikes}
-          className="
-            text-sm
-            text-gray-600
-            hover:underline
-          "
-        >
-          {likeCount} likes
+  type="button"
+  onClick={toggleLikes}
+  aria-expanded={showLikes}
+>
+
+          {showLikes ? "Hide likes" : `${likeCount} likes`}
+
         </button>
 
         {showLikes && (

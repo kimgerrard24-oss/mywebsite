@@ -3,7 +3,12 @@
 import Head from "next/head";
 import type { GetServerSideProps } from "next";
 import { useRouter } from "next/router";
+import { useState } from "react";
+
 import PostDetail from "@/components/posts/PostDetail";
+import CommentComposer from "@/components/comments/CommentComposer";
+import CommentList from "@/components/comments/CommentList";
+
 import { getPostById } from "@/lib/api/posts";
 import { requireSessionSSR } from "@/lib/auth/require-session-ssr";
 import type { PostDetail as PostDetailType } from "@/types/post-detail";
@@ -24,98 +29,109 @@ export default function PostDetailPage({ post }: Props) {
   const ogVideo =
     firstMedia?.type === "video" ? mediaSrc : undefined;
 
+  
+
   return (
-  <>
-    <Head>
-      <title>{post.content.slice(0, 60)} | PhlyPhant</title>
+    <>
+      <Head>
+        <title>{post.content.slice(0, 60)} | PhlyPhant</title>
 
-      <meta
-        name="description"
-        content={post.content.slice(0, 160)}
-      />
+        <meta
+          name="description"
+          content={post.content.slice(0, 160)}
+        />
 
-      <link
-        rel="canonical"
-        href={`https://www.phlyphant.com/posts/${post.id}`}
-      />
+        <link
+          rel="canonical"
+          href={`https://www.phlyphant.com/posts/${post.id}`}
+        />
 
-      {/* ===== OpenGraph base ===== */}
-      <meta property="og:type" content="article" />
-      <meta
-        property="og:title"
-        content={post.content.slice(0, 60)}
-      />
-      <meta
-        property="og:description"
-        content={post.content.slice(0, 160)}
-      />
-      <meta
-        property="og:url"
-        content={`https://www.phlyphant.com/posts/${post.id}`}
-      />
+        <meta property="og:type" content="article" />
+        <meta
+          property="og:title"
+          content={post.content.slice(0, 60)}
+        />
+        <meta
+          property="og:description"
+          content={post.content.slice(0, 160)}
+        />
+        <meta
+          property="og:url"
+          content={`https://www.phlyphant.com/posts/${post.id}`}
+        />
 
-      {/* ===== Media OG (optional, safe) ===== */}
-      {ogImage && (
-        <meta property="og:image" content={ogImage} />
-      )}
+        {ogImage && (
+          <meta property="og:image" content={ogImage} />
+        )}
 
-      {ogVideo && (
-        <>
-          <meta property="og:video" content={ogVideo} />
-          <meta
-            property="og:video:type"
-            content="video/mp4"
-          />
-        </>
-      )}
-    </Head>
+        {ogVideo && (
+          <>
+            <meta property="og:video" content={ogVideo} />
+            <meta
+              property="og:video:type"
+              content="video/mp4"
+            />
+          </>
+        )}
+      </Head>
 
-    <main
-      className="
-        mx-auto
-        w-full
-        max-w-sm
-        sm:max-w-md
-        md:max-w-2xl
-        px-4
-        sm:px-6
-        py-6
-        sm:py-8
-      "
-    >
-      <article
-        aria-label="Post content"
-        className="w-full"
+      <main
+        className="
+          mx-auto
+          w-full
+          max-w-sm
+          sm:max-w-md
+          md:max-w-2xl
+          px-4
+          sm:px-6
+          py-6
+          sm:py-8
+        "
       >
-        <PostDetail post={post} />
-      </article>
-    </main>
-  </>
-);
+        <article
+          aria-label="Post content"
+          className="w-full"
+        >
+          {/* ===== Post ===== */}
+          <PostDetail post={post} />
 
+          {/* ===== Comments ===== */}
+          <section
+            className="mt-6 border-t pt-4"
+            aria-label="Post comments"
+          >
+            <CommentComposer postId={post.id} />
+
+            <CommentList postId={post.id} />
+
+          </section>
+        </article>
+      </main>
+    </>
+  );
 }
 
-export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
-  const postId = ctx.params?.postId;
+export const getServerSideProps: GetServerSideProps<Props> =
+  async (ctx) => {
+    const postId = ctx.params?.postId;
 
-  if (typeof postId !== "string") {
-    return { notFound: true };
-  }
-
-  // optional session (SEO-safe)
-  await requireSessionSSR(ctx, { optional: true });
-
-  try {
-    const post = await getPostById(postId, ctx);
-
-    if (!post) {
+    if (typeof postId !== "string") {
       return { notFound: true };
     }
 
-    return {
-      props: { post },
-    };
-  } catch {
-    return { notFound: true };
-  }
-};
+    await requireSessionSSR(ctx, { optional: true });
+
+    try {
+      const post = await getPostById(postId, ctx);
+
+      if (!post) {
+        return { notFound: true };
+      }
+
+      return {
+        props: { post },
+      };
+    } catch {
+      return { notFound: true };
+    }
+  };

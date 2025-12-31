@@ -2,7 +2,7 @@
 
 export type NotificationItem = {
   id: string;
-  type: 'comment' | 'like' | 'follow';
+  type: 'comment' | 'like' | 'follow' | 'chat_message'
 
   actor: {
     id: string;

@@ -4,6 +4,7 @@ import type { NotificationItem as Item } from '@/types/notification';
 import { useNotificationRead } from '@/hooks/useNotificationRead';
 import { useRouter } from 'next/router';
 import { useState, useCallback } from 'react';
+import { useNotificationStore } from '@/stores/notification.store';
 
 type Props = {
   item: Item;
@@ -13,15 +14,15 @@ export default function NotificationItem({ item }: Props) {
   const router = useRouter();
   const [isRead, setIsRead] = useState(item.isRead);
   const { markRead } = useNotificationRead();
+  const markAsReadInStore =
+    useNotificationStore((s) => s.markAsRead);
 
+  /**
+   * Resolve destination URL from notification
+   * frontend = routing authority
+   */
   const resolveHref = useCallback((): string | null => {
-    const type = item.type as
-      | 'comment'
-      | 'like'
-      | 'follow'
-      | 'chat';
-
-    switch (type) {
+    switch (item.type) {
       case 'comment':
       case 'like':
         return item.entityId
@@ -33,7 +34,7 @@ export default function NotificationItem({ item }: Props) {
           ? `/users/${item.actor.id}`
           : null;
 
-      case 'chat':
+      case 'chat_message':
         return item.entityId
           ? `/chat/${item.entityId}`
           : null;
@@ -46,6 +47,8 @@ export default function NotificationItem({ item }: Props) {
   async function handleClick() {
     if (!isRead) {
       setIsRead(true);
+      markAsReadInStore(item.id);
+
       try {
         await markRead(item.id);
       } catch {
@@ -63,21 +66,19 @@ export default function NotificationItem({ item }: Props) {
     item.actor?.displayName ?? 'Someone';
 
   const message = (() => {
-    const type = item.type as
-      | 'comment'
-      | 'like'
-      | 'follow'
-      | 'chat';
-
-    switch (type) {
+    switch (item.type) {
       case 'comment':
         return 'commented on your post';
+
       case 'like':
         return 'liked your post';
+
       case 'follow':
         return 'started following you';
-      case 'chat':
+
+      case 'chat_message':
         return 'sent you a message';
+
       default:
         return null;
     }
