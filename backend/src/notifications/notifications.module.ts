@@ -5,9 +5,10 @@ import { NotificationsService } from './notifications.service';
 import { NotificationsRepository } from './notifications.repository';
 import { NotificationCacheService } from './cache/notification-cache.service';
 import { AuthModule } from '../auth/auth.module';
+import { NotificationRealtimeModule } from './realtime/notification-realtime.module'
 
 @Module({
-  imports: [ AuthModule ],
+  imports: [ AuthModule, NotificationRealtimeModule, ],
   controllers: [NotificationsController],
   providers: [
     NotificationsService,
