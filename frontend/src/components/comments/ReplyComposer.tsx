@@ -1,25 +1,30 @@
 // frontend/src/components/comments/ReplyComposer.tsx
 
 import { FormEvent, useState } from "react";
-import { useCommentReplies } from "@/hooks/useCommentReplies";
 
 type Props = {
-  parentCommentId: string;
+  onSubmit: (content: string) => Promise<boolean>;
+  loading: boolean;
+  error: string | null;
 };
 
 export default function ReplyComposer({
-  parentCommentId,
+  onSubmit,
+  loading,
+  error,
 }: Props) {
   const [content, setContent] = useState("");
-  const { submitReply, loading, error } =
-    useCommentReplies({ parentCommentId });
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!content.trim()) return;
 
-    const ok = await submitReply(content.trim());
-    if (ok) setContent("");
+    const trimmed = content.trim();
+    if (!trimmed || loading) return;
+
+    const ok = await onSubmit(trimmed);
+    if (ok) {
+      setContent("");
+    }
   }
 
   return (

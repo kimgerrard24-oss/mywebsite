@@ -1,6 +1,6 @@
 // frontend/src/hooks/useCommentReplies.ts
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   createCommentReply,
   getCommentReplies,
@@ -23,17 +23,30 @@ export function useCommentReplies({
   const [initialized, setInitialized] =
     useState(false);
 
+  // 🔒 lifecycle safety
+  const mountedRef = useRef(true);
+  const loadingRef = useRef(false);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
   // reset when parent changes
   useEffect(() => {
     setItems([]);
     setNextCursor(null);
     setInitialized(false);
     setError(null);
+    loadingRef.current = false;
   }, [parentCommentId]);
 
   const loadInitialReplies = useCallback(async () => {
-    if (loading || initialized) return;
+    if (loadingRef.current || initialized) return;
 
+    loadingRef.current = true;
     setLoading(true);
     setError(null);
 
@@ -42,19 +55,25 @@ export function useCommentReplies({
         parentCommentId,
       });
 
+      if (!mountedRef.current) return;
+
       setItems(res.items);
       setNextCursor(res.nextCursor);
       setInitialized(true);
     } catch {
+      if (!mountedRef.current) return;
       setError("Failed to load replies");
     } finally {
+      if (!mountedRef.current) return;
+      loadingRef.current = false;
       setLoading(false);
     }
-  }, [parentCommentId, loading, initialized]);
+  }, [parentCommentId, initialized]);
 
   const loadMoreReplies = useCallback(async () => {
-    if (loading || !nextCursor) return;
+    if (loadingRef.current || !nextCursor) return;
 
+    loadingRef.current = true;
     setLoading(true);
 
     try {
@@ -63,17 +82,22 @@ export function useCommentReplies({
         cursor: nextCursor,
       });
 
+      if (!mountedRef.current) return;
+
       setItems((prev) => [...prev, ...res.items]);
       setNextCursor(res.nextCursor);
     } finally {
+      if (!mountedRef.current) return;
+      loadingRef.current = false;
       setLoading(false);
     }
-  }, [parentCommentId, nextCursor, loading]);
+  }, [parentCommentId, nextCursor]);
 
   const submitReply = useCallback(
     async (content: string) => {
-      if (loading) return null;
+      if (loadingRef.current) return null;
 
+      loadingRef.current = true;
       setLoading(true);
       setError(null);
 
@@ -83,17 +107,21 @@ export function useCommentReplies({
           { content },
         );
 
-        // 🔔 backend is source of truth
+        if (!mountedRef.current) return null;
+
         setItems((prev) => [reply, ...prev]);
         return reply;
       } catch {
+        if (!mountedRef.current) return null;
         setError("Unable to post reply");
         return null;
       } finally {
+        if (!mountedRef.current) return null;
+        loadingRef.current = false;
         setLoading(false);
       }
     },
-    [parentCommentId, loading],
+    [parentCommentId],
   );
 
   const updateItem = useCallback(

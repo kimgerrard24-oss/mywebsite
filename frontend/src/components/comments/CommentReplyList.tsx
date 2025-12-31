@@ -1,26 +1,33 @@
 // frontend/src/components/comments/CommentReplyList.tsx
+
 import { useEffect, useCallback } from "react";
 import CommentItem from "./CommentItem";
-import { useCommentReplies } from "@/hooks/useCommentReplies";
+import type { Comment } from "@/types/comment";
 
 type Props = {
-  parentCommentId: string;
+  items: Comment[];
+  loadInitialReplies: () => void;
+  loadMoreReplies: () => void;
+  hasMore: boolean;
+  loading: boolean;
+  error: string | null;
+  updateItem: (
+    commentId: string,
+    updater: (prev: Comment) => Comment,
+  ) => void;
+  removeItem: (commentId: string) => void;
 };
 
 export default function CommentReplyList({
-  parentCommentId,
+  items,
+  loadInitialReplies,
+  loadMoreReplies,
+  hasMore,
+  loading,
+  error,
+  updateItem,
+  removeItem,
 }: Props) {
-  const {
-    items,
-    loadInitialReplies,
-    loadMoreReplies,
-    hasMore,
-    loading,
-    error,
-    updateItem,
-    removeItem,
-  } = useCommentReplies({ parentCommentId });
-
   useEffect(() => {
     loadInitialReplies();
   }, [loadInitialReplies]);
