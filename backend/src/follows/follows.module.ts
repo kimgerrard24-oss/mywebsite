@@ -10,10 +10,9 @@ import { FollowRemovedEvent } from './events/follow-removed.event';
 import { FollowersMapper } from './mappers/followers.mapper';
 import { AuthModule } from '../auth/auth.module';
 import { NotificationsModule } from '../notifications/notifications.module';
-import { NotificationRealtimeModule } from '../notifications/realtime//notification-realtime.module';
 
 @Module({
-  imports: [ AuthModule, NotificationsModule, NotificationRealtimeModule ],
+  imports: [ AuthModule, NotificationsModule],
   controllers: [FollowsController],
   providers: [
     FollowsService,

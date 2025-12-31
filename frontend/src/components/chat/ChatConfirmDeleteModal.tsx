@@ -27,14 +27,16 @@ export default function ChatConfirmDeleteModal({
       />
 
       {/* Modal */}
-      <div className="relative z-10 w-80 rounded-lg bg-white p-4">
+      <div className="relative z-10 w-80 rounded-lg bg-white p-5 shadow-lg">
+        {/* ⚠️ Primary warning */}
         <h3
           id="chat-delete-title"
-          className="mb-2 text-sm font-semibold"
+          className="mb-3 text-sm font-semibold text-red-600"
         >
           This message will be deleted for everyone in this chat.
         </h3>
 
+        {/* Secondary info */}
         <p className="mb-4 text-xs text-gray-600">
           This action cannot be undone.
         </p>
@@ -60,3 +62,4 @@ export default function ChatConfirmDeleteModal({
     </div>
   );
 }
+

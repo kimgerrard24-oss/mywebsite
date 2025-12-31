@@ -1,5 +1,6 @@
 // frontend/src/components/notifications/NotificationList.tsx
-import { useState } from 'react';
+
+import { useEffect, useState } from 'react';
 import NotificationItem from './NotificationItem';
 import type { NotificationItem as Item } from '@/types/notification';
 import { useNotificationReadAll } from '@/hooks/useNotificationReadAll';
@@ -11,9 +12,18 @@ type Props = {
 export default function NotificationList({ items }: Props) {
   /**
    * 🔹 state ภายใน (opt-in)
-   * - ถ้าไม่ใช้ read-all → render เหมือนเดิม
+   * - ใช้สำหรับ optimistic UI (read-all)
    */
   const [localItems, setLocalItems] = useState(items);
+
+  /**
+   * 🔹 sync เมื่อ source (props) เปลี่ยน
+   * - รองรับ realtime insert
+   * - ป้องกัน stale UI
+   */
+  useEffect(() => {
+    setLocalItems(items);
+  }, [items]);
 
   /**
    * 🔹 hook ใหม่ (backend = authority)
@@ -21,7 +31,7 @@ export default function NotificationList({ items }: Props) {
   const { markAllRead, loading } = useNotificationReadAll();
 
   /**
-   * 🔹 handler ใหม่ (ไม่กระทบ behavior เดิม)
+   * 🔹 handler (ไม่กระทบ behavior เดิม)
    */
   async function handleReadAll() {
     // optimistic UI
@@ -52,7 +62,6 @@ export default function NotificationList({ items }: Props) {
 
   return (
     <section aria-label="Notification list">
-      {/* 🔹 ส่วนหัว (เพิ่มแบบไม่กระทบเดิม) */}
       <header className="mb-2 flex items-center justify-between">
         <span className="sr-only">Notifications</span>
 
@@ -72,7 +81,6 @@ export default function NotificationList({ items }: Props) {
         )}
       </header>
 
-      {/* 🔹 list เดิม */}
       <ul className="flex flex-col gap-2">
         {localItems.map((item) => (
           <NotificationItem

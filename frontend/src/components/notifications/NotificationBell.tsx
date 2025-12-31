@@ -1,10 +1,10 @@
 // frontend/src/components/notifications/NotificationBell.tsx
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useMemo } from 'react';
 import { getNotifications } from '@/lib/api/notifications';
-import type { NotificationItem } from '@/types/notification';
 import NotificationList from './NotificationList';
 import { useNotificationStore } from '@/stores/notification.store';
+import type { NotificationItem } from '@/types/notification';
 
 /**
  * NotificationBell
@@ -15,18 +15,23 @@ import { useNotificationStore } from '@/stores/notification.store';
  */
 export default function NotificationBell() {
   const [open, setOpen] = useState(false);
-  const [items, setItems] = useState<NotificationItem[]>([]);
   const [loading, setLoading] = useState(false);
 
   const containerRef = useRef<HTMLDivElement | null>(null);
 
-  // ===== subscribe realtime unread count (source of truth) =====
-  const unreadCount = useNotificationStore(
-    (s) => s.unreadCount,
-  );
+  // ===== store (single source of truth) =====
+  const storeItems = useNotificationStore((s) => s.items);
+  const unreadCount = useNotificationStore((s) => s.unreadCount);
+  const hydrate = useNotificationStore((s) => s.hydrate);
 
-  const hydrate = useNotificationStore(
-    (s) => s.hydrate,
+  /**
+   * Narrow store items → UI domain type
+   * - backend guarantees valid notification.type
+   * - UI ต้อง strict
+   */
+  const items = useMemo(
+    () => storeItems as NotificationItem[],
+    [storeItems],
   );
 
   // ===== load notifications เมื่อเปิด dropdown =====
@@ -40,9 +45,7 @@ export default function NotificationBell() {
       try {
         const res = await getNotifications({ limit: 20 });
         if (!cancelled) {
-          const nextItems = res.items ?? [];
-          setItems(nextItems);
-          hydrate(nextItems); // sync store with backend (authority)
+          hydrate(res.items ?? []); // backend = authority
         }
       } catch {
         // fail-soft
@@ -81,11 +84,7 @@ export default function NotificationBell() {
   }, [open]);
 
   return (
-    <div
-      ref={containerRef}
-      className="relative"
-    >
-      {/* ===== Bell Button ===== */}
+    <div ref={containerRef} className="relative">
       <button
         type="button"
         aria-label="Notifications"
@@ -109,7 +108,6 @@ export default function NotificationBell() {
           🔔
         </span>
 
-        {/* ===== Unread badge (realtime) ===== */}
         {unreadCount > 0 && (
           <span
             aria-label={`${unreadCount} unread notifications`}
@@ -135,7 +133,6 @@ export default function NotificationBell() {
         )}
       </button>
 
-      {/* ===== Dropdown ===== */}
       {open && (
         <section
           role="dialog"

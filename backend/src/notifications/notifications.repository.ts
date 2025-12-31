@@ -75,18 +75,30 @@ async findMany(params: {
   }
 
   async create(params: {
-    userId: string;
-    actorUserId: string;
-    type: string;
-    entityId: string;
-  }) {
-    return this.prisma.notification.create({
-      data: {
-        userId: params.userId,
-        actorUserId: params.actorUserId,
-        type: params.type,
-        entityId: params.entityId,
+  userId: string;
+  actorUserId: string;
+  type: string;
+  entityId: string;
+}) {
+  return this.prisma.notification.create({
+    data: {
+      userId: params.userId,
+      actorUserId: params.actorUserId,
+      type: params.type,
+      entityId: params.entityId,
+    },
+    include: {
+      actor: {
+        select: {
+          id: true,
+          displayName: true,
+          avatarUrl: true,
+        },
       },
-    });
-  }
+    },
+  });
 }
+
+}
+
+

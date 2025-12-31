@@ -1,16 +1,45 @@
 // frontend/pages/notifications.tsx
+
 import Head from 'next/head';
+import { useEffect, useMemo } from 'react';
 import NotificationList from '@/components/notifications/NotificationList';
 import { useNotifications } from '@/hooks/useNotifications';
+import { useNotificationStore } from '@/stores/notification.store';
+import type { NotificationItem } from '@/types/notification';
 
 export default function NotificationsPage() {
   const {
-    items,
+    items: fetchedItems,
     loading,
     error,
     loadMore,
     hasMore,
   } = useNotifications();
+
+  // ===== store (single source of truth) =====
+  const storeItems = useNotificationStore((s) => s.items);
+  const hydrate = useNotificationStore((s) => s.hydrate);
+
+  /**
+   * Sync REST result → store
+   * - backend = authority
+   * - รองรับ realtime merge
+   */
+  useEffect(() => {
+    if (fetchedItems.length > 0) {
+      hydrate(fetchedItems);
+    }
+  }, [fetchedItems, hydrate]);
+
+  /**
+   * Narrow store items → UI domain type
+   * - backend guarantees type correctness
+   * - UI ต้อง strict
+   */
+  const items = useMemo(
+    () => storeItems as NotificationItem[],
+    [storeItems],
+  );
 
   return (
     <>

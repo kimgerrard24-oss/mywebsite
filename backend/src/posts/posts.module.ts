@@ -16,7 +16,6 @@ import { PostLikedEvent } from './events/post-liked.event';
 import { PostUnlikePolicy } from './policy/post-unlike.policy';
 import { CommentsModule } from '../comments/comments.module';
 import { NotificationsModule } from '../notifications/notifications.module'; // ✅
-import { NotificationRealtimeModule } from '../notifications/realtime//notification-realtime.module';
 
 @Module({
   imports: [
@@ -24,7 +23,6 @@ import { NotificationRealtimeModule } from '../notifications/realtime//notificat
     AuthModule, 
     NotificationsModule, 
     CommentsModule,
-    NotificationRealtimeModule
   ],
   controllers: [PostsController],
   providers: [

@@ -23,7 +23,6 @@ import { PostUnlikePolicy } from './policy/post-unlike.policy';
 import { PostUnlikeResponseDto } from './dto/post-unlike-response.dto';
 import { PostLikeDto } from './dto/post-like.dto';
 import { NotificationsService } from '../notifications/notifications.service';
-import { NotificationRealtimeService } from '../notifications/realtime/notification-realtime.service';
 import { NotificationMapper } from '../notifications/mapper/notification.mapper';
 
 @Injectable()
@@ -40,7 +39,6 @@ export class PostsService {
     private readonly unlikePolicy: PostUnlikePolicy,
     private readonly postslikes: PostsRepository,
     private readonly notifications: NotificationsService,
-    private readonly notificationRealtime: NotificationRealtimeService,
   ) {}
 
  async createPost(params: {
@@ -427,32 +425,23 @@ async toggleLike(params: {
     userId,
   });
 
-  // 🔔 CREATE NOTIFICATION + REALTIME (only when liked, fail-soft)
+  // 🔔 CREATE NOTIFICATION (only when liked, fire-and-forget, fail-soft)
   if (
     result.liked === true &&
     post.authorId !== userId
   ) {
     try {
-      const notification =
-        await this.notifications.createNotification({
-          userId: post.authorId,
-          actorUserId: userId,
-          type: 'like',
-          entityId: postId,
-          payload: {
-            postId,
-          },
-        });
-
-      // 🔔 REALTIME EMIT (delivery only)
-      this.notificationRealtime.emitNewNotification(
-        post.authorId,
-        {
-          notification: NotificationMapper.toDto(notification),
+      await this.notifications.createNotification({
+        userId: post.authorId,
+        actorUserId: userId,
+        type: 'like',
+        entityId: postId,
+        payload: {
+          postId,
         },
-      );
+      });
     } catch {
-      // ❗ notification / realtime fail ต้องไม่กระทบ like
+      // ❗ notification fail ต้องไม่กระทบ like
     }
   }
 
@@ -464,6 +453,7 @@ async toggleLike(params: {
 
   return result;
 }
+
 
 
   async unlikePost(params: {

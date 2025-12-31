@@ -11,7 +11,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { NotificationRealtimeModule } from '../notifications/realtime//notification-realtime.module';
 
 @Module({
-  imports: [ AuthModule, NotificationsModule, NotificationRealtimeModule],
+  imports: [ AuthModule, NotificationsModule],
   controllers: [ PostCommentsController, CommentsController ],
   providers: [
     CommentsService,
