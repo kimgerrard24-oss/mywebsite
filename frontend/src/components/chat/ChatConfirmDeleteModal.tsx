@@ -32,7 +32,7 @@ export default function ChatConfirmDeleteModal({
           id="chat-delete-title"
           className="mb-2 text-sm font-semibold"
         >
-          Delete message?
+          This message will be deleted for everyone in this chat.
         </h3>
 
         <p className="mb-4 text-xs text-gray-600">

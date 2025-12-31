@@ -96,9 +96,6 @@ export class ChatRepository {
           },
         },
         messages: {
-          where: {
-            isDeleted: false,
-          },
           orderBy: {
             createdAt: 'desc',
           },
@@ -167,7 +164,6 @@ export class ChatRepository {
     return this.prisma.chatMessage.findMany({
       where: {
         chatId,
-        isDeleted: false,
       },
       orderBy: {
         createdAt: 'desc',

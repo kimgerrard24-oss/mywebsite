@@ -170,19 +170,13 @@ export default function ChatPage({
   }
   messages={
     <>
-      <ChatMessageList
-        ref={listRef}
-        chatId={meta.id}
-        initialData={initialMessages}
-      />
-
+    
       <ChatMessageList
   ref={listRef}
   chatId={meta.id}
   initialData={initialMessages}
   typingUsers={typingUsers}
-/>
-
+      />
 
       <ChatRealtimeBridge
         chatId={meta.id}

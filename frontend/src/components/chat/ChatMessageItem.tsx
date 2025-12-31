@@ -35,22 +35,23 @@ export default function ChatMessageItem({
   
   const { remove } = useDeleteChatMessage();
 
-  /**
-   * ==============================
-   * DELETED STATE
-   * ==============================
-   */
-  if (message.isDeleted) {
-    return (
-      <div
-        className={`mb-2 text-xs italic text-gray-400 ${
-          isOwn ? "text-right" : "text-left"
-        }`}
-      >
-        Message deleted
-      </div>
-    );
-  }
+ /**
+ * ==============================
+ * DELETED STATE (persistent + realtime)
+ * ==============================
+ */
+if (message.isDeleted || message.deletedAt) {
+  return (
+    <div
+      className={`mb-2 text-xs italic text-gray-400 ${
+        isOwn ? "text-right" : "text-left"
+      }`}
+    >
+      Message deleted
+    </div>
+  );
+}
+
 
   const timeLabel = message.createdAt
     ? new Date(message.createdAt).toLocaleTimeString(

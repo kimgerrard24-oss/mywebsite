@@ -237,7 +237,6 @@ async sendMessage(params: {
 }
 
 
-
    async getUnreadCount(params: {
     chatId: string;
     viewerUserId: string;

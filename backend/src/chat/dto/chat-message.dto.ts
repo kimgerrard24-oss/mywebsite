@@ -7,6 +7,9 @@ export class ChatMessageDto {
   content!: string | null;
   createdAt!: string;
 
+  isDeleted!: boolean;
+  deletedAt!: string | null;
+
   sender!: {
     id: string;
     displayName: string | null;
@@ -29,6 +32,11 @@ export class ChatMessageDto {
       id: row.id,
       content: row.content ?? null,
       createdAt: row.createdAt.toISOString(),
+
+      isDeleted: !!row.deletedAt || !!row.isDeleted,
+      deletedAt: row.deletedAt
+      ? row.deletedAt.toISOString()
+      : null,
 
       sender: {
         id: row.sender?.id,

@@ -71,15 +71,31 @@ export class ChatMessageRepository {
     });
   }
 
-  softDelete(messageId: string) {
-    return this.prisma.chatMessage.update({
-      where: { id: messageId },
-      data: {
-        isDeleted: true,
-        deletedAt: new Date(),
+ softDelete(messageId: string) {
+  return this.prisma.chatMessage.update({
+    where: { id: messageId },
+    data: {
+      content: null,          
+      isDeleted: true,
+      deletedAt: new Date(),
+    },
+    include: {
+      sender: {
+        select: {
+          id: true,
+          displayName: true,
+          avatarUrl: true,
+        },
       },
-    });
-  }
+      media: {
+        include: {
+          media: true,
+        },
+      },
+    },
+  });
+}
+
 
   async findChatForRead(chatId: string) {
     return this.prisma.chat.findUnique({
@@ -108,7 +124,6 @@ export class ChatMessageRepository {
   return this.prisma.chatMessage.findFirst({
     where: {
       chatId,
-      isDeleted: false,
     },
     orderBy: { createdAt: 'desc' },
     select: { id: true },
@@ -156,7 +171,6 @@ async findMessageById(params: {
     where: {
       id: messageId,
       chatId,
-      isDeleted: false,
     },
     include: {
       sender: {

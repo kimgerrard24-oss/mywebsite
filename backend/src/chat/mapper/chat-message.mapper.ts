@@ -7,7 +7,7 @@ export class ChatMessageMapper {
       chatId: row.chatId,
       content: row.content ?? null,
       isEdited: row.isEdited,
-      isDeleted: true,
+      isDeleted: row.isDeleted,
       deletedAt: row.deletedAt?.toISOString() ?? null,
       editedAt: row.editedAt?.toISOString() ?? null,
       updatedAt: row.updatedAt.toISOString(),
