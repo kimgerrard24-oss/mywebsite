@@ -39,18 +39,12 @@ export function useNotificationRealtime() {
   useEffect(() => {
     const socket = getSocket();
 
-    if (!socket.connected) {
-      socket.connect();
-    }
-
     // ===== notification domain =====
     const notificationHandler = (
       payload: NotificationNewPayload,
     ) => {
       pushNotification(payload.notification);
     };
-
-    socket.on('notification:new', notificationHandler);
 
     // ===== chat domain → notification =====
     const chatHandler = (
@@ -66,6 +60,7 @@ export function useNotificationRealtime() {
       });
     };
 
+    socket.on('notification:new', notificationHandler);
     socket.on('chat:new-message', chatHandler);
 
     return () => {

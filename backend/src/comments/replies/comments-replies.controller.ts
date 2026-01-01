@@ -10,6 +10,7 @@ import {
   UseGuards,
 } from '@nestjs/common';
 import { AccessTokenCookieAuthGuard } from '../../auth/guards/access-token-cookie.guard';
+import { OptionalAuthGuard } from '../../posts/guards/optional-auth.guard';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import { RateLimit } from '../../common/rate-limit/rate-limit.decorator';
 import { CommentsRepliesService } from './comments-replies.service';
@@ -44,10 +45,10 @@ export class CommentsRepliesController {
 
   /**
    * GET /comments/:id/replies
-   * - Read replies (READ)
+   * - Read replies (READ, public)
    */
   @Get()
-  @UseGuards(AccessTokenCookieAuthGuard)
+  @UseGuards(OptionalAuthGuard)
   async getReplies(
     @Param('commentId') commentId: string,
     @Query() query: GetRepliesQueryDto,
