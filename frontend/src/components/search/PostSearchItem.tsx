@@ -1,6 +1,7 @@
 // frontend/src/components/search/PostSearchItem.tsx
 
 import type { SearchPostItem } from '@/lib/api/search-posts';
+import Link from "next/link";
 
 type Props = {
   post: SearchPostItem;
@@ -8,6 +9,10 @@ type Props = {
 
 export default function PostSearchItem({ post }: Props) {
   return (
+    <Link
+      href={`/posts/${post.id}`}
+      className="block"
+    >
     <article className="rounded-md border p-3 hover:bg-gray-50">
       <header className="mb-1 text-sm text-gray-600">
         {post.author.displayName ?? 'Unknown'}
@@ -26,5 +31,6 @@ export default function PostSearchItem({ post }: Props) {
         ).toLocaleString()}
       </time>
     </article>
+    </Link>
   );
 }
