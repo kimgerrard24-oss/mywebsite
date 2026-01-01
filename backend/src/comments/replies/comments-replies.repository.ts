@@ -89,4 +89,24 @@ export class CommentsRepliesRepository {
       },
     });
   }
+
+  async findReadablePostByParentComment(
+  parentCommentId: string,
+) {
+  return this.prisma.post.findFirst({
+    where: {
+      comments: {
+        some: {
+          id: parentCommentId,
+          isDeleted: false,
+        },
+      },
+      isDeleted: false,
+      isHidden: false,
+      isPublished: true,
+    },
+    select: { id: true },
+  });
+}
+
 }

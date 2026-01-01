@@ -233,6 +233,15 @@ BEFORE INSERT ON "Comment"
 FOR EACH ROW
 EXECUTE FUNCTION enforce_one_level_reply();
 
+-- CreateTable
+CREATE TABLE "CommentLike" (
+    "id" TEXT NOT NULL,
+    "commentId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "CommentLike_pkey" PRIMARY KEY ("id")
+);
 
 -- CreateTable
 CREATE TABLE "Tag" (
@@ -449,6 +458,18 @@ CREATE INDEX "Comment_parentId_createdAt_idx" ON "Comment"("parentId", "createdA
 CREATE INDEX "Comment_authorId_idx" ON "Comment"("authorId");
 
 -- CreateIndex
+CREATE INDEX "Comment_isDeleted_parentId_idx" ON "Comment"("isDeleted", "parentId");
+
+-- CreateIndex
+CREATE INDEX "CommentLike_commentId_idx" ON "CommentLike"("commentId");
+
+-- CreateIndex
+CREATE INDEX "CommentLike_userId_idx" ON "CommentLike"("userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "CommentLike_commentId_userId_key" ON "CommentLike"("commentId", "userId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "Tag_name_key" ON "Tag"("name");
 
 -- CreateIndex
@@ -570,6 +591,12 @@ ALTER TABLE "Comment" ADD CONSTRAINT "Comment_authorId_fkey" FOREIGN KEY ("autho
 
 -- AddForeignKey
 ALTER TABLE "Comment" ADD CONSTRAINT "Comment_postId_fkey" FOREIGN KEY ("postId") REFERENCES "Post"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CommentLike" ADD CONSTRAINT "CommentLike_commentId_fkey" FOREIGN KEY ("commentId") REFERENCES "Comment"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CommentLike" ADD CONSTRAINT "CommentLike_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "PostTag" ADD CONSTRAINT "PostTag_postId_fkey" FOREIGN KEY ("postId") REFERENCES "Post"("id") ON DELETE CASCADE ON UPDATE CASCADE;

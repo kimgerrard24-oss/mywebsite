@@ -12,15 +12,18 @@ import { CommentsRepliesController } from './replies/comments-replies.controller
 import { CommentsRepliesService } from './replies/comments-replies.service';
 import { CommentsRepliesRepository } from './replies/comments-replies.repository';
 import { CommentReplyPolicy } from './replies/policy/comment-reply.policy';
+import { CommentsLikesController } from './likes/comments-likes.controller';
+import { CommentsLikesService } from './likes/comments-likes.service';
 
 @Module({
   imports: [ AuthModule, NotificationsModule],
-  controllers: [ PostCommentsController, CommentsController, CommentsRepliesController ],
+  controllers: [ PostCommentsController, CommentsLikesController, CommentsController, CommentsRepliesController ],
   providers: [
     CommentsService,
     CommentsRepository,
     CommentsPolicy,
     CommentReadPolicy,
+    CommentsLikesService,
     CommentsRepliesService,
     CommentsRepliesRepository,
     CommentReplyPolicy,

@@ -35,6 +35,7 @@ model User {
   updatedAt                 DateTime             @updatedAt
   auditLogs                 AuditLog[]
   comments                  Comment[]
+  commentLikes              CommentLike[]
   media                     Media[]
   oauthAccounts             OAuthAccount[]
   passwordResetTokens       PasswordResetToken[]
@@ -233,12 +234,12 @@ model Comment {
 
   isDeleted Boolean   @default(false)
   deletedAt DateTime?
-
+  likes     CommentLike[] 
   createdAt DateTime  @default(now())
   updatedAt DateTime  @updatedAt
 
   parentId  String?
-
+  
   parent   Comment?  @relation("CommentReplies",fields: [parentId],references: [id],onDelete: Cascade)
   
   replies  Comment[] @relation("CommentReplies")
@@ -250,6 +251,22 @@ model Comment {
   @@index([parentId, createdAt])
   @@index([authorId])
   @@index([isDeleted, parentId])
+}
+
+model CommentLike {
+  id        String   @id @default(uuid())
+  commentId String
+  userId    String
+  createdAt DateTime @default(now())
+
+  // relations
+  comment Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // constraints
+  @@unique([commentId, userId]) // 1 user like ต่อ 1 comment
+  @@index([commentId])
+  @@index([userId])
 }
 
 model Tag {

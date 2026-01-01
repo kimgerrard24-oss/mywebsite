@@ -5,6 +5,8 @@ import type { Comment } from "@/types/comment";
 import { useUpdateComment } from "@/hooks/useUpdateComment";
 import { useDeleteComment } from "@/hooks/useDeleteComment";
 import ReplyToggle from "@/components/comments/ReplyToggle";
+import { useCommentLike } from '@/hooks/useCommentLike';
+import CommentLikeButton from './CommentLikeButton';
 
 type Props = {
   comment: Comment;
@@ -65,6 +67,18 @@ export default function CommentItem({
     loading: updating,
     error: updateError,
   } = useUpdateComment();
+  
+    const {
+    liked,
+    likeCount,
+    loading: liking,
+    toggleLike,
+  } = useCommentLike({
+    commentId: comment.id,
+    initialLiked: comment.isLiked,
+    initialLikeCount: comment.likeCount,
+  });
+
 
   const {
     submit: submitDelete,
@@ -108,7 +122,7 @@ export default function CommentItem({
     }
   }
 
-  const loading = updating || deleting;
+  const loading = updating || deleting || liking;
   const error = updateError || deleteError;
 
   return (
@@ -173,81 +187,88 @@ export default function CommentItem({
         {new Date(comment.createdAt).toLocaleString()}
       </time>
 
-            {/* ================= Actions ================= */}
-      {(isEditable || isDeletable) && (
-        <div className="mt-1 flex gap-3 text-xs">
-          {/* ===== Edit ===== */}
-          {isEditable && (
-            <>
-              {!editing ? (
-                <button
-                  type="button"
-                  onClick={() => setEditing(true)}
-                  className="text-blue-600 hover:underline"
-                >
-                  แก้ไข
-                </button>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    onClick={handleSave}
-                    disabled={loading}
-                    className="text-blue-600 hover:underline disabled:opacity-50"
-                  >
-                    บันทึก
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setEditing(false);
-                      setContent(comment.content);
-                    }}
-                    className="text-gray-500 hover:underline"
-                  >
-                    ยกเลิก
-                  </button>
-                </>
-              )}
-            </>
-          )}
+           {/* ================= Actions ================= */}
+{(isEditable || isDeletable || true) && (
+  <div className="mt-1 flex items-center gap-4 text-xs">
+    {/* ❤️ Like (ทุกคนเห็นได้) */}
+    <CommentLikeButton
+      liked={liked}
+      likeCount={likeCount}
+      loading={liking}
+      onToggle={toggleLike}
+    />
 
-          {/* ===== Delete ===== */}
-          {isDeletable && !editing && (
-            <>
-              {!confirmingDelete ? (
-                <button
-                  type="button"
-                  onClick={() => setConfirmingDelete(true)}
-                  className="text-red-600 hover:underline"
-                >
-                  ลบ
-                </button>
-              ) : (
-                <>
-                  <button
-                    type="button"
-                    onClick={handleDelete}
-                    disabled={loading}
-                    className="text-red-600 hover:underline disabled:opacity-50"
-                  >
-                    ยืนยันลบ
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setConfirmingDelete(false)
-                    }
-                    className="text-gray-500 hover:underline"
-                  >
-                    ยกเลิก
-                  </button>
-                </>
-              )}
-            </>
-          )}
-        </div>
-      )}
+    {/* ✏️ Edit */}
+    {isEditable && (
+      <>
+        {!editing ? (
+          <button
+            type="button"
+            onClick={() => setEditing(true)}
+            className="text-blue-600 hover:underline"
+          >
+            แก้ไข
+          </button>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={loading}
+              className="text-blue-600 hover:underline disabled:opacity-50"
+            >
+              บันทึก
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setEditing(false);
+                setContent(comment.content);
+              }}
+              className="text-gray-500 hover:underline"
+            >
+              ยกเลิก
+            </button>
+          </>
+        )}
+      </>
+    )}
+
+    {/* 🗑 Delete */}
+    {isDeletable && !editing && (
+      <>
+        {!confirmingDelete ? (
+          <button
+            type="button"
+            onClick={() => setConfirmingDelete(true)}
+            className="text-red-600 hover:underline"
+          >
+            ลบ
+          </button>
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={handleDelete}
+              disabled={loading}
+              className="text-red-600 hover:underline disabled:opacity-50"
+            >
+              ยืนยันลบ
+            </button>
+            <button
+              type="button"
+              onClick={() => setConfirmingDelete(false)}
+              className="text-gray-500 hover:underline"
+            >
+              ยกเลิก
+            </button>
+          </>
+        )}
+      </>
+    )}
+  </div>
+)}
+
 
       {/* ================= Reply ================= */}
       <div className="mt-2">

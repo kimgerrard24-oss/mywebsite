@@ -6,6 +6,14 @@ export class CommentDto {
   content!: string;
   createdAt!: string;
 
+  /**
+   * ❤️ Like metadata (optional)
+   * - ไม่จำเป็นต้องมีทุก context
+   * - ใช้เฉพาะใน view ที่ต้องการ
+   */
+  likeCount?: number;
+  isLiked?: boolean;
+
   static fromEntity(entity: any): CommentDto {
     return {
       id: entity.id,
@@ -13,6 +21,13 @@ export class CommentDto {
       authorId: entity.authorId,
       content: entity.content,
       createdAt: entity.createdAt.toISOString(),
+
+      /**
+       * ⚠️ intentionally not mapping like fields here
+       * เพราะ:
+       * - entity บาง query ไม่มี _count / likes
+       * - view-aware logic ต้องอยู่ใน Mapper
+       */
     };
   }
 }

@@ -21,6 +21,27 @@ export class CommentMapper {
       );
     }
 
+    /**
+     * =========================
+     * ❤️ Like metadata (safe)
+     * =========================
+     * - likeCount: derived from _count.likes
+     * - isLiked: viewer-aware
+     */
+    const likeCount =
+      typeof comment._count?.likes === 'number'
+        ? comment._count.likes
+        : 0;
+
+    const isLiked =
+      Boolean(viewerUserId) &&
+      Array.isArray(comment.likes)
+        ? comment.likes.some(
+            (l: { userId: string }) =>
+              l.userId === viewerUserId,
+          )
+        : false;
+
     return {
       id: comment.id,
       content: comment.content,
@@ -53,6 +74,12 @@ export class CommentMapper {
       isOwner:
         Boolean(viewerUserId) &&
         comment.authorId === viewerUserId,
+
+      /**
+       * ❤️ Like state (viewer-aware)
+       */
+      likeCount,
+      isLiked,
     };
   }
 

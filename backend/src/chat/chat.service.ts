@@ -232,9 +232,40 @@ async sendMessage(params: {
     // realtime must never break message send
   }
 
+  /**
+   * 7.5) 🔔 Chat → Notification bridge (fail-soft)
+   * - backend authority only
+   * - do NOT block message send
+   * - do NOT spam (DM only)
+   */
+  try {
+  if (!chat.isGroup) {
+    const recipientId =
+      chat.participants.find(
+        (p) => p.userId !== senderUserId,
+      )?.userId;
+
+    if (recipientId) {
+      this.notifications.createNotification({
+        userId: recipientId,
+        actorUserId: senderUserId,
+        type: 'chat_message',
+        entityId: chatId,
+        payload: {
+          chatId,
+          messageId: message.id, 
+        },
+      });
+    }
+  }
+} catch {
+    // notification must never break chat send
+  }
+
   // 8) Return authoritative response
   return ChatMessageDto.fromRow(fullMessage);
 }
+
 
 
    async getUnreadCount(params: {

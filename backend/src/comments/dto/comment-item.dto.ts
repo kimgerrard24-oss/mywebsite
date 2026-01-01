@@ -15,4 +15,7 @@ export class CommentItemDto {
 
   
   isOwner!: boolean;
+
+  likeCount!: number;
+  isLiked!: boolean;
 }

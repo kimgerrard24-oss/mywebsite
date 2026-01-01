@@ -153,9 +153,20 @@ export class CommentsRepository {
           avatarUrl: true,
         },
       },
+
+      likes: {
+        select: {
+          userId: true, 
+        },
+      },
+
+      _count: {
+        select: {
+          likes: true, 
+        },
+      },
     },
   });
-}
-
+ }
 
 }

@@ -153,7 +153,9 @@ const ChatMessageList = forwardRef<
     return <ChatMessageEmptyState />;
   }
 
-  return (
+ return (
+  <div className="flex flex-1 flex-col">
+    {/* ===== Scrollable message list ===== */}
     <section
       className="flex flex-1 flex-col overflow-y-auto px-4 py-2"
       aria-label="Chat messages"
@@ -178,21 +180,24 @@ const ChatMessageList = forwardRef<
         />
       )}
 
-      {/* 🔔 Typing indicator (ephemeral, realtime) */}
-      {typingUsers && typingUsers.length > 0 && (
-        <div className="mt-2 text-xs text-gray-400">
-          {typingUsers
-            .map(
-              (u) => u.displayName ?? "Someone",
-            )
-            .join(", ")}{" "}
-          is typing…
-        </div>
-      )}
-
+      {/* ⚓ scroll anchor — จำเป็นและต้องอยู่ตรงนี้ */}
       <div ref={bottomRef} />
     </section>
-  );
+
+    {/* 🔔 Typing indicator — อยู่นอก scroll container เท่านั้น */}
+    {typingUsers && typingUsers.length > 0 && (
+      <div className="px-4 py-1 text-xs text-gray-400">
+        {typingUsers
+          .map(
+            (u) => u.displayName ?? "Someone",
+          )
+          .join(", ")}{" "}
+        is typing…
+      </div>
+    )}
+   </div>
+ );
+
 });
 
 export default ChatMessageList;

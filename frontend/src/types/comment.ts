@@ -15,4 +15,11 @@ export type Comment = {
   };
 
   isOwner: boolean;
+
+  /**
+   * ❤️ Like state (viewer-aware)
+   * มาจาก backend CommentItemDto
+   */
+  likeCount: number;
+  isLiked: boolean;
 };

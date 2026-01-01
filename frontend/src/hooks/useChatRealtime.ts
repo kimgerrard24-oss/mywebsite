@@ -22,13 +22,10 @@ type TypingPayload = {
 
 type Params = {
   chatId: string;
-
   onNewMessage: (payload: NewMessagePayload) => void;
-
   onMessageDeleted?: (
     payload: MessageDeletedPayload,
   ) => void;
-
   onTyping?: (payload: TypingPayload) => void;
 };
 
@@ -43,46 +40,8 @@ export function useChatRealtime({
 
     const socket = getSocket();
 
-    socket.emit(
-      'chat:join',
-      { chatId },
-      (ack: { joined?: boolean }) => {
-        if (!ack?.joined) {
-          console.warn(
-            'Failed to join chat room',
-            chatId,
-          );
-          return;
-        }
-
-        socket.off('chat:new-message', onNewMessage);
-        socket.on('chat:new-message', onNewMessage);
-
-        if (onMessageDeleted) {
-          socket.off(
-            'chat:message-deleted',
-            onMessageDeleted,
-          );
-          socket.on(
-            'chat:message-deleted',
-            onMessageDeleted,
-          );
-        }
-
-        if (onTyping) {
-          socket.off('chat:typing', onTyping);
-          socket.on('chat:typing', onTyping);
-        }
-
-        console.log('Joined chat room', chatId);
-      },
-    );
-  }, [
-    chatId,
-    onNewMessage,
-    onMessageDeleted,
-    onTyping,
-  ]);
+    socket.emit('chat:join', { chatId });
+  }, [chatId]);
 
   useEffect(() => {
     if (!chatId) return;
@@ -93,10 +52,35 @@ export function useChatRealtime({
       socket.connect();
     }
 
-    socket.on('connect', joinChat);
+    /**
+     * Bind listeners FIRST (prevent race condition)
+     */
+    socket.off('chat:new-message', onNewMessage);
+    socket.on('chat:new-message', onNewMessage);
 
+    if (onMessageDeleted) {
+      socket.off(
+        'chat:message-deleted',
+        onMessageDeleted,
+      );
+      socket.on(
+        'chat:message-deleted',
+        onMessageDeleted,
+      );
+    }
+
+    if (onTyping) {
+      socket.off('chat:typing', onTyping);
+      socket.on('chat:typing', onTyping);
+    }
+
+    /**
+     * Ensure join happens after connected
+     */
     if (socket.connected) {
       joinChat();
+    } else {
+      socket.once('connect', joinChat);
     }
 
     return () => {
@@ -125,3 +109,4 @@ export function useChatRealtime({
     onTyping,
   ]);
 }
+

@@ -75,3 +75,19 @@ export async function deleteComment(
   return res.data;
 }
 
+export async function toggleCommentLike(
+  commentId: string,
+): Promise<{
+  liked: boolean;
+  likeCount: number;
+}> {
+  const res = await api.post(
+    `/comments/${commentId}/like`,
+    null,
+    {
+      withCredentials: true,
+    },
+  );
+
+  return res.data;
+}

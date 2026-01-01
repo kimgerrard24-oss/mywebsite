@@ -8,6 +8,7 @@ export type RateLimitAction =
   | 'postCreate'
   | 'commentCreate'
   | 'commentReplyCreate'
+  | 'commentLike' 
   | 'followUser'
   | 'updateAvatar'
   | 'updateCover'
@@ -159,6 +160,26 @@ commentReplyCreate: {
      },
 },
 
+commentLike: {
+  /**
+   * Like / Unlike comment
+   * ป้องกัน spam toggle
+   */
+  points: 30,
+  duration: 60,
+  blockDuration: 120,
+
+  // new structure
+  windowSec: 60,
+  max: 60,                 // allow 60 toggles / minute
+  blockDurationSec: 120,   // block 2 minutes
+
+  escalation: {
+    maxViolations: 3,
+    windowSec: 86400,     // 24 ชม.
+    longBlockSec: 86400,  // block 24 ชม.
+  },
+},
 
   updateAvatar: {
     points: 5,
