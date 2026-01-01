@@ -29,6 +29,7 @@ import { FollowsModule } from './follows/follows.module';
 import { FollowingModule } from './following/following.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ChatModule } from './chat/chat.module';
+import { SearchModule } from './search/search.module';
 
 @Module({
   imports: [
@@ -44,6 +45,7 @@ import { ChatModule } from './chat/chat.module';
     ScheduleModule.forRoot(),
     AlertModule,
     ChatModule,
+    SearchModule,
     NotificationsModule,
     FollowsModule,
     FollowingModule,

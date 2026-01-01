@@ -248,6 +248,7 @@ CREATE TABLE "Tag" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "postCount" INTEGER NOT NULL DEFAULT 0,
 
     CONSTRAINT "Tag_pkey" PRIMARY KEY ("id")
 );
