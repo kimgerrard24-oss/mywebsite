@@ -1,7 +1,10 @@
 // frontend/src/hooks/useBanUser.ts
 
 import { useState } from "react";
-import { banUser } from "@/lib/api/admin-ban-user";
+import {
+  banUser as banUserApi,
+  unbanUser as unbanUserApi,
+} from "@/lib/api/admin-ban-user";
 
 export function useBanUser() {
   const [loading, setLoading] = useState(false);
@@ -9,7 +12,12 @@ export function useBanUser() {
     null,
   );
 
-  async function execute(
+  /**
+   * ==============================
+   * Ban user
+   * ==============================
+   */
+  async function banUser(
     userId: string,
     reason: string,
   ): Promise<boolean> {
@@ -22,7 +30,7 @@ export function useBanUser() {
     setError(null);
 
     try {
-      await banUser(userId, { reason });
+      await banUserApi(userId, { reason });
       return true;
     } catch (err: any) {
       setError(
@@ -35,8 +43,34 @@ export function useBanUser() {
     }
   }
 
+  /**
+   * ==============================
+   * Unban user
+   * ==============================
+   */
+  async function unbanUser(
+    userId: string,
+  ): Promise<boolean> {
+    setLoading(true);
+    setError(null);
+
+    try {
+      await unbanUserApi(userId);
+      return true;
+    } catch (err: any) {
+      setError(
+        err?.body?.message ??
+          "Failed to unban user",
+      );
+      return false;
+    } finally {
+      setLoading(false);
+    }
+  }
+
   return {
-    banUser: execute,
+    banUser,
+    unbanUser,
     loading,
     error,
   };

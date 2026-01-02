@@ -6,6 +6,13 @@ import type {
   BanUserResponse,
 } from "@/types/admin-ban-user";
 
+/**
+ * ==============================
+ * Ban user
+ * ==============================
+ *
+ * PUT /admin/users/:id/ban
+ */
 export async function banUser(
   userId: string,
   payload: BanUserPayload,
@@ -14,7 +21,28 @@ export async function banUser(
     `/admin/users/${userId}/ban`,
     payload,
     {
-      withCredentials: true, // 🔒 HttpOnly cookie
+      withCredentials: true, // 🔒 HttpOnly cookie auth
+    },
+  );
+}
+
+/**
+ * ==============================
+ * Unban user
+ * ==============================
+ *
+ * PUT /admin/users/:id/unban
+ *
+ * ⚠️ Backend must enforce permission & audit
+ */
+export async function unbanUser(
+  userId: string,
+): Promise<BanUserResponse> {
+  return apiPut<BanUserResponse>(
+    `/admin/users/${userId}/unban`,
+    undefined,
+    {
+      withCredentials: true, // 🔒 HttpOnly cookie auth
     },
   );
 }
