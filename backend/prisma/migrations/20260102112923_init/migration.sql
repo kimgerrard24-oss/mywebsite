@@ -1,4 +1,10 @@
 -- CreateEnum
+CREATE TYPE "UserRole" AS ENUM ('USER', 'ADMIN');
+
+-- CreateEnum
+CREATE TYPE "DeleteSource" AS ENUM ('USER', 'ADMIN', 'SYSTEM');
+
+-- CreateEnum
 CREATE TYPE "MediaType" AS ENUM ('IMAGE', 'VIDEO', 'AUDIO');
 
 -- CreateEnum
@@ -25,11 +31,15 @@ CREATE TABLE "User" (
     "passwordResetTokenExpires" TIMESTAMP(3),
     "provider" TEXT NOT NULL,
     "providerId" TEXT NOT NULL,
+    "disabledReason" TEXT,
+    "disabledAt" TIMESTAMP(3),
     "bio" TEXT,
     "firebaseUid" TEXT,
     "avatarUrl" TEXT,
     "coverUrl" TEXT,
     "currentRefreshTokenHash" TEXT,
+    "lastSeenAt" TIMESTAMP(3),
+    "role" "UserRole" NOT NULL DEFAULT 'USER',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
 
@@ -42,6 +52,7 @@ CREATE TABLE "Session" (
     "sessionToken" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
     "ipAddress" TEXT,
+    "revokedAt" TIMESTAMP(3),
     "userAgent" TEXT,
     "expiresAt" TIMESTAMP(3) NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -106,6 +117,19 @@ CREATE TABLE "AuditLog" (
 );
 
 -- CreateTable
+CREATE TABLE "AdminActionLog" (
+    "id" TEXT NOT NULL,
+    "adminId" TEXT NOT NULL,
+    "action" TEXT NOT NULL,
+    "targetId" TEXT,
+    "detail" JSONB,
+    "ip" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "AdminActionLog_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "PasswordResetToken" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
@@ -121,6 +145,7 @@ CREATE TABLE "PasswordResetToken" (
 CREATE TABLE "Post" (
     "id" TEXT NOT NULL,
     "authorId" TEXT NOT NULL,
+    "deletedById" TEXT,
     "content" TEXT NOT NULL,
     "isPublished" BOOLEAN NOT NULL DEFAULT true,
     "publishedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -130,6 +155,8 @@ CREATE TABLE "Post" (
     "deletedAt" TIMESTAMP(3),
     "isHidden" BOOLEAN NOT NULL DEFAULT false,
     "hiddenAt" TIMESTAMP(3),
+    "deletedSource" "DeleteSource",
+    "deleteReason" TEXT,
     "commentCount" INTEGER NOT NULL DEFAULT 0,
     "likeCount" INTEGER NOT NULL DEFAULT 0,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -183,14 +210,17 @@ CREATE TABLE "Comment" (
     "id" TEXT NOT NULL,
     "postId" TEXT NOT NULL,
     "authorId" TEXT NOT NULL,
+    "parentId" TEXT,
     "content" TEXT NOT NULL,
     "isEdited" BOOLEAN NOT NULL DEFAULT false,
     "editedAt" TIMESTAMP(3),
     "isDeleted" BOOLEAN NOT NULL DEFAULT false,
     "deletedAt" TIMESTAMP(3),
+    "deletedById" TEXT,
+    "deletedSource" "DeleteSource",
+    "deleteReason" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "parentId" TEXT,
 
     CONSTRAINT "Comment_pkey" PRIMARY KEY ("id")
 );
@@ -405,6 +435,12 @@ CREATE INDEX "OAuthAccount_provider_providerId_idx" ON "OAuthAccount"("provider"
 CREATE UNIQUE INDEX "RefreshToken_token_key" ON "RefreshToken"("token");
 
 -- CreateIndex
+CREATE INDEX "AdminActionLog_adminId_createdAt_idx" ON "AdminActionLog"("adminId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "AdminActionLog_action_idx" ON "AdminActionLog"("action");
+
+-- CreateIndex
 CREATE INDEX "PasswordResetToken_userId_idx" ON "PasswordResetToken"("userId");
 
 -- CreateIndex
@@ -415,6 +451,15 @@ CREATE INDEX "Post_authorId_publishedAt_idx" ON "Post"("authorId", "publishedAt"
 
 -- CreateIndex
 CREATE INDEX "Post_isPublished_isDeleted_isHidden_publishedAt_idx" ON "Post"("isPublished", "isDeleted", "isHidden", "publishedAt");
+
+-- CreateIndex
+CREATE INDEX "Post_isDeleted_deletedAt_idx" ON "Post"("isDeleted", "deletedAt");
+
+-- CreateIndex
+CREATE INDEX "Post_deletedSource_deletedAt_idx" ON "Post"("deletedSource", "deletedAt");
+
+-- CreateIndex
+CREATE INDEX "Post_deletedById_deletedAt_idx" ON "Post"("deletedById", "deletedAt");
 
 -- CreateIndex
 CREATE INDEX "PostLike_postId_idx" ON "PostLike"("postId");
@@ -460,6 +505,15 @@ CREATE INDEX "Comment_authorId_idx" ON "Comment"("authorId");
 
 -- CreateIndex
 CREATE INDEX "Comment_isDeleted_parentId_idx" ON "Comment"("isDeleted", "parentId");
+
+-- CreateIndex
+CREATE INDEX "Comment_isDeleted_deletedAt_idx" ON "Comment"("isDeleted", "deletedAt");
+
+-- CreateIndex
+CREATE INDEX "Comment_deletedSource_deletedAt_idx" ON "Comment"("deletedSource", "deletedAt");
+
+-- CreateIndex
+CREATE INDEX "Comment_deletedById_deletedAt_idx" ON "Comment"("deletedById", "deletedAt");
 
 -- CreateIndex
 CREATE INDEX "CommentLike_commentId_idx" ON "CommentLike"("commentId");
@@ -564,10 +618,16 @@ ALTER TABLE "RefreshToken" ADD CONSTRAINT "RefreshToken_userId_fkey" FOREIGN KEY
 ALTER TABLE "AuditLog" ADD CONSTRAINT "AuditLog_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "AdminActionLog" ADD CONSTRAINT "AdminActionLog_adminId_fkey" FOREIGN KEY ("adminId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "PasswordResetToken" ADD CONSTRAINT "PasswordResetToken_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Post" ADD CONSTRAINT "Post_authorId_fkey" FOREIGN KEY ("authorId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Post" ADD CONSTRAINT "Post_deletedById_fkey" FOREIGN KEY ("deletedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "PostLike" ADD CONSTRAINT "PostLike_postId_fkey" FOREIGN KEY ("postId") REFERENCES "Post"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -585,10 +645,13 @@ ALTER TABLE "PostMedia" ADD CONSTRAINT "PostMedia_postId_fkey" FOREIGN KEY ("pos
 ALTER TABLE "Media" ADD CONSTRAINT "Media_ownerUserId_fkey" FOREIGN KEY ("ownerUserId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Comment" ADD CONSTRAINT "Comment_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "Comment"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "Comment" ADD CONSTRAINT "Comment_authorId_fkey" FOREIGN KEY ("authorId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "Comment" ADD CONSTRAINT "Comment_authorId_fkey" FOREIGN KEY ("authorId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "Comment" ADD CONSTRAINT "Comment_deletedById_fkey" FOREIGN KEY ("deletedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Comment" ADD CONSTRAINT "Comment_parentId_fkey" FOREIGN KEY ("parentId") REFERENCES "Comment"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Comment" ADD CONSTRAINT "Comment_postId_fkey" FOREIGN KEY ("postId") REFERENCES "Post"("id") ON DELETE CASCADE ON UPDATE CASCADE;

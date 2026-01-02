@@ -17,9 +17,13 @@ export type RateLimitAction =
   | 'commentDelete'
   | 'messagingSend'
   | 'oauth'
-  | 'logout';
+  | 'logout'
+  | 'adminUsersList'
+  | 'adminUserBan'
+  | 'adminDeleteComment'
+  | 'adminPostDelete';
   
-
+  
 export type RateLimitEscalationConfig = {
   maxViolations: number;
   windowSec: number;     // seconds
@@ -307,7 +311,76 @@ commentLike: {
     max: 20,              // allow max 20 per minute
     blockDurationSec: 60, // block 1 minute
   },
-  
+
+  adminUsersList: {
+  /**
+   * Admin: List users
+   * ป้องกัน abuse / scraping / admin mistake
+   */
+  points: 20,
+  duration: 60,
+  blockDuration: 300,
+
+  // new structure
+  windowSec: 60,        // 1 minute
+  max: 10,              // allow 10 requests / minute
+  blockDurationSec: 300, // block 5 minutes
+
+  escalation: {
+    maxViolations: 3,
+    windowSec: 86400,    // 24 ชม.
+    longBlockSec: 21600, // block 6 ชม.
+  },
+ },
+
+  adminUserBan: {
+  windowSec: 60,
+  max: 5,
+  blockDurationSec: 600,
+
+  points: 5,
+  duration: 60,
+  blockDuration: 600,
+
+  escalation: {
+    maxViolations: 3,
+    windowSec: 86400,
+    longBlockSec: 21600,
+  },
+ },
+
+ adminPostDelete: {
+  points: 5,
+  duration: 60,
+  blockDuration: 600,
+
+  windowSec: 60,
+  max: 5,
+  blockDurationSec: 600,
+
+  escalation: {
+    maxViolations: 3,
+    windowSec: 86400,
+    longBlockSec: 21600,
+  },
+ },
+
+  adminDeleteComment: {
+  points: 10,
+  duration: 60,
+  blockDuration: 300,
+
+  windowSec: 60,
+  max: 10,
+  blockDurationSec: 300,
+
+  escalation: {
+    maxViolations: 3,
+    windowSec: 86400,
+    longBlockSec: 21600,
+  },
+},
+
 };
 
 

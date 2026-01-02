@@ -418,4 +418,48 @@ async sismember(key: string, member: string): Promise<boolean> {
   ): Promise<void> {
     await this.set(key, value, ttlSeconds);
   }
+
+  /**
+ * Revoke all access sessions of a user
+ * - Used by admin ban / disable
+ * - Does NOT reset TTL
+ * - Best-effort (fail-soft)
+ */
+async revokeAllSessionsByUser(userId: string): Promise<void> {
+  if (!this.client) {
+    this.logger.warn(
+      'Redis client not available - revokeAllSessionsByUser ignored',
+    );
+    return;
+  }
+
+  const userKey = `session:user:${userId}`;
+
+  try {
+    const jtis = await this.client.smembers(userKey);
+
+    if (jtis.length === 0) return;
+
+    const keys: string[] = [];
+
+    for (const jti of jtis) {
+      keys.push(`session:access:${jti}`);
+    }
+
+    // delete access sessions
+    await this.delMany(keys);
+
+    // delete user → jti index
+    await this.client.del(userKey);
+
+    this.logger.log(
+      `Revoked ${jtis.length} sessions for user=${userId}`,
+    );
+  } catch (err: any) {
+    this.logger.error(
+      `Redis revokeAllSessionsByUser error: ${err?.message ?? String(err)}`,
+    );
+  }
+ }
+
 }

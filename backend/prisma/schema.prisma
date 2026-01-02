@@ -10,53 +10,91 @@ datasource db {
 }
 
 model User {
-  id                        String               @id @default(uuid())
-  email                     String               @unique
+  id                        String   @id @default(uuid())
+  email                     String   @unique
   name                      String?
   displayName               String?
-  username                  String               @unique
+  username                  String   @unique
   hashedPassword            String
-  isEmailVerified           Boolean              @default(false)
+  isEmailVerified           Boolean  @default(false)
   emailVerifyTokenHash      String?
   emailVerifyTokenExpires   DateTime?
-  isDisabled                Boolean              @default(false)
-  active                    Boolean              @default(true)
+  isDisabled                Boolean  @default(false)
+  active                    Boolean  @default(true)
   lastLoginAt               DateTime?
   passwordResetTokenHash    String?
   passwordResetTokenExpires DateTime?
   provider                  String
   providerId                String
+  disabledReason            String?
+  disabledAt                DateTime?
   bio                       String?
-  firebaseUid               String?              @unique
+  firebaseUid               String?  @unique
   avatarUrl                 String?
   coverUrl                  String?
   currentRefreshTokenHash   String?
-  createdAt                 DateTime             @default(now())
-  updatedAt                 DateTime             @updatedAt
-  auditLogs                 AuditLog[]
-  comments                  Comment[]
-  commentLikes              CommentLike[]
-  media                     Media[]
-  oauthAccounts             OAuthAccount[]
-  passwordResetTokens       PasswordResetToken[]
-  posts                     Post[]
-  refreshTokens             RefreshToken[]
-  sessions                  Session[]
-  activities                UserActivity[]
-  likedPosts                PostLike[]
-  chatReports        ChatReport[] 
+  lastSeenAt                DateTime?
+  role                      UserRole @default(USER)
+  createdAt                 DateTime @default(now())
+  updatedAt                 DateTime @updatedAt
+
+  // ===== Audit =====
+  auditLogs AuditLog[]
+  adminActionLogs AdminActionLog[]
+
+  // ===== Comments =====
+  comments        Comment[] @relation("CommentAuthor")   // ✅ FIX
+  deletedComments Comment[] @relation("CommentDeletedBy")
+
+  commentLikes CommentLike[]
+
+  // ===== Posts =====
+  posts        Post[] @relation("PostAuthor")
+  deletedPosts Post[] @relation("PostDeletedBy")
+  likedPosts   PostLike[]
+
+  // ===== Media / OAuth =====
+  media               Media[]
+  oauthAccounts       OAuthAccount[]
+  passwordResetTokens PasswordResetToken[]
+
+  // ===== Auth / Session =====
+  refreshTokens RefreshToken[]
+  sessions      Session[]
+
+  // ===== Activity / Notification =====
+  activities          UserActivity[]
+  notifications       Notification[]
+  actedNotifications  Notification[] @relation("NotificationActor")
+
+  // ===== Social =====
+  following Follow[] @relation("UserFollowing")
+  followers Follow[] @relation("UserFollowers")
+
+  // ===== Chat =====
+  chatReports        ChatReport[]
   chatParticipants   ChatParticipant[]
-  sentChatMessages   ChatMessage[]      @relation("ChatMessageSender")
+  sentChatMessages   ChatMessage[] @relation("ChatMessageSender")
   chatReadStates     ChatReadState[]
   chatMessageReports ChatMessageReport[]
   chatTypingStates   ChatTypingState[]
-  blockedUsers  UserBlock[] @relation("UserBlocker")
-  blockedBy     UserBlock[] @relation("UserBlocked")
-  notifications Notification[] 
-  actedNotifications Notification[]  @relation("NotificationActor")
-  following Follow[] @relation("UserFollowing")
-  followers Follow[] @relation("UserFollowers")
+
+  // ===== Blocking =====
+  blockedUsers UserBlock[] @relation("UserBlocker")
+  blockedBy    UserBlock[] @relation("UserBlocked")
+
   @@unique([provider, providerId])
+}
+
+enum UserRole {
+  USER
+  ADMIN
+}
+
+enum DeleteSource {
+  USER     // user ลบเอง
+  ADMIN    // admin moderation
+  SYSTEM   // automation / policy
 }
 
 model Session {
@@ -64,6 +102,7 @@ model Session {
   sessionToken String   @unique
   userId       String
   ipAddress    String?
+  revokedAt    DateTime?
   userAgent    String?
   expiresAt    DateTime
   createdAt    DateTime @default(now())
@@ -120,6 +159,21 @@ model AuditLog {
   user       User?    @relation(fields: [userId], references: [id])
 }
 
+model AdminActionLog {
+  id        String   @id @default(uuid())
+  adminId  String
+  action   String
+  targetId String?
+  detail   Json?
+  ip       String?
+  createdAt DateTime @default(now())
+
+  admin User @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId, createdAt])
+  @@index([action])
+}
+
 model PasswordResetToken {
   id        String    @id @default(uuid())
   userId    String
@@ -134,29 +188,45 @@ model PasswordResetToken {
 }
 
 model Post {
-  id           String         @id @default(uuid())
-  authorId     String
-  content      String
-  isPublished  Boolean        @default(true)
-  publishedAt  DateTime       @default(now())
-  isEdited     Boolean        @default(false)
-  editedAt     DateTime?
-  isDeleted    Boolean        @default(false)
-  deletedAt    DateTime?
-  isHidden     Boolean        @default(false)
-  hiddenAt     DateTime?
-  commentCount Int            @default(0)
-  likeCount    Int            @default(0)
-  createdAt    DateTime       @default(now())
-  updatedAt    DateTime       @updatedAt
-  visibility   PostVisibility @default(PUBLIC)
-  comments     Comment[]
-  author       User           @relation(fields: [authorId], references: [id])
-  media        PostMedia[]
-  tags         PostTag[]
-  likes        PostLike[]
+  id            String         @id @default(uuid())
+
+  authorId      String
+  deletedById   String?
+
+  content       String
+  isPublished   Boolean        @default(true)
+  publishedAt   DateTime       @default(now())
+  isEdited      Boolean        @default(false)
+  editedAt      DateTime?
+  isDeleted     Boolean        @default(false)
+  deletedAt     DateTime?
+  isHidden      Boolean        @default(false)
+  hiddenAt      DateTime?
+
+  deletedSource DeleteSource?
+  deleteReason  String?
+
+  author User @relation("PostAuthor",fields: [authorId],references: [id])
+
+  deletedBy User? @relation("PostDeletedBy",fields: [deletedById],references: [id],onDelete: SetNull)
+
+  commentCount Int @default(0)
+  likeCount    Int @default(0)
+
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  visibility  PostVisibility @default(PUBLIC)
+
+  comments Comment[]
+  media    PostMedia[]
+  tags     PostTag[]
+  likes    PostLike[]
+
   @@index([authorId, publishedAt])
   @@index([isPublished, isDeleted, isHidden, publishedAt])
+  @@index([isDeleted, deletedAt])
+  @@index([deletedSource, deletedAt])
+  @@index([deletedById, deletedAt])
 }
 
 model PostLike {
@@ -223,34 +293,46 @@ model Media {
 }
 
 model Comment {
-  id        String    @id @default(uuid())
+  id        String   @id @default(uuid())
+
   postId    String
   authorId  String
+  parentId  String?
 
   content   String
 
-  isEdited  Boolean   @default(false)
+  isEdited  Boolean  @default(false)
   editedAt  DateTime?
 
-  isDeleted Boolean   @default(false)
+  isDeleted Boolean  @default(false)
   deletedAt DateTime?
-  likes     CommentLike[] 
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
 
-  parentId  String?
-  
-  parent   Comment?  @relation("CommentReplies",fields: [parentId],references: [id],onDelete: Cascade)
-  
-  replies  Comment[] @relation("CommentReplies")
-  
-  author User @relation(fields: [authorId], references: [id])
-  post   Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  deletedById   String?
+  deletedSource DeleteSource?
+  deleteReason  String?
+
+  author User @relation("CommentAuthor",fields: [authorId],references: [id])
+
+  deletedBy User? @relation("CommentDeletedBy",fields: [deletedById],references: [id],onDelete: SetNull)
+
+  parent Comment? @relation("CommentReplies",fields: [parentId],references: [id],onDelete: Cascade)
+
+  replies Comment[] @relation("CommentReplies")
+
+  post Post @relation(fields: [postId],references: [id],onDelete: Cascade)
+
+  likes CommentLike[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([postId, createdAt])
   @@index([parentId, createdAt])
   @@index([authorId])
   @@index([isDeleted, parentId])
+  @@index([isDeleted, deletedAt])
+  @@index([deletedSource, deletedAt])
+  @@index([deletedById, deletedAt])
 }
 
 model CommentLike {
