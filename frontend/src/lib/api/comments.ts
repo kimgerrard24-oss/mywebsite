@@ -4,7 +4,10 @@ import type { Comment } from "@/types/comment";
 
 export async function createPostComment(
   postId: string,
-  payload: { content: string }
+  payload: {
+    content: string;
+    mentions?: string[];
+  }
 ): Promise<Comment> {
   const res = await api.post<Comment>(
     `/posts/${postId}/comments`,

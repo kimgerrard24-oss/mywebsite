@@ -35,7 +35,6 @@ export default function AdminUserRow({
    */
   const isDisabled = !user.isActive;
 
-
   const statusLabel = isDisabled ? "Disabled" : "Active";
 
   const statusClass = isDisabled
@@ -49,18 +48,19 @@ export default function AdminUserRow({
    * ==============================
    */
 
-  // ❌ admin ห้ามแบนตัวเอง (UX guard)
+  // ❌ admin ห้ามจัดการตัวเองจาก UI
   const isSelf =
     currentAdminId != null &&
     user.id === currentAdminId;
 
-  // ❌ protected admin (UI-only rule)
-  // backend ต้อง enforce ซ้ำ
-  const isProtectedAdmin =
-    user.role === "ADMIN";
-
-  const canBan =
-    !isSelf && !isProtectedAdmin;
+  /**
+   * ❌ ADMIN user ไม่มี action ใด ๆ ใน UI
+   * - ห้าม ban
+   * - ห้าม unban
+   * การจัดการ ADMIN ต้องทำจาก backend / DB เท่านั้น
+   */
+  const canManageUser =
+    !isSelf && user.role !== "ADMIN";
 
   /**
    * ==============================
@@ -104,20 +104,24 @@ export default function AdminUserRow({
           dateTime={user.createdAt}
           suppressHydrationWarning
         >
-          {new Date(
-            user.createdAt,
-          ).toLocaleString()}
+          {new Date(user.createdAt).toLocaleString()}
         </time>
       </td>
 
       {/* ===== Actions ===== */}
       <td className="px-3 py-2 text-right">
-        <BanUserButton
-          userId={user.id}
-          isDisabled={isDisabled}
-          disabled={!canBan}
-          onChanged={onChanged}
-        />
+        {canManageUser ? (
+          <BanUserButton
+            userId={user.id}
+            isDisabled={isDisabled}
+            onChanged={onChanged}
+          />
+        ) : (
+          // intentionally empty for protected users
+          <span className="text-xs text-gray-400">
+            —
+          </span>
+        )}
       </td>
     </tr>
   );

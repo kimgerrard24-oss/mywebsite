@@ -169,4 +169,28 @@ export class CommentsRepository {
   });
  }
 
+ // =========================
+  // 🔹 CREATE COMMENT MENTIONS
+  // =========================
+  async createCommentMentions(params: {
+    commentId: string;
+    userIds: string[];
+  }): Promise<void> {
+    const { commentId, userIds } = params;
+
+    if (userIds.length === 0) return;
+
+    /**
+     * Use createMany for efficiency
+     * skipDuplicates ป้องกัน unique constraint error
+     */
+    await this.prisma.commentMention.createMany({
+      data: userIds.map((userId) => ({
+        commentId,
+        userId,
+      })),
+      skipDuplicates: true,
+    });
+  }
+
 }

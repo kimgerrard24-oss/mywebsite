@@ -274,6 +274,16 @@ CREATE TABLE "CommentLike" (
 );
 
 -- CreateTable
+CREATE TABLE "CommentMention" (
+    "id" TEXT NOT NULL,
+    "commentId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "CommentMention_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
 CREATE TABLE "Tag" (
     "id" TEXT NOT NULL,
     "name" TEXT NOT NULL,
@@ -525,6 +535,15 @@ CREATE INDEX "CommentLike_userId_idx" ON "CommentLike"("userId");
 CREATE UNIQUE INDEX "CommentLike_commentId_userId_key" ON "CommentLike"("commentId", "userId");
 
 -- CreateIndex
+CREATE INDEX "CommentMention_commentId_idx" ON "CommentMention"("commentId");
+
+-- CreateIndex
+CREATE INDEX "CommentMention_userId_idx" ON "CommentMention"("userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "CommentMention_commentId_userId_key" ON "CommentMention"("commentId", "userId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "Tag_name_key" ON "Tag"("name");
 
 -- CreateIndex
@@ -661,6 +680,12 @@ ALTER TABLE "CommentLike" ADD CONSTRAINT "CommentLike_commentId_fkey" FOREIGN KE
 
 -- AddForeignKey
 ALTER TABLE "CommentLike" ADD CONSTRAINT "CommentLike_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CommentMention" ADD CONSTRAINT "CommentMention_commentId_fkey" FOREIGN KEY ("commentId") REFERENCES "Comment"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CommentMention" ADD CONSTRAINT "CommentMention_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "PostTag" ADD CONSTRAINT "PostTag_postId_fkey" FOREIGN KEY ("postId") REFERENCES "Post"("id") ON DELETE CASCADE ON UPDATE CASCADE;

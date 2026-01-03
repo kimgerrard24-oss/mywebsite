@@ -152,13 +152,14 @@ export default function CommentItem({
       {/* ================= Content ================= */}
       {!editing ? (
         <p className="text-gray-900">
-          {comment.content}
-          {comment.isEdited && (
-            <span className="ml-1 text-xs text-gray-400">
-              (แก้ไขแล้ว)
-            </span>
-          )}
-        </p>
+  {renderContentWithMentions(comment.content)}
+  {comment.isEdited && (
+    <span className="ml-1 text-xs text-gray-400">
+      (แก้ไขแล้ว)
+    </span>
+  )}
+</p>
+
       ) : (
         <textarea
           className="
@@ -287,4 +288,24 @@ export default function CommentItem({
 
     </article>
   );
+}
+
+function renderContentWithMentions(text: string) {
+  return text.split(/(@[\w\d_]+)/g).map((part, i) => {
+    if (part.startsWith("@")) {
+      const username = part.slice(1);
+
+      return (
+        <a
+          key={i}
+          href={`/users/${username}`}
+          className="text-blue-600 hover:underline"
+        >
+          {part}
+        </a>
+      );
+    }
+
+    return <span key={i}>{part}</span>;
+  });
 }

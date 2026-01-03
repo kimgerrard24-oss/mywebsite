@@ -1,21 +1,5 @@
 // backend/src/notifications/types/notification-payload.type.ts
 
-/**
- * NotificationPayloadMap
- *
- * - ใช้กำหนด payload ตาม notification type
- * - รองรับ backward compatibility (legacy types)
- * - Frontend / UX ควรใช้ type ใหม่ (canonical)
- *
- * Canonical types:
- * - comment
- * - like
- * - follow
- * - chat
- *
- * Legacy types (ยังรองรับ):
- * - chat_message
- */
 export type NotificationPayloadMap = {
   /**
    * Someone commented on a post
@@ -38,7 +22,6 @@ export type NotificationPayloadMap = {
 
   /**
    * New chat message (canonical)
-   * - ใช้สำหรับ notification UX / routing
    */
   chat: {
     chatId: string;
@@ -47,11 +30,18 @@ export type NotificationPayloadMap = {
 
   /**
    * Legacy chat message notification
-   * - backward compatibility
-   * - payload shape เหมือน chat
    */
   chat_message: {
     chatId: string;
     messageId: string;
   };
+
+  /**
+   * Someone mentioned you in a comment
+   */
+  comment_mention: {
+    postId: string;
+    commentId: string;
+  };
 };
+

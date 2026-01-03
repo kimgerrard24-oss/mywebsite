@@ -26,8 +26,14 @@ async createComment(params: {
   postId: string;
   authorId: string;
   content: string;
+  mentions?: string[];
 }): Promise<CommentItemDto> {
-  const { postId, authorId, content } = params;
+  const {
+    postId,
+    authorId,
+    content,
+    mentions = [],
+  } = params;
 
   const post = await this.repo.findPostForComment(postId);
   if (!post) {
@@ -36,13 +42,53 @@ async createComment(params: {
 
   this.commentpolicy.assertCanComment(post);
 
-  await this.repo.createComment({
+  // 1️⃣ Create comment (เดิม)
+  const created = await this.repo.createComment({
     postId,
     authorId,
     content,
   });
 
-  // 🔔 CREATE NOTIFICATION (fire-and-forget, fail-soft)
+  // =========================
+  // 🔹 MENTION HANDLING
+  // =========================
+  let uniqueMentions: string[] = [];
+
+  if (mentions.length > 0) {
+    /**
+     * Normalize mentions
+     * - dedupe
+     * - ignore self mention
+     * - ignore empty values
+     */
+    uniqueMentions = Array.from(
+      new Set(
+        mentions.filter(
+          (userId) =>
+            Boolean(userId) && userId !== authorId,
+        ),
+      ),
+    );
+
+    if (uniqueMentions.length > 0) {
+      try {
+        // persist mention relation (เดิม)
+        await this.repo.createCommentMentions({
+          commentId: created.id,
+          userIds: uniqueMentions,
+        });
+      } catch {
+        /**
+         * ❗ mention persistence fail
+         * ต้องไม่ทำให้ comment fail
+         */
+      }
+    }
+  }
+
+  // =========================
+  // 🔔 NOTIFICATION: COMMENT (เดิม)
+  // =========================
   if (post.authorId !== authorId) {
     try {
       await this.notifications.createNotification({
@@ -59,7 +105,34 @@ async createComment(params: {
     }
   }
 
+  // =========================
+  // 🔔 NOTIFICATION: COMMENT MENTION (NEW)
+  // =========================
+  if (uniqueMentions.length > 0) {
+    for (const userId of uniqueMentions) {
+      try {
+        await this.notifications.createNotification({
+          userId,
+          actorUserId: authorId,
+          type: 'comment_mention',
+          entityId: created.id,
+          payload: {
+            postId,
+            commentId: created.id,
+          },
+        });
+      } catch {
+        /**
+         * ❗ mention notification fail
+         * ต้องไม่ทำให้ comment fail
+         */
+      }
+    }
+  }
+
+  // =========================
   // 🔒 re-fetch with author (source of truth)
+  // =========================
   const rows = await this.repo.findByPostId({
     postId,
     limit: 1,
@@ -72,8 +145,6 @@ async createComment(params: {
 
   return item;
 }
-
-
 
 
  async getPostComments(params: {

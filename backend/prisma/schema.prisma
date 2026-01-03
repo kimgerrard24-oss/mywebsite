@@ -47,6 +47,7 @@ model User {
   deletedComments Comment[] @relation("CommentDeletedBy")
 
   commentLikes CommentLike[]
+  mentionedInComments CommentMention[]
 
   // ===== Posts =====
   posts        Post[] @relation("PostAuthor")
@@ -320,7 +321,8 @@ model Comment {
   replies Comment[] @relation("CommentReplies")
 
   post Post @relation(fields: [postId],references: [id],onDelete: Cascade)
-
+  
+  mentions CommentMention[] 
   likes CommentLike[]
 
   createdAt DateTime @default(now())
@@ -347,6 +349,26 @@ model CommentLike {
 
   // constraints
   @@unique([commentId, userId]) // 1 user like ต่อ 1 comment
+  @@index([commentId])
+  @@index([userId])
+}
+
+model CommentMention {
+  id        String   @id @default(uuid())
+
+  commentId String
+  userId    String
+
+  createdAt DateTime @default(now())
+
+  // relations
+  comment Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  // prevent duplicate mention
+  @@unique([commentId, userId])
+
+  // query optimization
   @@index([commentId])
   @@index([userId])
 }

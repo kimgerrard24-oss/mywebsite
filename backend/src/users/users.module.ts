@@ -12,6 +12,8 @@ import { R2Module } from '../r2/r2.module';
 import { CoverService } from './cover/cover.service';
 import { UserSearchPolicy } from './policies/user-search.policy';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { MentionController } from './mention/mention.controller';
+import { MentionService } from './mention/mention.service';
 
 @Module({
   imports: [
@@ -20,7 +22,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     R2Module, 
     NotificationsModule, 
   ],
-  controllers: [UsersController],
+  controllers: [UsersController, MentionController,],
   providers: [
     UsersService,  
     UsersRepository,
@@ -28,6 +30,7 @@ import { NotificationsModule } from '../notifications/notifications.module';
     AvatarService,
     CoverService,
     AuditLogService,
+    MentionService,
     UserSearchPolicy,
   ],
   exports: [UsersService],
