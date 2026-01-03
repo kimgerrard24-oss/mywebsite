@@ -49,11 +49,12 @@ export class CommentsController {
   @UseGuards(AccessTokenCookieAuthGuard)
   async deleteComment(
     @Param('id') commentId: string,
-    @CurrentUser() user: { userId: string },
+    @CurrentUser() user: { userId: string; role: 'ADMIN' | 'USER' },
   ) {
     await this.service.deleteComment({
       commentId,
       viewerUserId: user.userId,
+      viewerRole: user.role,
     });
 
     return { success: true };

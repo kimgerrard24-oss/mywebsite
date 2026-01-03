@@ -16,6 +16,7 @@ export class NotificationMapper {
       : null,
 
     entityId: row.entityId ?? null,
+    payload: row.payload ?? null,
     createdAt: row.createdAt.toISOString(),
     isRead: row.isRead,
   };

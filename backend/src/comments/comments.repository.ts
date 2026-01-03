@@ -1,7 +1,6 @@
 // backend/src/comments/comments.repository.ts
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { CommentDeletePolicy } from './policy/comment-delete.policy';
 
 @Injectable()
 export class CommentsRepository {

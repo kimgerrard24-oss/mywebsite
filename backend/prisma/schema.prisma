@@ -434,6 +434,8 @@ model Notification {
   /// entity หลักที่เกี่ยวข้อง (postId, commentId, etc.)
   entityId      String?
 
+  payload   Json?
+
   /// สถานะการอ่าน
   isRead        Boolean  @default(false)
   readAt        DateTime?

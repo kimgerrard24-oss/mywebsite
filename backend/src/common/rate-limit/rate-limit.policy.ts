@@ -335,10 +335,10 @@ commentLike: {
 
   adminUserBan: {
   windowSec: 60,
-  max: 5,
+  max: 50,
   blockDurationSec: 600,
 
-  points: 5,
+  points: 50,
   duration: 60,
   blockDuration: 600,
 
@@ -350,12 +350,12 @@ commentLike: {
  },
 
  adminPostDelete: {
-  points: 5,
+  points: 50,
   duration: 60,
   blockDuration: 600,
 
   windowSec: 60,
-  max: 5,
+  max: 50,
   blockDurationSec: 600,
 
   escalation: {
@@ -366,7 +366,7 @@ commentLike: {
  },
 
   adminDeleteComment: {
-  points: 10,
+  points: 50,
   duration: 60,
   blockDuration: 300,
 

@@ -1,5 +1,6 @@
 // frontend/pages/admin/users.tsx
 
+import { useState } from "react";
 import Head from "next/head";
 import type { GetServerSideProps } from "next";
 import { getAdminUsers } from "@/lib/api/admin-users";
@@ -17,11 +18,38 @@ export default function AdminUsersPage({
   data,
   allowed,
 }: Props) {
+  /**
+   * 🔒 Backend is authority
+   * Initial state from SSR only
+   */
+  const [users, setUsers] = useState(
+    data?.items ?? [],
+  );
+
+  /**
+   * Re-fetch users after admin action
+   * (ban / unban)
+   */
+  async function reloadUsers() {
+    try {
+      const res = await getAdminUsers({
+        page: 1,
+        limit: 20,
+      });
+      setUsers(res.items);
+    } catch {
+      // production-safe: ignore silently
+    }
+  }
+
   return (
     <>
       <Head>
         <title>Admin Users | PhlyPhant</title>
-        <meta name="robots" content="noindex,nofollow" />
+        <meta
+          name="robots"
+          content="noindex,nofollow"
+        />
       </Head>
 
       <main className="p-6">
@@ -30,7 +58,10 @@ export default function AdminUsersPage({
         </h1>
 
         <AdminPageGuard allowed={allowed}>
-          {data && <AdminUserList users={data.items} />}
+          <AdminUserList
+            users={users}
+            onChanged={reloadUsers}
+          />
         </AdminPageGuard>
       </main>
     </>
@@ -44,7 +75,9 @@ export const getServerSideProps: GetServerSideProps<Props> =
     const cookie = ctx.req.headers.cookie ?? "";
 
     // 🔐 Session check (backend authority)
-    const session = await sessionCheckServerSide(cookie);
+    const session = await sessionCheckServerSide(
+      cookie,
+    );
 
     if (!session.valid) {
       return {
@@ -58,7 +91,7 @@ export const getServerSideProps: GetServerSideProps<Props> =
     try {
       const data = await getAdminUsers(
         { page: 1, limit: 20 },
-        ctx // 🔑 ส่ง ctx เข้าไป
+        ctx,
       );
 
       return {
@@ -68,7 +101,6 @@ export const getServerSideProps: GetServerSideProps<Props> =
         },
       };
     } catch (err: any) {
-      // ❌ not admin / forbidden
       if (err?.status === 403) {
         return {
           props: {
@@ -78,7 +110,6 @@ export const getServerSideProps: GetServerSideProps<Props> =
         };
       }
 
-      // 🔒 production-safe: ห้าม throw
       return {
         props: {
           data: null,

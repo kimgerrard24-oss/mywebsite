@@ -11,13 +11,13 @@ type Props = {
   user: AdminUser;
 
   /**
-   * 🔁 callback หลัง ban / unban สำเร็จ
+   * callback หลัง ban / unban สำเร็จ
    * ให้ parent refresh data
    */
   onChanged?: () => void;
 
   /**
-   * 🛡 current admin id
+   * current admin id
    * ใช้ป้องกัน admin แบนตัวเอง (UX guard)
    */
   currentAdminId?: string;
@@ -30,7 +30,7 @@ export default function AdminUserRow({
 }: Props) {
   /**
    * ==============================
-   * 🔒 Source of truth (backend)
+   * Source of truth (backend)
    * ==============================
    */
   const isDisabled = user.isDisabled;
@@ -43,21 +43,17 @@ export default function AdminUserRow({
 
   /**
    * ==============================
-   * 🔐 UI-level safety rules
-   * (backend must enforce again)
+   * UI-level safety rules
    * ==============================
    */
 
-  // ❌ admin ห้ามจัดการตัวเองจาก UI
+  // admin ห้ามจัดการตัวเองจาก UI
   const isSelf =
     currentAdminId != null &&
     user.id === currentAdminId;
 
   /**
-   * ❌ ADMIN user ไม่มี action ใด ๆ ใน UI
-   * - ห้าม ban
-   * - ห้าม unban
-   * การจัดการ ADMIN ต้องทำจาก backend / DB เท่านั้น
+   * ADMIN user ไม่มี action ใด ๆ ใน UI
    */
   const canManageUser =
     !isSelf && user.role !== "ADMIN";
@@ -72,24 +68,24 @@ export default function AdminUserRow({
       className="border-b last:border-b-0"
       aria-label={`Admin user row ${user.email}`}
     >
-      {/* ===== Display Name ===== */}
+      {/* Display Name */}
       <td className="px-3 py-2">
         {user.profile?.displayName ?? "—"}
       </td>
 
-      {/* ===== Email ===== */}
+      {/* Email */}
       <td className="px-3 py-2 text-gray-700">
         {user.email}
       </td>
 
-      {/* ===== Role ===== */}
+      {/* Role */}
       <td className="px-3 py-2">
         <span className="text-sm font-medium">
           {user.role}
         </span>
       </td>
 
-      {/* ===== Status ===== */}
+      {/* Status */}
       <td className="px-3 py-2">
         <span
           className={`text-sm font-medium ${statusClass}`}
@@ -98,7 +94,7 @@ export default function AdminUserRow({
         </span>
       </td>
 
-      {/* ===== Created At ===== */}
+      {/* Created At */}
       <td className="px-3 py-2 text-sm text-gray-500">
         <time
           dateTime={user.createdAt}
@@ -108,7 +104,7 @@ export default function AdminUserRow({
         </time>
       </td>
 
-      {/* ===== Actions ===== */}
+      {/* Actions */}
       <td className="px-3 py-2 text-right">
         {canManageUser ? (
           <BanUserButton

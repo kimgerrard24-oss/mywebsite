@@ -216,22 +216,25 @@ async createComment(params: {
   }
 
   async deleteComment(params: {
-    commentId: string;
-    viewerUserId: string;
-  }) {
-    const { commentId, viewerUserId } = params;
+  commentId: string;
+  viewerUserId: string;
+  viewerRole?: 'ADMIN' | 'USER';
+}) {
+  const { commentId, viewerUserId, viewerRole } = params;
 
-    const comment = await this.repo.findById(commentId);
+  const comment = await this.repo.findById(commentId);
 
-    if (!comment) {
-      throw new NotFoundException('Comment not found');
-    }
-
-    CommentDeletePolicy.assertCanDelete({
-      viewerUserId,
-      authorId: comment.authorId,
-    });
-
-    await this.repo.deleteById(commentId);
+  if (!comment) {
+    throw new NotFoundException('Comment not found');
   }
+
+  CommentDeletePolicy.assertCanDelete({
+    viewerUserId,
+    authorId: comment.authorId,
+    viewerRole,
+  });
+
+  await this.repo.deleteById(commentId);
+}
+
 }

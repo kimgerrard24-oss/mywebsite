@@ -436,30 +436,30 @@ async revokeAllSessionsByUser(userId: string): Promise<void> {
   const userKey = `session:user:${userId}`;
 
   try {
-    const jtis = await this.client.smembers(userKey);
+    const sessionKeys = await this.client.smembers(userKey);
 
-    if (jtis.length === 0) return;
+    if (sessionKeys.length === 0) return;
 
-    const keys: string[] = [];
+    const keysToDelete: string[] = [];
 
-    for (const jti of jtis) {
-      keys.push(`session:access:${jti}`);
+    for (const key of sessionKeys) {
+      // รองรับทั้ง access + refresh
+      keysToDelete.push(`session:access:${key}`);
+      keysToDelete.push(`session:refresh:${key}`);
     }
 
-    // delete access sessions
-    await this.delMany(keys);
-
-    // delete user → jti index
+    await this.delMany(keysToDelete);
     await this.client.del(userKey);
 
     this.logger.log(
-      `Revoked ${jtis.length} sessions for user=${userId}`,
+      `Revoked ${sessionKeys.length} sessions for user=${userId}`,
     );
   } catch (err: any) {
     this.logger.error(
       `Redis revokeAllSessionsByUser error: ${err?.message ?? String(err)}`,
     );
   }
- }
+}
+
 
 }
