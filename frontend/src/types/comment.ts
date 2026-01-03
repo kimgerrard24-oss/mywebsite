@@ -23,3 +23,17 @@ export type Comment = {
   likeCount: number;
   isLiked: boolean;
 };
+
+/**
+ * Payload for creating a comment or reply
+ * Used by CommentComposer / ReplyComposer
+ */
+export type CreateCommentPayload = {
+  content: string;
+  mentions?: string[];
+};
+
+/**
+ * Reply payload (alias for clarity)
+ */
+export type CreateReplyPayload = CreateCommentPayload;

@@ -38,8 +38,7 @@ export default function BanUserButton({
   const [open, setOpen] = useState(false);
 
   const {
-    banUser,
-    unbanUser,
+    execute,
     loading,
     error,
   } = useBanUser();
@@ -49,13 +48,12 @@ export default function BanUserButton({
    * Handlers
    * ==============================
    */
-
-  async function handleConfirm(
-    reason: string,
-  ) {
-    const ok = isDisabled
-      ? await unbanUser(userId)
-      : await banUser(userId, reason);
+  async function handleConfirm(reason: string) {
+    const ok = await execute({
+      userId,
+      isDisabled,
+      reason,
+    });
 
     if (ok) {
       setOpen(false);

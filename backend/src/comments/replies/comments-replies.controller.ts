@@ -28,20 +28,22 @@ export class CommentsRepliesController {
    * POST /comments/:id/replies
    * - Create reply (WRITE)
    */
-  @Post()
-  @RateLimit('commentReplyCreate')
-  @UseGuards(AccessTokenCookieAuthGuard)
-  async createReply(
-    @Param('commentId') commentId: string,
-    @Body() dto: CreateReplyDto,
-    @CurrentUser() user: SessionUser,
-  ) {
-    return this.service.createReply({
-      parentCommentId: commentId,
-      authorId: user.userId,
-      content: dto.content,
-    });
-  }
+ @Post()
+@RateLimit('commentReplyCreate')
+@UseGuards(AccessTokenCookieAuthGuard)
+async createReply(
+  @Param('commentId') commentId: string,
+  @Body() dto: CreateReplyDto,
+  @CurrentUser() user: SessionUser,
+) {
+  return this.service.createReply({
+    parentCommentId: commentId,
+    authorId: user.userId,
+    content: dto.content,
+    mentions: dto.mentions,
+  });
+}
+
 
   /**
    * GET /comments/:id/replies

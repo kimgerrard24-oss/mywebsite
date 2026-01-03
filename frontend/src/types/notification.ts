@@ -2,7 +2,7 @@
 
 export type NotificationItem = {
   id: string;
-  type: 'comment' | 'like' | 'follow' | 'chat_message'
+  type: 'comment' | 'comment_mention' | 'like' | 'follow' | 'chat_message'
 
   actor: {
     id: string;
@@ -13,6 +13,10 @@ export type NotificationItem = {
   entityId: string | null;
   createdAt: string;
   isRead: boolean;
+
+  payload?: {
+    postId?: string;
+  };
 };
 
 

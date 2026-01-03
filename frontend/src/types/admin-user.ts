@@ -59,6 +59,8 @@ export type AdminUser = {
    */
   isActive: boolean;
 
+  isDisabled: boolean;
+
   /**
    * ISO 8601 timestamp string
    */

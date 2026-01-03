@@ -33,7 +33,7 @@ export default function AdminUserRow({
    * 🔒 Source of truth (backend)
    * ==============================
    */
-  const isDisabled = !user.isActive;
+  const isDisabled = user.isDisabled;
 
   const statusLabel = isDisabled ? "Disabled" : "Active";
 
@@ -117,7 +117,6 @@ export default function AdminUserRow({
             onChanged={onChanged}
           />
         ) : (
-          // intentionally empty for protected users
           <span className="text-xs text-gray-400">
             —
           </span>

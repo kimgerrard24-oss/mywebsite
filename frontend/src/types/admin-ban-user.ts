@@ -1,9 +1,11 @@
 // frontend/src/types/admin-ban-user.ts
 
 export type BanUserPayload = {
-  reason: string;
+  banned: boolean;
+  reason?: string;
 };
 
 export type BanUserResponse = {
   success: true;
 };
+

@@ -1,13 +1,13 @@
 // frontend/src/lib/api/comments.ts
 import { api } from "./api";
-import type { Comment } from "@/types/comment";
+import type { 
+  Comment, 
+  CreateCommentPayload,
+  CreateReplyPayload, } from "@/types/comment";  
 
 export async function createPostComment(
   postId: string,
-  payload: {
-    content: string;
-    mentions?: string[];
-  }
+  payload: CreateCommentPayload,
 ): Promise<Comment> {
   const res = await api.post<Comment>(
     `/posts/${postId}/comments`,
@@ -87,6 +87,23 @@ export async function toggleCommentLike(
   const res = await api.post(
     `/comments/${commentId}/like`,
     null,
+    {
+      withCredentials: true,
+    },
+  );
+
+  return res.data;
+}
+
+// 🔹 create reply (with mention support)
+export async function createCommentReply(
+  commentId: string,
+  payload: CreateReplyPayload,
+): Promise<Comment> {
+
+  const res = await api.post<Comment>(
+    `/comments/${commentId}/replies`,
+    payload,
     {
       withCredentials: true,
     },

@@ -29,6 +29,11 @@ export default function NotificationItem({ item }: Props) {
           ? `/posts/${item.entityId}`
           : null;
 
+      case 'comment_mention':
+        return item.payload?.postId && item.entityId
+          ? `/posts/${item.payload.postId}#comment-${item.entityId}`
+          : null;
+
       case 'follow':
         return item.actor?.id
           ? `/users/${item.actor.id}`
@@ -69,6 +74,9 @@ export default function NotificationItem({ item }: Props) {
     switch (item.type) {
       case 'comment':
         return 'commented on your post';
+
+      case 'comment_mention':
+        return 'mentioned you in a comment';
 
       case 'like':
         return 'liked your post';

@@ -69,23 +69,33 @@ export class AdminUsersRepository {
         id: true,
         role: true,
         isDisabled: true,
+        active: true,
       },
     });
   }
 
-  banUser(params: {
-    userId: string;
-    reason: string;
-  }) {
-    const { userId, reason } = params;
+  banUser(params: { userId: string; reason: string }) {
+  return this.prisma.user.update({
+    where: { id: params.userId },
+    data: {
+      isDisabled: true,
+      active: false,
+      disabledReason: params.reason,
+      disabledAt: new Date(),
+    },
+  });
+}
 
-    return this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        isDisabled: true,
-        disabledReason: reason,
-        disabledAt: new Date(),
-      },
-    });
-  }
+unbanUser(userId: string) {
+  return this.prisma.user.update({
+    where: { id: userId },
+    data: {
+      isDisabled: false,
+      active: true,
+      disabledReason: null,
+      disabledAt: null,
+    },
+  });
+}
+
 }

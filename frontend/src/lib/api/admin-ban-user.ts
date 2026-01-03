@@ -8,10 +8,16 @@ import type {
 
 /**
  * ==============================
- * Ban user
+ * Ban / Unban user (single route)
  * ==============================
  *
  * PUT /admin/users/:id/ban
+ *
+ * Payload:
+ * - { banned: true,  reason: string }  -> Ban
+ * - { banned: false }                  -> Unban
+ *
+ * Backend is the authority.
  */
 export async function banUser(
   userId: string,
@@ -21,28 +27,7 @@ export async function banUser(
     `/admin/users/${userId}/ban`,
     payload,
     {
-      withCredentials: true, // 🔒 HttpOnly cookie auth
-    },
-  );
-}
-
-/**
- * ==============================
- * Unban user
- * ==============================
- *
- * PUT /admin/users/:id/unban
- *
- * ⚠️ Backend must enforce permission & audit
- */
-export async function unbanUser(
-  userId: string,
-): Promise<BanUserResponse> {
-  return apiPut<BanUserResponse>(
-    `/admin/users/${userId}/unban`,
-    undefined,
-    {
-      withCredentials: true, // 🔒 HttpOnly cookie auth
+      withCredentials: true, // HttpOnly cookie auth
     },
   );
 }

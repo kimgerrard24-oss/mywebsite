@@ -5,7 +5,7 @@ import {
   createCommentReply,
   getCommentReplies,
 } from "@/lib/api/comment-replies";
-import type { Comment } from "@/types/comment";
+import type { Comment, CreateReplyPayload } from "@/types/comment";
 
 type Params = {
   parentCommentId: string;
@@ -94,35 +94,35 @@ export function useCommentReplies({
   }, [parentCommentId, nextCursor]);
 
   const submitReply = useCallback(
-    async (content: string) => {
-      if (loadingRef.current) return null;
+  async (payload: CreateReplyPayload) => {
+    if (loadingRef.current) return null;
 
-      loadingRef.current = true;
-      setLoading(true);
-      setError(null);
+    loadingRef.current = true;
+    setLoading(true);
+    setError(null);
 
-      try {
-        const reply = await createCommentReply(
-          parentCommentId,
-          { content },
-        );
+    try {
+      const reply = await createCommentReply(
+        parentCommentId,
+        payload,
+      );
 
-        if (!mountedRef.current) return null;
+      if (!mountedRef.current) return null;
 
-        setItems((prev) => [reply, ...prev]);
-        return reply;
-      } catch {
-        if (!mountedRef.current) return null;
-        setError("Unable to post reply");
-        return null;
-      } finally {
-        if (!mountedRef.current) return null;
-        loadingRef.current = false;
-        setLoading(false);
-      }
-    },
-    [parentCommentId],
-  );
+      setItems((prev) => [reply, ...prev]);
+      return reply;
+    } catch {
+      if (!mountedRef.current) return null;
+      setError("Unable to post reply");
+      return null;
+    } finally {
+      if (!mountedRef.current) return null;
+      loadingRef.current = false;
+      setLoading(false);
+    }
+  },
+  [parentCommentId],
+);
 
   const updateItem = useCallback(
     (

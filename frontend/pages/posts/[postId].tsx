@@ -3,7 +3,7 @@
 import Head from "next/head";
 import type { GetServerSideProps } from "next";
 import { useRouter } from "next/router";
-import { useState } from "react";
+import { useState, useEffect} from "react";
 
 import PostDetail from "@/components/posts/PostDetail";
 import CommentComposer from "@/components/comments/CommentComposer";
@@ -33,6 +33,43 @@ export default function PostDetailPage({ post }: Props) {
 
   const ogVideo =
     firstMedia?.type === "video" ? mediaSrc : undefined;
+  
+    /**
+   * ==============================
+   * 🔔 Scroll to mentioned comment
+   * ==============================
+   */
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    const hash = window.location.hash;
+    if (!hash.startsWith("#comment-")) return;
+
+    const targetId = hash.slice(1); // comment-xxx
+
+    let attempts = 0;
+    const maxAttempts = 10;
+
+    const tryScroll = () => {
+      const el = document.getElementById(targetId);
+      if (el) {
+        el.scrollIntoView({
+          behavior: "smooth",
+          block: "center",
+        });
+        return;
+      }
+
+      // retry เผื่อ comment ยังโหลดไม่เสร็จ
+      if (attempts < maxAttempts) {
+        attempts += 1;
+        setTimeout(tryScroll, 150);
+      }
+    };
+
+    tryScroll();
+  }, []);
+
 
   return (
     <>

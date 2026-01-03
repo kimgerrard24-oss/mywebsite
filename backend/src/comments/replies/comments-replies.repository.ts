@@ -107,6 +107,23 @@ export class CommentsRepliesRepository {
     },
     select: { id: true },
   });
+ }
+
+ async createReplyMentions(params: {
+  replyId: string;
+  userIds: string[];
+}) {
+  if (params.userIds.length === 0) return;
+
+  await this.prisma.commentMention.createMany({
+    data: params.userIds.map((userId) => ({
+      commentId: params.replyId, // ✅ reply คือ comment
+      userId,
+    })),
+    skipDuplicates: true, // ✅ safety net
+  });
 }
+
+
 
 }

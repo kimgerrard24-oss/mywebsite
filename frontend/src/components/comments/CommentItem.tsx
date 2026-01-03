@@ -1,6 +1,6 @@
 // frontend/src/components/comments/CommentItem.tsx
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { Comment } from "@/types/comment";
 import { useUpdateComment } from "@/hooks/useUpdateComment";
 import { useDeleteComment } from "@/hooks/useDeleteComment";
@@ -124,12 +124,40 @@ export default function CommentItem({
 
   const loading = updating || deleting || liking;
   const error = updateError || deleteError;
+  const [highlight, setHighlight] = useState(false);
+  
+ useEffect(() => {
+  if (typeof window === "undefined") return;
+
+  const hash = window.location.hash;
+  const target = `comment-${comment.id}`;
+
+  if (hash === `#${target}`) {
+    const el = document.getElementById(target);
+    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+
+    setHighlight(true);
+
+    const timer = setTimeout(() => {
+      setHighlight(false);
+    }, 2500);
+
+    return () => clearTimeout(timer);
+  }
+}, [comment.id]);
+
 
   return (
     <article
-      className="py-2 text-sm"
-      aria-label="Comment"
-    >
+  id={`comment-${comment.id}`}
+  aria-label="Comment"
+  className={`
+    py-2 text-sm
+    transition-colors
+    ${highlight ? "bg-yellow-100" : ""}
+  `}
+  >
+
      {/* ================= Author ================= */}
 {comment.author && (
   <div className="mb-1 flex items-center gap-2">

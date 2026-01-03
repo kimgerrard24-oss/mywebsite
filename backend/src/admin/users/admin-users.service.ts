@@ -37,41 +37,99 @@ export class AdminUsersService {
     };
   }
 
-   async banUser(params: {
-    targetUserId: string;
-    reason: string;
-  }) {
-    const { targetUserId, reason } = params;
+async banUser(params: {
+  targetUserId: string;
+  banned: boolean;
+  reason?: string;
+}) {
+  const { targetUserId, banned, reason } = params;
 
-    const user = await this.repo.findById(targetUserId);
+  /**
+   * 1️⃣ Load target user (DB = authority)
+   */
+  const user = await this.repo.findById(targetUserId);
 
-    if (!user) {
-      throw new NotFoundException('User not found');
-    }
-
-    if (user.role === 'ADMIN') {
-      throw new ForbiddenException(
-        'Cannot ban admin user',
-      );
-    }
-
-    if (user.isDisabled) {
-      return; // idempotent
-    }
-
-    await this.repo.banUser({
-      userId: targetUserId,
-      reason,
-    });
-
-    // 🔒 revoke all active sessions (Redis authority)
-    await this.revokeSessions.revokeAll(targetUserId);
-
-    // 🧾 audit log
-    await this.audit.log({
-      action: 'BAN_USER',
-      targetId: targetUserId,
-      detail: { reason },
-    });
+  if (!user) {
+    throw new NotFoundException('User not found');
   }
+
+  /**
+   * 2️⃣ Safety rule
+   * - ADMIN ห้ามถูกจัดการผ่าน admin-ban API นี้
+   */
+  if (user.role === 'ADMIN') {
+    throw new ForbiddenException(
+      'Cannot manage admin user',
+    );
+  }
+
+  /**
+   * =========================
+   * 3️⃣ UNBAN FLOW
+   * =========================
+   * Authority = isDisabled
+   */
+  if (banned === false) {
+    // ไม่ได้ถูกแบนอยู่แล้ว → idempotent
+    if (!user.isDisabled) {
+      return;
+    }
+
+    await this.repo.unbanUser(targetUserId);
+
+    // 🧾 audit log (unban ไม่ revoke session)
+    await this.audit.log({
+      action: 'UNBAN_USER',
+      targetId: targetUserId,
+    });
+
+    return;
+  }
+
+  /**
+   * =========================
+   * 4️⃣ BAN FLOW
+   * =========================
+   */
+
+  // ถูกแบนอยู่แล้ว → idempotent
+  if (user.isDisabled) {
+    return;
+  }
+
+  // defensive check (DTO ควร block ไว้แล้ว)
+  if (!reason || reason.trim().length < 3) {
+    throw new ForbiddenException(
+      'Ban reason is required',
+    );
+  }
+
+  await this.repo.banUser({
+    userId: targetUserId,
+    reason: reason.trim(),
+  });
+
+  /**
+   * 🔒 Redis authority
+   * - revoke session ทันที
+   * - ไม่ reset TTL
+   */
+  await this.revokeSessions.revokeAll(
+    targetUserId,
+  );
+
+  /**
+   * 🧾 audit log
+   */
+  await this.audit.log({
+    action: 'BAN_USER',
+    targetId: targetUserId,
+    detail: {
+      reason: reason.trim(),
+    },
+  });
+}
+
+
+
 }

@@ -9,6 +9,8 @@ import { CommentsRepliesRepository } from './comments-replies.repository';
 import { CommentReplyPolicy } from './policy/comment-reply.policy';
 import { CommentMapper } from '../mappers/comment.mapper';
 import { CommentReadPolicy } from '../policy/comment-read.policy'
+import { NotificationsService } from '../../notifications/notifications.service';
+
 @Injectable()
 export class CommentsRepliesService {
   private readonly logger = new Logger(
@@ -18,15 +20,22 @@ export class CommentsRepliesService {
   constructor(
     private readonly repo: CommentsRepliesRepository,
     private readonly readPolicy: CommentReadPolicy,
+    private readonly notifications: NotificationsService,
   ) {}
 
 
- async createReply(params: {
+async createReply(params: {
   parentCommentId: string;
   authorId: string;
   content: string;
- }) {
-  const { parentCommentId, authorId, content } = params;
+  mentions?: string[]; // 🔹 NEW (optional)
+}) {
+  const {
+    parentCommentId,
+    authorId,
+    content,
+    mentions = [], // 🔹 NEW
+  } = params;
 
   /**
    * 1️⃣ Find parent comment
@@ -45,7 +54,6 @@ export class CommentsRepliesService {
 
   /**
    * 2️⃣ 🔒 CHECK: viewer must be able to read the post
-   * (CRITICAL FIX)
    */
   const post =
     await this.repo.findReadablePostByParentComment(
@@ -53,12 +61,7 @@ export class CommentsRepliesService {
     );
 
   if (!post) {
-    /**
-     * 🔒 ไม่สามารถอ่านโพสต์นี้ได้
-     * (hidden / deleted / unpublished / no permission)
-     */
     throw new NotFoundException('Post not found');
-    // หรือ ForbiddenException ก็ได้ ขึ้นกับ policy ของคุณ
   }
 
   this.readPolicy.assertCanRead(post);
@@ -78,14 +81,71 @@ export class CommentsRepliesService {
   CommentReplyPolicy.assertCanReply(parent);
 
   /**
-   * 5️⃣ Create reply
+   * 5️⃣ Create reply (authority = DB)
    */
-  await this.repo.createReply({
+  const created = await this.repo.createReply({
     postId: parent.postId,
     parentCommentId,
     authorId,
     content,
   });
+
+  /**
+   * =========================
+   * 🔹 MENTION HANDLING (NEW)
+   * =========================
+   * - fail-soft
+   * - no self mention
+   * - dedupe
+   */
+  if (mentions.length > 0) {
+    const uniqueMentions = Array.from(
+      new Set(
+        mentions.filter(
+          (userId) =>
+            Boolean(userId) && userId !== authorId,
+        ),
+      ),
+    );
+
+    if (uniqueMentions.length > 0) {
+      try {
+        /**
+         * Persist reply mentions
+         * (table: reply_mentions
+         *  or shared comment_mentions)
+         */
+        await this.repo.createReplyMentions({
+          replyId: created.id,
+          userIds: uniqueMentions,
+        });
+
+        /**
+         * 🔔 Fire notification (fail-soft)
+         */
+        for (const userId of uniqueMentions) {
+          try {
+            await this.notifications.createNotification({
+              userId,
+              actorUserId: authorId,
+              type: 'comment_mention',
+              entityId: created.id,
+              payload: {
+                postId: parent.postId,
+                commentId: created.id,
+              },
+            });
+          } catch {
+            // ❗ notification fail ต้องไม่ทำให้ reply fail
+          }
+        }
+      } catch {
+        /**
+         * ❗ mention fail ต้องไม่ทำให้ reply fail
+         */
+      }
+    }
+  }
 
   /**
    * 6️⃣ Re-fetch with author relation (source of truth)
@@ -102,6 +162,7 @@ export class CommentsRepliesService {
 
   return item;
  }
+
 
   async getReplies(params: {
     parentCommentId: string;

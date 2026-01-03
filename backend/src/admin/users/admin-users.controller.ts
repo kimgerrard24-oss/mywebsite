@@ -49,6 +49,7 @@ export class AdminUsersController {
   ) {
     await this.service.banUser({
       targetUserId: userId,
+      banned: dto.banned,
       reason: dto.reason,
     });
 
