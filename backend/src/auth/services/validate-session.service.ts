@@ -1,6 +1,11 @@
 // src/auth/services/validate-session.service.ts
 
-import { Injectable, UnauthorizedException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  ForbiddenException,
+  UnauthorizedException,
+  Logger,
+} from '@nestjs/common';
 import type { Request } from 'express';
 import { AuthService } from '../auth.service';
 import { RedisService } from '../../redis/redis.service';
@@ -91,11 +96,24 @@ export class ValidateSessionService {
         throw new UnauthorizedException('Invalid session data');
       }
 
+      // 🔒 GLOBAL BAN POLICY (DB is authority)
+      const isBanned = await this.authService.isUserBanned(userId);
+
+      if (isBanned) {
+        this.logger.warn(`Blocked banned user: userId=${userId}`);
+        throw new ForbiddenException('User is banned');
+      }
+
       // 6) Best-effort touch (NO write back, NO TTL risk)
       this.touchSession(jti, session).catch(() => {});
 
       return { userId, jti };
     } catch (err) {
+      // ✅ Preserve ForbiddenException (ban)
+      if (err instanceof ForbiddenException) {
+        throw err;
+      }
+
       const msg = err instanceof Error ? err.message : String(err);
       this.logger.error(`validateAccessTokenFromRequest failed: ${msg}`);
       throw new UnauthorizedException('Unauthorized');

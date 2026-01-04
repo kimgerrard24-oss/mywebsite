@@ -612,4 +612,13 @@ async getUserByFirebaseUid(firebaseUid: string) {
 
     return s;
   }
+
+  async isUserBanned(userId: string): Promise<boolean> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { isBanned: true },
+    });
+
+    return user?.isBanned === true;
+  }
 }

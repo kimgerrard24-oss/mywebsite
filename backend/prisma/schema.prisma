@@ -37,6 +37,16 @@ model User {
   role                      UserRole @default(USER)
   createdAt                 DateTime @default(now())
   updatedAt                 DateTime @updatedAt
+  isBanned          Boolean   @default(false)
+  bannedAt          DateTime?
+  banReason         String?
+  bannedByAdminId   String?
+
+  // relation (optional แต่ production-grade)
+  bannedByAdmin     User?     @relation("UserBannedByAdmin",fields: [bannedByAdminId],references: [id],onDelete: SetNull)
+ 
+  // ใน User model (admin side)
+  bannedUsers User[] @relation("UserBannedByAdmin")
 
   // ===== Audit =====
   auditLogs AuditLog[]
@@ -85,6 +95,7 @@ model User {
   blockedBy    UserBlock[] @relation("UserBlocked")
 
   @@unique([provider, providerId])
+  @@index([isBanned, bannedAt])
 }
 
 enum UserRole {

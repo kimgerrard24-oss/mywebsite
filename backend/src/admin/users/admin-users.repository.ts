@@ -1,6 +1,6 @@
 // backend/src/admin/users/admin-users.repository.ts
 import { Injectable } from '@nestjs/common';
-import { Prisma, PrismaClient } from '@prisma/client';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 
 type FindUsersParams = {
@@ -50,6 +50,7 @@ export class AdminUsersRepository {
             id: true,
             email: true,
             role: true,
+            isBanned: true,      // ✅ FIX
             active: true,
             createdAt: true,
             displayName: true,
@@ -68,34 +69,30 @@ export class AdminUsersRepository {
       select: {
         id: true,
         role: true,
-        isDisabled: true,
-        active: true,
+        isBanned: true,        // ✅ FIX
       },
     });
   }
 
   banUser(params: { userId: string; reason: string }) {
-  return this.prisma.user.update({
-    where: { id: params.userId },
-    data: {
-      isDisabled: true,
-      active: false,
-      disabledReason: params.reason,
-      disabledAt: new Date(),
-    },
-  });
-}
+    return this.prisma.user.update({
+      where: { id: params.userId },
+      data: {
+        isBanned: true,        // ✅ FIX
+        bannedAt: new Date(),
+        banReason: params.reason,
+      },
+    });
+  }
 
-unbanUser(userId: string) {
-  return this.prisma.user.update({
-    where: { id: userId },
-    data: {
-      isDisabled: false,
-      active: true,
-      disabledReason: null,
-      disabledAt: null,
-    },
-  });
-}
-
+  unbanUser(userId: string) {
+    return this.prisma.user.update({
+      where: { id: userId },
+      data: {
+        isBanned: false,       // ✅ FIX
+        bannedAt: null,
+        banReason: null,
+      },
+    });
+  }
 }

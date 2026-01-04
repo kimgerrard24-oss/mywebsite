@@ -319,10 +319,10 @@ export default function CommentItem({
 }
 
 function renderContentWithMentions(text: string) {
-  return text.split(/(@[\w\d_]+)/g).map((part, i) => {
+  return text.split(/(@[\w\d_]+|#[\w\d_]+)/g).map((part, i) => {
+    // @mention
     if (part.startsWith("@")) {
       const username = part.slice(1);
-
       return (
         <a
           key={i}
@@ -334,6 +334,21 @@ function renderContentWithMentions(text: string) {
       );
     }
 
+    // #hashtag
+    if (part.startsWith("#")) {
+      const tag = part.slice(1);
+      return (
+        <a
+          key={i}
+          href={`/posts/tag/${encodeURIComponent(tag)}`}
+          className="text-blue-600 hover:underline"
+        >
+          {part}
+        </a>
+      );
+    }
+
     return <span key={i}>{part}</span>;
   });
 }
+

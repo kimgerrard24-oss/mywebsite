@@ -67,17 +67,20 @@ async banUser(params: {
    * =========================
    * 3️⃣ UNBAN FLOW
    * =========================
-   * Authority = isDisabled
+   * Authority = isBanned
    */
   if (banned === false) {
     // ไม่ได้ถูกแบนอยู่แล้ว → idempotent
-    if (!user.isDisabled) {
+    if (!user.isBanned) {
       return;
     }
 
     await this.repo.unbanUser(targetUserId);
 
-    // 🧾 audit log (unban ไม่ revoke session)
+    /**
+     * 🧾 audit log
+     * - unban ไม่ revoke session
+     */
     await this.audit.log({
       action: 'UNBAN_USER',
       targetId: targetUserId,
@@ -93,7 +96,7 @@ async banUser(params: {
    */
 
   // ถูกแบนอยู่แล้ว → idempotent
-  if (user.isDisabled) {
+  if (user.isBanned) {
     return;
   }
 
@@ -128,8 +131,6 @@ async banUser(params: {
       reason: reason.trim(),
     },
   });
-}
-
-
+ }
 
 }

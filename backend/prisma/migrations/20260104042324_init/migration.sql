@@ -42,6 +42,10 @@ CREATE TABLE "User" (
     "role" "UserRole" NOT NULL DEFAULT 'USER',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
+    "isBanned" BOOLEAN NOT NULL DEFAULT false,
+    "bannedAt" TIMESTAMP(3),
+    "banReason" TEXT,
+    "bannedByAdminId" TEXT,
 
     CONSTRAINT "User_pkey" PRIMARY KEY ("id")
 );
@@ -225,44 +229,6 @@ CREATE TABLE "Comment" (
     CONSTRAINT "Comment_pkey" PRIMARY KEY ("id")
 );
 
--- =====================================================
--- 🔒 Enforce ONE-LEVEL reply only (PRODUCTION SAFE)
--- - Applies ONLY on INSERT
--- - Prevents nested replies (reply of reply)
--- =====================================================
-
-CREATE OR REPLACE FUNCTION enforce_one_level_reply()
-RETURNS trigger AS $$
-BEGIN
-  -- Only validate when this is a reply
-  IF NEW."parentId" IS NOT NULL THEN
-    -- If parent itself is already a reply → reject
-    IF EXISTS (
-      SELECT 1
-      FROM "Comment"
-      WHERE id = NEW."parentId"
-        AND "parentId" IS NOT NULL
-    ) THEN
-      RAISE EXCEPTION
-        'Nested replies are not allowed (only 1-level replies supported)';
-    END IF;
-  END IF;
-
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
--- =====================================================
--- Trigger: INSERT ONLY (⚠️ DO NOT USE UPDATE)
--- =====================================================
-
-DROP TRIGGER IF EXISTS trg_comment_one_level_reply ON "Comment";
-
-CREATE TRIGGER trg_comment_one_level_reply
-BEFORE INSERT ON "Comment"
-FOR EACH ROW
-EXECUTE FUNCTION enforce_one_level_reply();
-
 -- CreateTable
 CREATE TABLE "CommentLike" (
     "id" TEXT NOT NULL,
@@ -440,6 +406,9 @@ CREATE UNIQUE INDEX "User_username_key" ON "User"("username");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "User_firebaseUid_key" ON "User"("firebaseUid");
+
+-- CreateIndex
+CREATE INDEX "User_isBanned_bannedAt_idx" ON "User"("isBanned", "bannedAt");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "User_provider_providerId_key" ON "User"("provider", "providerId");
@@ -632,6 +601,9 @@ CREATE INDEX "ChatReport_createdAt_idx" ON "ChatReport"("createdAt");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "ChatReport_chatId_reporterId_key" ON "ChatReport"("chatId", "reporterId");
+
+-- AddForeignKey
+ALTER TABLE "User" ADD CONSTRAINT "User_bannedByAdminId_fkey" FOREIGN KEY ("bannedByAdminId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Session" ADD CONSTRAINT "Session_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;

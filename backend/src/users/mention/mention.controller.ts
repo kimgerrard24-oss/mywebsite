@@ -7,18 +7,39 @@ import { AccessTokenCookieAuthGuard } from '../../auth/guards/access-token-cooki
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import type { SessionUser } from '../../auth/services/validate-session.service';
 
-@Controller('users')
+/**
+ * MentionController
+ *
+ * Domain: mention / autocomplete
+ *
+ * ✅ แยก namespace ออกจาก /users
+ * เพื่อหลีกเลี่ยง route collision กับ:
+ *   GET /users/:id
+ *
+ * Endpoint:
+ *   GET /mentions/search
+ */
+@Controller('mentions')
 export class MentionController {
-  constructor(private readonly mentionService: MentionService) {}
+  constructor(
+    private readonly mentionService: MentionService,
+  ) {}
 
   /**
-   * GET /users/mention-search
+   * GET /mentions/search
    *
    * ใช้สำหรับ @mention autocomplete
+   *
+   * Guards:
    * - ต้อง login
-   * - ใช้ session จาก Redis เป็น authority
+   * - session จาก Redis เป็น authority
+   *
+   * Behavior:
+   * - fail-soft
+   * - ไม่คืน user ตัวเอง
+   * - filter inactive / disabled users (service layer)
    */
-  @Get('mention-search')
+  @Get('search')
   @UseGuards(AccessTokenCookieAuthGuard)
   async search(
     @Query() query: MentionSearchQueryDto,
