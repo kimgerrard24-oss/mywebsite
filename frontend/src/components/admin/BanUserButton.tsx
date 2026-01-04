@@ -1,6 +1,6 @@
 // frontend/src/components/admin/BanUserButton.tsx
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useBanUser } from "@/hooks/useBanUser";
 import BanUserModal from "./BanUserModal";
 
@@ -37,6 +37,26 @@ export default function BanUserButton({
 }: Props) {
   const [open, setOpen] = useState(false);
 
+  /**
+   * ==============================
+   * Optimistic UI state
+   * ==============================
+   *
+   * - ใช้เพื่อเปลี่ยน label / action ทันทีหลัง ban/unban
+   * - backend ยังคงเป็น authority
+   * - เมื่อ parent refetch เสร็จ ค่า prop จะ sync กลับมา
+   */
+  const [localDisabled, setLocalDisabled] =
+    useState(isDisabled);
+
+  /**
+   * Sync local state with backend source of truth
+   * (เมื่อ parent refresh users สำเร็จ)
+   */
+  useEffect(() => {
+    setLocalDisabled(isDisabled);
+  }, [isDisabled]);
+
   const {
     execute,
     loading,
@@ -51,11 +71,14 @@ export default function BanUserButton({
   async function handleConfirm(reason: string) {
     const ok = await execute({
       userId,
-      isDisabled,
+      isDisabled: localDisabled,
       reason,
     });
 
     if (ok) {
+      // optimistic update
+      setLocalDisabled((prev) => !prev);
+
       setOpen(false);
       onChanged?.();
     }
@@ -67,9 +90,9 @@ export default function BanUserButton({
    * ==============================
    */
 
-  const label = isDisabled ? "Unban" : "Ban";
+  const label = localDisabled ? "Unban" : "Ban";
 
-  const buttonClass = isDisabled
+  const buttonClass = localDisabled
     ? "text-sm text-green-600 hover:underline"
     : "text-sm text-red-600 hover:underline";
 
@@ -89,7 +112,7 @@ export default function BanUserButton({
         open={open}
         loading={loading}
         error={error}
-        requireReason={!isDisabled}
+        requireReason={!localDisabled}
         actionLabel={label}
         onConfirm={handleConfirm}
         onClose={() => setOpen(false)}

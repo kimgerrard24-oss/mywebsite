@@ -10,6 +10,7 @@ import { CommentReplyPolicy } from './policy/comment-reply.policy';
 import { CommentMapper } from '../mappers/comment.mapper';
 import { CommentReadPolicy } from '../policy/comment-read.policy'
 import { NotificationsService } from '../../notifications/notifications.service';
+import { parseHashtags } from '../../posts/utils/parse-hashtags.util';
 
 @Injectable()
 export class CommentsRepliesService {
@@ -146,6 +147,28 @@ async createReply(params: {
       }
     }
   }
+
+  // =========================
+// 🔹 HASHTAG HANDLING (NEW)
+// =========================
+try {
+  const tags = parseHashtags(content);
+
+  if (tags.length > 0) {
+    const tagRows = await this.repo.upsertTags(tags);
+
+    await this.repo.createCommentTags({
+      commentId: created.id, // reply = comment with parentId
+      tagIds: tagRows.map((t) => t.id),
+    });
+  }
+} catch {
+  /**
+   * ❗ hashtag persistence fail
+   * ต้องไม่ทำให้ reply fail
+   */
+}
+
 
   /**
    * 6️⃣ Re-fetch with author relation (source of truth)

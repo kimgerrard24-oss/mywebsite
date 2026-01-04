@@ -14,6 +14,7 @@ type NotificationNewPayload = {
       avatarUrl: string | null;
     } | null;
     entityId: string | null;
+    payload?: unknown;
     isRead: boolean;
     createdAt: string;
   };

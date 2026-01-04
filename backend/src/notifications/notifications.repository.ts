@@ -1,6 +1,7 @@
 // backend/src/notifications/notifications.repository.ts
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class NotificationsRepository {
@@ -74,11 +75,14 @@ async findMany(params: {
     });
   }
 
-  async create(params: {
+  // backend/src/notifications/notifications.repository.ts
+
+async create(params: {
   userId: string;
   actorUserId: string;
   type: string;
   entityId: string;
+  payload?: Prisma.InputJsonValue; 
 }) {
   return this.prisma.notification.create({
     data: {
@@ -86,7 +90,17 @@ async findMany(params: {
       actorUserId: params.actorUserId,
       type: params.type,
       entityId: params.entityId,
+
+      /**
+       * 🔹 Persist payload (JSON)
+       * - ONLY when provided
+       * - never pass null to Prisma Json field
+       */
+      ...(params.payload !== undefined
+        ? { payload: params.payload }
+        : {}),
     },
+
     include: {
       actor: {
         select: {

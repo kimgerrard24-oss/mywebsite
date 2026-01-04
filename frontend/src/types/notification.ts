@@ -17,6 +17,7 @@ export type NotificationItem = {
   payload?: {
     postId?: string;
     commentId?: string;
+    replyId?: string;
   };
 };
 

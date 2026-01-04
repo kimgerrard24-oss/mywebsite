@@ -92,32 +92,40 @@ export class NotificationsService {
    * =========================
    */
   async createNotification<
-    T extends keyof NotificationPayloadMap,
-  >(params: NotificationCreateInput<T>) {
-    const { userId, actorUserId, type, entityId } = params;
+  T extends keyof NotificationPayloadMap,
+>(params: NotificationCreateInput<T>) {
+  const {
+    userId,
+    actorUserId,
+    type,
+    entityId,
+    payload,
+  } = params;
 
-    // 🔐 defensive: ไม่แจ้งเตือนตัวเอง
-    if (userId === actorUserId) return;
+  // 🔐 defensive: ไม่แจ้งเตือนตัวเอง
+  if (userId === actorUserId) return;
 
-    // 1️⃣ Persist (DB = authority)
-    const row = await this.repo.create({
-      userId,
-      actorUserId,
-      type,
-      entityId,
+  // 1️⃣ Persist (DB = authority)
+  const row = await this.repo.create({
+    userId,
+    actorUserId,
+    type,
+    entityId,
+    payload, // ✅ ส่ง payload ต่อ
+  });
+
+  // 2️⃣ Realtime emit (fail-soft)
+  try {
+    const dto = NotificationMapper.toDto(row);
+
+    this.realtime.emitNewNotification(userId, {
+      notification: dto,
     });
-
-    // 2️⃣ Realtime emit (fail-soft)
-    try {
-      const dto = NotificationMapper.toDto(row);
-
-      this.realtime.emitNewNotification(userId, {
-        notification: dto,
-      });
-    } catch {
-      /**
-       * realtime fail ต้องไม่ทำให้ notification หลัก fail
-       */
-    }
+  } catch {
+    /**
+     * realtime fail ต้องไม่ทำให้ notification หลัก fail
+     */
   }
+}
+
 }

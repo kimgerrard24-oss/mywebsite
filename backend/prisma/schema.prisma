@@ -312,6 +312,8 @@ model Comment {
   deletedSource DeleteSource?
   deleteReason  String?
 
+  tags CommentTag[]
+
   author User @relation("CommentAuthor",fields: [authorId],references: [id])
 
   deletedBy User? @relation("CommentDeletedBy",fields: [deletedById],references: [id],onDelete: SetNull)
@@ -353,6 +355,17 @@ model CommentLike {
   @@index([userId])
 }
 
+model CommentTag {
+  commentId String
+  tagId     String
+
+  comment Comment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+  tag     Tag     @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([commentId, tagId])
+  @@index([tagId])
+}
+
 model CommentMention {
   id        String   @id @default(uuid())
 
@@ -379,7 +392,7 @@ model Tag {
   createdAt DateTime  @default(now())
   postCount Int      @default(0)
   posts     PostTag[]
-
+  comments  CommentTag[]
   @@index([name])
 }
 

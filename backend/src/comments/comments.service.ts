@@ -12,6 +12,7 @@ import { CommentMapper } from './mappers/comment.mapper';
 import { CommentItemDto } from './dto/comment-item.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationMapper } from '../notifications/mapper/notification.mapper';
+import { parseHashtags } from '../posts/utils/parse-hashtags.util';
 
 @Injectable()
 export class CommentsService {
@@ -129,6 +130,30 @@ async createComment(params: {
       }
     }
   }
+
+  // =========================
+// 🔹 HASHTAG HANDLING (NEW)
+// =========================
+try {
+  const tags = parseHashtags(content);
+
+  if (tags.length > 0) {
+    // upsert tags (ใช้ pattern เดียวกับ post)
+    const tagRows = await this.repo.upsertTags(tags);
+
+    // link comment ↔ tags
+    await this.repo.createCommentTags({
+      commentId: created.id,
+      tagIds: tagRows.map((t) => t.id),
+    });
+  }
+} catch {
+  /**
+   * ❗ hashtag persistence fail
+   * ต้องไม่ทำให้ comment fail
+   */
+}
+
 
   // =========================
   // 🔒 re-fetch with author (source of truth)

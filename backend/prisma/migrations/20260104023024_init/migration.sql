@@ -226,19 +226,25 @@ CREATE TABLE "Comment" (
 );
 
 -- =====================================================
--- 🔒 Enforce ONE-LEVEL reply only (PRODUCTION SAFETY)
+-- 🔒 Enforce ONE-LEVEL reply only (PRODUCTION SAFE)
+-- - Applies ONLY on INSERT
+-- - Prevents nested replies (reply of reply)
 -- =====================================================
+
 CREATE OR REPLACE FUNCTION enforce_one_level_reply()
 RETURNS trigger AS $$
 BEGIN
+  -- Only validate when this is a reply
   IF NEW."parentId" IS NOT NULL THEN
+    -- If parent itself is already a reply → reject
     IF EXISTS (
       SELECT 1
       FROM "Comment"
       WHERE id = NEW."parentId"
         AND "parentId" IS NOT NULL
     ) THEN
-      RAISE EXCEPTION 'Nested replies are not allowed';
+      RAISE EXCEPTION
+        'Nested replies are not allowed (only 1-level replies supported)';
     END IF;
   END IF;
 
@@ -246,8 +252,14 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- =====================================================
+-- Trigger: INSERT ONLY (⚠️ DO NOT USE UPDATE)
+-- =====================================================
+
+DROP TRIGGER IF EXISTS trg_comment_one_level_reply ON "Comment";
+
 CREATE TRIGGER trg_comment_one_level_reply
-BEFORE INSERT OR UPDATE ON "Comment"
+BEFORE INSERT ON "Comment"
 FOR EACH ROW
 EXECUTE FUNCTION enforce_one_level_reply();
 
@@ -259,6 +271,14 @@ CREATE TABLE "CommentLike" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "CommentLike_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "CommentTag" (
+    "commentId" TEXT NOT NULL,
+    "tagId" TEXT NOT NULL,
+
+    CONSTRAINT "CommentTag_pkey" PRIMARY KEY ("commentId","tagId")
 );
 
 -- CreateTable
@@ -524,6 +544,9 @@ CREATE INDEX "CommentLike_userId_idx" ON "CommentLike"("userId");
 CREATE UNIQUE INDEX "CommentLike_commentId_userId_key" ON "CommentLike"("commentId", "userId");
 
 -- CreateIndex
+CREATE INDEX "CommentTag_tagId_idx" ON "CommentTag"("tagId");
+
+-- CreateIndex
 CREATE INDEX "CommentMention_commentId_idx" ON "CommentMention"("commentId");
 
 -- CreateIndex
@@ -669,6 +692,12 @@ ALTER TABLE "CommentLike" ADD CONSTRAINT "CommentLike_commentId_fkey" FOREIGN KE
 
 -- AddForeignKey
 ALTER TABLE "CommentLike" ADD CONSTRAINT "CommentLike_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CommentTag" ADD CONSTRAINT "CommentTag_commentId_fkey" FOREIGN KEY ("commentId") REFERENCES "Comment"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "CommentTag" ADD CONSTRAINT "CommentTag_tagId_fkey" FOREIGN KEY ("tagId") REFERENCES "Tag"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "CommentMention" ADD CONSTRAINT "CommentMention_commentId_fkey" FOREIGN KEY ("commentId") REFERENCES "Comment"("id") ON DELETE CASCADE ON UPDATE CASCADE;

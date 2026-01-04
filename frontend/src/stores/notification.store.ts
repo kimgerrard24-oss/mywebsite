@@ -11,9 +11,18 @@ export type NotificationItem = {
     avatarUrl: string | null;
   } | null;
   entityId: string | null;
+
+  /**
+   * Optional payload from backend
+   * - required for comment_mention
+   * - safe for other types
+   */
+  payload?: unknown;
+
   isRead: boolean;
   createdAt: string;
 };
+
 
 type NotificationState = {
   items: NotificationItem[];

@@ -124,6 +124,35 @@ export class CommentsRepliesRepository {
   });
 }
 
+async upsertTags(names: string[]) {
+  return Promise.all(
+    names.map((name) =>
+      this.prisma.tag.upsert({
+        where: { name },
+        update: {},
+        create: { name },
+        select: { id: true },
+      }),
+    ),
+  );
+}
+
+
+ async createCommentTags(params: {
+  commentId: string;
+  tagIds: string[];
+}) {
+  if (params.tagIds.length === 0) return;
+
+  await this.prisma.commentTag.createMany({
+    data: params.tagIds.map((tagId) => ({
+      commentId: params.commentId,
+      tagId,
+    })),
+    skipDuplicates: true,
+  });
+}
+
 
 
 }

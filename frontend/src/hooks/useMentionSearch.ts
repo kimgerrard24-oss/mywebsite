@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { mentionSearch, MentionUser } from '@/lib/api/mention-search';
 
-export function useMentionSearch(query: string) {
+export function useMentionSearch(query: string | null) {
   const [items, setItems] = useState<MentionUser[]>([]);
   const [loading, setLoading] = useState(false);
 
@@ -11,13 +11,16 @@ export function useMentionSearch(query: string) {
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    const q = query.trim();
-
-    // ไม่ search ถ้าสั้นเกิน
-    if (q.length < 1) {
+    // ❌ ไม่อยู่ใน mention context → clear และออก
+    if (query === null) {
       setItems([]);
       return;
     }
+
+    // ✅ อยู่ใน mention context
+    // - query === ""  → พิมพ์ @
+    // - query === "to" → พิมพ์ @to
+    const q = query.trim();
 
     // debounce
     if (debounceRef.current) {
@@ -48,7 +51,7 @@ export function useMentionSearch(query: string) {
       } finally {
         setLoading(false);
       }
-    }, 250); // UX-friendly debounce
+    }, 250);
 
     return () => {
       if (debounceRef.current) {
