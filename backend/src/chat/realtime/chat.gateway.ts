@@ -12,6 +12,7 @@ import { Server, Socket } from 'socket.io';
 import { ChatRealtimeService } from './chat-realtime.service';
 
 @WebSocketGateway({
+  path: '/socket.io', // ✅ CRITICAL: must match RedisIoAdapter
   cors: {
     origin: true,
     credentials: true,
@@ -33,7 +34,9 @@ export class ChatGateway implements OnGatewayInit {
    * Socket connection lifecycle
    * - Auth & user room join handled by RedisIoAdapter
    */
-  handleConnection(_client: Socket) {}
+  handleConnection(_client: Socket) {
+    // intentionally empty
+  }
 
   /**
    * Join chat room

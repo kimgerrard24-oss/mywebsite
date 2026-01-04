@@ -9,14 +9,13 @@ import { Server } from 'socket.io';
 import { NotificationRealtimeService } from './notification-realtime.service';
 
 @WebSocketGateway({
+  path: '/socket.io', // ✅ CRITICAL: must match RedisIoAdapter
   cors: {
     origin: true,
     credentials: true,
   },
 })
-export class NotificationGateway
-  implements OnGatewayInit
-{
+export class NotificationGateway implements OnGatewayInit {
   @WebSocketServer()
   private server!: Server;
 
