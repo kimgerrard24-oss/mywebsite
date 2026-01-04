@@ -37,12 +37,10 @@ export function useNotificationRealtime() {
   const pushNotification =
     useNotificationStore((s) => s.pushNotification);
 
-  const socketRef = useRef<ReturnType<typeof getSocket> | null>(null);
   const boundRef = useRef(false);
 
   useEffect(() => {
     const socket = getSocket();
-    socketRef.current = socket;
 
     const notificationHandler = (
       payload: NotificationNewPayload,

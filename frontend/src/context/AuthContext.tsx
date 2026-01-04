@@ -38,11 +38,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Prevent concurrent profile fetch
   const fetchingRef = useRef(false);
+  const socketReadyRef = useRef(false);
 
   /**
-   * Check backend session authority FIRST
+   * Backend session = authority
    */
   const checkSession = async (): Promise<boolean> => {
     try {
@@ -62,27 +62,28 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (profile) {
         setUser(profile);
       }
-    } catch {
-      // IMPORTANT:
-      // Do NOT set user = null here
-      // Resource failure !== session invalid
     } finally {
       fetchingRef.current = false;
     }
   };
 
-  // ----------------------------------
-  // Exposed helper for post-login sync
-  // ----------------------------------
+  /**
+   * Exposed helper
+   */
   const refreshUser = async () => {
     const hasSession = await checkSession();
     if (!hasSession) {
+      socketReadyRef.current = false;
       resetSocket();
       return;
     }
 
     await fetchProfileSafely();
-    connectSocket();
+
+    if (!socketReadyRef.current) {
+      socketReadyRef.current = true;
+      connectSocket();
+    }
   };
 
   useEffect(() => {
@@ -99,16 +100,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       auth = null;
     }
 
-    // ----------------------------------
-    // 1) Backend session = source of truth
-    // ----------------------------------
+    /**
+     * 1) Initial backend session check
+     */
     (async () => {
       try {
         const hasSession = await checkSession();
         if (hasSession) {
           await fetchProfileSafely();
-          connectSocket();
+
+          if (!socketReadyRef.current) {
+            socketReadyRef.current = true;
+            connectSocket();
+          }
         } else {
+          socketReadyRef.current = false;
           resetSocket();
         }
       } finally {
@@ -116,25 +122,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     })();
 
-    // ----------------------------------
-    // 2) Firebase = enhancement layer ONLY
-    // ----------------------------------
+    /**
+     * 2) Firebase enhancement only
+     */
     if (!auth) return;
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (!firebaseUser) return;
 
-      // Allow time for backend cookies/session
       await new Promise((r) => setTimeout(r, 300));
 
       const hasSession = await checkSession();
       if (!hasSession) {
+        socketReadyRef.current = false;
         resetSocket();
         return;
       }
 
       await fetchProfileSafely();
-      connectSocket();
+
+      if (!socketReadyRef.current) {
+        socketReadyRef.current = true;
+        connectSocket();
+      }
     });
 
     return () => {
@@ -151,9 +161,6 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-/**
- * EXISTING hook (DO NOT TOUCH)
- */
 export function useAuthContext() {
   const ctx = useContext(AuthContext);
   if (!ctx) {
@@ -162,11 +169,6 @@ export function useAuthContext() {
   return ctx;
 }
 
-/**
- * ================================
- * NEW: Alias hook (ADDITIVE ONLY)
- * ================================
- */
 export function useAuth() {
   return useAuthContext();
 }

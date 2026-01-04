@@ -36,6 +36,7 @@ export function useChatRealtime({
   onTyping,
 }: Params) {
   const socketRef = useRef<ReturnType<typeof getSocket> | null>(null);
+  const boundRef = useRef(false);
 
   const joinChat = useCallback(() => {
     if (!chatId) return;
@@ -52,6 +53,11 @@ export function useChatRealtime({
     const socket = getSocket();
     socketRef.current = socket;
 
+    // 🔑 ensure socket is actually connected
+    if (!socket.connected) {
+      socket.connect();
+    }
+
     const handleNewMessage = (payload: NewMessagePayload) => {
       onNewMessage(payload);
     };
@@ -64,31 +70,41 @@ export function useChatRealtime({
       onTyping?.(payload);
     };
 
-    // bind listeners
-    socket.on('chat:new-message', handleNewMessage);
-    socket.on('chat:message-deleted', handleMessageDeleted);
-    socket.on('chat:typing', handleTyping);
+    const bindListeners = () => {
+      if (boundRef.current) return;
+      boundRef.current = true;
 
-    const handleConnect = () => {
-      joinChat();
+      socket.on('chat:new-message', handleNewMessage);
+      socket.on('chat:message-deleted', handleMessageDeleted);
+      socket.on('chat:typing', handleTyping);
     };
 
-    // join only AFTER socket is connected
+    const unbindListeners = () => {
+      if (!boundRef.current) return;
+      boundRef.current = false;
+
+      socket.off('chat:new-message', handleNewMessage);
+      socket.off('chat:message-deleted', handleMessageDeleted);
+      socket.off('chat:typing', handleTyping);
+    };
+
     if (socket.connected) {
+      bindListeners();
       joinChat();
     } else {
-      socket.once('connect', handleConnect);
+      socket.once('connect', () => {
+        bindListeners();
+        joinChat();
+      });
     }
 
     socket.io.on('reconnect', joinChat);
 
     return () => {
-      socket.off('chat:new-message', handleNewMessage);
-      socket.off('chat:message-deleted', handleMessageDeleted);
-      socket.off('chat:typing', handleTyping);
-
-      socket.off('connect', handleConnect);
+      socket.off('connect');
       socket.io.off('reconnect', joinChat);
+
+      unbindListeners();
 
       if (socket.connected) {
         socket.emit('chat:leave', { chatId });
