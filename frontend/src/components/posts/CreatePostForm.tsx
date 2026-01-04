@@ -20,6 +20,7 @@ export default function CreatePostForm() {
 
   const submitting = loading || uploading || completing;
 
+  
   // =========================
   // File selection (UNCHANGED)
   // =========================
