@@ -27,9 +27,12 @@ export class RedisIoAdapter extends IoAdapter {
     private readonly app: INestApplicationContext,
   ) {
     super(app);
+    this.logger.log('RedisIoAdapter constructed');
   }
 
   async connectToRedis(): Promise<void> {
+    this.logger.log('connectToRedis() called');
+
     const redis = this.app.get<Redis>('REDIS_CLIENT');
 
     this.pubClient = redis.duplicate();
@@ -44,6 +47,10 @@ export class RedisIoAdapter extends IoAdapter {
     port: number,
     options?: ServerOptions,
   ): Server {
+    this.logger.log(
+      `createIOServer() called on port=${port}`,
+    );
+
     const server = super.createIOServer(port, {
       ...options,
       path: '/socket.io',
@@ -57,8 +64,16 @@ export class RedisIoAdapter extends IoAdapter {
       },
     });
 
+    this.logger.log(
+      'Socket.IO server instance created',
+    );
+
     server.adapter(
       createAdapter(this.pubClient, this.subClient),
+    );
+
+    this.logger.log(
+      'Socket.IO Redis adapter attached',
     );
 
     // ============================
@@ -69,8 +84,26 @@ export class RedisIoAdapter extends IoAdapter {
         socket: Socket,
         next: (err?: Error) => void,
       ) => {
+        this.logger.debug(
+          `[middleware] Incoming socket id=${socket.id}`,
+        );
+
         try {
           const req = socket.request as Request;
+
+          if (!req) {
+            this.logger.error(
+              `[middleware] socket.request is undefined (socket=${socket.id})`,
+            );
+            return next(new Error('INVALID_REQUEST'));
+          }
+
+          const cookieHeader =
+            req.headers?.cookie;
+
+          this.logger.debug(
+            `[middleware] cookie header=${cookieHeader ? 'present' : 'missing'} socket=${socket.id}`,
+          );
 
           const validateSession =
             this.app.get(ValidateSessionService);
@@ -80,23 +113,39 @@ export class RedisIoAdapter extends IoAdapter {
               req,
             );
 
+          if (!user) {
+            this.logger.warn(
+              `[middleware] validateSession returned empty user (socket=${socket.id})`,
+            );
+            return next(new Error('UNAUTHORIZED'));
+          }
+
           (socket as any).user = user;
 
           // 🔑 auto-join user room (CRITICAL)
-          socket.join(`user:${user.userId}`);
+          const room = `user:${user.userId}`;
+          socket.join(room);
 
-          this.logger.debug(
-            `Socket ${socket.id} joined room user:${user.userId}`,
+          this.logger.log(
+            `[middleware] socket=${socket.id} joined room=${room}`,
           );
 
           next();
-        } catch {
+        } catch (err) {
+          this.logger.error(
+            `[middleware] socket auth failed (socket=${socket.id})`,
+            err instanceof Error
+              ? err.stack
+              : String(err),
+          );
           next(new Error('UNAUTHORIZED'));
         }
       },
     );
 
-    this.logger.log('Socket.IO Redis adapter attached');
+    this.logger.log(
+      'Socket.IO auth middleware registered',
+    );
 
     return server;
   }

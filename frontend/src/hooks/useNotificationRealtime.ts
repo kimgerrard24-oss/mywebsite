@@ -40,10 +40,28 @@ export function useNotificationRealtime() {
   useEffect(() => {
     const socket = getSocket();
 
+    console.log('[useNotificationRealtime] mount', {
+      socketId: socket.id,
+      connected: socket.connected,
+    });
+
     // ===== notification domain =====
     const notificationHandler = (
       payload: NotificationNewPayload,
     ) => {
+      if (!payload?.notification) {
+        console.warn(
+          '[useNotificationRealtime] notification:new received invalid payload',
+          payload,
+        );
+        return;
+      }
+
+      console.log(
+        '[useNotificationRealtime] received notification:new',
+        payload.notification,
+      );
+
       pushNotification(payload.notification);
     };
 
@@ -51,6 +69,23 @@ export function useNotificationRealtime() {
     const chatHandler = (
       payload: ChatNewMessagePayload,
     ) => {
+      if (!payload?.message || !payload?.chatId) {
+        console.warn(
+          '[useNotificationRealtime] chat:new-message received invalid payload',
+          payload,
+        );
+        return;
+      }
+
+      console.log(
+        '[useNotificationRealtime] received chat:new-message (notification bridge)',
+        {
+          chatId: payload.chatId,
+          messageId: payload.message.id,
+          senderId: payload.message.sender?.id,
+        },
+      );
+
       pushNotification({
         id: `chat-${payload.message.id}`,
         type: 'chat_message',
@@ -64,7 +99,15 @@ export function useNotificationRealtime() {
     socket.on('notification:new', notificationHandler);
     socket.on('chat:new-message', chatHandler);
 
+    console.log(
+      '[useNotificationRealtime] listeners registered',
+    );
+
     return () => {
+      console.log('[useNotificationRealtime] cleanup', {
+        socketId: socket.id,
+      });
+
       socket.off('notification:new', notificationHandler);
       socket.off('chat:new-message', chatHandler);
     };

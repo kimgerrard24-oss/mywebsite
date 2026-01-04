@@ -39,6 +39,11 @@ export default function ChatRealtimeBridge({
   const chatIdRef = useRef(chatId);
 
   useEffect(() => {
+    console.log('[ChatRealtimeBridge] mount / chatId changed', {
+      prev: chatIdRef.current,
+      next: chatId,
+    });
+
     chatIdRef.current = chatId;
   }, [chatId]);
 
@@ -50,8 +55,31 @@ export default function ChatRealtimeBridge({
       chatId: string;
       message: ChatMessage;
     }) => {
-      if (!payload) return;
-      if (payload.chatId !== chatIdRef.current) return;
+      if (!payload) {
+        console.warn(
+          '[ChatRealtimeBridge] new-message dropped: empty payload',
+        );
+        return;
+      }
+
+      if (payload.chatId !== chatIdRef.current) {
+        console.warn(
+          '[ChatRealtimeBridge] new-message dropped: chatId mismatch',
+          {
+            expected: chatIdRef.current,
+            received: payload.chatId,
+          },
+        );
+        return;
+      }
+
+      console.log(
+        '[ChatRealtimeBridge] new-message received',
+        {
+          chatId: payload.chatId,
+          messageId: payload.message?.id,
+        },
+      );
 
       const normalizedMessage: ChatMessage = {
         ...payload.message,
@@ -60,11 +88,6 @@ export default function ChatRealtimeBridge({
           : [],
       };
 
-      /**
-       * IMPORTANT:
-       * Do NOT drop message even if media is not ready yet
-       * Message will be patched later by authoritative POST or future realtime
-       */
       onMessageReceived(normalizedMessage);
     },
     [onMessageReceived],
@@ -78,8 +101,31 @@ export default function ChatRealtimeBridge({
       chatId: string;
       messageId: string;
     }) => {
-      if (!payload) return;
-      if (payload.chatId !== chatIdRef.current) return;
+      if (!payload) {
+        console.warn(
+          '[ChatRealtimeBridge] message-deleted dropped: empty payload',
+        );
+        return;
+      }
+
+      if (payload.chatId !== chatIdRef.current) {
+        console.warn(
+          '[ChatRealtimeBridge] message-deleted dropped: chatId mismatch',
+          {
+            expected: chatIdRef.current,
+            received: payload.chatId,
+          },
+        );
+        return;
+      }
+
+      console.log(
+        '[ChatRealtimeBridge] message-deleted received',
+        {
+          chatId: payload.chatId,
+          messageId: payload.messageId,
+        },
+      );
 
       onMessageDeleted(payload.messageId);
     },
@@ -96,13 +142,38 @@ export default function ChatRealtimeBridge({
       isTyping: boolean;
     }) => {
       if (!onTyping) return;
-      if (!payload) return;
-      if (payload.chatId !== chatIdRef.current) return;
+
+      if (!payload) {
+        console.warn(
+          '[ChatRealtimeBridge] typing dropped: empty payload',
+        );
+        return;
+      }
+
+      if (payload.chatId !== chatIdRef.current) {
+        console.warn(
+          '[ChatRealtimeBridge] typing dropped: chatId mismatch',
+          {
+            expected: chatIdRef.current,
+            received: payload.chatId,
+          },
+        );
+        return;
+      }
+
+      console.log(
+        '[ChatRealtimeBridge] typing event received',
+        payload,
+      );
 
       onTyping(payload);
     },
     [onTyping],
   );
+
+  console.log('[ChatRealtimeBridge] init useChatRealtime', {
+    chatId,
+  });
 
   useChatRealtime({
     chatId,

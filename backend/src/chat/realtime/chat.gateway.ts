@@ -10,6 +10,7 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { ChatRealtimeService } from './chat-realtime.service';
+import { Logger } from '@nestjs/common';
 
 @WebSocketGateway({
   path: '/socket.io', // ✅ CRITICAL: must match RedisIoAdapter
@@ -19,6 +20,8 @@ import { ChatRealtimeService } from './chat-realtime.service';
   },
 })
 export class ChatGateway implements OnGatewayInit {
+  private readonly logger = new Logger(ChatGateway.name);
+
   @WebSocketServer()
   private server!: Server;
 
@@ -27,6 +30,7 @@ export class ChatGateway implements OnGatewayInit {
   ) {}
 
   afterInit(server: Server) {
+    this.logger.log('[afterInit] ChatGateway initialized');
     this.realtime.bindServer(server);
   }
 
@@ -34,8 +38,10 @@ export class ChatGateway implements OnGatewayInit {
    * Socket connection lifecycle
    * - Auth & user room join handled by RedisIoAdapter
    */
-  handleConnection(_client: Socket) {
-    // intentionally empty
+  handleConnection(client: Socket) {
+    this.logger.debug(
+      `[handleConnection] socket connected id=${client.id}`,
+    );
   }
 
   /**
@@ -47,12 +53,26 @@ export class ChatGateway implements OnGatewayInit {
     @ConnectedSocket() client: Socket,
     @MessageBody() data: { chatId: string },
   ): { joined: true } | void {
-    if (!data?.chatId) return;
+    if (!data?.chatId) {
+      this.logger.warn(
+        `[chat:join] missing chatId (socket=${client.id})`,
+      );
+      return;
+    }
 
     const user = (client as any).user;
-    if (!user) return;
+    if (!user) {
+      this.logger.warn(
+        `[chat:join] unauthenticated socket=${client.id}`,
+      );
+      return;
+    }
 
     client.join(`chat:${data.chatId}`);
+
+    this.logger.log(
+      `[chat:join] user=${user.userId} socket=${client.id} joined chat:${data.chatId}`,
+    );
 
     return { joined: true };
   }
@@ -65,8 +85,17 @@ export class ChatGateway implements OnGatewayInit {
     @ConnectedSocket() client: Socket,
     @MessageBody() data: { chatId: string },
   ) {
-    if (!data?.chatId) return;
+    if (!data?.chatId) {
+      this.logger.warn(
+        `[chat:leave] missing chatId (socket=${client.id})`,
+      );
+      return;
+    }
 
     client.leave(`chat:${data.chatId}`);
+
+    this.logger.log(
+      `[chat:leave] socket=${client.id} left chat:${data.chatId}`,
+    );
   }
 }

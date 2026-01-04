@@ -1,6 +1,6 @@
 // backend/src/chat/realtime/chat-realtime.service.ts
 
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Server } from 'socket.io';
 import {
   WS_EVENTS,
@@ -11,10 +11,12 @@ import {
 
 @Injectable()
 export class ChatRealtimeService {
+  private readonly logger = new Logger(ChatRealtimeService.name);
   private server: Server | null = null;
 
   bindServer(server: Server) {
     this.server = server;
+    this.logger.log('[bindServer] Socket.IO server bound');
   }
 
   /**
@@ -23,7 +25,16 @@ export class ChatRealtimeService {
    * ============================
    */
   emitNewMessage(event: ChatNewMessageEvent) {
-    if (!this.server) return;
+    if (!this.server) {
+      this.logger.warn(
+        `[emitNewMessage] skipped: server not initialized (chatId=${event.chatId})`,
+      );
+      return;
+    }
+
+    this.logger.debug(
+      `[emitNewMessage] chatId=${event.chatId} event=${WS_EVENTS.CHAT_NEW_MESSAGE}`,
+    );
 
     this.server
       .to(`chat:${event.chatId}`)
@@ -36,7 +47,16 @@ export class ChatRealtimeService {
    * ============================
    */
   emitMessageDeleted(event: ChatMessageDeletedEvent) {
-    if (!this.server) return;
+    if (!this.server) {
+      this.logger.warn(
+        `[emitMessageDeleted] skipped: server not initialized (chatId=${event.chatId})`,
+      );
+      return;
+    }
+
+    this.logger.debug(
+      `[emitMessageDeleted] chatId=${event.chatId} messageId=${event.messageId}`,
+    );
 
     this.server
       .to(`chat:${event.chatId}`)
@@ -49,7 +69,16 @@ export class ChatRealtimeService {
    * ============================
    */
   emitTyping(event: ChatTypingEvent) {
-    if (!this.server) return;
+    if (!this.server) {
+      this.logger.warn(
+        `[emitTyping] skipped: server not initialized (chatId=${event.chatId})`,
+      );
+      return;
+    }
+
+    this.logger.debug(
+      `[emitTyping] chatId=${event.chatId} userId=${event.userId} isTyping=${event.isTyping}`,
+    );
 
     this.server
       .to(`chat:${event.chatId}`)
