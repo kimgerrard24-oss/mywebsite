@@ -10,10 +10,11 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { ChatRealtimeService } from './chat-realtime.service';
-import { Logger } from '@nestjs/common';
+import { UseGuards,Logger } from '@nestjs/common';
+import { WsAuthGuard } from './ws-auth.guard';
 
 @WebSocketGateway({
-  path: '/socket.io', // ✅ CRITICAL: must match RedisIoAdapter
+  path: '/socket.io', // must match RedisIoAdapter
   cors: {
     origin: true,
     credentials: true,
@@ -46,8 +47,8 @@ export class ChatGateway implements OnGatewayInit {
 
   /**
    * Join chat room
-   * - Assumes socket already authenticated
    */
+  @UseGuards(WsAuthGuard)
   @SubscribeMessage('chat:join')
   handleJoinChat(
     @ConnectedSocket() client: Socket,
@@ -62,8 +63,8 @@ export class ChatGateway implements OnGatewayInit {
 
     const user = (client as any).user;
     if (!user) {
-      this.logger.warn(
-        `[chat:join] unauthenticated socket=${client.id}`,
+      this.logger.error(
+        `[chat:join] user missing after guard (socket=${client.id})`,
       );
       return;
     }
@@ -80,6 +81,7 @@ export class ChatGateway implements OnGatewayInit {
   /**
    * Leave chat room
    */
+  @UseGuards(WsAuthGuard)
   @SubscribeMessage('chat:leave')
   handleLeaveChat(
     @ConnectedSocket() client: Socket,

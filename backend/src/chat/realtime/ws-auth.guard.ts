@@ -18,7 +18,15 @@ export class WsAuthGuard implements CanActivate {
     private readonly validateSession: ValidateSessionService,
   ) {}
 
-  async canActivate(context: ExecutionContext): Promise<boolean> {
+  /**
+   * NOTE:
+   * - This guard is NOT used for socket handshake
+   * - It only protects @SubscribeMessage handlers
+   * - Do NOT rely on this for room join or realtime auth
+   */
+  async canActivate(
+    context: ExecutionContext,
+  ): Promise<boolean> {
     const client: Socket =
       context.switchToWs().getClient();
 
@@ -26,7 +34,7 @@ export class WsAuthGuard implements CanActivate {
 
     if (!req) {
       this.logger.error(
-        `[WS AUTH] socket.request is undefined (socket=${client.id})`,
+        `[WS AUTH] socket.request missing socket=${client.id}`,
       );
       return false;
     }
@@ -39,14 +47,14 @@ export class WsAuthGuard implements CanActivate {
 
       (client as any).user = user;
 
-      this.logger.log(
-        `[WS AUTH] Authorized socket=${client.id} userId=${user.userId}`,
+      this.logger.debug(
+        `[WS AUTH] validated socket=${client.id} userId=${user.userId}`,
       );
 
       return true;
-    } catch (err) {
+    } catch {
       this.logger.warn(
-        `[WS AUTH] Unauthorized socket=${client.id}`,
+        `[WS AUTH] unauthorized socket=${client.id}`,
       );
       return false;
     }
