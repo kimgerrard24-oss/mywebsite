@@ -334,13 +334,13 @@ function renderContentWithMentions(text: string) {
       );
     }
 
-    // #hashtag
+    // #hashtag ✅ FIX
     if (part.startsWith("#")) {
       const tag = part.slice(1);
       return (
         <a
           key={i}
-          href={`/posts/tag/${encodeURIComponent(tag)}`}
+          href={`/tags/${encodeURIComponent(tag)}`}
           className="text-blue-600 hover:underline"
         >
           {part}
@@ -351,4 +351,5 @@ function renderContentWithMentions(text: string) {
     return <span key={i}>{part}</span>;
   });
 }
+
 

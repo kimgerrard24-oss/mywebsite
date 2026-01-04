@@ -9,13 +9,16 @@ export function useBanUser() {
 
   async function execute(params: {
     userId: string;
-    isDisabled: boolean;
+    banned: boolean;
     reason?: string;
   }): Promise<boolean> {
-    const { userId, isDisabled, reason } = params;
+    const { userId, banned, reason } = params;
 
-    // Ban requires reason
-    if (!isDisabled && (!reason || !reason.trim())) {
+    const trimmedReason =
+      typeof reason === "string" ? reason.trim() : "";
+
+    // Ban requires reason (UX validation only)
+    if (banned && trimmedReason.length === 0) {
       setError("Reason is required");
       return false;
     }
@@ -25,8 +28,8 @@ export function useBanUser() {
 
     try {
       await banUserApi(userId, {
-        banned: isDisabled ? false : true,
-        reason: isDisabled ? undefined : reason?.trim(),
+        banned,
+        reason: banned ? trimmedReason : undefined,
       });
       return true;
     } catch (err: any) {

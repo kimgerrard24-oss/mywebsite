@@ -152,6 +152,12 @@ export default function ReplyComposer({
               .selectionStart,
           )
         }
+
+        onKeyDown={(e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+    }
+  }}
         rows={1}
         disabled={loading}
         placeholder="Write a reply…"

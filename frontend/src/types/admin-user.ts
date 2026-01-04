@@ -5,7 +5,7 @@
  * Admin User Types
  * ==============================
  *
- * ⚠️ IMPORTANT
+ * IMPORTANT
  * - Backend is the authority
  * - Frontend must NOT infer permission or policy
  * - This type reflects the API contract from:
@@ -14,7 +14,6 @@
 
 /**
  * User role returned by backend
- * (extendable in the future, e.g. "MODERATOR")
  */
 export type AdminUserRole = "USER" | "ADMIN";
 
@@ -53,12 +52,22 @@ export type AdminUser = {
   role: AdminUserRole;
 
   /**
-   * Account active state (source of truth)
-   * - true  => active
-   * - false => banned / disabled
+   * 🔒 Ban authority (source of truth)
+   * - true  => banned
+   * - false => not banned
+   */
+  isBanned: boolean;
+
+  /**
+   * Legacy / implementation detail
+   * Should NOT be used to determine ban state
    */
   isActive: boolean;
 
+  /**
+   * Legacy / implementation detail
+   * Should NOT be used to determine ban state
+   */
   isDisabled: boolean;
 
   /**
@@ -74,28 +83,10 @@ export type AdminUser = {
 
 /**
  * Paginated response for admin users list
- *
- * Returned by:
- * GET /admin/users
  */
 export type AdminUsersResponse = {
-  /**
-   * User items for current page
-   */
   items: AdminUser[];
-
-  /**
-   * Current page number (1-based)
-   */
   page: number;
-
-  /**
-   * Items per page
-   */
   limit: number;
-
-  /**
-   * Total number of users
-   */
   total: number;
 };

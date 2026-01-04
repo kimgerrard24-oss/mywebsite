@@ -149,6 +149,13 @@ export default function CommentComposer({
             (e.target as HTMLTextAreaElement).selectionStart
           )
         }
+
+         onKeyDown={(e) => {
+    // 🔒 block implicit submit ขณะพิมพ์ mention
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+    }
+  }}
         rows={1}
         maxLength={1000}
         required

@@ -33,11 +33,11 @@ export default function AdminUserRow({
    * Source of truth (backend)
    * ==============================
    */
-  const isDisabled = user.isDisabled;
+  const isBanned = user.isBanned;
 
-  const statusLabel = isDisabled ? "Disabled" : "Active";
+  const statusLabel = isBanned ? "Banned" : "Active";
 
-  const statusClass = isDisabled
+  const statusClass = isBanned
     ? "text-red-600"
     : "text-green-600";
 
@@ -109,7 +109,7 @@ export default function AdminUserRow({
         {canManageUser ? (
           <BanUserButton
             userId={user.id}
-            isDisabled={isDisabled}
+            isBanned={isBanned}
             onChanged={onChanged}
           />
         ) : (

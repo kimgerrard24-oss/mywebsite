@@ -6,24 +6,24 @@ import BanUserModal from "./BanUserModal";
 
 type Props = {
   /**
-   * 🎯 target user id
+   * target user id
    */
   userId: string;
 
   /**
-   * 🔒 current backend state
-   * true = user is already banned
+   * backend authority
+   * true = user is banned
    */
-  isDisabled: boolean;
+  isBanned: boolean;
 
   /**
-   * 🛡 UI-level guard
+   * UI-level guard
    * (e.g. self-ban, protected admin)
    */
   disabled?: boolean;
 
   /**
-   * 🔁 callback หลัง ban / unban สำเร็จ
+   * callback หลัง ban / unban สำเร็จ
    * ให้ parent refresh data
    */
   onChanged?: () => void;
@@ -31,7 +31,7 @@ type Props = {
 
 export default function BanUserButton({
   userId,
-  isDisabled,
+  isBanned,
   disabled = false,
   onChanged,
 }: Props) {
@@ -46,16 +46,16 @@ export default function BanUserButton({
    * - backend ยังคงเป็น authority
    * - เมื่อ parent refetch เสร็จ ค่า prop จะ sync กลับมา
    */
-  const [localDisabled, setLocalDisabled] =
-    useState(isDisabled);
+  const [localBanned, setLocalBanned] =
+    useState(isBanned);
 
   /**
    * Sync local state with backend source of truth
    * (เมื่อ parent refresh users สำเร็จ)
    */
   useEffect(() => {
-    setLocalDisabled(isDisabled);
-  }, [isDisabled]);
+    setLocalBanned(isBanned);
+  }, [isBanned]);
 
   const {
     execute,
@@ -71,13 +71,13 @@ export default function BanUserButton({
   async function handleConfirm(reason: string) {
     const ok = await execute({
       userId,
-      isDisabled: localDisabled,
+      banned: !localBanned,
       reason,
     });
 
     if (ok) {
       // optimistic update
-      setLocalDisabled((prev) => !prev);
+      setLocalBanned((prev) => !prev);
 
       setOpen(false);
       onChanged?.();
@@ -90,9 +90,9 @@ export default function BanUserButton({
    * ==============================
    */
 
-  const label = localDisabled ? "Unban" : "Ban";
+  const label = localBanned ? "Unban" : "Ban";
 
-  const buttonClass = localDisabled
+  const buttonClass = localBanned
     ? "text-sm text-green-600 hover:underline"
     : "text-sm text-red-600 hover:underline";
 
@@ -112,7 +112,7 @@ export default function BanUserButton({
         open={open}
         loading={loading}
         error={error}
-        requireReason={!localDisabled}
+        requireReason={!localBanned}
         actionLabel={label}
         onConfirm={handleConfirm}
         onClose={() => setOpen(false)}

@@ -11,16 +11,32 @@ export function useMentionSearch(query: string | null) {
   const debounceRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
-    // ❌ ไม่อยู่ใน mention context → clear และออก
+    // 🔒 ออกจาก mention context
     if (query === null) {
+      // cancel in-flight request
+      if (abortRef.current) {
+        abortRef.current.abort();
+        abortRef.current = null;
+      }
+
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+        debounceRef.current = null;
+      }
+
       setItems([]);
+      setLoading(false);
       return;
     }
 
-    // ✅ อยู่ใน mention context
-    // - query === ""  → พิมพ์ @
-    // - query === "to" → พิมพ์ @to
     const q = query.trim();
+
+    // 🔒 พิมพ์แค่ @ → ไม่ต้องยิง API
+    if (q.length === 0) {
+      setItems([]);
+      setLoading(false);
+      return;
+    }
 
     // debounce
     if (debounceRef.current) {
@@ -28,7 +44,7 @@ export function useMentionSearch(query: string | null) {
     }
 
     debounceRef.current = setTimeout(async () => {
-      // cancel request เก่า
+      // cancel previous request
       if (abortRef.current) {
         abortRef.current.abort();
       }
@@ -56,6 +72,7 @@ export function useMentionSearch(query: string | null) {
     return () => {
       if (debounceRef.current) {
         clearTimeout(debounceRef.current);
+        debounceRef.current = null;
       }
     };
   }, [query]);
