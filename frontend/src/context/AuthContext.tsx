@@ -14,6 +14,7 @@ import { getFirebaseAuth } from "firebase/client";
 import { onAuthStateChanged } from "firebase/auth";
 import { getProfile } from "@/lib/api/auth";
 import { api } from "@/lib/api/api";
+import { connectSocket, resetSocket } from "@/lib/socket";
 
 interface UserProfile {
   id: string;
@@ -75,9 +76,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // ----------------------------------
   const refreshUser = async () => {
     const hasSession = await checkSession();
-    if (!hasSession) return;
+    if (!hasSession) {
+      resetSocket();
+      return;
+    }
 
     await fetchProfileSafely();
+    connectSocket();
   };
 
   useEffect(() => {
@@ -102,6 +107,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const hasSession = await checkSession();
         if (hasSession) {
           await fetchProfileSafely();
+          connectSocket();
+        } else {
+          resetSocket();
         }
       } finally {
         setLoading(false);
@@ -120,9 +128,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await new Promise((r) => setTimeout(r, 300));
 
       const hasSession = await checkSession();
-      if (!hasSession) return;
+      if (!hasSession) {
+        resetSocket();
+        return;
+      }
 
       await fetchProfileSafely();
+      connectSocket();
     });
 
     return () => {
@@ -154,9 +166,6 @@ export function useAuthContext() {
  * ================================
  * NEW: Alias hook (ADDITIVE ONLY)
  * ================================
- * - Convenience for new components
- * - Backward compatible
- * - No behavior change
  */
 export function useAuth() {
   return useAuthContext();

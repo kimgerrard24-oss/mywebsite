@@ -52,10 +52,6 @@ export function useChatRealtime({
     const socket = getSocket();
     socketRef.current = socket;
 
-    if (!socket.connected) {
-      socket.connect();
-    }
-
     const handleNewMessage = (payload: NewMessagePayload) => {
       onNewMessage(payload);
     };
@@ -70,17 +66,14 @@ export function useChatRealtime({
 
     // bind listeners
     socket.on('chat:new-message', handleNewMessage);
-    socket.on(
-      'chat:message-deleted',
-      handleMessageDeleted,
-    );
+    socket.on('chat:message-deleted', handleMessageDeleted);
     socket.on('chat:typing', handleTyping);
 
     const handleConnect = () => {
       joinChat();
     };
 
-    // join after connect & reconnect
+    // join only AFTER socket is connected
     if (socket.connected) {
       joinChat();
     } else {
@@ -91,10 +84,7 @@ export function useChatRealtime({
 
     return () => {
       socket.off('chat:new-message', handleNewMessage);
-      socket.off(
-        'chat:message-deleted',
-        handleMessageDeleted,
-      );
+      socket.off('chat:message-deleted', handleMessageDeleted);
       socket.off('chat:typing', handleTyping);
 
       socket.off('connect', handleConnect);

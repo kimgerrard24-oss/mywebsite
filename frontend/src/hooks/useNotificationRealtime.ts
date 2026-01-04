@@ -1,6 +1,6 @@
 // frontend/src/hooks/useNotificationRealtime.ts
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { getSocket } from '@/lib/socket';
 import { useNotificationStore } from '@/stores/notification.store';
 
@@ -37,8 +37,12 @@ export function useNotificationRealtime() {
   const pushNotification =
     useNotificationStore((s) => s.pushNotification);
 
+  const socketRef = useRef<ReturnType<typeof getSocket> | null>(null);
+  const boundRef = useRef(false);
+
   useEffect(() => {
     const socket = getSocket();
+    socketRef.current = socket;
 
     const notificationHandler = (
       payload: NotificationNewPayload,
@@ -76,29 +80,33 @@ export function useNotificationRealtime() {
     };
 
     const bindListeners = () => {
-      socket.off('notification:new', notificationHandler);
-      socket.off('chat:new-message', chatHandler);
+      if (boundRef.current) return;
+      boundRef.current = true;
 
       socket.on('notification:new', notificationHandler);
       socket.on('chat:new-message', chatHandler);
     };
 
-    // 🔑 bind only after socket is ready
+    const unbindListeners = () => {
+      if (!boundRef.current) return;
+      boundRef.current = false;
+
+      socket.off('notification:new', notificationHandler);
+      socket.off('chat:new-message', chatHandler);
+    };
+
     if (socket.connected) {
       bindListeners();
     } else {
       socket.once('connect', bindListeners);
     }
 
-    // 🔄 re-bind on reconnect (room re-join happens backend side)
     socket.io.on('reconnect', bindListeners);
 
     return () => {
       socket.off('connect', bindListeners);
       socket.io.off('reconnect', bindListeners);
-
-      socket.off('notification:new', notificationHandler);
-      socket.off('chat:new-message', chatHandler);
+      unbindListeners();
     };
   }, [pushNotification]);
 }
