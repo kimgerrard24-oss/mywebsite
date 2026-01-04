@@ -10,8 +10,6 @@ import {
 } from '@nestjs/websockets';
 import { Server, Socket } from 'socket.io';
 import { ChatRealtimeService } from './chat-realtime.service';
-import { WsAuthGuard } from './ws-auth.guard';
-import { UseGuards } from '@nestjs/common';
 
 @WebSocketGateway({
   cors: {
@@ -31,12 +29,16 @@ export class ChatGateway implements OnGatewayInit {
     this.realtime.bindServer(server);
   }
 
-  handleConnection(client: Socket) {
-    // ❗ ห้ามพึ่ง guard ที่นี่
-    // auth จะถูกตรวจตอน join แทน
-  }
+  /**
+   * Socket connection lifecycle
+   * - Auth & user room join handled by RedisIoAdapter
+   */
+  handleConnection(_client: Socket) {}
 
-  @UseGuards(WsAuthGuard)
+  /**
+   * Join chat room
+   * - Assumes socket already authenticated
+   */
   @SubscribeMessage('chat:join')
   handleJoinChat(
     @ConnectedSocket() client: Socket,
@@ -47,13 +49,14 @@ export class ChatGateway implements OnGatewayInit {
     const user = (client as any).user;
     if (!user) return;
 
-    client.join(`user:${user.userId}`);
     client.join(`chat:${data.chatId}`);
 
     return { joined: true };
   }
 
-  @UseGuards(WsAuthGuard)
+  /**
+   * Leave chat room
+   */
   @SubscribeMessage('chat:leave')
   handleLeaveChat(
     @ConnectedSocket() client: Socket,
@@ -64,4 +67,3 @@ export class ChatGateway implements OnGatewayInit {
     client.leave(`chat:${data.chatId}`);
   }
 }
-

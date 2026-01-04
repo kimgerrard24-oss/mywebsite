@@ -4,12 +4,9 @@ import {
   WebSocketGateway,
   WebSocketServer,
   OnGatewayInit,
-  ConnectedSocket,
 } from '@nestjs/websockets';
-import { UseGuards } from '@nestjs/common';
-import { Server, Socket } from 'socket.io';
+import { Server } from 'socket.io';
 import { NotificationRealtimeService } from './notification-realtime.service';
-import { WsAuthGuard } from '../../chat/realtime/ws-auth.guard';
 
 @WebSocketGateway({
   cors: {
@@ -17,7 +14,6 @@ import { WsAuthGuard } from '../../chat/realtime/ws-auth.guard';
     credentials: true,
   },
 })
-@UseGuards(WsAuthGuard)
 export class NotificationGateway
   implements OnGatewayInit
 {
@@ -28,21 +24,12 @@ export class NotificationGateway
     private readonly realtime: NotificationRealtimeService,
   ) {}
 
+  /**
+   * Bind Socket.IO server instance
+   * - Server lifecycle only
+   * - Auth & room join handled by RedisIoAdapter
+   */
   afterInit(server: Server) {
     this.realtime.bindServer(server);
-  }
-
-  handleConnection(
-    @ConnectedSocket() client: Socket,
-  ) {
-    const user = (client as any).user;
-    if (!user) return;
-
-    /**
-     * Notification realtime
-     * - join per-user room
-     * - 1 user = 1 room
-     */
-    client.join(`user:${user.userId}`);
   }
 }

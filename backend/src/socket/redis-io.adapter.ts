@@ -3,10 +3,19 @@
 // ==========================================
 
 import { IoAdapter } from '@nestjs/platform-socket.io';
-import { INestApplicationContext, Logger } from '@nestjs/common';
-import { ServerOptions, Server } from 'socket.io';
+import {
+  INestApplicationContext,
+  Logger,
+} from '@nestjs/common';
+import {
+  ServerOptions,
+  Server,
+  Socket,
+} from 'socket.io';
 import { createAdapter } from '@socket.io/redis-adapter';
 import type Redis from 'ioredis';
+import type { Request } from 'express';
+import { ValidateSessionService } from '../auth/services/validate-session.service';
 
 export class RedisIoAdapter extends IoAdapter {
   private readonly logger = new Logger(RedisIoAdapter.name);
@@ -23,7 +32,6 @@ export class RedisIoAdapter extends IoAdapter {
   async connectToRedis(): Promise<void> {
     const redis = this.app.get<Redis>('REDIS_CLIENT');
 
-    // duplicate only (DO NOT call connect)
     this.pubClient = redis.duplicate();
     this.subClient = redis.duplicate();
 
@@ -51,6 +59,41 @@ export class RedisIoAdapter extends IoAdapter {
 
     server.adapter(
       createAdapter(this.pubClient, this.subClient),
+    );
+
+    // ============================
+    // 🔐 SOCKET AUTH MIDDLEWARE
+    // ============================
+    server.use(
+      async (
+        socket: Socket,
+        next: (err?: Error) => void,
+      ) => {
+        try {
+          const req = socket.request as Request;
+
+          const validateSession =
+            this.app.get(ValidateSessionService);
+
+          const user =
+            await validateSession.validateAccessTokenFromRequest(
+              req,
+            );
+
+          (socket as any).user = user;
+
+          // 🔑 auto-join user room (CRITICAL)
+          socket.join(`user:${user.userId}`);
+
+          this.logger.debug(
+            `Socket ${socket.id} joined room user:${user.userId}`,
+          );
+
+          next();
+        } catch {
+          next(new Error('UNAUTHORIZED'));
+        }
+      },
     );
 
     this.logger.log('Socket.IO Redis adapter attached');

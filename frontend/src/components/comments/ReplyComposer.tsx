@@ -100,7 +100,7 @@ export default function ReplyComposer({
     if (!match) return;
 
     const start = caretPos - match[0].length;
-    const mentionText = `@${user.username} `;
+    const mentionText = `@${user.displayName ?? user.username} `;
 
     const nextContent =
       content.slice(0, start) +
