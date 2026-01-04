@@ -40,51 +40,30 @@ export function useNotificationRealtime() {
   useEffect(() => {
     const socket = getSocket();
 
-    console.log('[useNotificationRealtime] mount', {
-      socketId: socket.id,
-      connected: socket.connected,
-    });
-
-    // ===== notification domain =====
     const notificationHandler = (
       payload: NotificationNewPayload,
     ) => {
       if (!payload?.notification) {
         console.warn(
-          '[useNotificationRealtime] notification:new received invalid payload',
+          '[useNotificationRealtime] invalid notification payload',
           payload,
         );
         return;
       }
 
-      console.log(
-        '[useNotificationRealtime] received notification:new',
-        payload.notification,
-      );
-
       pushNotification(payload.notification);
     };
 
-    // ===== chat domain → notification =====
     const chatHandler = (
       payload: ChatNewMessagePayload,
     ) => {
       if (!payload?.message || !payload?.chatId) {
         console.warn(
-          '[useNotificationRealtime] chat:new-message received invalid payload',
+          '[useNotificationRealtime] invalid chat notification payload',
           payload,
         );
         return;
       }
-
-      console.log(
-        '[useNotificationRealtime] received chat:new-message (notification bridge)',
-        {
-          chatId: payload.chatId,
-          messageId: payload.message.id,
-          senderId: payload.message.sender?.id,
-        },
-      );
 
       pushNotification({
         id: `chat-${payload.message.id}`,
@@ -96,17 +75,27 @@ export function useNotificationRealtime() {
       });
     };
 
-    socket.on('notification:new', notificationHandler);
-    socket.on('chat:new-message', chatHandler);
+    const bindListeners = () => {
+      socket.off('notification:new', notificationHandler);
+      socket.off('chat:new-message', chatHandler);
 
-    console.log(
-      '[useNotificationRealtime] listeners registered',
-    );
+      socket.on('notification:new', notificationHandler);
+      socket.on('chat:new-message', chatHandler);
+    };
+
+    // 🔑 bind only after socket is ready
+    if (socket.connected) {
+      bindListeners();
+    } else {
+      socket.once('connect', bindListeners);
+    }
+
+    // 🔄 re-bind on reconnect (room re-join happens backend side)
+    socket.io.on('reconnect', bindListeners);
 
     return () => {
-      console.log('[useNotificationRealtime] cleanup', {
-        socketId: socket.id,
-      });
+      socket.off('connect', bindListeners);
+      socket.io.off('reconnect', bindListeners);
 
       socket.off('notification:new', notificationHandler);
       socket.off('chat:new-message', chatHandler);

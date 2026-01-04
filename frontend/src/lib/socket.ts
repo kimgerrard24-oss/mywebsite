@@ -10,6 +10,10 @@ const API_BASE =
 
 let socketInstance: Socket | null = null;
 
+/**
+ * Create (but NOT connect) socket instance
+ * Connection must be triggered explicitly
+ */
 export function getSocket(): Socket {
   if (typeof window === "undefined") {
     throw new Error("getSocket() cannot be used on SSR");
@@ -23,14 +27,15 @@ export function getSocket(): Socket {
     return socketInstance;
   }
 
-  console.log("[socket] creating new socket", {
+  console.log("[socket] creating new socket (autoConnect=false)", {
     API_BASE,
   });
 
   socketInstance = io(API_BASE, {
     path: "/socket.io",
     withCredentials: true,
-    transports: ["websocket"], // บังคับ websocket
+    transports: ["websocket"],
+    autoConnect: false, // 🔴 CRITICAL FIX
   });
 
   (window as any).socket = socketInstance;
@@ -43,24 +48,18 @@ export function getSocket(): Socket {
   });
 
   socketInstance.on("disconnect", (reason) => {
-    console.warn("[socket] disconnected", {
-      reason,
-    });
+    console.warn("[socket] disconnected", { reason });
   });
 
   socketInstance.on("connect_error", (err) => {
     console.error("[socket] connect_error", {
       message: err?.message,
       name: err?.name,
-      description: (err as any)?.description,
-      context: (err as any)?.context,
     });
   });
 
   socketInstance.io.on("reconnect_attempt", (attempt) => {
-    console.warn("[socket] reconnect_attempt", {
-      attempt,
-    });
+    console.warn("[socket] reconnect_attempt", { attempt });
   });
 
   socketInstance.io.on("reconnect_error", (err) => {
@@ -74,4 +73,38 @@ export function getSocket(): Socket {
   });
 
   return socketInstance;
+}
+
+/**
+ * Explicitly connect socket
+ * Must be called AFTER session is valid
+ */
+export function connectSocket(): void {
+  if (!socketInstance) {
+    console.warn("[socket] connect called but socket not created");
+    return;
+  }
+
+  if (socketInstance.connected) {
+    console.log("[socket] already connected");
+    return;
+  }
+
+  console.log("[socket] connecting...");
+  socketInstance.connect();
+}
+
+/**
+ * Destroy socket completely (e.g. logout / session reset)
+ */
+export function resetSocket(): void {
+  if (!socketInstance) return;
+
+  console.warn("[socket] resetting socket", {
+    id: socketInstance.id,
+    connected: socketInstance.connected,
+  });
+
+  socketInstance.disconnect();
+  socketInstance = null;
 }

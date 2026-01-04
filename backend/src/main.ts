@@ -235,11 +235,11 @@ async function bootstrap(): Promise<void> {
     expressApp.set('trust proxy', true as any);
   }
 
-  await nestApp.init();
-
   const redisIoAdapter = new RedisIoAdapter(nestApp);
- await redisIoAdapter.connectToRedis();
- nestApp.useWebSocketAdapter(redisIoAdapter);
+await redisIoAdapter.connectToRedis();
+nestApp.useWebSocketAdapter(redisIoAdapter);
+
+await nestApp.init();
 
 
   process.on('unhandledRejection', (reason) => {

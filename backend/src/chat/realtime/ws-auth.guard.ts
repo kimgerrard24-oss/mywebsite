@@ -22,7 +22,14 @@ export class WsAuthGuard implements CanActivate {
     const client: Socket =
       context.switchToWs().getClient();
 
-    const req = client.request as Request;
+    const req = client.request as Request | undefined;
+
+    if (!req) {
+      this.logger.error(
+        `[WS AUTH] socket.request is undefined (socket=${client.id})`,
+      );
+      return false;
+    }
 
     try {
       const user =
@@ -32,8 +39,12 @@ export class WsAuthGuard implements CanActivate {
 
       (client as any).user = user;
 
+      this.logger.log(
+        `[WS AUTH] Authorized socket=${client.id} userId=${user.userId}`,
+      );
+
       return true;
-    } catch {
+    } catch (err) {
       this.logger.warn(
         `[WS AUTH] Unauthorized socket=${client.id}`,
       );

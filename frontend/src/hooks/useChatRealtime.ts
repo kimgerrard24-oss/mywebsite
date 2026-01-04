@@ -1,6 +1,6 @@
 // frontend/src/hooks/useChatRealtime.ts
 
-import { useEffect, useCallback } from 'react';
+import { useEffect, useCallback, useRef } from 'react';
 import { getSocket } from '@/lib/socket';
 import type { ChatMessage } from '@/types/chat-message';
 
@@ -35,132 +35,74 @@ export function useChatRealtime({
   onMessageDeleted,
   onTyping,
 }: Params) {
+  const socketRef = useRef<ReturnType<typeof getSocket> | null>(null);
+
   const joinChat = useCallback(() => {
-    if (!chatId) {
-      console.warn('[useChatRealtime] joinChat skipped: no chatId');
-      return;
-    }
+    if (!chatId) return;
 
-    const socket = getSocket();
-
-    if (!socket.connected) {
-      console.warn('[useChatRealtime] joinChat called but socket not connected', {
-        chatId,
-      });
-    }
-
-    console.log('[useChatRealtime] emit chat:join', {
-      chatId,
-      socketId: socket.id,
-    });
+    const socket = socketRef.current;
+    if (!socket || !socket.connected) return;
 
     socket.emit('chat:join', { chatId });
   }, [chatId]);
 
   useEffect(() => {
-    if (!chatId) {
-      console.warn('[useChatRealtime] effect skipped: no chatId');
-      return;
-    }
+    if (!chatId) return;
 
     const socket = getSocket();
-
-    console.log('[useChatRealtime] effect mount', {
-      chatId,
-      socketId: socket.id,
-      connected: socket.connected,
-    });
+    socketRef.current = socket;
 
     if (!socket.connected) {
-      console.warn('[useChatRealtime] socket not connected, calling connect()');
       socket.connect();
     }
 
-    /**
-     * Bind listeners FIRST (prevent race condition)
-     */
-    socket.off('chat:new-message', onNewMessage);
-    socket.on('chat:new-message', (payload) => {
-      console.log('[useChatRealtime] received chat:new-message', payload);
+    const handleNewMessage = (payload: NewMessagePayload) => {
       onNewMessage(payload);
-    });
+    };
 
-    if (onMessageDeleted) {
-      socket.off(
-        'chat:message-deleted',
-        onMessageDeleted,
-      );
-      socket.on(
-        'chat:message-deleted',
-        (payload) => {
-          console.log(
-            '[useChatRealtime] received chat:message-deleted',
-            payload,
-          );
-          onMessageDeleted(payload);
-        },
-      );
-    }
+    const handleMessageDeleted = (payload: MessageDeletedPayload) => {
+      onMessageDeleted?.(payload);
+    };
 
-    if (onTyping) {
-      socket.off('chat:typing', onTyping);
-      socket.on('chat:typing', (payload) => {
-        console.log(
-          '[useChatRealtime] received chat:typing',
-          payload,
-        );
-        onTyping(payload);
-      });
-    }
+    const handleTyping = (payload: TypingPayload) => {
+      onTyping?.(payload);
+    };
 
-    /**
-     * Ensure join happens after connected
-     */
+    // bind listeners
+    socket.on('chat:new-message', handleNewMessage);
+    socket.on(
+      'chat:message-deleted',
+      handleMessageDeleted,
+    );
+    socket.on('chat:typing', handleTyping);
+
+    const handleConnect = () => {
+      joinChat();
+    };
+
+    // join after connect & reconnect
     if (socket.connected) {
-      console.log(
-        '[useChatRealtime] socket already connected, joining immediately',
-      );
       joinChat();
     } else {
-      console.log(
-        '[useChatRealtime] waiting for socket connect to join chat',
-      );
-      socket.once('connect', () => {
-        console.log(
-          '[useChatRealtime] socket connected (once), joining chat',
-          { chatId, socketId: socket.id },
-        );
-        joinChat();
-      });
+      socket.once('connect', handleConnect);
     }
 
+    socket.io.on('reconnect', joinChat);
+
     return () => {
-      console.log('[useChatRealtime] cleanup', {
-        chatId,
-        socketId: socket.id,
-      });
+      socket.off('chat:new-message', handleNewMessage);
+      socket.off(
+        'chat:message-deleted',
+        handleMessageDeleted,
+      );
+      socket.off('chat:typing', handleTyping);
 
-      socket.off('connect', joinChat);
+      socket.off('connect', handleConnect);
+      socket.io.off('reconnect', joinChat);
 
-      socket.off('chat:new-message', onNewMessage);
-
-      if (onMessageDeleted) {
-        socket.off(
-          'chat:message-deleted',
-          onMessageDeleted,
-        );
+      if (socket.connected) {
+        socket.emit('chat:leave', { chatId });
       }
-
-      if (onTyping) {
-        socket.off('chat:typing', onTyping);
-      }
-
-      console.log('[useChatRealtime] emit chat:leave', {
-        chatId,
-        socketId: socket.id,
-      });
-
-      socket.emit('chat:leave', { chatId });
     };
   }, [
     chatId,
