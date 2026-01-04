@@ -5,9 +5,10 @@ import { ChatGateway } from './chat.gateway';
 import { ChatRealtimeService } from './chat-realtime.service';
 import { WsAuthGuard } from './ws-auth.guard';
 import { RedisModule } from '../../redis/redis.module';
+import { AuthModule } from '../../auth/auth.module';
 
 @Module({
-  imports: [RedisModule],
+  imports: [AuthModule, RedisModule,],
   providers: [
     ChatGateway,
     ChatRealtimeService,
