@@ -15,6 +15,7 @@ import {
 import { createAdapter } from '@socket.io/redis-adapter';
 import type Redis from 'ioredis';
 import type { Request } from 'express';
+import cookieParser from 'cookie-parser';
 import { ValidateSessionService } from '../auth/services/validate-session.service';
 
 export class RedisIoAdapter extends IoAdapter {
@@ -82,6 +83,9 @@ export class RedisIoAdapter extends IoAdapter {
       ) => {
         try {
           const req = socket.request as Request;
+
+          // 🔑 IMPORTANT: parse cookies manually for Socket.IO
+          cookieParser()(req as any, {} as any, () => {});
 
           const validateSession =
             this.app.get(ValidateSessionService);
