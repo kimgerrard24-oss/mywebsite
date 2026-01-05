@@ -12,6 +12,8 @@ import { GetAdminReportsQueryDto } from './dto/get-admin-reports.query.dto';
 import { AccessTokenCookieAuthGuard } from '../../auth/guards/access-token-cookie.guard';
 import { AdminRoleGuard } from '../guards/admin-role.guard';
 import { GetAdminReportParamDto } from './dto/get-admin-report.param.dto';
+import { AdminReportStatsDto } from './dto/admin-report-stats.dto';
+import { RateLimit } from '../../common/rate-limit/rate-limit.decorator';
 
 @Controller('admin/reports')
 @UseGuards(
@@ -39,5 +41,15 @@ export class AdminReportsController {
     @Param() param: GetAdminReportParamDto,
   ) {
     return this.service.getReportById(param.id);
+  }
+
+  /**
+   * GET /admin/reports/stats
+   * Admin-only report statistics
+   */
+  @Get('stats')
+  @RateLimit('adminUsersList') // reuse admin-safe bucket
+  async getStats(): Promise<AdminReportStatsDto> {
+    return this.service.getStats();
   }
 }

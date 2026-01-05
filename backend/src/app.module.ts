@@ -33,6 +33,7 @@ import { SearchModule } from './search/search.module';
 import { RequestContextModule } from './common/middleware/request-context.module';
 import { RequestContextMiddleware } from './common/middleware/request-context.middleware';
 import { AdminModule } from './admin/admin.module';
+import { ReportsModule } from './reports/reports.module';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { AdminModule } from './admin/admin.module';
     ScheduleModule.forRoot(),
     AlertModule,
     ChatModule,
+    ReportsModule,
     SearchModule,
     AdminModule,
     NotificationsModule,

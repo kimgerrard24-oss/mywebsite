@@ -1,21 +1,21 @@
 // backend/src/admin/moderation/dto/create-moderation-action.dto.ts
 
 import {
-  IsIn,
+  IsEnum,
   IsNotEmpty,
   IsString,
 } from 'class-validator';
 import {
   ModerationActionType,
-  ModerationTargetType,
-} from '../constants/moderation.constants';
+  ReportTargetType,
+} from '@prisma/client';
 
 export class CreateModerationActionDto {
-  @IsIn(['BAN', 'HIDE', 'FLAG'])
+  @IsEnum(ModerationActionType)
   actionType!: ModerationActionType;
 
-  @IsIn(['USER', 'POST', 'COMMENT'])
-  targetType!: ModerationTargetType;
+  @IsEnum(ReportTargetType)
+  targetType!: ReportTargetType;
 
   @IsString()
   @IsNotEmpty()
@@ -25,4 +25,3 @@ export class CreateModerationActionDto {
   @IsNotEmpty()
   reason!: string;
 }
-

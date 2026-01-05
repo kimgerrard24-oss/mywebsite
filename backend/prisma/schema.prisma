@@ -301,7 +301,8 @@ model Comment {
   parentId  String?
 
   content   String
-
+  isHidden          Boolean   @default(false)
+  hiddenAt          DateTime?
   isEdited  Boolean  @default(false)
   editedAt  DateTime?
   hiddenByAdminId String?
@@ -673,6 +674,7 @@ model Report {
   description   String?
  
   status        ReportStatus @default(PENDING)
+  withdrawnAt DateTime?
 
   resolvedByAdminId String?
   resolvedAt    DateTime?
@@ -681,18 +683,20 @@ model Report {
   createdAt     DateTime @default(now())
   reporter User @relation("UserReports", fields: [reporterId], references: [id], onDelete: Cascade)
   resolvedByAdmin User? @relation("ReportResolvedBy", fields: [resolvedByAdminId], references: [id], onDelete: SetNull)
-
+ 
   @@index([targetType, targetId])
   @@index([status, createdAt])
   @@index([reporterId])
+  @@index([status, withdrawnAt])
+  @@index([reporterId, status])
   @@unique([reporterId, targetType, targetId])
 }
 
 model ModerationAction {
   id         String   @id @default(cuid())
   adminId    String
-  actionType String
-  targetType String
+  actionType ModerationActionType
+  targetType ModerationTargetType
   targetId   String
   reason     String
   createdAt  DateTime @default(now())
@@ -707,6 +711,7 @@ enum ReportStatus {
   REVIEWED
   ACTION_TAKEN
   REJECTED
+  WITHDRAWN
 }
 
 enum ReportReason {
@@ -725,8 +730,15 @@ enum ReportTargetType {
   USER
 }
 
+enum ModerationTargetType {
+  USER
+  POST
+  COMMENT
+}
+
 enum ModerationActionType {
   HIDE
+  UNHIDE
   DELETE
   BAN_USER
   WARN

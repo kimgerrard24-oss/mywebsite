@@ -14,7 +14,7 @@ CREATE TYPE "PostVisibility" AS ENUM ('PUBLIC', 'PRIVATE');
 CREATE TYPE "ChatReportReason" AS ENUM ('SPAM', 'HARASSMENT', 'HATE_SPEECH', 'SCAM', 'SEXUAL_CONTENT', 'OTHER');
 
 -- CreateEnum
-CREATE TYPE "ReportStatus" AS ENUM ('PENDING', 'REVIEWED', 'ACTION_TAKEN', 'REJECTED');
+CREATE TYPE "ReportStatus" AS ENUM ('PENDING', 'REVIEWED', 'ACTION_TAKEN', 'REJECTED', 'WITHDRAWN');
 
 -- CreateEnum
 CREATE TYPE "ReportReason" AS ENUM ('SPAM', 'HARASSMENT', 'HATE_SPEECH', 'SCAM', 'NSFW', 'MISINFORMATION', 'OTHER');
@@ -23,7 +23,10 @@ CREATE TYPE "ReportReason" AS ENUM ('SPAM', 'HARASSMENT', 'HATE_SPEECH', 'SCAM',
 CREATE TYPE "ReportTargetType" AS ENUM ('POST', 'COMMENT', 'USER');
 
 -- CreateEnum
-CREATE TYPE "ModerationActionType" AS ENUM ('HIDE', 'DELETE', 'BAN_USER', 'WARN', 'NO_ACTION');
+CREATE TYPE "ModerationTargetType" AS ENUM ('USER', 'POST', 'COMMENT');
+
+-- CreateEnum
+CREATE TYPE "ModerationActionType" AS ENUM ('HIDE', 'UNHIDE', 'DELETE', 'BAN_USER', 'WARN', 'NO_ACTION');
 
 -- CreateTable
 CREATE TABLE "User" (
@@ -218,6 +221,8 @@ CREATE TABLE "Comment" (
     "authorId" TEXT NOT NULL,
     "parentId" TEXT,
     "content" TEXT NOT NULL,
+    "isHidden" BOOLEAN NOT NULL DEFAULT false,
+    "hiddenAt" TIMESTAMP(3),
     "isEdited" BOOLEAN NOT NULL DEFAULT false,
     "editedAt" TIMESTAMP(3),
     "hiddenByAdminId" TEXT,
@@ -463,6 +468,7 @@ CREATE TABLE "Report" (
     "reason" "ReportReason" NOT NULL,
     "description" TEXT,
     "status" "ReportStatus" NOT NULL DEFAULT 'PENDING',
+    "withdrawnAt" TIMESTAMP(3),
     "resolvedByAdminId" TEXT,
     "resolvedAt" TIMESTAMP(3),
     "resolutionNote" TEXT,
@@ -475,8 +481,8 @@ CREATE TABLE "Report" (
 CREATE TABLE "ModerationAction" (
     "id" TEXT NOT NULL,
     "adminId" TEXT NOT NULL,
-    "actionType" TEXT NOT NULL,
-    "targetType" TEXT NOT NULL,
+    "actionType" "ModerationActionType" NOT NULL,
+    "targetType" "ModerationTargetType" NOT NULL,
     "targetId" TEXT NOT NULL,
     "reason" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -699,6 +705,12 @@ CREATE INDEX "Report_status_createdAt_idx" ON "Report"("status", "createdAt");
 
 -- CreateIndex
 CREATE INDEX "Report_reporterId_idx" ON "Report"("reporterId");
+
+-- CreateIndex
+CREATE INDEX "Report_status_withdrawnAt_idx" ON "Report"("status", "withdrawnAt");
+
+-- CreateIndex
+CREATE INDEX "Report_reporterId_status_idx" ON "Report"("reporterId", "status");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Report_reporterId_targetType_targetId_key" ON "Report"("reporterId", "targetType", "targetId");

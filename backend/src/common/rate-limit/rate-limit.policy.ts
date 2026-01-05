@@ -21,7 +21,12 @@ export type RateLimitAction =
   | 'adminUsersList'
   | 'adminUserBan'
   | 'adminDeleteComment'
-  | 'adminPostDelete';
+  | 'adminPostDelete'
+  | 'reportCreate'
+  | 'reportRead'
+  | 'reportReadDetail'
+  | 'reportWithdraw';
+
   
   
 export type RateLimitEscalationConfig = {
@@ -379,7 +384,81 @@ commentLike: {
     windowSec: 86400,
     longBlockSec: 21600,
   },
+ },
+
+  reportCreate: {
+  /**
+   * User report content
+   * ป้องกัน spam / harassment reporting
+   */
+  points: 10,
+  duration: 60,
+  blockDuration: 300,
+
+  windowSec: 60,
+  max: 5,                // รายงานได้สูงสุด 5 ครั้ง / นาที
+  blockDurationSec: 300, // block 5 นาที
+
+  escalation: {
+    maxViolations: 3,
+    windowSec: 86400,     // 24 ชม.
+    longBlockSec: 21600,  // block 6 ชม.
+  },
+ },
+
+ reportRead: {
+  points: 20,
+  duration: 60,
+
+  windowSec: 60,
+  max: 20,
+  blockDurationSec: 300,
+
+  escalation: {
+    maxViolations: 3,
+    windowSec: 86400,
+    longBlockSec: 21600,
+  },
 },
+
+ reportReadDetail: {
+  /**
+   * Read own report detail
+   * Prevent ID enumeration / abuse
+   */
+  points: 20,
+  duration: 60,
+
+  windowSec: 60,
+  max: 20,
+  blockDurationSec: 300,
+
+  escalation: {
+    maxViolations: 3,
+    windowSec: 86400,
+    longBlockSec: 21600,
+  },
+},
+
+reportWithdraw: {
+  /**
+   * Withdraw report
+   * Prevent abuse / spam
+   */
+  points: 5,
+  duration: 60,
+
+  windowSec: 60,
+  max: 5,
+  blockDurationSec: 300,
+
+  escalation: {
+    maxViolations: 3,
+    windowSec: 86400,
+    longBlockSec: 21600,
+  },
+},
+
 
 };
 

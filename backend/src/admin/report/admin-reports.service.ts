@@ -9,6 +9,7 @@ import { GetAdminReportsQueryDto } from './dto/get-admin-reports.query.dto';
 import { AdminReportListDto } from './dto/admin-report-list.dto';
 import { AdminReportPolicy } from './policy/admin-report.policy';
 import { AdminReportDetailDto } from './dto/admin-report-detail.dto';
+import { AdminReportStatsDto } from './dto/admin-report-stats.dto';
 
 @Injectable()
 export class AdminReportsService {
@@ -47,5 +48,31 @@ export class AdminReportsService {
     AdminReportPolicy.assertReadable(report);
 
     return AdminReportDetailDto.from(report);
+  }
+
+   async getStats(): Promise<AdminReportStatsDto> {
+    const [
+      total,
+      byStatus,
+      byTarget,
+      last24h,
+      last7d,
+    ] = await Promise.all([
+      this.repo.countAll(),
+      this.repo.countByStatus(),
+      this.repo.countByTargetType(),
+      this.repo.countCreatedSince(1),
+      this.repo.countCreatedSince(7),
+    ]);
+
+    return {
+      total,
+      byStatus,
+      byTargetType: byTarget,
+      activity: {
+        last24h,
+        last7d,
+      },
+    };
   }
 }

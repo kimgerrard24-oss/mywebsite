@@ -13,6 +13,7 @@ import { RedisService } from '../../redis/redis.service';
 export interface SessionUser {
   userId: string;
   jti: string;
+  email: string;
 }
 
 const ACCESS_TOKEN_COOKIE_NAME =
@@ -85,16 +86,30 @@ export class ValidateSessionService {
       }
 
       // 5) Resolve userId
-      const userId =
-        session.userId ??
-        session.payload?.userId ??
-        session.sub ??
-        session.id;
+const userId =
+  session.userId ??
+  session.payload?.userId ??
+  session.sub ??
+  session.id;
 
-      if (!userId) {
-        this.logger.warn(`Invalid session data for jti: ${jti}`);
-        throw new UnauthorizedException('Invalid session data');
-      }
+if (!userId) {
+  this.logger.warn(`Invalid session data for jti: ${jti}`);
+  throw new UnauthorizedException('Invalid session data');
+}
+
+// 6) Resolve email (after userId is confirmed)
+const email =
+  session.email ??
+  session.payload?.email ??
+  session.user?.email ??
+  null;
+
+if (!email) {
+  this.logger.warn(
+    `Session missing email for userId=${userId}`,
+  );
+  throw new UnauthorizedException('Invalid session data');
+}
 
       // 🔒 GLOBAL BAN POLICY (DB is authority)
       const isBanned = await this.authService.isUserBanned(userId);
@@ -107,7 +122,7 @@ export class ValidateSessionService {
       // 6) Best-effort touch (NO write back, NO TTL risk)
       this.touchSession(jti, session).catch(() => {});
 
-      return { userId, jti };
+      return { userId, jti, email };
     } catch (err) {
       // ✅ Preserve ForbiddenException (ban)
       if (err instanceof ForbiddenException) {

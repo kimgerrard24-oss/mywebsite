@@ -8,7 +8,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import {
   ModerationActionType,
   ModerationTargetType,
-} from './constants/moderation.constants';
+} from '@prisma/client';
 
 @Injectable()
 export class AdminModerationRepository {
@@ -69,36 +69,43 @@ export class AdminModerationRepository {
   }
 
   async applyActionEffect(
-    targetType: ModerationTargetType,
-    targetId: string,
-    actionType: ModerationActionType,
+  targetType: ModerationTargetType,
+  targetId: string,
+  actionType: ModerationActionType,
+) {
+  if (
+    targetType === ModerationTargetType.USER &&
+    actionType === ModerationActionType.BAN_USER
   ) {
-    if (targetType === 'USER' && actionType === 'BAN') {
-      await this.prisma.user.update({
-        where: { id: targetId },
-        data: { isDisabled: true },
-      });
-    }
-
-    if (
-      targetType === 'POST' &&
-      actionType === 'HIDE'
-    ) {
-      await this.prisma.post.update({
-        where: { id: targetId },
-        data: { isDeleted: true },
-      });
-    }
-
-    if (
-      targetType === 'COMMENT' &&
-      actionType === 'HIDE'
-    ) {
-      await this.prisma.comment.update({
-        where: { id: targetId },
-        data: { isDeleted: true },
-      });
-    }
+    await this.prisma.user.update({
+      where: { id: targetId },
+      data: { isDisabled: true },
+    });
+    return;
   }
+
+  if (
+    targetType === ModerationTargetType.POST &&
+    actionType === ModerationActionType.HIDE
+  ) {
+    await this.prisma.post.update({
+      where: { id: targetId },
+      data: { isDeleted: true },
+    });
+    return;
+  }
+
+  if (
+    targetType === ModerationTargetType.COMMENT &&
+    actionType === ModerationActionType.HIDE
+  ) {
+    await this.prisma.comment.update({
+      where: { id: targetId },
+      data: { isDeleted: true },
+    });
+    return;
+  }
+}
+
 }
 

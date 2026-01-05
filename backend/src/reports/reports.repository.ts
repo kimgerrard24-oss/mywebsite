@@ -1,0 +1,129 @@
+// backend/src/reports/reports.repository.ts
+
+import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../prisma/prisma.service';
+import {
+  ReportStatus,
+  ReportTargetType,
+} from '@prisma/client';
+import type { ReportReason } from '@prisma/client';
+
+@Injectable()
+export class ReportsRepository {
+  constructor(
+    private readonly prisma: PrismaService,
+  ) {}
+
+  async findDuplicate(params: {
+    reporterId: string;
+    targetType: ReportTargetType;
+    targetId: string;
+  }) {
+    return this.prisma.report.findUnique({
+      where: {
+        reporterId_targetType_targetId: params,
+      },
+    });
+  }
+
+  async create(params: {
+    reporterId: string;
+    targetType: ReportTargetType;
+    targetId: string;
+    reason: ReportReason;
+    description?: string;
+  }) {
+    return this.prisma.report.create({
+      data: {
+        reporterId: params.reporterId,
+        targetType: params.targetType,
+        targetId: params.targetId,
+        reason: params.reason,
+        description: params.description,
+      },
+    });
+  }
+
+  async findMyReports(params: {
+    reporterId: string;
+    cursor: string | null;
+    limit: number;
+  }) {
+    const { reporterId, cursor, limit } = params;
+
+    const items = await this.prisma.report.findMany({
+      where: { reporterId },
+      orderBy: { createdAt: 'desc' },
+      take: limit + 1,
+      ...(cursor
+        ? { cursor: { id: cursor }, skip: 1 }
+        : {}),
+      select: {
+        id: true,
+        targetType: true,
+        targetId: true,
+        reason: true,
+        status: true,
+        createdAt: true,
+      },
+    });
+
+    const hasNext = items.length > limit;
+    const sliced = hasNext
+      ? items.slice(0, limit)
+      : items;
+
+    return {
+      items: sliced,
+      nextCursor: hasNext
+        ? sliced[sliced.length - 1].id
+        : null,
+    };
+  }
+
+  async findMyReportById(params: {
+    reporterId: string;
+    reportId: string;
+  }) {
+    return this.prisma.report.findFirst({
+      where: {
+        id: params.reportId,
+        reporterId: params.reporterId,
+      },
+      select: {
+        id: true,
+        targetType: true,
+        targetId: true,
+        reason: true,
+        description: true,
+        status: true,
+        createdAt: true,
+      },
+    });
+  }
+
+  async findForWithdraw(params: {
+    reportId: string;
+    reporterId: string;
+  }) {
+    return this.prisma.report.findFirst({
+      where: {
+        id: params.reportId,
+        reporterId: params.reporterId,
+      },
+      select: {
+        id: true,
+        status: true,
+      },
+    });
+  }
+
+  async markWithdrawn(reportId: string) {
+    return this.prisma.report.update({
+      where: { id: reportId },
+      data: {
+        status: ReportStatus.WITHDRAWN,
+      },
+    });
+  }
+}
