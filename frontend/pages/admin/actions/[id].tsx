@@ -24,29 +24,50 @@ export default function AdminActionPage({
   );
 }
 
-export const getServerSideProps: GetServerSideProps<
-  Props
-> = async (ctx) => {
-  const session =
-    await sessionCheckServerSide(
+export const getServerSideProps: GetServerSideProps<Props> =
+  async (ctx) => {
+    const session = await sessionCheckServerSide(
       ctx.req.headers.cookie,
     );
 
-  if (!session.valid || session.role !== 'ADMIN') {
-    return {
-      redirect: {
-        destination: '/',
-        permanent: false,
-      },
-    };
-  }
+    // 🔒 AuthN only (NOT role)
+    if (!session.valid) {
+      return {
+        redirect: {
+          destination: '/',
+          permanent: false,
+        },
+      };
+    }
 
-  const id = ctx.params?.id as string;
+    const id = ctx.params?.id as string;
 
-  try {
-    const action = await getAdminActionById(id);
-    return { props: { action } };
-  } catch {
-    return { notFound: true };
-  }
-};
+    try {
+      // 🔒 Backend is authority
+      const action = await getAdminActionById(id);
+
+      return {
+        props: { action },
+      };
+    } catch (err: any) {
+      if (err?.status === 403) {
+        return {
+          redirect: {
+            destination: '/',
+            permanent: false,
+          },
+        };
+      }
+
+      if (err?.status === 404) {
+        return { notFound: true };
+      }
+
+      return {
+        redirect: {
+          destination: '/',
+          permanent: false,
+        },
+      };
+    }
+  };

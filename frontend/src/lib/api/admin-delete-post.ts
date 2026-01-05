@@ -6,6 +6,14 @@ import type {
   AdminDeletePostResponse,
 } from "@/types/admin-delete-post";
 
+/**
+ * ==============================
+ * DELETE /admin/posts/:id
+ * ==============================
+ *
+ * Client-side only
+ * Backend is authority
+ */
 export async function adminDeletePost(
   postId: string,
   payload: AdminDeletePostPayload,
@@ -14,7 +22,7 @@ export async function adminDeletePost(
     `/admin/posts/${postId}`,
     {
       data: payload,
-      withCredentials: true, // 🔒 HttpOnly cookie
+      withCredentials: true,
     },
   );
 }

@@ -34,25 +34,27 @@ export default function AdminActionsPage({
       </main>
     </>
   );
-
 }
 
-export const getServerSideProps: GetServerSideProps =
-  async ({ req }) => {
-    const session =
-      await sessionCheckServerSide(
-        req.headers.cookie,
-      );
+export const getServerSideProps: GetServerSideProps<
+  Props
+> = async (ctx) => {
+  const session = await sessionCheckServerSide(
+    ctx.req.headers.cookie,
+  );
 
-    if (!session.valid || session.role !== 'ADMIN') {
-      return {
-        redirect: {
-          destination: '/',
-          permanent: false,
-        },
-      };
-    }
+  // 🔒 AuthN only — backend is authority
+  if (!session.valid) {
+    return {
+      redirect: {
+        destination: '/',
+        permanent: false,
+      },
+    };
+  }
 
+  try {
+    // ✅ getAdminActions รับ argument เดียวเท่านั้น
     const data = await getAdminActions({
       page: 1,
       limit: 20,
@@ -64,4 +66,23 @@ export const getServerSideProps: GetServerSideProps =
         total: data.total,
       },
     };
-  };
+  } catch (err: any) {
+    // ❌ ไม่ใช่ admin → backend ส่ง 403
+    if (err?.status === 403) {
+      return {
+        redirect: {
+          destination: '/',
+          permanent: false,
+        },
+      };
+    }
+
+    // production-safe fallback
+    return {
+      redirect: {
+        destination: '/',
+        permanent: false,
+      },
+    };
+  }
+};

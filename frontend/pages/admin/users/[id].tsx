@@ -18,6 +18,7 @@ export default function AdminUserDetailPage({
     <>
       <Head>
         <title>Admin User | PhlyPhant</title>
+        <meta name="robots" content="noindex,nofollow" />
       </Head>
 
       <main className="mx-auto max-w-4xl p-6">
@@ -31,13 +32,35 @@ export default function AdminUserDetailPage({
   );
 }
 
-export const getServerSideProps: GetServerSideProps<Props> =
-  async (ctx) => {
-    const session = await sessionCheckServerSide(
-      ctx.req.headers.cookie,
-    );
+export const getServerSideProps: GetServerSideProps<
+  Props
+> = async (ctx) => {
+  const session = await sessionCheckServerSide(
+    ctx.req.headers.cookie,
+  );
 
-    if (!session.valid || session.role !== "ADMIN") {
+  // 🔒 AuthN only — backend decides ADMIN permission
+  if (!session.valid) {
+    return {
+      redirect: {
+        destination: "/",
+        permanent: false,
+      },
+    };
+  }
+
+  const id = ctx.params?.id as string;
+
+  try {
+    // 🔒 Backend is authority
+    const user = await fetchAdminUserById(id);
+
+    return {
+      props: { user },
+    };
+  } catch (err: any) {
+    // ❌ Not admin → backend returns 403
+    if (err?.status === 403) {
       return {
         redirect: {
           destination: "/",
@@ -46,13 +69,17 @@ export const getServerSideProps: GetServerSideProps<Props> =
       };
     }
 
-    const id = ctx.params?.id as string;
+    // ❌ User not found
+    if (err?.status === 404) {
+      return { notFound: true };
+    }
 
-    const user = await fetchAdminUserById(id, {
-      cookieHeader: ctx.req.headers.cookie ?? "",
-    });
-
+    // production-safe fallback
     return {
-      props: { user },
+      redirect: {
+        destination: "/",
+        permanent: false,
+      },
     };
-  };
+  }
+};

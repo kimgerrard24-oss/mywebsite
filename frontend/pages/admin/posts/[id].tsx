@@ -18,6 +18,7 @@ export default function AdminPostDetailPage({
     <>
       <Head>
         <title>Admin Post | PhlyPhant</title>
+        <meta name="robots" content="noindex,nofollow" />
       </Head>
 
       <main className="mx-auto max-w-4xl p-6">
@@ -31,13 +32,35 @@ export default function AdminPostDetailPage({
   );
 }
 
-export const getServerSideProps: GetServerSideProps<Props> =
-  async (ctx) => {
-    const session = await sessionCheckServerSide(
-      ctx.req.headers.cookie,
-    );
+export const getServerSideProps: GetServerSideProps<
+  Props
+> = async (ctx) => {
+  const session = await sessionCheckServerSide(
+    ctx.req.headers.cookie,
+  );
 
-    if (!session.valid || session.role !== "ADMIN") {
+  // 🔒 AuthN only — backend decides ADMIN permission
+  if (!session.valid) {
+    return {
+      redirect: {
+        destination: "/",
+        permanent: false,
+      },
+    };
+  }
+
+  const id = ctx.params?.id as string;
+
+  try {
+    // ✅ helper รับ argument เดียว
+    const post = await fetchAdminPostById(id);
+
+    return {
+      props: { post },
+    };
+  } catch (err: any) {
+    // ❌ ไม่ใช่ admin
+    if (err?.status === 403) {
       return {
         redirect: {
           destination: "/",
@@ -46,13 +69,17 @@ export const getServerSideProps: GetServerSideProps<Props> =
       };
     }
 
-    const id = ctx.params?.id as string;
+    // ❌ post ไม่พบ
+    if (err?.status === 404) {
+      return { notFound: true };
+    }
 
-    const post = await fetchAdminPostById(id, {
-      cookieHeader: ctx.req.headers.cookie ?? "",
-    });
-
+    // production-safe fallback
     return {
-      props: { post },
+      redirect: {
+        destination: "/",
+        permanent: false,
+      },
     };
-  };
+  }
+};

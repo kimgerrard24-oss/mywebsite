@@ -1,13 +1,20 @@
 // frontend/src/lib/api/admin-comments.ts
 
-import { apiDelete } from '@/lib/api/api';
-import type { AdminCommentDetail } from "@/types/admin-comment";
+import { apiDelete, apiPath } from '@/lib/api/api';
 import type {
+  AdminCommentDetail,
   AdminDeleteCommentPayload,
   AdminDeleteCommentResult,
 } from '@/types/admin-comment';
-import { apiGet } from "@/lib/api/api";
 
+/**
+ * ==============================
+ * DELETE /admin/comments/:id
+ * ==============================
+ *
+ * CSR only
+ * Backend is authority
+ */
 export async function adminDeleteComment(
   params: AdminDeleteCommentPayload,
 ): Promise<AdminDeleteCommentResult> {
@@ -19,13 +26,63 @@ export async function adminDeleteComment(
   });
 }
 
+type SSRContext = {
+  cookieHeader?: string;
+};
+
+/**
+ * ==============================
+ * GET /admin/comments/:id
+ * ==============================
+ *
+ * - SSR: fetch + Cookie
+ * - CSR: fetch (include credentials)
+ */
 export async function fetchAdminCommentById(
   commentId: string,
-  params?: { cookieHeader?: string },
+  ctx?: SSRContext,
 ): Promise<AdminCommentDetail> {
-  return apiGet(`/admin/comments/${commentId}`, {
-    headers: params?.cookieHeader
-      ? { Cookie: params.cookieHeader }
-      : undefined,
-  });
-}  
+  // 🔒 SSR path
+  if (ctx?.cookieHeader) {
+    const res = await fetch(
+      apiPath(`/admin/comments/${commentId}`),
+      {
+        method: 'GET',
+        headers: {
+          Accept: 'application/json',
+          Cookie: ctx.cookieHeader,
+        },
+        credentials: 'include',
+        cache: 'no-store',
+      },
+    );
+
+    if (!res.ok) {
+      const err: any = new Error(
+        `HTTP ${res.status}`,
+      );
+      err.status = res.status;
+      throw err;
+    }
+
+    return res.json();
+  }
+
+  // ✅ CSR path
+  const res = await fetch(
+    apiPath(`/admin/comments/${commentId}`),
+    {
+      credentials: 'include',
+    },
+  );
+
+  if (!res.ok) {
+    const err: any = new Error(
+      `HTTP ${res.status}`,
+    );
+    err.status = res.status;
+    throw err;
+  }
+
+  return res.json();
+}

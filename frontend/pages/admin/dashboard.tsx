@@ -18,6 +18,7 @@ export default function AdminDashboardPage({
     <>
       <Head>
         <title>Admin Dashboard | PhlyPhant</title>
+        <meta name="robots" content="noindex,nofollow" />
       </Head>
 
       <main className="mx-auto max-w-6xl p-6">
@@ -31,13 +32,35 @@ export default function AdminDashboardPage({
   );
 }
 
-export const getServerSideProps: GetServerSideProps<Props> =
-  async (ctx) => {
-    const session = await sessionCheckServerSide(
-      ctx.req.headers.cookie,
-    );
+export const getServerSideProps: GetServerSideProps<
+  Props
+> = async (ctx) => {
+  const session = await sessionCheckServerSide(
+    ctx.req.headers.cookie,
+  );
 
-    if (!session.valid || session.role !== "ADMIN") {
+  // 🔒 AuthN only — backend decides ADMIN permission
+  if (!session.valid) {
+    return {
+      redirect: {
+        destination: "/",
+        permanent: false,
+      },
+    };
+  }
+
+  try {
+    // 🔒 Backend is authority
+    const data = await fetchAdminDashboard({
+      cookieHeader: ctx.req.headers.cookie ?? "",
+    });
+
+    return {
+      props: { data },
+    };
+  } catch (err: any) {
+    // ❌ Not admin → backend returns 403
+    if (err?.status === 403) {
       return {
         redirect: {
           destination: "/",
@@ -46,11 +69,12 @@ export const getServerSideProps: GetServerSideProps<Props> =
       };
     }
 
-    const data = await fetchAdminDashboard({
-      cookieHeader: ctx.req.headers.cookie ?? "",
-    });
-
+    // production-safe fallback
     return {
-      props: { data },
+      redirect: {
+        destination: "/",
+        permanent: false,
+      },
     };
-  };
+  }
+};

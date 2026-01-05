@@ -18,6 +18,7 @@ export default function AdminCommentDetailPage({
     <>
       <Head>
         <title>Admin Comment | PhlyPhant</title>
+        <meta name="robots" content="noindex,nofollow" />
       </Head>
 
       <main className="mx-auto max-w-4xl p-6">
@@ -31,13 +32,35 @@ export default function AdminCommentDetailPage({
   );
 }
 
-export const getServerSideProps: GetServerSideProps<Props> =
-  async (ctx) => {
-    const session = await sessionCheckServerSide(
-      ctx.req.headers.cookie,
-    );
+export const getServerSideProps: GetServerSideProps<
+  Props
+> = async (ctx) => {
+  const session = await sessionCheckServerSide(
+    ctx.req.headers.cookie,
+  );
 
-    if (!session.valid || session.role !== "ADMIN") {
+  // 🔒 AuthN only — backend decides ADMIN permission
+  if (!session.valid) {
+    return {
+      redirect: {
+        destination: "/",
+        permanent: false,
+      },
+    };
+  }
+
+  const id = ctx.params?.id as string;
+
+  try {
+    // ✅ helper รับ argument เดียวเท่านั้น
+    const comment = await fetchAdminCommentById(id);
+
+    return {
+      props: { comment },
+    };
+  } catch (err: any) {
+    // ❌ ไม่ใช่ admin → backend returns 403
+    if (err?.status === 403) {
       return {
         redirect: {
           destination: "/",
@@ -46,13 +69,17 @@ export const getServerSideProps: GetServerSideProps<Props> =
       };
     }
 
-    const id = ctx.params?.id as string;
+    // ❌ comment ไม่พบ
+    if (err?.status === 404) {
+      return { notFound: true };
+    }
 
-    const comment = await fetchAdminCommentById(id, {
-      cookieHeader: ctx.req.headers.cookie ?? "",
-    });
-
+    // production-safe fallback
     return {
-      props: { comment },
+      redirect: {
+        destination: "/",
+        permanent: false,
+      },
     };
-  };
+  }
+};

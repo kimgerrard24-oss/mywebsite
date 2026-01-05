@@ -1,9 +1,12 @@
 // frontend/src/lib/api/admin-users.ts
 
 import type { GetServerSidePropsContext } from "next";
-import { apiPath } from "@/lib/api/api";
-import type { AdminUsersResponse, AdminUserDetail  } from "@/types/admin-user";
+import type {
+  AdminUsersResponse,
+  AdminUserDetail,
+} from "@/types/admin-user";
 import { apiGet } from "@/lib/api/api";
+
 /**
  * ==============================
  * Admin Users (SSR + CSR Safe)
@@ -49,7 +52,9 @@ export async function getAdminUsers(
   );
 
   if (!res.ok) {
-    const err: any = new Error("Failed to fetch admin users");
+    const err: any = new Error(
+      "Failed to fetch admin users",
+    );
     err.status = res.status;
     throw err;
   }
@@ -57,13 +62,25 @@ export async function getAdminUsers(
   return (await res.json()) as AdminUsersResponse;
 }
 
+/**
+ * ==============================
+ * GET /admin/users/:id
+ * ==============================
+ *
+ * - SSR / CSR compatible
+ * - Backend enforces ADMIN permission
+ */
 export async function fetchAdminUserById(
   userId: string,
   params?: { cookieHeader?: string },
 ): Promise<AdminUserDetail> {
-  return apiGet(`/admin/users/${userId}`, {
-    headers: params?.cookieHeader
-      ? { Cookie: params.cookieHeader }
-      : undefined,
-  });
-}  
+  return apiGet<AdminUserDetail>(
+    `/admin/users/${userId}`,
+    {
+      headers: params?.cookieHeader
+        ? { Cookie: params.cookieHeader }
+        : undefined,
+      withCredentials: true,
+    },
+  );
+}
