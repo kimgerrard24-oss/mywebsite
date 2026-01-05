@@ -1,12 +1,10 @@
-// frontend/pages/admin/actions/index.tsx
-
-import type { GetServerSideProps } from 'next';
-import Head from 'next/head';
-import { sessionCheckServerSide } from '@/lib/api/api';
-import { getAdminActions } from '@/lib/api/admin-actions';
-import type { AdminAction } from '@/types/admin-action';
-import AdminActionList from '@/components/admin/AdminActionList';
-import AdminActionFilters from '@/components/admin/AdminActionFilters';
+import type { GetServerSideProps } from "next";
+import Head from "next/head";
+import { sessionCheckServerSide } from "@/lib/api/api";
+import { getAdminActions } from "@/lib/api/admin-actions";
+import type { AdminAction } from "@/types/admin-action";
+import AdminActionList from "@/components/admin/AdminActionList";
+import AdminActionFilters from "@/components/admin/AdminActionFilters";
 
 type Props = {
   items: AdminAction[];
@@ -20,7 +18,8 @@ export default function AdminActionsPage({
   return (
     <>
       <Head>
-        <title>Admin Actions</title>
+        <title>Admin Actions | PhlyPhant</title>
+        <meta name="robots" content="noindex,nofollow" />
       </Head>
 
       <main className="mx-auto max-w-3xl">
@@ -29,60 +28,62 @@ export default function AdminActionsPage({
         </h1>
 
         <AdminActionFilters />
-
         <AdminActionList items={items} />
       </main>
     </>
   );
 }
 
-export const getServerSideProps: GetServerSideProps<
-  Props
-> = async (ctx) => {
-  const session = await sessionCheckServerSide(
-    ctx.req.headers.cookie,
-  );
+export const getServerSideProps: GetServerSideProps<Props> =
+  async (ctx) => {
+    const cookieHeader = ctx.req.headers.cookie ?? "";
 
-  // 🔒 AuthN only — backend is authority
-  if (!session.valid) {
-    return {
-      redirect: {
-        destination: '/',
-        permanent: false,
-      },
-    };
-  }
+    const session = await sessionCheckServerSide(
+      cookieHeader,
+    );
 
-  try {
-    // ✅ getAdminActions รับ argument เดียวเท่านั้น
-    const data = await getAdminActions({
-      page: 1,
-      limit: 20,
-    });
-
-    return {
-      props: {
-        items: data.items,
-        total: data.total,
-      },
-    };
-  } catch (err: any) {
-    // ❌ ไม่ใช่ admin → backend ส่ง 403
-    if (err?.status === 403) {
+    // 🔒 AuthN only — backend is authority
+    if (!session.valid) {
       return {
         redirect: {
-          destination: '/',
+          destination: "/",
           permanent: false,
         },
       };
     }
 
-    // production-safe fallback
-    return {
-      redirect: {
-        destination: '/',
-        permanent: false,
-      },
-    };
-  }
-};
+    try {
+      const data = await getAdminActions(
+        {
+          page: 1,
+          limit: 20,
+        },
+        {
+          cookieHeader,
+        },
+      );
+
+      return {
+        props: {
+          items: data.items,
+          total: data.total,
+        },
+      };
+    } catch (err: any) {
+      if (err?.status === 403) {
+        return {
+          redirect: {
+            destination: "/",
+            permanent: false,
+          },
+        };
+      }
+
+      return {
+        redirect: {
+          destination: "/",
+          permanent: false,
+        },
+      };
+    }
+  };

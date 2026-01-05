@@ -1,10 +1,8 @@
-// frontend/pages/admin/actions/[id].tsx
-
-import type { GetServerSideProps } from 'next';
-import { sessionCheckServerSide } from '@/lib/api/api';
-import { getAdminActionById } from '@/lib/api/admin-actions';
-import type { AdminAction } from '@/types/admin-action';
-import AdminActionDetail from '@/components/admin/AdminActionDetail';
+import type { GetServerSideProps } from "next";
+import { sessionCheckServerSide } from "@/lib/api/api";
+import { getAdminActionById } from "@/lib/api/admin-actions";
+import type { AdminAction } from "@/types/admin-action";
+import AdminActionDetail from "@/components/admin/AdminActionDetail";
 
 type Props = {
   action: AdminAction;
@@ -26,15 +24,17 @@ export default function AdminActionPage({
 
 export const getServerSideProps: GetServerSideProps<Props> =
   async (ctx) => {
+    const cookieHeader = ctx.req.headers.cookie ?? "";
+
     const session = await sessionCheckServerSide(
-      ctx.req.headers.cookie,
+      cookieHeader,
     );
 
-    // 🔒 AuthN only (NOT role)
+    // 🔒 AuthN only — backend decides ADMIN permission
     if (!session.valid) {
       return {
         redirect: {
-          destination: '/',
+          destination: "/",
           permanent: false,
         },
       };
@@ -43,8 +43,10 @@ export const getServerSideProps: GetServerSideProps<Props> =
     const id = ctx.params?.id as string;
 
     try {
-      // 🔒 Backend is authority
-      const action = await getAdminActionById(id);
+      // 🔒 SSR must forward cookie
+      const action = await getAdminActionById(id, {
+        cookieHeader,
+      });
 
       return {
         props: { action },
@@ -53,7 +55,7 @@ export const getServerSideProps: GetServerSideProps<Props> =
       if (err?.status === 403) {
         return {
           redirect: {
-            destination: '/',
+            destination: "/",
             permanent: false,
           },
         };
@@ -63,9 +65,10 @@ export const getServerSideProps: GetServerSideProps<Props> =
         return { notFound: true };
       }
 
+      // production-safe fallback
       return {
         redirect: {
-          destination: '/',
+          destination: "/",
           permanent: false,
         },
       };

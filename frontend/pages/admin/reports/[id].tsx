@@ -1,5 +1,3 @@
-// frontend/pages/admin/reports/[id].tsx
-
 import type { GetServerSideProps } from "next";
 import Head from "next/head";
 import { sessionCheckServerSide } from "@/lib/api/api";
@@ -35,8 +33,10 @@ export default function AdminReportDetailPage({
 export const getServerSideProps: GetServerSideProps<
   Props
 > = async (ctx) => {
+  const cookieHeader = ctx.req.headers.cookie ?? "";
+
   const session = await sessionCheckServerSide(
-    ctx.req.headers.cookie,
+    cookieHeader,
   );
 
   // 🔒 AuthN only — backend decides ADMIN permission
@@ -52,14 +52,16 @@ export const getServerSideProps: GetServerSideProps<
   const id = ctx.params?.id as string;
 
   try {
-    // ✅ helper รับ argument เดียวเท่านั้น
-    const report = await fetchAdminReportById(id);
+    // 🔒 SSR must forward cookie to backend
+    const report = await fetchAdminReportById(id, {
+      cookieHeader,
+    });
 
     return {
       props: { report },
     };
   } catch (err: any) {
-    // ❌ ไม่ใช่ admin
+    // ❌ backend denies admin
     if (err?.status === 403) {
       return {
         redirect: {
@@ -69,7 +71,7 @@ export const getServerSideProps: GetServerSideProps<
       };
     }
 
-    // ❌ report ไม่พบ
+    // ❌ report not found
     if (err?.status === 404) {
       return { notFound: true };
     }
