@@ -16,7 +16,9 @@ import { PrismaModule } from '../../prisma/prisma.module';
     PrismaModule, 
     RevokeUserSessionsModule,
     ],
+
   controllers: [AdminUsersController],
+  
   providers: [
     AdminUsersService,
     AdminUsersRepository,
