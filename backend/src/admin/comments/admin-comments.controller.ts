@@ -4,6 +4,7 @@ import {
   Controller,
   Delete,
   Param,
+  Get,
   Body,
   UseGuards,
 } from '@nestjs/common';
@@ -12,6 +13,7 @@ import { AdminDeleteCommentDto } from './dto/admin-delete-comment.dto';
 import { AccessTokenCookieAuthGuard } from '../../auth/guards/access-token-cookie.guard';
 import { AdminRoleGuard } from '../guards/admin-role.guard';
 import { RateLimit } from '../../common/rate-limit/rate-limit.decorator';
+import { GetAdminCommentParamDto } from './dto/get-admin-comment.param.dto';
 
 @Controller('admin/comments')
 @UseGuards(
@@ -37,5 +39,16 @@ export class AdminCommentsController {
       commentId: id,
       reason: body.reason,
     });
+  }
+
+  /**
+   * GET /admin/comments/:id
+   * - Admin evidence view (read-only)
+   */
+  @Get(':id')
+  async getCommentById(
+    @Param() param: GetAdminCommentParamDto,
+  ) {
+    return this.service.getCommentById(param.id);
   }
 }

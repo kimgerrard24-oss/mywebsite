@@ -95,4 +95,25 @@ export class AdminUsersRepository {
       },
     });
   }
+
+   async findUserById(id: string) {
+    return this.prisma.user.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        username: true,
+        displayName: true,
+        avatarUrl: true,
+        role: true,
+        isDisabled: true,
+        createdAt: true,
+        _count: {
+          select: {
+            posts: true,
+            comments: true,
+          },
+        },
+      },
+    });
+  }
 }

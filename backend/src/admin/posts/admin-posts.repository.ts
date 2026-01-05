@@ -37,4 +37,26 @@ export class AdminPostsRepository {
       },
     });
   }
+
+   async findPostById(id: string) {
+    return this.prisma.post.findUnique({
+      where: { id },
+      include: {
+        author: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+            avatarUrl: true,
+          },
+        },
+        _count: {
+          select: {
+            comments: true,
+            likes: true,
+          },
+        },
+      },
+    });
+  }
 }

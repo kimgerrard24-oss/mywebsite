@@ -8,6 +8,8 @@ import { AdminUsersRepository } from './admin-users.repository';
 import { GetAdminUsersQueryDto } from './dto/get-admin-users.query.dto';
 import { AdminAuditService } from '../audit/admin-audit.service';
 import { RevokeUserSessionsService } from '../../auth/services/revoke-user-sessions.service';
+import { AdminUserDetailDto } from './dto/admin-user-detail.dto';
+import { AdminUserPolicy } from './policy/admin-user.policy';
 
 @Injectable()
 export class AdminUsersService {
@@ -132,5 +134,22 @@ async banUser(params: {
     },
   });
  }
+
+  async getUserById(
+    userId: string,
+  ): Promise<AdminUserDetailDto> {
+    const user =
+      await this.repo.findUserById(userId);
+
+    if (!user) {
+      throw new NotFoundException(
+        'User not found',
+      );
+    }
+
+    AdminUserPolicy.assertReadable(user);
+
+    return AdminUserDetailDto.from(user);
+  }
 
 }

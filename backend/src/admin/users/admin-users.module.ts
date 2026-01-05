@@ -7,11 +7,13 @@ import { AdminRoleGuard } from '../guards/admin-role.guard';
 import { AuthModule } from '../../auth/auth.module';
 import { AdminAuditModule } from '../audit/admin-audit.module';
 import { RevokeUserSessionsModule } from '../../auth/services/revoke-user-sessions.module';
+import { PrismaModule } from '../../prisma/prisma.module';
 
 @Module({
   imports: [
     AdminAuditModule,
-    AuthModule, 
+    AuthModule,
+    PrismaModule, 
     RevokeUserSessionsModule,
     ],
   controllers: [AdminUsersController],

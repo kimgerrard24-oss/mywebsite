@@ -7,6 +7,8 @@ import {
 } from '@nestjs/common';
 import { AdminPostsRepository } from './admin-posts.repository';
 import { AdminAuditService } from '../audit/admin-audit.service';
+import { AdminPostDetailDto } from './dto/admin-post-detail.dto';
+import { AdminPostPolicy } from './policy/admin-post.policy';
 
 @Injectable()
 export class AdminPostsService {
@@ -47,5 +49,22 @@ export class AdminPostsService {
         authorId: post.authorId,
       },
     });
+  }
+
+  async getPostById(
+    postId: string,
+  ): Promise<AdminPostDetailDto> {
+    const post =
+      await this.repo.findPostById(postId);
+
+    if (!post) {
+      throw new NotFoundException(
+        'Post not found',
+      );
+    }
+
+    AdminPostPolicy.assertReadable(post);
+
+    return AdminPostDetailDto.from(post);
   }
 }

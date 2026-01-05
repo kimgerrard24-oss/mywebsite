@@ -90,3 +90,18 @@ export type AdminUsersResponse = {
   limit: number;
   total: number;
 };
+
+export type AdminUserDetail = {
+  id: string;
+  username: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  role: string;
+  isDisabled: boolean;
+  createdAt: string;
+
+  stats: {
+    postCount: number;
+    commentCount: number;
+  };
+};

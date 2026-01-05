@@ -1,0 +1,43 @@
+// backend/src/admin/report/admin-reports.controller.ts
+
+import {
+  Controller,
+  Get,
+  Query,
+  Param,
+  UseGuards,
+} from '@nestjs/common';
+import { AdminReportsService } from './admin-reports.service';
+import { GetAdminReportsQueryDto } from './dto/get-admin-reports.query.dto';
+import { AccessTokenCookieAuthGuard } from '../../auth/guards/access-token-cookie.guard';
+import { AdminRoleGuard } from '../guards/admin-role.guard';
+import { GetAdminReportParamDto } from './dto/get-admin-report.param.dto';
+
+@Controller('admin/reports')
+@UseGuards(
+  AccessTokenCookieAuthGuard,
+  AdminRoleGuard,
+)
+export class AdminReportsController {
+  constructor(
+    private readonly service: AdminReportsService,
+  ) {}
+
+  @Get()
+  async getReports(
+    @Query() query: GetAdminReportsQueryDto,
+  ) {
+    return this.service.getReports(query);
+  }
+
+  /**
+   * GET /admin/reports/:id
+   * - Read-only admin evidence view
+   */
+  @Get(':id')
+  async getReportById(
+    @Param() param: GetAdminReportParamDto,
+  ) {
+    return this.service.getReportById(param.id);
+  }
+}

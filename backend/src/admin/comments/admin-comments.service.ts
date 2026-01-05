@@ -8,6 +8,8 @@ import {
 import { AdminCommentsRepository } from './admin-comments.repository';
 import { AdminAuditService } from '../audit/admin-audit.service';
 import { RequestContextService } from '../../common/middleware/request-context.service';
+import { AdminCommentDetailDto } from './dto/admin-comment-detail.dto';
+import { AdminCommentPolicy } from './policy/admin-comment.policy';
 
 @Injectable()
 export class AdminCommentsService {
@@ -61,5 +63,22 @@ export class AdminCommentsService {
     });
 
     return { success: true };
+  }
+
+   async getCommentById(
+    commentId: string,
+  ): Promise<AdminCommentDetailDto> {
+    const comment =
+      await this.repo.findCommentById(commentId);
+
+    if (!comment) {
+      throw new NotFoundException(
+        'Comment not found',
+      );
+    }
+
+    AdminCommentPolicy.assertReadable(comment);
+
+    return AdminCommentDetailDto.from(comment);
   }
 }

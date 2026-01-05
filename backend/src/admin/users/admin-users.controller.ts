@@ -14,6 +14,7 @@ import { AccessTokenCookieAuthGuard } from '../../auth/guards/access-token-cooki
 import { AdminRoleGuard } from '../guards/admin-role.guard';
 import { RateLimit } from '../../common/rate-limit/rate-limit.decorator';
 import { BanUserDto } from './dto/ban-user.dto';
+import { GetAdminUserParamDto } from './dto/get-admin-user.param.dto';
 
 @Controller('admin/users')
 @UseGuards(
@@ -54,5 +55,16 @@ export class AdminUsersController {
     });
 
     return { success: true };
+  }
+
+   /**
+   * GET /admin/users/:id
+   * - Admin user evidence view (read-only)
+   */
+  @Get(':id')
+  async getUserById(
+    @Param() param: GetAdminUserParamDto,
+  ) {
+    return this.service.getUserById(param.id);
   }
 }

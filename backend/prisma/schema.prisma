@@ -33,6 +33,7 @@ model User {
   avatarUrl                 String?
   coverUrl                  String?
   currentRefreshTokenHash   String?
+  adminNote                 String?
   lastSeenAt                DateTime?
   role                      UserRole @default(USER)
   createdAt                 DateTime @default(now())
@@ -41,10 +42,11 @@ model User {
   bannedAt          DateTime?
   banReason         String?
   bannedByAdminId   String?
-
+  reports Report[] @relation("UserReports")
+  resolvedReports Report[] @relation("ReportResolvedBy")
   // relation (optional แต่ production-grade)
   bannedByAdmin     User?     @relation("UserBannedByAdmin",fields: [bannedByAdminId],references: [id],onDelete: SetNull)
- 
+  moderationActions ModerationAction[] @relation("AdminModerationActions")
   // ใน User model (admin side)
   bannedUsers User[] @relation("UserBannedByAdmin")
 
@@ -53,7 +55,7 @@ model User {
   adminActionLogs AdminActionLog[]
 
   // ===== Comments =====
-  comments        Comment[] @relation("CommentAuthor")   // ✅ FIX
+  comments        Comment[] @relation("CommentAuthor")  
   deletedComments Comment[] @relation("CommentDeletedBy")
 
   commentLikes CommentLike[]
@@ -171,21 +173,6 @@ model AuditLog {
   user       User?    @relation(fields: [userId], references: [id])
 }
 
-model AdminActionLog {
-  id        String   @id @default(uuid())
-  adminId  String
-  action   String
-  targetId String?
-  detail   Json?
-  ip       String?
-  createdAt DateTime @default(now())
-
-  admin User @relation(fields: [adminId], references: [id], onDelete: Cascade)
-
-  @@index([adminId, createdAt])
-  @@index([action])
-}
-
 model PasswordResetToken {
   id        String    @id @default(uuid())
   userId    String
@@ -214,6 +201,8 @@ model Post {
   deletedAt     DateTime?
   isHidden      Boolean        @default(false)
   hiddenAt      DateTime?
+  hiddenByAdminId String?
+  hiddenReason    String?
 
   deletedSource DeleteSource?
   deleteReason  String?
@@ -315,6 +304,8 @@ model Comment {
 
   isEdited  Boolean  @default(false)
   editedAt  DateTime?
+  hiddenByAdminId String?
+  hiddenReason    String?
 
   isDeleted Boolean  @default(false)
   deletedAt DateTime?
@@ -653,6 +644,95 @@ model ChatReport {
   @@index([reporterId])
   @@index([createdAt])
 }
+
+model AdminActionLog {
+  id        String   @id @default(uuid())
+  adminId  String
+  action   String
+  targetId String?
+  detail   Json?
+  ip       String?
+  reportId String?
+  report   Report? @relation("ReportActionLogs",fields: [reportId],references: [id],onDelete: SetNull)
+  createdAt DateTime @default(now())
+  admin User @relation(fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([adminId, createdAt])
+  @@index([action])
+  @@index([reportId])
+}
+
+model Report {
+  id            String   @id @default(uuid())
+
+  reporterId    String
+  targetType    ReportTargetType
+  targetId      String
+  
+  reason        ReportReason
+  description   String?
+ 
+  status        ReportStatus @default(PENDING)
+
+  resolvedByAdminId String?
+  resolvedAt    DateTime?
+  resolutionNote String?
+  adminActionLogs AdminActionLog[] @relation("ReportActionLogs")
+  createdAt     DateTime @default(now())
+  reporter User @relation("UserReports", fields: [reporterId], references: [id], onDelete: Cascade)
+  resolvedByAdmin User? @relation("ReportResolvedBy", fields: [resolvedByAdminId], references: [id], onDelete: SetNull)
+
+  @@index([targetType, targetId])
+  @@index([status, createdAt])
+  @@index([reporterId])
+  @@unique([reporterId, targetType, targetId])
+}
+
+model ModerationAction {
+  id         String   @id @default(cuid())
+  adminId    String
+  actionType String
+  targetType String
+  targetId   String
+  reason     String
+  createdAt  DateTime @default(now())
+
+  admin User @relation("AdminModerationActions", fields: [adminId], references: [id], onDelete: Cascade)
+
+  @@index([targetType, targetId])
+}
+
+enum ReportStatus {
+  PENDING
+  REVIEWED
+  ACTION_TAKEN
+  REJECTED
+}
+
+enum ReportReason {
+  SPAM
+  HARASSMENT
+  HATE_SPEECH
+  SCAM
+  NSFW
+  MISINFORMATION
+  OTHER
+}
+
+enum ReportTargetType {
+  POST
+  COMMENT
+  USER
+}
+
+enum ModerationActionType {
+  HIDE
+  DELETE
+  BAN_USER
+  WARN
+  NO_ACTION
+}
+
 
 
 

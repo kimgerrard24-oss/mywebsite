@@ -30,11 +30,9 @@ import { FollowingModule } from './following/following.module';
 import { NotificationsModule } from './notifications/notifications.module';
 import { ChatModule } from './chat/chat.module';
 import { SearchModule } from './search/search.module';
-import { AdminUsersModule } from './admin/users/admin-users.module';
-import { AdminPostsModule } from './admin/posts/admin-posts.module';
 import { RequestContextModule } from './common/middleware/request-context.module';
 import { RequestContextMiddleware } from './common/middleware/request-context.middleware';
-import { AdminCommentsModule } from './admin/comments/admin-comments.module';
+import { AdminModule } from './admin/admin.module';
 
 @Module({
   imports: [
@@ -51,9 +49,7 @@ import { AdminCommentsModule } from './admin/comments/admin-comments.module';
     AlertModule,
     ChatModule,
     SearchModule,
-    AdminUsersModule,
-    AdminPostsModule,
-    AdminCommentsModule,
+    AdminModule,
     NotificationsModule,
     FollowsModule,
     FollowingModule,

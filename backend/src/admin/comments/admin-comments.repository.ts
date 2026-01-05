@@ -39,4 +39,27 @@ export class AdminCommentsRepository {
       },
     });
   }
+
+   async findCommentById(id: string) {
+    return this.prisma.comment.findUnique({
+      where: { id },
+      include: {
+        author: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+            avatarUrl: true,
+          },
+        },
+        post: {
+          select: {
+            id: true,
+            content: true,
+            authorId: true,
+          },
+        },
+      },
+    });
+  }
 }

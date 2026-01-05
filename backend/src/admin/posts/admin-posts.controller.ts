@@ -4,6 +4,7 @@ import {
   Controller,
   Delete,
   Param,
+  Get,
   Body,
   UseGuards,
 } from '@nestjs/common';
@@ -12,6 +13,7 @@ import { DeleteAdminPostDto } from './dto/delete-admin-post.dto';
 import { AccessTokenCookieAuthGuard } from '../../auth/guards/access-token-cookie.guard';
 import { AdminRoleGuard } from '../guards/admin-role.guard';
 import { RateLimit } from '../../common/rate-limit/rate-limit.decorator';
+import { GetAdminPostParamDto } from './dto/get-admin-post.param.dto';
 
 @Controller('admin/posts')
 @UseGuards(
@@ -39,5 +41,16 @@ export class AdminPostsController {
     });
 
     return { success: true };
+  }
+
+   /**
+   * GET /admin/posts/:id
+   * - Admin evidence view (read-only)
+   */
+  @Get(':id')
+  async getPostById(
+    @Param() param: GetAdminPostParamDto,
+  ) {
+    return this.service.getPostById(param.id);
   }
 }

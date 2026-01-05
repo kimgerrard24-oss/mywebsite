@@ -13,6 +13,18 @@ CREATE TYPE "PostVisibility" AS ENUM ('PUBLIC', 'PRIVATE');
 -- CreateEnum
 CREATE TYPE "ChatReportReason" AS ENUM ('SPAM', 'HARASSMENT', 'HATE_SPEECH', 'SCAM', 'SEXUAL_CONTENT', 'OTHER');
 
+-- CreateEnum
+CREATE TYPE "ReportStatus" AS ENUM ('PENDING', 'REVIEWED', 'ACTION_TAKEN', 'REJECTED');
+
+-- CreateEnum
+CREATE TYPE "ReportReason" AS ENUM ('SPAM', 'HARASSMENT', 'HATE_SPEECH', 'SCAM', 'NSFW', 'MISINFORMATION', 'OTHER');
+
+-- CreateEnum
+CREATE TYPE "ReportTargetType" AS ENUM ('POST', 'COMMENT', 'USER');
+
+-- CreateEnum
+CREATE TYPE "ModerationActionType" AS ENUM ('HIDE', 'DELETE', 'BAN_USER', 'WARN', 'NO_ACTION');
+
 -- CreateTable
 CREATE TABLE "User" (
     "id" TEXT NOT NULL,
@@ -38,6 +50,7 @@ CREATE TABLE "User" (
     "avatarUrl" TEXT,
     "coverUrl" TEXT,
     "currentRefreshTokenHash" TEXT,
+    "adminNote" TEXT,
     "lastSeenAt" TIMESTAMP(3),
     "role" "UserRole" NOT NULL DEFAULT 'USER',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -121,19 +134,6 @@ CREATE TABLE "AuditLog" (
 );
 
 -- CreateTable
-CREATE TABLE "AdminActionLog" (
-    "id" TEXT NOT NULL,
-    "adminId" TEXT NOT NULL,
-    "action" TEXT NOT NULL,
-    "targetId" TEXT,
-    "detail" JSONB,
-    "ip" TEXT,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "AdminActionLog_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
 CREATE TABLE "PasswordResetToken" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
@@ -159,6 +159,8 @@ CREATE TABLE "Post" (
     "deletedAt" TIMESTAMP(3),
     "isHidden" BOOLEAN NOT NULL DEFAULT false,
     "hiddenAt" TIMESTAMP(3),
+    "hiddenByAdminId" TEXT,
+    "hiddenReason" TEXT,
     "deletedSource" "DeleteSource",
     "deleteReason" TEXT,
     "commentCount" INTEGER NOT NULL DEFAULT 0,
@@ -218,6 +220,8 @@ CREATE TABLE "Comment" (
     "content" TEXT NOT NULL,
     "isEdited" BOOLEAN NOT NULL DEFAULT false,
     "editedAt" TIMESTAMP(3),
+    "hiddenByAdminId" TEXT,
+    "hiddenReason" TEXT,
     "isDeleted" BOOLEAN NOT NULL DEFAULT false,
     "deletedAt" TIMESTAMP(3),
     "deletedById" TEXT,
@@ -436,6 +440,50 @@ CREATE TABLE "ChatReport" (
     CONSTRAINT "ChatReport_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "AdminActionLog" (
+    "id" TEXT NOT NULL,
+    "adminId" TEXT NOT NULL,
+    "action" TEXT NOT NULL,
+    "targetId" TEXT,
+    "detail" JSONB,
+    "ip" TEXT,
+    "reportId" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "AdminActionLog_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Report" (
+    "id" TEXT NOT NULL,
+    "reporterId" TEXT NOT NULL,
+    "targetType" "ReportTargetType" NOT NULL,
+    "targetId" TEXT NOT NULL,
+    "reason" "ReportReason" NOT NULL,
+    "description" TEXT,
+    "status" "ReportStatus" NOT NULL DEFAULT 'PENDING',
+    "resolvedByAdminId" TEXT,
+    "resolvedAt" TIMESTAMP(3),
+    "resolutionNote" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Report_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ModerationAction" (
+    "id" TEXT NOT NULL,
+    "adminId" TEXT NOT NULL,
+    "actionType" TEXT NOT NULL,
+    "targetType" TEXT NOT NULL,
+    "targetId" TEXT NOT NULL,
+    "reason" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "ModerationAction_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 
@@ -459,12 +507,6 @@ CREATE INDEX "OAuthAccount_provider_providerId_idx" ON "OAuthAccount"("provider"
 
 -- CreateIndex
 CREATE UNIQUE INDEX "RefreshToken_token_key" ON "RefreshToken"("token");
-
--- CreateIndex
-CREATE INDEX "AdminActionLog_adminId_createdAt_idx" ON "AdminActionLog"("adminId", "createdAt");
-
--- CreateIndex
-CREATE INDEX "AdminActionLog_action_idx" ON "AdminActionLog"("action");
 
 -- CreateIndex
 CREATE INDEX "PasswordResetToken_userId_idx" ON "PasswordResetToken"("userId");
@@ -640,6 +682,30 @@ CREATE INDEX "ChatReport_createdAt_idx" ON "ChatReport"("createdAt");
 -- CreateIndex
 CREATE UNIQUE INDEX "ChatReport_chatId_reporterId_key" ON "ChatReport"("chatId", "reporterId");
 
+-- CreateIndex
+CREATE INDEX "AdminActionLog_adminId_createdAt_idx" ON "AdminActionLog"("adminId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "AdminActionLog_action_idx" ON "AdminActionLog"("action");
+
+-- CreateIndex
+CREATE INDEX "AdminActionLog_reportId_idx" ON "AdminActionLog"("reportId");
+
+-- CreateIndex
+CREATE INDEX "Report_targetType_targetId_idx" ON "Report"("targetType", "targetId");
+
+-- CreateIndex
+CREATE INDEX "Report_status_createdAt_idx" ON "Report"("status", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "Report_reporterId_idx" ON "Report"("reporterId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Report_reporterId_targetType_targetId_key" ON "Report"("reporterId", "targetType", "targetId");
+
+-- CreateIndex
+CREATE INDEX "ModerationAction_targetType_targetId_idx" ON "ModerationAction"("targetType", "targetId");
+
 -- AddForeignKey
 ALTER TABLE "User" ADD CONSTRAINT "User_bannedByAdminId_fkey" FOREIGN KEY ("bannedByAdminId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
@@ -657,9 +723,6 @@ ALTER TABLE "RefreshToken" ADD CONSTRAINT "RefreshToken_userId_fkey" FOREIGN KEY
 
 -- AddForeignKey
 ALTER TABLE "AuditLog" ADD CONSTRAINT "AuditLog_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "AdminActionLog" ADD CONSTRAINT "AdminActionLog_adminId_fkey" FOREIGN KEY ("adminId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "PasswordResetToken" ADD CONSTRAINT "PasswordResetToken_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
@@ -780,3 +843,18 @@ ALTER TABLE "ChatReport" ADD CONSTRAINT "ChatReport_chatId_fkey" FOREIGN KEY ("c
 
 -- AddForeignKey
 ALTER TABLE "ChatReport" ADD CONSTRAINT "ChatReport_reporterId_fkey" FOREIGN KEY ("reporterId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "AdminActionLog" ADD CONSTRAINT "AdminActionLog_reportId_fkey" FOREIGN KEY ("reportId") REFERENCES "Report"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "AdminActionLog" ADD CONSTRAINT "AdminActionLog_adminId_fkey" FOREIGN KEY ("adminId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Report" ADD CONSTRAINT "Report_reporterId_fkey" FOREIGN KEY ("reporterId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Report" ADD CONSTRAINT "Report_resolvedByAdminId_fkey" FOREIGN KEY ("resolvedByAdminId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ModerationAction" ADD CONSTRAINT "ModerationAction_adminId_fkey" FOREIGN KEY ("adminId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;

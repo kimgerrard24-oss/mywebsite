@@ -7,9 +7,10 @@ import { AdminCommentsRepository } from './admin-comments.repository';
 import { AdminRoleGuard } from '../guards/admin-role.guard';
 import { AuthModule } from '../../auth/auth.module';
 import { AdminAuditModule } from '../audit/admin-audit.module';
+import { PrismaModule } from '../../prisma/prisma.module';
 
 @Module({
-  imports: [ AdminAuditModule, AuthModule ],
+  imports: [ AdminAuditModule, AuthModule, PrismaModule, ],
   controllers: [AdminCommentsController],
   providers: [
     AdminCommentsService,
