@@ -161,7 +161,7 @@ model RefreshToken {
 model AuditLog {
   id         String   @id @default(uuid())
   userId     String?
-  email      String
+  email      String?
   action     String
   success    Boolean
   reason     String?

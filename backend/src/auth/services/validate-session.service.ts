@@ -13,7 +13,6 @@ import { RedisService } from '../../redis/redis.service';
 export interface SessionUser {
   userId: string;
   jti: string;
-  email: string;
 }
 
 const ACCESS_TOKEN_COOKIE_NAME =
@@ -63,7 +62,7 @@ export class ValidateSessionService {
         throw new UnauthorizedException('Invalid token payload');
       }
 
-      // 3) Load session from Redis
+      // 3) Load session from Redis (AUTHORITY)
       const redisKey = `session:access:${jti}`;
       const rawSession = await this.redisService.get(redisKey);
 
@@ -78,38 +77,26 @@ export class ValidateSessionService {
         try {
           session = JSON.parse(rawSession);
         } catch {
-          this.logger.error(`Failed to parse session JSON for jti: ${jti}`);
+          this.logger.error(
+            `Failed to parse session JSON for jti: ${jti}`,
+          );
           throw new UnauthorizedException('Invalid session data');
         }
       } else {
         session = rawSession;
       }
 
-      // 5) Resolve userId
-const userId =
-  session.userId ??
-  session.payload?.userId ??
-  session.sub ??
-  session.id;
+      // 5) Resolve userId (HARD REQUIRE)
+      const userId =
+        session.userId ??
+        session.payload?.userId ??
+        session.sub ??
+        session.id;
 
-if (!userId) {
-  this.logger.warn(`Invalid session data for jti: ${jti}`);
-  throw new UnauthorizedException('Invalid session data');
-}
-
-// 6) Resolve email (after userId is confirmed)
-const email =
-  session.email ??
-  session.payload?.email ??
-  session.user?.email ??
-  null;
-
-if (!email) {
-  this.logger.warn(
-    `Session missing email for userId=${userId}`,
-  );
-  throw new UnauthorizedException('Invalid session data');
-}
+      if (!userId) {
+        this.logger.warn(`Invalid session data for jti: ${jti}`);
+        throw new UnauthorizedException('Invalid session data');
+      }
 
       // 🔒 GLOBAL BAN POLICY (DB is authority)
       const isBanned = await this.authService.isUserBanned(userId);
@@ -122,7 +109,7 @@ if (!email) {
       // 6) Best-effort touch (NO write back, NO TTL risk)
       this.touchSession(jti, session).catch(() => {});
 
-      return { userId, jti, email };
+      return { userId, jti };
     } catch (err) {
       // ✅ Preserve ForbiddenException (ban)
       if (err instanceof ForbiddenException) {
@@ -130,7 +117,9 @@ if (!email) {
       }
 
       const msg = err instanceof Error ? err.message : String(err);
-      this.logger.error(`validateAccessTokenFromRequest failed: ${msg}`);
+      this.logger.error(
+        `validateAccessTokenFromRequest failed: ${msg}`,
+      );
       throw new UnauthorizedException('Unauthorized');
     }
   }

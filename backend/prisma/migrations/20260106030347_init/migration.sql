@@ -123,7 +123,7 @@ CREATE TABLE "RefreshToken" (
 CREATE TABLE "AuditLog" (
     "id" TEXT NOT NULL,
     "userId" TEXT,
-    "email" TEXT NOT NULL,
+    "email" TEXT,
     "action" TEXT NOT NULL,
     "success" BOOLEAN NOT NULL,
     "reason" TEXT,

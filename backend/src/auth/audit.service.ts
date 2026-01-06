@@ -17,7 +17,7 @@ export class AuditService {
   async createLog(params: {
     userId: string | null;
     action: string;
-    email: string;
+    email?: string | null; 
     success: boolean;
     reason?: string | null;
     targetId?: string | null;
@@ -28,7 +28,7 @@ export class AuditService {
     const {
       userId,
       action,
-      email,
+      email = null, 
       success,
       reason = null,
       targetId = null,
@@ -67,9 +67,9 @@ export class AuditService {
    * สำหรับ Login Attempt โดยเฉพาะ
    * (AuthService เรียกใช้ โดยไม่ต้องส่งข้อมูลเยอะ)
    */
-async logLoginAttempt(payload: {
+  async logLoginAttempt(payload: {
     userId?: string | null;
-    email: string;
+    email: string; 
     ip?: string | null;
     userAgent?: string | null;
     success: boolean;
@@ -86,7 +86,7 @@ async logLoginAttempt(payload: {
           targetId: null,
           ip: payload.ip ?? null,
           userAgent: payload.userAgent ?? null,
-          metadata: Prisma.JsonNull, // ← แก้ตรงนี้
+          metadata: Prisma.JsonNull,
         },
       });
     } catch (err) {
