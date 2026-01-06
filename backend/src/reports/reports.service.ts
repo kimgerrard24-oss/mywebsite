@@ -23,46 +23,53 @@ export class ReportsService {
   ) {}
 
   async createReport(params: {
-  reporterId: string;
-  reporterEmail: string;
-  dto: CreateReportDto;
-}) {
-  const { reporterId, reporterEmail, dto } = params;
+    reporterId: string;
+    dto: CreateReportDto;
+  }) {
+    const { reporterId, dto } = params;
 
-  const duplicate =
-    await this.repo.findDuplicate({
+    const duplicate =
+      await this.repo.findDuplicate({
+        reporterId,
+        targetType: dto.targetType,
+        targetId: dto.targetId,
+      });
+
+    if (duplicate) {
+      throw new ConflictException(
+        'Report already exists',
+      );
+    }
+
+    this.policy.assertCanReport({
+      reporterId,
+    });
+
+    await this.repo.create({
       reporterId,
       targetType: dto.targetType,
       targetId: dto.targetId,
+      reason: dto.reason,
+      description: dto.description,
     });
 
-  if (duplicate) {
-    throw new ConflictException(
-      'Report already exists',
-    );
+    /**
+     * 🔕 Audit log (side-effect)
+     * - email is NOT auth authority
+     * - audit failure must not break main flow
+     */
+    try {
+      await this.audit.reportCreated({
+        userId: reporterId,
+        targetType: dto.targetType,
+        targetId: dto.targetId,
+      });
+    } catch {
+      // production-safe: ignore audit failure
+    }
   }
 
-  this.policy.assertCanReport({
-    reporterId,
-  });
-
-  await this.repo.create({
-    reporterId,
-    targetType: dto.targetType,
-    targetId: dto.targetId,
-    reason: dto.reason,
-    description: dto.description,
-  });
-
-  await this.audit.reportCreated({
-    userId: reporterId,
-    email: reporterEmail, // ✅ ส่ง email
-    targetType: dto.targetType,
-    targetId: dto.targetId,
-  });
-}
-
-async getMyReports(params: {
+  async getMyReports(params: {
     reporterId: string;
     cursor: string | null;
     limit: number;
@@ -77,7 +84,6 @@ async getMyReports(params: {
       nextCursor: result.nextCursor,
     };
   }
-  
 
   async getMyReportById(params: {
     reporterId: string;
@@ -96,51 +102,46 @@ async getMyReports(params: {
   }
 
   async withdrawReport(params: {
-  reporterId: string;
-  reporterEmail: string;
-  reportId: string;
-}) {
-  const { reporterId, reporterEmail, reportId } = params;
+    reporterId: string;
+    reportId: string;
+  }) {
+    const { reporterId, reportId } = params;
 
-  /**
-   * 1️⃣ Load report (IDOR protected at DB level)
-   */
-  const report = await this.repo.findForWithdraw({
-    reportId,
-    reporterId,
-  });
-
-  if (!report) {
-    throw new NotFoundException('Report not found');
-  }
-
-  /**
-   * 2️⃣ Enforce business rule (policy authority)
-   * - Only PENDING reports can be withdrawn
-   * - Policy layer is the single source of truth
-   */
-  this.withdrawpolicy.assertCanWithdraw(report.status);
-
-  /**
-   * 3️⃣ State transition (DB is authority)
-   * - Atomic update
-   */
-  await this.repo.markWithdrawn(report.id);
-
-  /**
-   * 4️⃣ Audit log (side-effect, after DB commit)
-   * - Must NOT affect main flow
-   * - Fail-safe
-   */
-  try {
-    await this.audit.reportWithdrawn({
-      userId: reporterId,
-      email: reporterEmail,
-      reportId: report.id,
+    /**
+     * 1️⃣ Load report (IDOR protected at DB level)
+     */
+    const report = await this.repo.findForWithdraw({
+      reportId,
+      reporterId,
     });
-  } catch {
-    // 🔕 production-safe: audit failure must not break user action
-  }
-}
 
+    if (!report) {
+      throw new NotFoundException('Report not found');
+    }
+
+    /**
+     * 2️⃣ Enforce business rule (policy authority)
+     */
+    this.withdrawpolicy.assertCanWithdraw(
+      report.status,
+    );
+
+    /**
+     * 3️⃣ State transition (DB is authority)
+     */
+    await this.repo.markWithdrawn(report.id);
+
+    /**
+     * 4️⃣ Audit log (side-effect)
+     * - Must NOT affect main flow
+     */
+    try {
+      await this.audit.reportWithdrawn({
+        userId: reporterId,
+        reportId: report.id,
+      });
+    } catch {
+      // 🔕 production-safe
+    }
+  }
 }

@@ -19,9 +19,15 @@ export class ReportsRepository {
     targetType: ReportTargetType;
     targetId: string;
   }) {
+    const { reporterId, targetType, targetId } = params;
+
     return this.prisma.report.findUnique({
       where: {
-        reporterId_targetType_targetId: params,
+        reporterId_targetType_targetId: {
+          reporterId,
+          targetType,
+          targetId,
+        },
       },
     });
   }
@@ -33,13 +39,21 @@ export class ReportsRepository {
     reason: ReportReason;
     description?: string;
   }) {
+    const {
+      reporterId,
+      targetType,
+      targetId,
+      reason,
+      description,
+    } = params;
+
     return this.prisma.report.create({
       data: {
-        reporterId: params.reporterId,
-        targetType: params.targetType,
-        targetId: params.targetId,
-        reason: params.reason,
-        description: params.description,
+        reporterId,
+        targetType,
+        targetId,
+        reason,
+        description,
       },
     });
   }
@@ -85,10 +99,12 @@ export class ReportsRepository {
     reporterId: string;
     reportId: string;
   }) {
+    const { reporterId, reportId } = params;
+
     return this.prisma.report.findFirst({
       where: {
-        id: params.reportId,
-        reporterId: params.reporterId,
+        id: reportId,
+        reporterId,
       },
       select: {
         id: true,
@@ -106,10 +122,12 @@ export class ReportsRepository {
     reportId: string;
     reporterId: string;
   }) {
+    const { reportId, reporterId } = params;
+
     return this.prisma.report.findFirst({
       where: {
-        id: params.reportId,
-        reporterId: params.reporterId,
+        id: reportId,
+        reporterId,
       },
       select: {
         id: true,

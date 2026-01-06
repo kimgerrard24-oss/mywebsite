@@ -38,14 +38,13 @@ export class ReportsController {
   ) {
     await this.reportsService.createReport({
       reporterId: user.userId,
-      reporterEmail: user.email,
       dto,
     });
 
     return { success: true };
   }
 
-   /**
+  /**
    * GET /reports/me
    * User reads own reports only
    */
@@ -63,7 +62,7 @@ export class ReportsController {
     });
   }
 
-   /**
+  /**
    * GET /reports/me/:id
    * User reads own report (detail)
    */
@@ -80,7 +79,7 @@ export class ReportsController {
     });
   }
 
-   /**
+  /**
    * POST /reports/:id/withdraw
    * User withdraws own report
    */
@@ -93,7 +92,6 @@ export class ReportsController {
   ) {
     await this.reportsService.withdrawReport({
       reporterId: user.userId,
-      reporterEmail: user.email,
       reportId: param.id,
     });
 
