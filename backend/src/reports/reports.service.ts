@@ -22,7 +22,7 @@ export class ReportsService {
     private readonly withdrawpolicy: ReportWithdrawPolicy,
   ) {}
 
-  async createReport(params: {
+ async createReport(params: {
   reporterId: string;
   dto: CreateReportDto;
 }) {
@@ -41,16 +41,16 @@ export class ReportsService {
 
   if (duplicate) {
     throw new ConflictException(
-      'Report already exists',
+      'You have already reported this content',
     );
   }
 
   /**
    * 2️⃣ Resolve target owner (authority lookup)
-   * - POST        → post.authorId
-   * - COMMENT     → comment.authorId
-   * - USER        → user.id
-   * - CHAT_MESSAGE→ chatMessage.senderId
+   * - POST         → post.authorId
+   * - COMMENT      → comment.authorId
+   * - USER         → user.id
+   * - CHAT_MESSAGE → chatMessage.senderId
    *
    * If target does not exist → NotFoundException
    */
@@ -94,6 +94,7 @@ export class ReportsService {
     // 🔕 production-safe: ignore audit failure
   }
 }
+
 
 
   async getMyReports(params: {

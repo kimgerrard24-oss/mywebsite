@@ -144,6 +144,42 @@ export class AdminModerationRepository {
   }
 }
 
+async markReportActionTaken(params: {
+  targetType: ModerationTargetType;
+  targetId: string;
+  adminId: string;
+  reason: string;
+}) {
+  const {
+    targetType,
+    targetId,
+    adminId,
+  } = params;
+
+  /**
+   * 🔒 Update only actionable reports
+   * - PENDING
+   * - REVIEWED
+   * - NOT withdrawn
+   */
+  await this.prisma.report.updateMany({
+    where: {
+      targetType: targetType as any, // ReportTargetType compatible
+      targetId,
+      status: {
+        in: ['PENDING', 'REVIEWED'],
+      },
+      withdrawnAt: null,
+    },
+    data: {
+      status: 'ACTION_TAKEN',
+      resolvedByAdminId: adminId,
+      resolvedAt: new Date(),
+    },
+  });
+}
+
+
 
 }
 

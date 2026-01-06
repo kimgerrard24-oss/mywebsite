@@ -18,6 +18,12 @@ export default function AdminReportFilter({
     const value = e.target.value as
       | ReportStatus
       | "";
+
+    /**
+     * UX only:
+     * - empty string => All
+     * - backend is authority
+     */
     onChange({
       status: value || undefined,
       page: 1,
@@ -27,6 +33,7 @@ export default function AdminReportFilter({
   return (
     <div className="flex items-center gap-2">
       <label className="text-sm">Status</label>
+
       <select
         onChange={onStatusChange}
         className="rounded border px-2 py-1 text-sm"
@@ -38,6 +45,9 @@ export default function AdminReportFilter({
           Action taken
         </option>
         <option value="REJECTED">Rejected</option>
+        <option value="WITHDRAWN">
+          Withdrawn
+        </option>
       </select>
     </div>
   );

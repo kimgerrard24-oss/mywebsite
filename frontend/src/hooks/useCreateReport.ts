@@ -22,10 +22,23 @@ export function useCreateReport() {
       await createReport(payload);
       return true;
     } catch (err: any) {
-      setError(
-        err?.body?.message ??
-          "Failed to submit report",
-      );
+      /**
+       * Backend is authority
+       * - 409 = duplicate report
+       * - other = generic failure
+       */
+      if (err?.status === 409) {
+        setError(
+          err?.body?.message ??
+            "You have already reported this content",
+        );
+      } else {
+        setError(
+          err?.body?.message ??
+            "Failed to submit report",
+        );
+      }
+
       return false;
     } finally {
       setLoading(false);
