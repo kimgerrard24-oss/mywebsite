@@ -7,6 +7,7 @@ import { useDeleteComment } from "@/hooks/useDeleteComment";
 import ReplyToggle from "@/components/comments/ReplyToggle";
 import { useCommentLike } from '@/hooks/useCommentLike';
 import CommentLikeButton from './CommentLikeButton';
+import ReportDialog from "@/components/report/ReportDialog";
 
 type Props = {
   comment: Comment;
@@ -56,6 +57,7 @@ export default function CommentItem({
   const [content, setContent] = useState(comment.content);
   const [confirmingDelete, setConfirmingDelete] =
     useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
 
   /**
    * =========================
@@ -262,6 +264,16 @@ export default function CommentItem({
         )}
       </>
     )}
+    {/* 🚩 Report (เฉพาะคนที่ไม่ใช่ owner) */}
+{!isEditable && (
+  <button
+    type="button"
+    onClick={() => setReportOpen(true)}
+    className="text-red-600 hover:underline"
+  >
+    รายงาน
+  </button>
+)}
 
     {/* 🗑 Delete */}
     {isDeletable && !editing && (
@@ -312,7 +324,15 @@ export default function CommentItem({
         >
           {error}
         </p>
+        
       )}
+    {reportOpen && (
+  <ReportDialog
+    targetType="COMMENT"
+    targetId={comment.id}
+    onClose={() => setReportOpen(false)}
+  />
+)}
 
     </article>
   );

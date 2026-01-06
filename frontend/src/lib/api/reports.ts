@@ -1,35 +1,38 @@
 // frontend/src/lib/api/reports.ts
 
 import { apiPost, apiGet } from "@/lib/api/api";
+import type { ReportTargetType } from "@/types/report";
+
+export type ReportReason =
+  | "SPAM"
+  | "HARASSMENT"
+  | "HATE_SPEECH"
+  | "SCAM"
+  | "NSFW"
+  | "MISINFORMATION"
+  | "OTHER";
 
 export type CreateReportPayload = {
-  targetType: "POST" | "COMMENT" | "USER";
+  targetType: ReportTargetType;
   targetId: string;
-  reason:
-    | "SPAM"
-    | "HARASSMENT"
-    | "HATE_SPEECH"
-    | "SCAM"
-    | "NSFW"
-    | "MISINFORMATION"
-    | "OTHER";
+  reason: ReportReason;
   description?: string;
 };
 
 export type MyReportItem = {
   id: string;
-  targetType: "POST" | "COMMENT" | "USER";
+  targetType: ReportTargetType;
   targetId: string;
-  reason: string;
+  reason: ReportReason;
   status: string;
   createdAt: string;
 };
 
 export type MyReportDetail = {
   id: string;
-  targetType: "POST" | "COMMENT" | "USER";
+  targetType: ReportTargetType;
   targetId: string;
-  reason: string;
+  reason: ReportReason;
   description: string | null;
   status: string;
   createdAt: string;

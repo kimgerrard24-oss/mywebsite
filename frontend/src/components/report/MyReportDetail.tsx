@@ -1,6 +1,7 @@
 // frontend/src/components/report/MyReportDetail.tsx
 
 import type { MyReportDetail } from "@/lib/api/reports";
+import WithdrawReportButton from "./WithdrawReportButton";
 
 type Props = {
   report: MyReportDetail;
@@ -16,7 +17,7 @@ export default function MyReportDetail({
           Report Detail
         </h1>
         <p className="text-sm text-gray-500">
-          Target:{" "}
+          Target{" "}
           {report.targetType.toLowerCase()} (
           {report.targetId})
         </p>
@@ -40,6 +41,14 @@ export default function MyReportDetail({
           {report.status}
         </p>
       </section>
+
+      {report.status === "PENDING" && (
+        <div className="mt-4">
+          <WithdrawReportButton
+            reportId={report.id}
+          />
+        </div>
+      )}
 
       <footer className="mt-4 text-xs text-gray-500">
         <time dateTime={report.createdAt}>

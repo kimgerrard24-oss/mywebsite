@@ -5,12 +5,19 @@
 import { useState } from "react";
 import { useCreateReport } from "@/hooks/useCreateReport";
 
+type ReportTargetType =
+  | "POST"
+  | "COMMENT"
+  | "USER"
+  | "CHAT_MESSAGE";
+
 type Props = {
-  targetType: "POST" | "COMMENT" | "USER";
+  targetType: ReportTargetType;
   targetId: string;
   onSuccess: () => void;
   onCancel: () => void;
 };
+
 
 const REASONS = [
   { value: "SPAM", label: "Spam" },

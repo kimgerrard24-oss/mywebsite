@@ -23,51 +23,78 @@ export class ReportsService {
   ) {}
 
   async createReport(params: {
-    reporterId: string;
-    dto: CreateReportDto;
-  }) {
-    const { reporterId, dto } = params;
+  reporterId: string;
+  dto: CreateReportDto;
+}) {
+  const { reporterId, dto } = params;
 
-    const duplicate =
-      await this.repo.findDuplicate({
-        reporterId,
-        targetType: dto.targetType,
-        targetId: dto.targetId,
-      });
+  /**
+   * 1️⃣ Prevent duplicate report
+   * (DB + unique constraint is the final authority,
+   *  this is an early guard)
+   */
+  const duplicate = await this.repo.findDuplicate({
+    reporterId,
+    targetType: dto.targetType,
+    targetId: dto.targetId,
+  });
 
-    if (duplicate) {
-      throw new ConflictException(
-        'Report already exists',
-      );
-    }
+  if (duplicate) {
+    throw new ConflictException(
+      'Report already exists',
+    );
+  }
 
-    this.policy.assertCanReport({
-      reporterId,
-    });
-
-    await this.repo.create({
-      reporterId,
+  /**
+   * 2️⃣ Resolve target owner (authority lookup)
+   * - POST        → post.authorId
+   * - COMMENT     → comment.authorId
+   * - USER        → user.id
+   * - CHAT_MESSAGE→ chatMessage.senderId
+   *
+   * If target does not exist → NotFoundException
+   */
+  const targetOwnerId =
+    await this.repo.findTargetOwnerId({
       targetType: dto.targetType,
       targetId: dto.targetId,
-      reason: dto.reason,
-      description: dto.description,
     });
 
-    /**
-     * 🔕 Audit log (side-effect)
-     * - email is NOT auth authority
-     * - audit failure must not break main flow
-     */
-    try {
-      await this.audit.reportCreated({
-        userId: reporterId,
-        targetType: dto.targetType,
-        targetId: dto.targetId,
-      });
-    } catch {
-      // production-safe: ignore audit failure
-    }
+  /**
+   * 3️⃣ Enforce business policy (backend authority)
+   * - cannot report own content
+   */
+  this.policy.assertCanReport({
+    reporterId,
+    targetOwnerId,
+  });
+
+  /**
+   * 4️⃣ Create report (DB is source of truth)
+   */
+  await this.repo.create({
+    reporterId,
+    targetType: dto.targetType,
+    targetId: dto.targetId,
+    reason: dto.reason,
+    description: dto.description,
+  });
+
+  /**
+   * 5️⃣ Audit log (side-effect)
+   * - must NOT affect main flow
+   */
+  try {
+    await this.audit.reportCreated({
+      userId: reporterId,
+      targetType: dto.targetType,
+      targetId: dto.targetId,
+    });
+  } catch {
+    // 🔕 production-safe: ignore audit failure
   }
+}
+
 
   async getMyReports(params: {
     reporterId: string;

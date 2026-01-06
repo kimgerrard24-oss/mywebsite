@@ -2,6 +2,7 @@
 import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import DeletePostButton from "@/components/posts/DeletePostButton";
+import ReportDialog from "@/components/report/ReportDialog";
 
 type Props = {
   postId: string;
@@ -21,6 +22,8 @@ export default function PostActionMenu({
   onDeleted,
 }: Props) {
   const [open, setOpen] = useState(false);
+  const [reportOpen, setReportOpen] = useState(false);
+
   const ref = useRef<HTMLDivElement | null>(null);
 
   // Close dropdown when click outside
@@ -171,32 +174,40 @@ export default function PostActionMenu({
           )}
 
           {canReport && (
-            <li>
-              <button
-                type="button"
-                role="menuitem"
-                onClick={() => {
-                  setOpen(false);
-                  // TODO: open report modal
-                }}
-                className="
-                  block
-                  w-full
-                  px-3
-                  sm:px-4
-                  py-2
-                  text-left
-                  hover:bg-gray-100
-                "
-              >
-                รายงานโพสต์
-              </button>
-            </li>
-          )}
+  <li>
+    <button
+      type="button"
+      role="menuitem"
+      onClick={() => {
+        setOpen(false);
+        setReportOpen(true);
+      }}
+      className="
+        block
+        w-full
+        px-3
+        sm:px-4
+        py-2
+        text-left
+        hover:bg-gray-100
+      "
+    >
+      รายงานโพสต์
+    </button>
+  </li>
+ )}
+
         </ul>
       </div>
     )}
+    {reportOpen && (
+  <ReportDialog
+    targetType="POST"
+    targetId={postId}
+    onClose={() => setReportOpen(false)}
+  />
+ )}
   </div>
-);
+ );
 
 }

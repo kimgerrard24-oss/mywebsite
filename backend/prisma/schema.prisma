@@ -728,6 +728,7 @@ enum ReportTargetType {
   POST
   COMMENT
   USER
+  CHAT_MESSAGE
 }
 
 enum ModerationTargetType {

@@ -7,6 +7,7 @@ import ChatConfirmDeleteModal from "./ChatConfirmDeleteModal";
 import { useDeleteChatMessage } from "@/hooks/useDeleteChatMessage";
 import type { ChatMessage } from "@/types/chat-message";
 import ChatImagePreviewModal from "./ChatImagePreviewModal";
+import ReportDialog from "@/components/report/ReportDialog";
 
 /**
  * UI-only extension
@@ -34,6 +35,7 @@ export default function ChatMessageItem({
   const [previewImage, setPreviewImage] = useState<string | null>(null);
   
   const { remove } = useDeleteChatMessage();
+  const [reportOpen, setReportOpen] = useState(false);
 
  /**
  * ==============================
@@ -194,6 +196,16 @@ if (message.isDeleted || message.deletedAt) {
                 }
               />
             )}
+            {!isOwn && (
+  <button
+    type="button"
+    onClick={() => setReportOpen(true)}
+    className="text-[10px] text-red-500 hover:underline"
+  >
+    Report
+  </button>
+)}
+
           </div>
 
           <ChatConfirmDeleteModal
@@ -224,6 +236,13 @@ if (message.isDeleted || message.deletedAt) {
   <ChatImagePreviewModal
     src={previewImage}
     onClose={() => setPreviewImage(null)}
+  />
+)}
+{reportOpen && (
+  <ReportDialog
+    targetType="CHAT_MESSAGE"
+    targetId={message.id}
+    onClose={() => setReportOpen(false)}
   />
 )}
 

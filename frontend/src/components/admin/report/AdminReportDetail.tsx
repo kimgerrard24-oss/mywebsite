@@ -12,6 +12,7 @@ export default function AdminReportDetail({
 }: Props) {
   return (
     <section className="space-y-4 rounded border p-4">
+      {/* ===== Reason ===== */}
       <div>
         <h2 className="text-sm font-medium">
           Reason
@@ -21,6 +22,7 @@ export default function AdminReportDetail({
         </p>
       </div>
 
+      {/* ===== Description ===== */}
       {report.description && (
         <div>
           <h2 className="text-sm font-medium">
@@ -32,7 +34,8 @@ export default function AdminReportDetail({
         </div>
       )}
 
-      <div className="flex gap-4 text-sm">
+      {/* ===== Meta ===== */}
+      <div className="flex gap-4 text-sm text-gray-600">
         <span>Status: {report.status}</span>
         <span>
           Reported by{" "}
@@ -41,6 +44,7 @@ export default function AdminReportDetail({
         </span>
       </div>
 
+      {/* ===== Target Preview (single responsibility) ===== */}
       <AdminReportTargetPreview
         targetType={report.targetType}
         targetId={report.targetId}

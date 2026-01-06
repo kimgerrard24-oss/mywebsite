@@ -9,7 +9,8 @@ export type ReportStatus =
 export type ReportTargetType =
   | "POST"
   | "COMMENT"
-  | "USER";
+  | "USER"
+  | "CHAT_MESSAGE";
 
 export type AdminReportItem = {
   id: string;

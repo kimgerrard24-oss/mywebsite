@@ -1,6 +1,7 @@
 // frontend/src/components/report/MyReportItem.tsx
 
 import type { MyReportItem } from "@/lib/api/reports";
+import { renderReportTargetLabel } from "@/utils/renderReportTargetLabel";
 
 type Props = {
   report: MyReportItem;
@@ -12,8 +13,8 @@ export default function MyReportItem({
   return (
     <article className="rounded-md border p-3">
       <header className="mb-1 text-sm text-gray-600">
-        Reported {report.targetType.toLowerCase()}
-      </header>
+  Reported {renderReportTargetLabel(report.targetType)}
+</header>
 
       <p className="text-sm text-gray-900">
         Reason: {report.reason}
