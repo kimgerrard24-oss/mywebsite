@@ -1,6 +1,6 @@
 // frontend/src/components/admin/moderation/AdminModerationForm.tsx
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type {
   ModerationActionType,
   ModerationTargetType,
@@ -9,6 +9,12 @@ import type {
 type Props = {
   targetType: ModerationTargetType;
   targetId: string;
+
+  /**
+   * Current target hidden state
+   * (source of truth comes from backend)
+   */
+  isHidden?: boolean;
 
   /**
    * Submit moderation intent
@@ -28,12 +34,40 @@ type Props = {
 export default function AdminModerationForm({
   targetType,
   targetId,
+  isHidden = false,
   onConfirm,
   loading = false,
 }: Props) {
   const [actionType, setActionType] =
-    useState<ModerationActionType>("HIDE");
+    useState<ModerationActionType>(() => {
+      if (targetType === "USER") {
+        return "BAN_USER";
+      }
+      return isHidden ? "UNHIDE" : "HIDE";
+    });
+
   const [reason, setReason] = useState("");
+
+  /**
+   * Keep actionType in sync with target state
+   * (UX guard only, do not override unnecessarily)
+   */
+  useEffect(() => {
+    if (targetType === "USER") {
+      if (actionType !== "BAN_USER") {
+        setActionType("BAN_USER");
+      }
+      return;
+    }
+
+    if (isHidden && actionType === "HIDE") {
+      setActionType("UNHIDE");
+    }
+
+    if (!isHidden && actionType === "UNHIDE") {
+      setActionType("HIDE");
+    }
+  }, [targetType, isHidden, actionType]);
 
   /**
    * ===== Available actions (UX guard only) =====
@@ -49,11 +83,16 @@ export default function AdminModerationForm({
       value: "BAN_USER",
       label: "Ban user",
     });
+  } else if (isHidden) {
+    availableActions.push({
+      value: "UNHIDE",
+      label: "Unhide content",
+    });
   } else {
-    availableActions.push(
-      { value: "HIDE", label: "Hide content" },
-      { value: "UNHIDE", label: "Unhide content" },
-    );
+    availableActions.push({
+      value: "HIDE",
+      label: "Hide content",
+    });
   }
 
   return (

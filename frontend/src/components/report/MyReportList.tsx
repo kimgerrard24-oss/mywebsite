@@ -15,7 +15,9 @@ export default function MyReportList() {
   if (error) {
     return (
       <p className="text-sm text-red-600">
-        {error}
+        {typeof error === "string"
+          ? error
+          : "Failed to load reports"}
       </p>
     );
   }
@@ -26,11 +28,22 @@ export default function MyReportList() {
         My Reports
       </h2>
 
-      <div className="space-y-2">
-        {items.map((r) => (
-          <MyReportItem key={r.id} report={r} />
-        ))}
-      </div>
+      {!loading && items.length === 0 && (
+        <p className="text-sm text-gray-500">
+          You haven't submitted any reports yet.
+        </p>
+      )}
+
+      {items.length > 0 && (
+        <div className="space-y-2">
+          {items.map((r) => (
+            <MyReportItem
+              key={r.id}
+              report={r}
+            />
+          ))}
+        </div>
+      )}
 
       {loading && (
         <p className="mt-3 text-sm text-gray-500">

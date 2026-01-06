@@ -11,9 +11,23 @@ type Props = {
 export default function AdminReportDetail({
   report,
 }: Props) {
+  /**
+   * Moderation allowed only for actionable states
+   * (UX guard only — backend is authority)
+   */
   const canModerate =
     report.status === "PENDING" ||
     report.status === "REVIEWED";
+
+  /**
+   * Target hidden state (UX guard only)
+   *
+   * Backend is authority.
+   * At this stage, ACTION_TAKEN is the only safe signal
+   * that content was moderated (e.g. HIDE).
+   */
+  const isHidden =
+    report.status === "ACTION_TAKEN";
 
   return (
     <section className="space-y-6 rounded border p-4">
@@ -55,11 +69,12 @@ export default function AdminReportDetail({
         targetId={report.targetId}
       />
 
-      {/* ===== Moderation Action (admin authority) ===== */}
+      {/* ===== Moderation Action ===== */}
       {canModerate && (
         <AdminModerationPanel
           targetType={report.targetType}
           targetId={report.targetId}
+          isHidden={isHidden}
         />
       )}
     </section>

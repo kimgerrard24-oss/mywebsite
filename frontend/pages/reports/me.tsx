@@ -2,12 +2,12 @@
 
 import type { GetServerSideProps } from "next";
 import Head from "next/head";
+import Link from "next/link";
 import { sessionCheckServerSide } from "@/lib/api/api";
 import {
   getMyReports,
   type MyReportItem,
 } from "@/lib/api/reports";
-import Link from "next/link";
 
 type Props = {
   items: MyReportItem[];
@@ -104,10 +104,16 @@ export const getServerSideProps: GetServerSideProps<
   }
 
   try {
-    // 🔒 SSR must forward cookie
+    /**
+     * 🔒 IMPORTANT:
+     * SSR must forward cookie to backend
+     * or backend will treat request as unauthenticated
+     */
     const data = await getMyReports({
       limit: 20,
-    });
+      // forward cookie explicitly
+      ...(cookie ? { headers: { cookie } } : {}),
+    } as any);
 
     return {
       props: {

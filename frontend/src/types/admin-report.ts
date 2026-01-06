@@ -66,4 +66,15 @@ export type AdminReportDetail = {
 
   resolvedAt?: string | null;
   resolutionNote?: string | null;
+
+  /**
+   * ===== Target snapshot (read-only, optional) =====
+   * - Used for UX guard only (hide / unhide toggle)
+   * - Backend remains the sole authority
+   * - Present only when backend can resolve target
+   */
+  target?: {
+    isHidden?: boolean;
+    isDeleted?: boolean;
+  };
 };

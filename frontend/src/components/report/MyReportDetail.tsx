@@ -7,9 +7,34 @@ type Props = {
   report: MyReportDetail;
 };
 
-export default function MyReportDetail({
-  report,
-}: Props) {
+/**
+ * Explicit mapping for display only
+ * (avoid calling string methods on union types)
+ */
+function renderTargetLabel(type: MyReportDetail["targetType"]) {
+  switch (type) {
+    case "POST":
+      return "post";
+    case "COMMENT":
+      return "comment";
+    case "USER":
+      return "user";
+    case "CHAT_MESSAGE":
+      return "chat message";
+    default:
+      return "content";
+  }
+}
+
+/**
+ * UX guard only
+ * Backend remains full authority
+ */
+function canWithdraw(status: MyReportDetail["status"]) {
+  return status === "PENDING" || status === "REVIEWED";
+}
+
+export default function MyReportDetail({ report }: Props) {
   return (
     <article className="rounded-md border p-4">
       <header className="mb-2">
@@ -18,7 +43,7 @@ export default function MyReportDetail({
         </h1>
         <p className="text-sm text-gray-500">
           Target{" "}
-          {report.targetType.toLowerCase()} (
+          {renderTargetLabel(report.targetType)} (
           {report.targetId})
         </p>
       </header>
@@ -42,7 +67,7 @@ export default function MyReportDetail({
         </p>
       </section>
 
-      {report.status === "PENDING" && (
+      {canWithdraw(report.status) && (
         <div className="mt-4">
           <WithdrawReportButton
             reportId={report.id}

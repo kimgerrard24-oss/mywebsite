@@ -33,6 +33,16 @@ export class AdminReportsController {
   }
 
   /**
+   * GET /admin/reports/stats
+   * Admin-only report statistics
+   */
+  @Get('stats')
+  @RateLimit('adminUsersList') // reuse admin-safe bucket
+  async getStats(): Promise<AdminReportStatsDto> {
+    return this.service.getStats();
+  }
+
+    /**
    * GET /admin/reports/:id
    * - Read-only admin evidence view
    */
@@ -41,15 +51,5 @@ export class AdminReportsController {
     @Param() param: GetAdminReportParamDto,
   ) {
     return this.service.getReportById(param.id);
-  }
-
-  /**
-   * GET /admin/reports/stats
-   * Admin-only report statistics
-   */
-  @Get('stats')
-  @RateLimit('adminUsersList') // reuse admin-safe bucket
-  async getStats(): Promise<AdminReportStatsDto> {
-    return this.service.getStats();
   }
 }

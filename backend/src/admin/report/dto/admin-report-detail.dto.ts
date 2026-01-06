@@ -24,6 +24,14 @@ export class AdminReportDetailDto {
   resolvedAt?: Date | null;
   resolutionNote?: string | null;
 
+  /**
+   * ===== Target state (NEW)
+   * UX helper only — backend is authority
+   */
+  target?: {
+    isHidden: boolean;
+  };
+
   static from(entity: any): AdminReportDetailDto {
     return {
       id: entity.id,
@@ -33,10 +41,23 @@ export class AdminReportDetailDto {
       description: entity.description,
       status: entity.status,
       createdAt: entity.createdAt,
+
       reporter: entity.reporter,
+
       resolvedByAdmin: entity.resolvedByAdmin ?? null,
       resolvedAt: entity.resolvedAt ?? null,
       resolutionNote: entity.resolutionNote ?? null,
+
+      /**
+       * 🔒 Optional target state
+       * - Provided only when repository resolves it
+       * - Safe default = not hidden
+       */
+      target: entity.target
+        ? {
+            isHidden: entity.target.isHidden === true,
+          }
+        : undefined,
     };
   }
 }

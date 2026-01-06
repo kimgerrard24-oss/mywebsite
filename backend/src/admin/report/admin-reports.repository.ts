@@ -53,25 +53,123 @@ export class AdminReportsRepository {
   }
 
   async findReportById(id: string) {
-    return this.prisma.report.findUnique({
-      where: { id },
-      include: {
-        reporter: {
-          select: {
-            id: true,
-            username: true,
-            displayName: true,
+    const report =
+      await this.prisma.report.findUnique({
+        where: { id },
+        include: {
+          reporter: {
+            select: {
+              id: true,
+              username: true,
+              displayName: true,
+            },
+          },
+          resolvedByAdmin: {
+            select: {
+              id: true,
+              username: true,
+              displayName: true,
+            },
           },
         },
-        resolvedByAdmin: {
-          select: {
-            id: true,
-            username: true,
-            displayName: true,
-          },
-        },
-      },
-    });
+      });
+
+    if (!report) {
+      return null;
+    }
+
+    /**
+     * ===== Resolve target state (NEW, optional)
+     * Backend is authority
+     */
+    let target:
+      | { isHidden: boolean }
+      | undefined;
+
+    try {
+      switch (report.targetType) {
+        case ReportTargetType.POST: {
+          const post =
+            await this.prisma.post.findUnique({
+              where: { id: report.targetId },
+              select: {
+                isHidden: true,
+                isDeleted: true,
+              },
+            });
+
+          if (post) {
+            target = {
+              isHidden:
+                post.isHidden === true ||
+                post.isDeleted === true,
+            };
+          }
+          break;
+        }
+
+        case ReportTargetType.COMMENT: {
+          const comment =
+            await this.prisma.comment.findUnique({
+              where: { id: report.targetId },
+              select: {
+                isHidden: true,
+                isDeleted: true,
+              },
+            });
+
+          if (comment) {
+            target = {
+              isHidden:
+                comment.isHidden === true ||
+                comment.isDeleted === true,
+            };
+          }
+          break;
+        }
+
+        case ReportTargetType.CHAT_MESSAGE: {
+          const message =
+            await this.prisma.chatMessage.findUnique({
+              where: { id: report.targetId },
+              select: {
+                isDeleted: true,
+              },
+            });
+
+          if (message) {
+            target = {
+              isHidden: message.isDeleted === true,
+            };
+          }
+          break;
+        }
+
+        case ReportTargetType.USER: {
+          const user =
+            await this.prisma.user.findUnique({
+              where: { id: report.targetId },
+              select: {
+                isDisabled: true,
+              },
+            });
+
+          if (user) {
+            target = {
+              isHidden: user.isDisabled === true,
+            };
+          }
+          break;
+        }
+      }
+    } catch {
+      // 🔕 production-safe: do not block report view
+    }
+
+    return {
+      ...report,
+      target,
+    };
   }
 
   async countAll(): Promise<number> {
@@ -79,31 +177,31 @@ export class AdminReportsRepository {
   }
 
   async countByStatus(): Promise<
-  Record<ReportStatus, number>
-> {
-  const rows =
-    await this.prisma.report.groupBy({
-      by: ['status'],
-      _count: { _all: true },
-    });
+    Record<ReportStatus, number>
+  > {
+    const rows =
+      await this.prisma.report.groupBy({
+        by: ['status'],
+        _count: { _all: true },
+      });
 
-  // ✅ เตรียมค่า default ครบทุก enum
-  const result: Record<ReportStatus, number> = {
-    PENDING: 0,
-    REVIEWED: 0,
-    ACTION_TAKEN: 0,
-    REJECTED: 0,
-    WITHDRAWN: 0,
-  };
+    const result: Record<
+      ReportStatus,
+      number
+    > = {
+      PENDING: 0,
+      REVIEWED: 0,
+      ACTION_TAKEN: 0,
+      REJECTED: 0,
+      WITHDRAWN: 0,
+    };
 
-  // ✅ merge ค่าจริงจาก DB
-  for (const r of rows) {
-    result[r.status] = r._count._all;
+    for (const r of rows) {
+      result[r.status] = r._count._all;
+    }
+
+    return result;
   }
-
-  return result;
-}
-
 
   async countByTargetType(): Promise<
     Record<ReportTargetType, number>
@@ -118,7 +216,10 @@ export class AdminReportsRepository {
       acc[r.targetType] =
         r._count._all;
       return acc;
-    }, {} as Record<ReportTargetType, number>);
+    }, {} as Record<
+      ReportTargetType,
+      number
+    >);
   }
 
   countCreatedSince(

@@ -33,6 +33,12 @@ export class AdminReportsService {
     });
   }
 
+  /**
+   * GET /admin/reports/:id
+   * - Read-only admin evidence view
+   * - Backend is authority
+   * - Includes optional target state (isHidden)
+   */
   async getReportById(
     reportId: string,
   ): Promise<AdminReportDetailDto> {
@@ -45,12 +51,22 @@ export class AdminReportsService {
       );
     }
 
+    // 🔒 Business rule: admin can read only allowed reports
     AdminReportPolicy.assertReadable(report);
 
+    /**
+     * IMPORTANT:
+     * - Do NOT strip extra fields (e.g. report.target)
+     * - DTO is responsible for shaping response
+     */
     return AdminReportDetailDto.from(report);
   }
 
-   async getStats(): Promise<AdminReportStatsDto> {
+  /**
+   * GET /admin/reports/stats
+   * - Admin-only statistics
+   */
+  async getStats(): Promise<AdminReportStatsDto> {
     const [
       total,
       byStatus,

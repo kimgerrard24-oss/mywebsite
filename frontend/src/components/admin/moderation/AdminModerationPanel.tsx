@@ -38,15 +38,21 @@ function renderActionLabel(
   }
 }
 
-
 type Props = {
   targetType: ModerationTargetType;
   targetId: string;
+
+  /**
+   * UX guard only
+   * Backend remains the authority
+   */
+  isHidden?: boolean;
 };
 
 export default function AdminModerationPanel({
   targetType,
   targetId,
+  isHidden = false,
 }: Props) {
   const { submit, loading, error } =
     useCreateModerationAction();
@@ -68,6 +74,7 @@ export default function AdminModerationPanel({
         targetType={targetType}
         targetId={targetId}
         loading={loading}
+        isHidden={isHidden}
         onConfirm={(data) =>
           setPending(data)
         }
