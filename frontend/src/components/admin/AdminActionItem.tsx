@@ -1,16 +1,11 @@
 // frontend/src/components/admin/AdminActionItem.tsx
 
 import type { AdminAction } from "@/types/admin-action";
-import AdminModerationPanel from "@/components/admin/moderation/AdminModerationPanel";
+import AdminAuditUnhidePanel from "@/components/admin/moderation/AdminAuditUnhidePanel";
 import { isModerationTargetType } from "@/utils/isModerationTargetType";
 
 type Props = {
   action: AdminAction;
-
-  /**
-   * Context flags from backend (authority)
-   * UX guard only — backend remains authority
-   */
   canUnhide?: boolean;
 };
 
@@ -19,6 +14,11 @@ export default function AdminActionItem({
   canUnhide = false,
 }: Props) {
   const actor = action.actor ?? action.admin;
+
+  const moderationTargetType =
+    isModerationTargetType(action.targetType)
+      ? action.targetType
+      : null;
 
   return (
     <li className="border-b px-4 py-3 text-sm">
@@ -56,22 +56,12 @@ export default function AdminActionItem({
       )}
 
       {/* ===== Contextual UNHIDE (Audit context only) ===== */}
-      {canUnhide &&
-        isModerationTargetType(
-          action.targetType,
-        ) && (
-          <div className="mt-3">
-            <AdminModerationPanel
-              targetType={action.targetType}
-              targetId={action.targetId}
-              /**
-               * UX guard only:
-               * backend already confirmed this is reversible
-               */
-              isHidden={true}
-            />
-          </div>
-        )}
+      {canUnhide && moderationTargetType && (
+        <AdminAuditUnhidePanel
+          targetType={moderationTargetType}
+          targetId={action.targetId}
+        />
+      )}
     </li>
   );
 }
