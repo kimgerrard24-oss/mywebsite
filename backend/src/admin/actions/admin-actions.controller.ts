@@ -12,7 +12,7 @@ import { AdminRoleGuard } from '../guards/admin-role.guard';
 import { AdminActionsService } from './admin-actions.service';
 import { GetAdminActionsQueryDto } from './dto/get-admin-actions.query.dto';
 import { AdminActionDto } from './dto/admin-action.dto';
-import { GetAdminActionParamsDto } from './dto/get-admin-action.params.dto'
+import { GetAdminActionParamsDto } from './dto/get-admin-action.params.dto';
 
 @Controller('admin/actions')
 @UseGuards(
@@ -27,6 +27,10 @@ export class AdminActionsController {
   /**
    * GET /admin/actions
    * Admin moderation audit timeline
+   *
+   * - Read-only
+   * - Backend (service) is authority
+   * - canUnhide (if present) is computed by service
    */
   @Get()
   async getActions(
@@ -38,14 +42,16 @@ export class AdminActionsController {
     return this.service.getActions(query);
   }
 
-    /**
+  /**
    * GET /admin/actions/:id
-   * - Read-only admin audit action
+   * - Read-only admin audit action detail
+   * - No mutation
+   * - Backend (service) is authority
    */
   @Get(':id')
   async getActionById(
     @Param() params: GetAdminActionParamsDto,
-  ) {
+  ): Promise<AdminActionDto> {
     return this.service.getById(params.id);
   }
 }

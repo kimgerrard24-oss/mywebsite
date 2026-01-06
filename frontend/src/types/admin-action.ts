@@ -42,6 +42,20 @@ export type AdminAction = {
   metadata?: Record<string, any> | null;
 
   /**
+   * ================================
+   * UX Guard Flags (Backend Authority)
+   * ================================
+   *
+   * canUnhide:
+   * - calculated by backend only
+   * - indicates whether this action
+   *   can be reverted (UNHIDE)
+   *
+   * Frontend MUST NOT derive this.
+   */
+  canUnhide?: boolean;
+
+  /**
    * Legacy admin field (DO NOT REMOVE)
    * - used by old UI / logic
    */

@@ -1,10 +1,16 @@
 // backend/src/admin/moderation/admin-moderation.service.ts
 
-import { Injectable } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+} from '@nestjs/common';
 import { AdminModerationRepository } from './admin-moderation.repository';
 import { AdminModerationPolicy } from './policy/admin-moderation.policy';
 import { CreateModerationActionDto } from './dto/create-moderation-action.dto';
 import { ModerationActionDto } from './dto/moderation-action.dto';
+import {
+  ModerationActionType,
+} from '@prisma/client';
 
 @Injectable()
 export class AdminModerationService {
@@ -12,57 +18,97 @@ export class AdminModerationService {
     private readonly repo: AdminModerationRepository,
   ) {}
 
-async createAction(
-  adminId: string,
-  dto: CreateModerationActionDto,
-): Promise<ModerationActionDto> {
-  // 1️⃣ policy (business authority)
-  AdminModerationPolicy.assertAllowed(
-    adminId,
-    dto,
-  );
-
-  // 2️⃣ validate target existence
-  await this.repo.assertTargetExists(
-    dto.targetType,
-    dto.targetId,
-  );
-
-  // 3️⃣ create audit log
-  const action =
-    await this.repo.createModerationAction({
+  async createAction(
+    adminId: string,
+    dto: CreateModerationActionDto,
+  ): Promise<ModerationActionDto> {
+    /**
+     * 1️⃣ Policy (business authority)
+     */
+    AdminModerationPolicy.assertAllowed(
       adminId,
-      ...dto,
-    });
+      dto,
+    );
 
-  // 4️⃣ apply side-effect (hide / unhide / ban, etc.)
-  await this.repo.applyActionEffect(
-    dto.targetType,
-    dto.targetId,
-    dto.actionType,
-  );
+    /**
+     * 2️⃣ Validate target existence
+     */
+    await this.repo.assertTargetExists(
+      dto.targetType,
+      dto.targetId,
+    );
 
-  // 5️⃣ mark related report as ACTION_TAKEN (only when real action happens)
-  if (
-    dto.actionType === 'HIDE' ||
-    dto.actionType === 'UNHIDE' ||
-    dto.actionType === 'BAN_USER'
-  ) {
-    await this.repo.markReportActionTaken({
-      targetType: dto.targetType,
-      targetId: dto.targetId,
-      adminId,
-      reason: dto.reason,
-    });
+    /**
+     * 2.5️⃣ Validate UNHIDE is allowed (state check)
+     *
+     * - Backend MUST re-check
+     * - Frontend is NOT authority
+     */
+    if (
+      dto.actionType ===
+      ModerationActionType.UNHIDE
+    ) {
+      const canUnhide =
+        await this.repo.canUnhideTarget(
+          dto.targetType,
+          dto.targetId,
+        );
+
+      if (!canUnhide) {
+        throw new BadRequestException(
+          'Target cannot be unhidden',
+        );
+      }
+    }
+
+    /**
+     * 3️⃣ Create audit log
+     */
+    const action =
+      await this.repo.createModerationAction({
+        adminId,
+        ...dto,
+      });
+
+    /**
+     * 4️⃣ Apply side-effect
+     * (hide / unhide / ban, etc.)
+     */
+    await this.repo.applyActionEffect(
+      dto.targetType,
+      dto.targetId,
+      dto.actionType,
+    );
+
+    /**
+     * 5️⃣ Mark related report as ACTION_TAKEN
+     * (only when real moderation happens)
+     */
+    if (
+      dto.actionType ===
+        ModerationActionType.HIDE ||
+      dto.actionType ===
+        ModerationActionType.UNHIDE ||
+      dto.actionType ===
+        ModerationActionType.BAN_USER
+    ) {
+      await this.repo.markReportActionTaken(
+        {
+          targetType: dto.targetType,
+          targetId: dto.targetId,
+          adminId,
+          reason: dto.reason,
+        },
+      );
+    }
+
+    return {
+      id: action.id,
+      actionType: action.actionType,
+      targetType: action.targetType,
+      targetId: action.targetId,
+      reason: action.reason,
+      createdAt: action.createdAt,
+    };
   }
-
-  return {
-    id: action.id,
-    actionType: action.actionType,
-    targetType: action.targetType,
-    targetId: action.targetId,
-    reason: action.reason,
-    createdAt: action.createdAt,
-  };
-}
 }

@@ -16,45 +16,62 @@ export class AdminModerationRepository {
     private readonly prisma: PrismaService,
   ) {}
 
+  /**
+   * ==================================================
+   * Target existence check (UNCHANGED)
+   * ==================================================
+   */
   async assertTargetExists(
-  type: ModerationTargetType,
-  id: string,
-) {
-  let exists = false;
+    type: ModerationTargetType,
+    id: string,
+  ) {
+    let exists = false;
 
-  if (type === ModerationTargetType.USER) {
-    exists = !!(await this.prisma.user.findUnique({
-      where: { id },
-      select: { id: true },
-    }));
+    if (type === ModerationTargetType.USER) {
+      exists = !!(await this.prisma.user.findUnique({
+        where: { id },
+        select: { id: true },
+      }));
+    }
+
+    if (type === ModerationTargetType.POST) {
+      exists = !!(await this.prisma.post.findUnique({
+        where: { id },
+        select: { id: true },
+      }));
+    }
+
+    if (type === ModerationTargetType.COMMENT) {
+      exists = !!(await this.prisma.comment.findUnique({
+        where: { id },
+        select: { id: true },
+      }));
+    }
+
+    if (
+      type ===
+      ModerationTargetType.CHAT_MESSAGE
+    ) {
+      exists = !!(await this.prisma.chatMessage.findUnique(
+        {
+          where: { id },
+          select: { id: true },
+        },
+      ));
+    }
+
+    if (!exists) {
+      throw new BadRequestException(
+        'Target not found',
+      );
+    }
   }
 
-  if (type === ModerationTargetType.POST) {
-    exists = !!(await this.prisma.post.findUnique({
-      where: { id },
-      select: { id: true },
-    }));
-  }
-
-  if (type === ModerationTargetType.COMMENT) {
-    exists = !!(await this.prisma.comment.findUnique({
-      where: { id },
-      select: { id: true },
-    }));
-  }
-
-  if (type === ModerationTargetType.CHAT_MESSAGE) {
-    exists = !!(await this.prisma.chatMessage.findUnique({
-      where: { id },
-      select: { id: true },
-    }));
-  }
-
-  if (!exists) {
-    throw new BadRequestException('Target not found');
-  }
- }
-
+  /**
+   * ==================================================
+   * Create moderation action (UNCHANGED)
+   * ==================================================
+   */
   async createModerationAction(params: {
     adminId: string;
     actionType: ModerationActionType;
@@ -73,113 +90,232 @@ export class AdminModerationRepository {
     });
   }
 
+  /**
+   * ==================================================
+   * Apply side-effect (FIXED)
+   * ==================================================
+   */
   async applyActionEffect(
-  targetType: ModerationTargetType,
-  targetId: string,
-  actionType: ModerationActionType,
-) {
-  // ===== USER =====
-  if (
-    targetType === ModerationTargetType.USER &&
-    actionType === ModerationActionType.BAN_USER
+    targetType: ModerationTargetType,
+    targetId: string,
+    actionType: ModerationActionType,
   ) {
-    await this.prisma.user.update({
-      where: { id: targetId },
-      data: { isDisabled: true },
-    });
-    return;
-  }
+    /**
+     * ===== USER =====
+     * BAN only (no UNHIDE)
+     */
+    if (
+      targetType === ModerationTargetType.USER &&
+      actionType ===
+        ModerationActionType.BAN_USER
+    ) {
+      await this.prisma.user.update({
+        where: { id: targetId },
+        data: {
+          isDisabled: true,
+          disabledAt: new Date(),
+        },
+      });
+      return;
+    }
 
-  // ===== POST =====
-  if (
-    targetType === ModerationTargetType.POST &&
-    actionType === ModerationActionType.HIDE
-  ) {
-    await this.prisma.post.update({
-      where: { id: targetId },
-      data: { isDeleted: true },
-    });
-    return;
-  }
+    /**
+     * ===== POST =====
+     * HIDE / UNHIDE via isHidden
+     */
+    if (
+      targetType === ModerationTargetType.POST
+    ) {
+      if (
+        actionType ===
+        ModerationActionType.HIDE
+      ) {
+        await this.prisma.post.update({
+          where: { id: targetId },
+          data: {
+            isHidden: true,
+            hiddenAt: new Date(),
+          },
+        });
+        return;
+      }
 
-  // ===== COMMENT =====
-  if (
-    targetType === ModerationTargetType.COMMENT &&
-    actionType === ModerationActionType.HIDE
-  ) {
-    await this.prisma.comment.update({
-      where: { id: targetId },
-      data: { isDeleted: true },
-    });
-    return;
-  }
+      if (
+        actionType ===
+        ModerationActionType.UNHIDE
+      ) {
+        await this.prisma.post.update({
+          where: { id: targetId },
+          data: {
+            isHidden: false,
+            hiddenAt: null,
+          },
+        });
+        return;
+      }
+    }
 
-  // ===== CHAT MESSAGE (NEW) =====
-  if (
-    targetType === ModerationTargetType.CHAT_MESSAGE &&
-    actionType === ModerationActionType.HIDE
-  ) {
-    await this.prisma.chatMessage.update({
-      where: { id: targetId },
-      data: {
-        isDeleted: true,
-        deletedAt: new Date(),
-      },
-    });
-    return;
-  }
+    /**
+     * ===== COMMENT =====
+     * HIDE / UNHIDE via isHidden
+     */
+    if (
+      targetType ===
+      ModerationTargetType.COMMENT
+    ) {
+      if (
+        actionType ===
+        ModerationActionType.HIDE
+      ) {
+        await this.prisma.comment.update({
+          where: { id: targetId },
+          data: {
+            isHidden: true,
+            hiddenAt: new Date(),
+          },
+        });
+        return;
+      }
 
-  if (
-    targetType === ModerationTargetType.CHAT_MESSAGE &&
-    actionType === ModerationActionType.UNHIDE
-  ) {
-    await this.prisma.chatMessage.update({
-      where: { id: targetId },
-      data: {
-        isDeleted: false,
-        deletedAt: null,
-      },
-    });
-    return;
-  }
-}
+      if (
+        actionType ===
+        ModerationActionType.UNHIDE
+      ) {
+        await this.prisma.comment.update({
+          where: { id: targetId },
+          data: {
+            isHidden: false,
+            hiddenAt: null,
+          },
+        });
+        return;
+      }
+    }
 
-async markReportActionTaken(params: {
-  targetType: ModerationTargetType;
-  targetId: string;
-  adminId: string;
-  reason: string;
-}) {
-  const {
-    targetType,
-    targetId,
-    adminId,
-  } = params;
+    /**
+     * ===== CHAT MESSAGE =====
+     * DELETE / RESTORE style (no isHidden in schema)
+     */
+    if (
+      targetType ===
+      ModerationTargetType.CHAT_MESSAGE
+    ) {
+      if (
+        actionType ===
+        ModerationActionType.HIDE
+      ) {
+        await this.prisma.chatMessage.update({
+          where: { id: targetId },
+          data: {
+            isDeleted: true,
+            deletedAt: new Date(),
+          },
+        });
+        return;
+      }
+
+      if (
+        actionType ===
+        ModerationActionType.UNHIDE
+      ) {
+        await this.prisma.chatMessage.update({
+          where: { id: targetId },
+          data: {
+            isDeleted: false,
+            deletedAt: null,
+          },
+        });
+        return;
+      }
+    }
+  }
 
   /**
-   * 🔒 Update only actionable reports
-   * - PENDING
-   * - REVIEWED
-   * - NOT withdrawn
+   * ==================================================
+   * Mark related report as ACTION_TAKEN (UNCHANGED)
+   * ==================================================
    */
-  await this.prisma.report.updateMany({
-    where: {
-      targetType: targetType as any, // ReportTargetType compatible
+  async markReportActionTaken(params: {
+    targetType: ModerationTargetType;
+    targetId: string;
+    adminId: string;
+    reason: string;
+  }) {
+    const {
+      targetType,
       targetId,
-      status: {
-        in: ['PENDING', 'REVIEWED'],
+      adminId,
+    } = params;
+
+    await this.prisma.report.updateMany({
+      where: {
+        targetType: targetType as any, // enum compatible
+        targetId,
+        status: {
+          in: ['PENDING', 'REVIEWED'],
+        },
+        withdrawnAt: null,
       },
-      withdrawnAt: null,
-    },
-    data: {
-      status: 'ACTION_TAKEN',
-      resolvedByAdminId: adminId,
-      resolvedAt: new Date(),
-    },
-  });
+      data: {
+        status: 'ACTION_TAKEN',
+        resolvedByAdminId: adminId,
+        resolvedAt: new Date(),
+      },
+    });
+  }
+
+  /**
+   * ==================================================
+   * UNHIDE validation helper (USED BY SERVICE)
+   * ==================================================
+   */
+  async canUnhideTarget(
+    targetType: ModerationTargetType,
+    targetId: string,
+  ): Promise<boolean> {
+    if (
+      targetType ===
+      ModerationTargetType.POST
+    ) {
+      const post =
+        await this.prisma.post.findUnique({
+          where: { id: targetId },
+          select: {
+            isHidden: true,
+            isDeleted: true,
+          },
+        });
+
+      return (
+        !!post &&
+        post.isHidden === true &&
+        post.isDeleted !== true
+      );
+    }
+
+    if (
+      targetType ===
+      ModerationTargetType.COMMENT
+    ) {
+      const comment =
+        await this.prisma.comment.findUnique(
+          {
+            where: { id: targetId },
+            select: {
+              isHidden: true,
+              isDeleted: true,
+            },
+          },
+        );
+
+      return (
+        !!comment &&
+        comment.isHidden === true &&
+        comment.isDeleted !== true
+      );
+    }
+
+    // USER / CHAT_MESSAGE cannot be unhidden
+    return false;
+  }
 }
-
-
-
-}
-

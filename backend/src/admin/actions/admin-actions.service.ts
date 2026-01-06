@@ -1,10 +1,16 @@
 // backend/src/admin/actions/admin-actions.service.ts
 
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { AdminActionsRepository } from './admin-actions.repository';
 import { AdminActionsPolicy } from './policy/admin-actions.policy';
 import { GetAdminActionsQueryDto } from './dto/get-admin-actions.query.dto';
 import { AdminActionDto } from './dto/admin-action.dto';
+import {
+  ModerationActionType,
+} from '@prisma/client';
 
 @Injectable()
 export class AdminActionsService {
@@ -12,6 +18,12 @@ export class AdminActionsService {
     private readonly repo: AdminActionsRepository,
   ) {}
 
+  /**
+   * GET /admin/actions
+   * - Read-only audit timeline
+   * - Backend is authority
+   * - canUnhide is computed here (policy decision)
+   */
   async getActions(
     query: GetAdminActionsQueryDto,
   ): Promise<{
@@ -23,14 +35,56 @@ export class AdminActionsService {
     const { items, total } =
       await this.repo.findActions(query);
 
+    const enriched = await Promise.all(
+      items.map(async (action) => {
+        /**
+         * ==================================================
+         * Authority decision: canUnhide
+         * ==================================================
+         *
+         * - Computed by backend only
+         * - Frontend MUST NOT derive this
+         */
+        let canUnhide = false;
+
+        /**
+         * Only HIDE actions can be reverted (UNHIDE)
+         * (enum-based, schema-aligned)
+         */
+        if (
+          action.actionType ===
+          ModerationActionType.HIDE
+        ) {
+          canUnhide =
+            await this.repo.canUnhideAction(
+              action,
+            );
+        }
+
+        return AdminActionDto.from({
+          ...action,
+          canUnhide,
+        });
+      }),
+    );
+
     return {
-      items: items.map(AdminActionDto.from),
+      items: enriched,
       total,
     };
   }
 
-  async getById(id: string) {
-    const action = await this.repo.findById(id);
+  /**
+   * GET /admin/actions/:id
+   * - Read-only
+   * - canUnhide still applies for detail view
+   */
+  async getById(
+    id: string,
+  ): Promise<AdminActionDto> {
+    const action = await this.repo.findById(
+      id,
+    );
 
     if (!action) {
       throw new NotFoundException(
@@ -38,9 +92,25 @@ export class AdminActionsService {
       );
     }
 
-    AdminActionsPolicy.assertReadable(action);
+    AdminActionsPolicy.assertReadable(
+      action,
+    );
 
-    return action;
+    let canUnhide = false;
+
+    if (
+      action.actionType ===
+      ModerationActionType.HIDE
+    ) {
+      canUnhide =
+        await this.repo.canUnhideAction(
+          action,
+        );
+    }
+
+    return AdminActionDto.from({
+      ...action,
+      canUnhide,
+    });
   }
 }
-

@@ -5,16 +5,24 @@ import {
   ForbiddenException,
 } from '@nestjs/common';
 import { GetAdminActionsQueryDto } from '../dto/get-admin-actions.query.dto';
+import {
+  ModerationActionType,
+} from '@prisma/client';
 
 /**
  * Business-level policy for Admin Actions
  *
  * - NOT authentication (handled by guards)
- * - Used by:
- *   - GET /admin/actions
- *   - GET /admin/actions/:id
+ * - NOT state validation (handled by service/repository)
+ * - Pure business classification helpers
  */
 export class AdminActionsPolicy {
+  /**
+   * ==================================================
+   * Query validation
+   * ==================================================
+   */
+
   /**
    * List query validation
    * - used by GET /admin/actions
@@ -28,6 +36,12 @@ export class AdminActionsPolicy {
       );
     }
   }
+
+  /**
+   * ==================================================
+   * Read permission
+   * ==================================================
+   */
 
   /**
    * Read permission for a single action
@@ -49,5 +63,74 @@ export class AdminActionsPolicy {
     // - sensitive metadata masking
 
     return true;
+  }
+
+  /**
+   * ==================================================
+   * Action classification helpers
+   * ==================================================
+   *
+   * - Pure helpers
+   * - NO DB access
+   * - NO side effects
+   */
+
+  /**
+   * Whether an action represents a "hide" operation
+   *
+   * - Prisma enum: HIDE
+   * - Legacy string-based: HIDE_*
+   */
+  static isHideAction(
+    action: {
+      actionType?: string;
+    },
+  ): boolean {
+    if (!action?.actionType) {
+      return false;
+    }
+
+    return (
+      action.actionType ===
+        ModerationActionType.HIDE ||
+      action.actionType.startsWith('HIDE_')
+    );
+  }
+
+  /**
+   * Whether an action represents an "unhide" operation
+   *
+   * - Prisma enum: UNHIDE
+   * - Legacy / future: UNHIDE_*
+   */
+  static isUnhideAction(
+    action: {
+      actionType?: string;
+    },
+  ): boolean {
+    if (!action?.actionType) {
+      return false;
+    }
+
+    return (
+      action.actionType ===
+        ModerationActionType.UNHIDE ||
+      action.actionType.startsWith('UNHIDE_')
+    );
+  }
+
+  /**
+   * Whether an action is a reversible hide action
+   *
+   * NOTE:
+   * - This does NOT check current state
+   * - State validation is done by service/repository
+   */
+  static isReversibleHideAction(
+    action: {
+      actionType?: string;
+    },
+  ): boolean {
+    return this.isHideAction(action);
   }
 }

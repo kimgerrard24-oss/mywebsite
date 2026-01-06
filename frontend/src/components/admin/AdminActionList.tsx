@@ -1,13 +1,15 @@
 // frontend/src/components/admin/AdminActionList.tsx
 
-import type { AdminAction } from '@/types/admin-action';
-import AdminActionItem from './AdminActionItem';
+import type { AdminAction } from "@/types/admin-action";
+import AdminActionItem from "./AdminActionItem";
 
 type Props = {
   items: AdminAction[];
 };
 
-export default function AdminActionList({ items }: Props) {
+export default function AdminActionList({
+  items,
+}: Props) {
   if (items.length === 0) {
     return (
       <p className="p-4 text-sm text-gray-500">
@@ -19,9 +21,18 @@ export default function AdminActionList({ items }: Props) {
   return (
     <ul className="divide-y">
       {items.map((action) => (
+        /**
+         * ==================================================
+         * Read-only admin audit list
+         *
+         * - action: source of truth (from backend)
+         * - canUnhide: UX hint only (backend authority)
+         * ==================================================
+         */
         <AdminActionItem
           key={action.id}
           action={action}
+          canUnhide={action.canUnhide === true}
         />
       ))}
     </ul>
