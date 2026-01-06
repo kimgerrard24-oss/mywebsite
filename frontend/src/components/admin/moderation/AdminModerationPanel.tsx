@@ -9,6 +9,36 @@ import type {
   ModerationActionType,
 } from "@/types/moderation-action";
 
+/**
+ * Human-readable label for confirmation UI
+ * (UX only — backend is authority)
+ */
+function assertNever(x: never): never {
+  throw new Error(`Unhandled action: ${x}`);
+}
+
+function renderActionLabel(
+  action: ModerationActionType,
+): string {
+  switch (action) {
+    case "HIDE":
+      return "hide this content";
+    case "UNHIDE":
+      return "unhide this content";
+    case "BAN_USER":
+      return "ban this user";
+    case "DELETE":
+      return "delete this content";
+    case "WARN":
+      return "warn this user";
+    case "NO_ACTION":
+      return "mark as no action";
+    default:
+      return assertNever(action);
+  }
+}
+
+
 type Props = {
   targetType: ModerationTargetType;
   targetId: string;
@@ -28,48 +58,59 @@ export default function AdminModerationPanel({
     } | null>(null);
 
   return (
-    <section className="rounded border p-4">
-      <h3 className="mb-2 font-medium">
+    <section className="rounded border p-4 space-y-3">
+      <h3 className="font-medium">
         Moderation
       </h3>
 
+      {/* ===== Moderation form ===== */}
       <AdminModerationForm
         targetType={targetType}
         targetId={targetId}
+        loading={loading}
         onConfirm={(data) =>
           setPending(data)
         }
       />
 
+      {/* ===== Confirm modal ===== */}
       <AdminModerationConfirmModal
         open={!!pending}
         actionLabel={
-          pending?.actionType ?? ""
+          pending
+            ? renderActionLabel(
+                pending.actionType,
+              )
+            : ""
         }
         onCancel={() =>
           setPending(null)
         }
         onConfirm={async () => {
-          if (!pending) return;
+          if (!pending || loading) return;
 
-          await submit({
-            targetType,
-            targetId,
-            ...pending,
-          });
-
-          setPending(null);
+          try {
+            await submit({
+              targetType,
+              targetId,
+              ...pending,
+            });
+          } finally {
+            // production-safe: always close modal
+            setPending(null);
+          }
         }}
       />
 
+      {/* ===== Status ===== */}
       {loading && (
-        <p className="mt-2 text-sm">
+        <p className="text-sm text-gray-500">
           Processing…
         </p>
       )}
 
       {error && (
-        <p className="mt-2 text-sm text-red-600">
+        <p className="text-sm text-red-600">
           {error}
         </p>
       )}

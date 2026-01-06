@@ -1,15 +1,25 @@
-// frontend/src/types/moderation-action.ts
+/**
+ * MUST mirror Prisma enum exactly
+ * Backend is the sole authority
+ */
 
 export type ModerationActionType =
-  | "BAN"
   | "HIDE"
-  | "FLAG";
+  | "UNHIDE"
+  | "DELETE"
+  | "BAN_USER"
+  | "WARN"
+  | "NO_ACTION";
 
 export type ModerationTargetType =
   | "USER"
   | "POST"
-  | "COMMENT";
+  | "COMMENT"
+  | "CHAT_MESSAGE";
 
+/**
+ * Payload for POST /admin/moderation/actions
+ */
 export type CreateModerationActionInput = {
   actionType: ModerationActionType;
   targetType: ModerationTargetType;
@@ -17,10 +27,13 @@ export type CreateModerationActionInput = {
   reason: string;
 };
 
+/**
+ * Response DTO from backend
+ */
 export type ModerationActionResult = {
   id: string;
-  actionType: string;
-  targetType: string;
+  actionType: ModerationActionType;
+  targetType: ModerationTargetType;
   targetId: string;
   reason: string;
   createdAt: string;

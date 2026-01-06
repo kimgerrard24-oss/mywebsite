@@ -11,7 +11,14 @@ import AdminPageGuard from "@/components/admin/AdminPageGuard";
 import AdminReportStatsView from "@/components/admin/report/AdminReportStats";
 
 type Props = {
+  /**
+   * Stats data (only present when admin is allowed)
+   */
   stats: AdminReportStats | null;
+
+  /**
+   * Permission flag (backend authority)
+   */
   allowed: boolean;
 };
 
@@ -22,13 +29,8 @@ export default function AdminReportStatsPage({
   return (
     <>
       <Head>
-        <title>
-          Report Statistics | PhlyPhant
-        </title>
-        <meta
-          name="robots"
-          content="noindex,nofollow"
-        />
+        <title>Report Statistics | PhlyPhant</title>
+        <meta name="robots" content="noindex,nofollow" />
       </Head>
 
       <main className="p-6">
@@ -36,11 +38,13 @@ export default function AdminReportStatsPage({
           Report Statistics
         </h1>
 
+        {/* 
+          🔒 UI guard only
+          - Backend already decided permission
+        */}
         <AdminPageGuard allowed={allowed}>
-          {stats && (
-            <AdminReportStatsView
-              stats={stats}
-            />
+          {allowed && stats && (
+            <AdminReportStatsView stats={stats} />
           )}
         </AdminPageGuard>
       </main>
@@ -48,40 +52,59 @@ export default function AdminReportStatsPage({
   );
 }
 
-/* ================= SSR ================= */
+/* =======================
+   Server Side Rendering
+   ======================= */
 
-export const getServerSideProps: GetServerSideProps<
-  Props
-> = async (ctx) => {
-  const cookie = ctx.req.headers.cookie ?? "";
+export const getServerSideProps: GetServerSideProps<Props> =
+  async (ctx) => {
+    const cookie =
+      ctx.req.headers.cookie ?? "";
 
-  // 🔐 Backend is authority
-  const session = await sessionCheckServerSide(
-    cookie,
-  );
+    /**
+     * 🔐 Authentication check
+     * Backend is authority
+     */
+    const session =
+      await sessionCheckServerSide(cookie);
 
-  if (!session.valid) {
-    return {
-      redirect: {
-        destination: "/",
-        permanent: false,
-      },
-    };
-  }
+    // ❌ Not logged in
+    if (!session.valid) {
+      return {
+        redirect: {
+          destination: "/",
+          permanent: false,
+        },
+      };
+    }
 
-  try {
-    const stats = await getAdminReportStats(
-      ctx,
-    );
+    try {
+      /**
+       * 🔒 Authorization check (ADMIN)
+       * Backend decides
+       */
+      const stats =
+        await getAdminReportStats(ctx);
 
-    return {
-      props: {
-        stats,
-        allowed: true,
-      },
-    };
-  } catch (err: any) {
-    if (err?.status === 403) {
+      return {
+        props: {
+          stats,
+          allowed: true,
+        },
+      };
+    } catch (err: any) {
+      // ❌ Logged in but NOT admin
+      if (err?.status === 403) {
+        return {
+          props: {
+            stats: null,
+            allowed: false,
+          },
+        };
+      }
+
+      // ❌ Any other backend failure
+      // production-safe fallback
       return {
         props: {
           stats: null,
@@ -89,12 +112,4 @@ export const getServerSideProps: GetServerSideProps<
         },
       };
     }
-
-    return {
-      props: {
-        stats: null,
-        allowed: false,
-      },
-    };
-  }
-};
+  };

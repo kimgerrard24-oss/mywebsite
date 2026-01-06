@@ -1,3 +1,5 @@
+// frontend/src/components/admin/report/AdminReportList.tsx
+
 import Link from "next/link";
 import AdminReportItem from "./AdminReportItem";
 import AdminReportFilter from "./AdminReportFilter";
@@ -36,16 +38,33 @@ export default function AdminReportList({
       {/* ===== List ===== */}
       {data.items.length > 0 && (
         <ul className="mt-4 divide-y rounded-md border">
-          {data.items.map((item) => (
-            <li key={item.id}>
-              <Link
-                href={`/admin/reports/${item.id}`}
-                className="block hover:bg-gray-50 transition-colors"
+          {data.items.map((item) => {
+            const isResolved =
+              item.status === "ACTION_TAKEN" ||
+              item.status === "REJECTED" ||
+              item.status === "WITHDRAWN";
+
+            return (
+              <li
+                key={item.id}
+                className={
+                  isResolved
+                    ? "opacity-70"
+                    : undefined
+                }
               >
-                <AdminReportItem report={item} />
-              </Link>
-            </li>
-          ))}
+                <Link
+                  href={`/admin/reports/${item.id}`}
+                  className="block transition-colors hover:bg-gray-50"
+                  aria-disabled={false}
+                >
+                  <AdminReportItem
+                    report={item}
+                  />
+                </Link>
+              </li>
+            );
+          })}
         </ul>
       )}
     </section>

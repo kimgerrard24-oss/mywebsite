@@ -2,6 +2,7 @@
 
 import type { AdminReportDetail } from "@/types/admin-report";
 import AdminReportTargetPreview from "./AdminReportTargetPreview";
+import AdminModerationPanel from "@/components/admin/moderation/AdminModerationPanel";
 
 type Props = {
   report: AdminReportDetail;
@@ -10,8 +11,12 @@ type Props = {
 export default function AdminReportDetail({
   report,
 }: Props) {
+  const canModerate =
+    report.status === "PENDING" ||
+    report.status === "REVIEWED";
+
   return (
-    <section className="space-y-4 rounded border p-4">
+    <section className="space-y-6 rounded border p-4">
       {/* ===== Reason ===== */}
       <div>
         <h2 className="text-sm font-medium">
@@ -35,7 +40,7 @@ export default function AdminReportDetail({
       )}
 
       {/* ===== Meta ===== */}
-      <div className="flex gap-4 text-sm text-gray-600">
+      <div className="flex flex-wrap gap-4 text-sm text-gray-600">
         <span>Status: {report.status}</span>
         <span>
           Reported by{" "}
@@ -44,11 +49,19 @@ export default function AdminReportDetail({
         </span>
       </div>
 
-      {/* ===== Target Preview (single responsibility) ===== */}
+      {/* ===== Target Preview (read-only) ===== */}
       <AdminReportTargetPreview
         targetType={report.targetType}
         targetId={report.targetId}
       />
+
+      {/* ===== Moderation Action (admin authority) ===== */}
+      {canModerate && (
+        <AdminModerationPanel
+          targetType={report.targetType}
+          targetId={report.targetId}
+        />
+      )}
     </section>
   );
 }

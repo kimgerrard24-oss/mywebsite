@@ -2,6 +2,7 @@
 
 import type { AdminPostDetail } from "@/types/admin-post";
 import AdminPostMedia from "./AdminPostMedia";
+import AdminModerationPanel from "@/components/admin/moderation/AdminModerationPanel";
 
 type Props = {
   post: AdminPostDetail;
@@ -12,6 +13,7 @@ export default function AdminPostDetail({
 }: Props) {
   return (
     <article className="space-y-4 rounded border p-4">
+      {/* ===== Author ===== */}
       <header className="flex items-center gap-3">
         {post.author.avatarUrl && (
           <img
@@ -29,35 +31,54 @@ export default function AdminPostDetail({
             className="text-xs text-gray-500"
             dateTime={post.createdAt}
           >
-            {new Date(post.createdAt).toLocaleString()}
+            {new Date(
+              post.createdAt,
+            ).toLocaleString()}
           </time>
         </div>
       </header>
 
-      <section className="text-sm text-gray-800">
+      {/* ===== Content ===== */}
+      <section className="text-sm text-gray-800 whitespace-pre-wrap">
         {post.content}
       </section>
 
+      {/* ===== Media ===== */}
       <AdminPostMedia postId={post.id} />
 
-      <footer className="flex gap-4 text-xs text-gray-600">
+      {/* ===== Meta ===== */}
+      <footer className="flex flex-wrap gap-4 text-xs text-gray-600">
         <span>
           Comments: {post.stats.commentCount}
         </span>
         <span>
           Likes: {post.stats.likeCount}
         </span>
+
         {post.isDeleted && (
           <span className="text-red-600">
-            Deleted ({post.deletedSource})
+            Deleted
+            {post.deletedSource
+              ? ` (${post.deletedSource})`
+              : ""}
           </span>
         )}
-        {post.isHidden && (
-          <span className="text-orange-600">
-            Hidden
-          </span>
-        )}
+
+        {!post.isDeleted &&
+          post.isHidden && (
+            <span className="text-orange-600">
+              Hidden by admin
+            </span>
+          )}
       </footer>
+
+      {/* ===== Admin Moderation (authority = backend) ===== */}
+      {!post.isDeleted && (
+        <AdminModerationPanel
+          targetType="POST"
+          targetId={post.id}
+        />
+      )}
     </article>
   );
 }

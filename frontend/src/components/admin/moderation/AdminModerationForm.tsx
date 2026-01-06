@@ -9,83 +9,120 @@ import type {
 type Props = {
   targetType: ModerationTargetType;
   targetId: string;
+
+  /**
+   * Submit moderation intent
+   * Backend is authority
+   */
   onConfirm: (params: {
     actionType: ModerationActionType;
     reason: string;
   }) => void;
+
+  /**
+   * Optional loading guard
+   */
+  loading?: boolean;
 };
 
 export default function AdminModerationForm({
   targetType,
   targetId,
   onConfirm,
+  loading = false,
 }: Props) {
   const [actionType, setActionType] =
-    useState<ModerationActionType>("FLAG");
+    useState<ModerationActionType>("HIDE");
   const [reason, setReason] = useState("");
+
+  /**
+   * ===== Available actions (UX guard only) =====
+   * Backend will re-validate everything
+   */
+  const availableActions: {
+    value: ModerationActionType;
+    label: string;
+  }[] = [];
+
+  if (targetType === "USER") {
+    availableActions.push({
+      value: "BAN_USER",
+      label: "Ban user",
+    });
+  } else {
+    availableActions.push(
+      { value: "HIDE", label: "Hide content" },
+      { value: "UNHIDE", label: "Unhide content" },
+    );
+  }
 
   return (
     <form
-      className="space-y-3"
+      className="space-y-4"
       onSubmit={(e) => {
         e.preventDefault();
-        onConfirm({ actionType, reason });
+
+        if (!reason.trim()) return;
+
+        onConfirm({
+          actionType,
+          reason: reason.trim(),
+        });
       }}
     >
-      <input
-        type="hidden"
-        value={targetId}
-      />
+      {/* ===== Hidden target ===== */}
+      <input type="hidden" value={targetId} />
 
+      {/* ===== Action ===== */}
       <div>
         <label className="block text-sm font-medium">
-          Action
+          Moderation action
         </label>
         <select
-          className="mt-1 w-full rounded border p-2"
+          className="mt-1 w-full rounded border px-2 py-1 text-sm"
           value={actionType}
+          disabled={loading}
           onChange={(e) =>
             setActionType(
               e.target.value as ModerationActionType,
             )
           }
         >
-          <option value="FLAG">
-            Flag
-          </option>
-          {targetType === "USER" && (
-            <option value="BAN">
-              Ban user
+          {availableActions.map((a) => (
+            <option key={a.value} value={a.value}>
+              {a.label}
             </option>
-          )}
-          {targetType !== "USER" && (
-            <option value="HIDE">
-              Hide content
-            </option>
-          )}
+          ))}
         </select>
       </div>
 
+      {/* ===== Reason ===== */}
       <div>
         <label className="block text-sm font-medium">
           Reason
         </label>
         <textarea
-          className="mt-1 w-full rounded border p-2"
+          className="mt-1 w-full rounded border px-2 py-1 text-sm"
           rows={3}
           required
+          disabled={loading}
           value={reason}
           onChange={(e) =>
             setReason(e.target.value)
           }
         />
+        <p className="mt-1 text-xs text-gray-500">
+          Reason will be recorded in moderation audit log
+        </p>
       </div>
 
+      {/* ===== Submit ===== */}
       <button
         type="submit"
-        className="rounded bg-red-600 px-4 py-2 text-white"
+        disabled={loading}
+        className="rounded bg-red-600 px-4 py-2 text-sm text-white disabled:opacity-60"
       >
-        Continue
+        {loading ? "Processing…" : "Continue"}
       </button>
     </form>
   );

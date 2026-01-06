@@ -1,3 +1,4 @@
+// frontend/src/components/admin/reports/AdminReportTargetPreview.tsx
 import Link from "next/link";
 import type { ReportTargetType } from "@/types/admin-report";
 import { renderReportTargetLabel } from "@/utils/renderReportTargetLabel";
@@ -24,14 +25,14 @@ export default function AdminReportTargetPreview({
         </span>
       </p>
 
-      {/* ===== Admin quick navigation (best-effort) ===== */}
+      {/* ===== Admin quick navigation ===== */}
       <div className="pt-1 text-xs">
         {targetType === "POST" && (
           <Link
             href={`/admin/posts/${targetId}`}
             className="text-blue-600 hover:underline"
           >
-            View post
+            View post (admin)
           </Link>
         )}
 
@@ -40,7 +41,7 @@ export default function AdminReportTargetPreview({
             href={`/admin/comments/${targetId}`}
             className="text-blue-600 hover:underline"
           >
-            View comment
+            View comment (admin)
           </Link>
         )}
 
@@ -49,16 +50,17 @@ export default function AdminReportTargetPreview({
             href={`/admin/users/${targetId}`}
             className="text-blue-600 hover:underline"
           >
-            View user
+            View user (admin)
           </Link>
         )}
 
         {targetType === "CHAT_MESSAGE" && (
           <span className="text-gray-500 italic">
-            Chat message preview not available
+            Chat message moderation only
           </span>
         )}
       </div>
     </section>
   );
 }
+

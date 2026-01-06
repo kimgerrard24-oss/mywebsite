@@ -4,7 +4,8 @@ export type ReportStatus =
   | "PENDING"
   | "REVIEWED"
   | "ACTION_TAKEN"
-  | "REJECTED";
+  | "REJECTED"
+  | "WITHDRAWN";
 
 export type ReportTargetType =
   | "POST"
