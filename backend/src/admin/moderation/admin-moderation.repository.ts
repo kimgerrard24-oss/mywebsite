@@ -17,38 +17,43 @@ export class AdminModerationRepository {
   ) {}
 
   async assertTargetExists(
-    type: ModerationTargetType,
-    id: string,
-  ) {
-    let exists = false;
+  type: ModerationTargetType,
+  id: string,
+) {
+  let exists = false;
 
-    if (type === 'USER') {
-      exists = !!(await this.prisma.user.findUnique({
-        where: { id },
-        select: { id: true },
-      }));
-    }
-
-    if (type === 'POST') {
-      exists = !!(await this.prisma.post.findUnique({
-        where: { id },
-        select: { id: true },
-      }));
-    }
-
-    if (type === 'COMMENT') {
-      exists = !!(await this.prisma.comment.findUnique({
-        where: { id },
-        select: { id: true },
-      }));
-    }
-
-    if (!exists) {
-      throw new BadRequestException(
-        'Target not found',
-      );
-    }
+  if (type === ModerationTargetType.USER) {
+    exists = !!(await this.prisma.user.findUnique({
+      where: { id },
+      select: { id: true },
+    }));
   }
+
+  if (type === ModerationTargetType.POST) {
+    exists = !!(await this.prisma.post.findUnique({
+      where: { id },
+      select: { id: true },
+    }));
+  }
+
+  if (type === ModerationTargetType.COMMENT) {
+    exists = !!(await this.prisma.comment.findUnique({
+      where: { id },
+      select: { id: true },
+    }));
+  }
+
+  if (type === ModerationTargetType.CHAT_MESSAGE) {
+    exists = !!(await this.prisma.chatMessage.findUnique({
+      where: { id },
+      select: { id: true },
+    }));
+  }
+
+  if (!exists) {
+    throw new BadRequestException('Target not found');
+  }
+ }
 
   async createModerationAction(params: {
     adminId: string;
@@ -73,6 +78,7 @@ export class AdminModerationRepository {
   targetId: string,
   actionType: ModerationActionType,
 ) {
+  // ===== USER =====
   if (
     targetType === ModerationTargetType.USER &&
     actionType === ModerationActionType.BAN_USER
@@ -84,6 +90,7 @@ export class AdminModerationRepository {
     return;
   }
 
+  // ===== POST =====
   if (
     targetType === ModerationTargetType.POST &&
     actionType === ModerationActionType.HIDE
@@ -95,6 +102,7 @@ export class AdminModerationRepository {
     return;
   }
 
+  // ===== COMMENT =====
   if (
     targetType === ModerationTargetType.COMMENT &&
     actionType === ModerationActionType.HIDE
@@ -105,7 +113,37 @@ export class AdminModerationRepository {
     });
     return;
   }
+
+  // ===== CHAT MESSAGE (NEW) =====
+  if (
+    targetType === ModerationTargetType.CHAT_MESSAGE &&
+    actionType === ModerationActionType.HIDE
+  ) {
+    await this.prisma.chatMessage.update({
+      where: { id: targetId },
+      data: {
+        isDeleted: true,
+        deletedAt: new Date(),
+      },
+    });
+    return;
+  }
+
+  if (
+    targetType === ModerationTargetType.CHAT_MESSAGE &&
+    actionType === ModerationActionType.UNHIDE
+  ) {
+    await this.prisma.chatMessage.update({
+      where: { id: targetId },
+      data: {
+        isDeleted: false,
+        deletedAt: null,
+      },
+    });
+    return;
+  }
 }
+
 
 }
 

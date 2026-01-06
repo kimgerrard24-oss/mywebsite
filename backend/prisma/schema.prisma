@@ -735,6 +735,7 @@ enum ModerationTargetType {
   USER
   POST
   COMMENT
+  CHAT_MESSAGE
 }
 
 enum ModerationActionType {

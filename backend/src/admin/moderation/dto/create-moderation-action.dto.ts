@@ -1,5 +1,3 @@
-// backend/src/admin/moderation/dto/create-moderation-action.dto.ts
-
 import {
   IsEnum,
   IsNotEmpty,
@@ -7,15 +5,26 @@ import {
 } from 'class-validator';
 import {
   ModerationActionType,
-  ReportTargetType,
+  ModerationTargetType,
 } from '@prisma/client';
 
+/**
+ * DTO for creating a moderation action (ADMIN domain)
+ *
+ * ⚠️ IMPORTANT:
+ * - This DTO must ONLY use ModerationTargetType
+ * - Never use ReportTargetType here
+ */
 export class CreateModerationActionDto {
   @IsEnum(ModerationActionType)
   actionType!: ModerationActionType;
 
-  @IsEnum(ReportTargetType)
-  targetType!: ReportTargetType;
+  /**
+   * Moderation target (ADMIN authority)
+   * Allowed: USER | POST | COMMENT
+   */
+  @IsEnum(ModerationTargetType)
+  targetType!: ModerationTargetType;
 
   @IsString()
   @IsNotEmpty()
