@@ -49,6 +49,11 @@ export default function NotificationItem({ item }: Props) {
     }
   }, [item]);
 
+  const isBlocked =
+  item.actor?.isBlocked === true ||
+  item.actor?.hasBlockedViewer === true;
+
+
   async function handleClick() {
     if (!isRead) {
       setIsRead(true);
@@ -66,11 +71,11 @@ export default function NotificationItem({ item }: Props) {
   item.actor?.hasBlockedViewer === true;
 
     const href = resolveHref();
-if (href && !isBlocked) {
+ if (href && !isBlocked) {
   router.push(href);
-}
-
-
+ }
+  
+  }
   const actorName =
     item.actor?.displayName ?? 'Someone';
 
@@ -141,7 +146,7 @@ if (href && !isBlocked) {
   <span className="text-xs text-gray-400">
     ไม่สามารถโต้ตอบกับผู้ใช้นี้ได้
   </span>
-)}
+ )}
 
           <strong className="font-medium">
             {actorName}
@@ -165,4 +170,4 @@ if (href && !isBlocked) {
     </li>
   );
 }
-}
+
