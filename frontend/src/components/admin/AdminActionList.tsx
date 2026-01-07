@@ -1,5 +1,7 @@
+// frontend/src/components/admin/AdminActionList.tsx
+
 import type { AdminAction } from "@/types/admin-action";
-import AdminActionItem from "./AdminActionItem";
+import AdminActionDetail from "./AdminActionDetail"; // ← path ตามที่คุณใช้จริง
 
 type Props = {
   items: AdminAction[];
@@ -17,20 +19,11 @@ export default function AdminActionList({
   }
 
   return (
-    <ul className="divide-y">
+    <ul className="space-y-4 px-4 pb-6">
       {items.map((action) => (
-        /**
-         * ==================================================
-         * Read-only admin audit list
-         *
-         * - action: source of truth (from backend)
-         * - frontend must NOT derive permission/state
-         * ==================================================
-         */
-        <AdminActionItem
-          key={action.id}
-          action={action}
-        />
+        <li key={action.id}>
+          <AdminActionDetail action={action} />
+        </li>
       ))}
     </ul>
   );

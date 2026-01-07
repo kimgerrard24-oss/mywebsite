@@ -1,13 +1,8 @@
-// frontend/pages/reports/[id].tsx
 import Head from "next/head";
 import type { GetServerSideProps } from "next";
 import { sessionCheckServerSide } from "@/lib/api/api";
-import {
-  getMyReportById,
-  type MyReportDetail as MyReportDetailType,
-} from "@/lib/api/reports";
+import type { MyReportDetail as MyReportDetailType } from "@/lib/api/reports";
 import MyReportDetail from "@/components/report/MyReportDetail";
-import WithdrawReportButton from "@/components/report/WithdrawReportButton";
 
 type Props = {
   report: MyReportDetailType | null;
@@ -37,19 +32,8 @@ export default function MyReportDetailPage({
       </Head>
 
       <main className="p-6 space-y-6">
-        {/* ===== Report detail ===== */}
+        {/* ===== Report detail (includes Withdraw UX guard) ===== */}
         <MyReportDetail report={report} />
-
-        {/* ===== Withdraw action ===== */}
-        <div className="pt-4 border-t">
-          <WithdrawReportButton
-            reportId={report.id}
-            onWithdrawed={() => {
-              // production-safe: reload page
-              window.location.reload();
-            }}
-          />
-        </div>
       </main>
     </>
   );
@@ -60,11 +44,11 @@ export default function MyReportDetailPage({
 export const getServerSideProps: GetServerSideProps<
   Props
 > = async (ctx) => {
-  const cookie = ctx.req.headers.cookie ?? "";
+  const cookieHeader = ctx.req.headers.cookie ?? "";
 
-  // 🔐 Backend is authority
+  // 🔐 AuthN only — backend is authority
   const session = await sessionCheckServerSide(
-    cookie,
+    cookieHeader,
   );
 
   if (!session.valid) {
@@ -76,15 +60,48 @@ export const getServerSideProps: GetServerSideProps<
     };
   }
 
-  const reportId = String(
-    ctx.params?.id ?? "",
-  );
+  const reportId = String(ctx.params?.id ?? "");
 
   try {
-    const report = await getMyReportById(
-      reportId,
-      ctx,
+    const base =
+      process.env.INTERNAL_BACKEND_URL ??
+      process.env.NEXT_PUBLIC_BACKEND_URL ??
+      "https://api.phlyphant.com";
+
+    const res = await fetch(
+      `${base}/reports/me/${reportId}`,
+      {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+          ...(cookieHeader
+            ? { Cookie: cookieHeader }
+            : {}),
+        },
+        credentials: "include",
+        cache: "no-store",
+      },
     );
+
+    if (res.status === 403) {
+      return {
+        redirect: {
+          destination: "/",
+          permanent: false,
+        },
+      };
+    }
+
+    if (!res.ok) {
+      return {
+        props: {
+          report: null,
+        },
+      };
+    }
+
+    const report =
+      (await res.json()) as MyReportDetailType;
 
     return {
       props: {
