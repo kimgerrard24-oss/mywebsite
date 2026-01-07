@@ -1,5 +1,3 @@
-// backend/src/reports/dto/get-my-reports.query.dto.ts
-
 import {
   IsOptional,
   IsString,
@@ -19,4 +17,21 @@ export class GetMyReportsQueryDto {
   @Min(1)
   @Max(50)
   limit: number = 20;
+
+  /**
+   * Defensive default (backend authority)
+   * Ensures limit is always valid even if DTO transform is bypassed
+   */
+  constructor(partial?: Partial<GetMyReportsQueryDto>) {
+    Object.assign(this, partial);
+
+    if (
+      typeof this.limit !== 'number' ||
+      !Number.isInteger(this.limit) ||
+      this.limit < 1 ||
+      this.limit > 50
+    ) {
+      this.limit = 20;
+    }
+  }
 }

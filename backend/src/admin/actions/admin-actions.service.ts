@@ -1,5 +1,3 @@
-// backend/src/admin/actions/admin-actions.service.ts
-
 import {
   Injectable,
   NotFoundException,
@@ -8,9 +6,6 @@ import { AdminActionsRepository } from './admin-actions.repository';
 import { AdminActionsPolicy } from './policy/admin-actions.policy';
 import { GetAdminActionsQueryDto } from './dto/get-admin-actions.query.dto';
 import { AdminActionDto } from './dto/admin-action.dto';
-import {
-  ModerationActionType,
-} from '@prisma/client';
 
 @Injectable()
 export class AdminActionsService {
@@ -48,12 +43,15 @@ export class AdminActionsService {
         let canUnhide = false;
 
         /**
-         * Only HIDE actions can be reverted (UNHIDE)
-         * (enum-based, schema-aligned)
+         * Only reversible HIDE actions can be reverted (UNHIDE)
+         * - Supports Prisma enum (HIDE)
+         * - Supports legacy string-based actions (HIDE_*)
+         * - Policy layer decides classification
          */
         if (
-          action.actionType ===
-          ModerationActionType.HIDE
+          AdminActionsPolicy.isReversibleHideAction(
+            action,
+          )
         ) {
           canUnhide =
             await this.repo.canUnhideAction(
@@ -99,8 +97,9 @@ export class AdminActionsService {
     let canUnhide = false;
 
     if (
-      action.actionType ===
-      ModerationActionType.HIDE
+      AdminActionsPolicy.isReversibleHideAction(
+        action,
+      )
     ) {
       canUnhide =
         await this.repo.canUnhideAction(

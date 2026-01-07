@@ -57,14 +57,35 @@ export async function getMyReports(params?: {
 }> {
   const { cursor, limit = 20 } = params ?? {};
 
-  return apiGet("/reports/me", {
+  const res = await apiGet("/reports/me", {
     params: {
       cursor: cursor ?? undefined,
       limit,
     },
-    withCredentials: true, // 🔒 HttpOnly cookie
+    withCredentials: true,
   });
+
+  /**
+   * Backend response:
+   * { items, nextCursor }
+   *
+   * apiGet may wrap response depending on axios config
+   * Normalize here to keep hook simple and safe
+   */
+  if (res?.items && 'nextCursor' in res) {
+    return res;
+  }
+
+  if (res?.data?.items && 'nextCursor' in res.data) {
+    return res.data;
+  }
+
+  return {
+    items: [],
+    nextCursor: null,
+  };
 }
+
 
 export async function getMyReportById(
   reportId: string,

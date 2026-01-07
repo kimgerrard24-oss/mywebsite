@@ -1,13 +1,11 @@
-// backend/src/admin/actions/admin-actions.repository.ts
-
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { GetAdminActionsQueryDto } from './dto/get-admin-actions.query.dto';
 import {
-  Prisma,
   ModerationActionType,
   ModerationTargetType,
 } from '@prisma/client';
+import { AdminActionsPolicy } from './policy/admin-actions.policy';
 
 @Injectable()
 export class AdminActionsRepository {
@@ -87,28 +85,32 @@ export class AdminActionsRepository {
    * ==================================================
    *
    * - Read-only
-   * - Uses Prisma enums (type-safe)
-   * - Fail-safe by default
+   * - Backward compatible with legacy actionType
+   * - Backend remains authority
    */
   async canUnhideAction(
     action: {
-      actionType: ModerationActionType;
+      actionType: ModerationActionType | string;
       targetType: ModerationTargetType;
       targetId: string;
       createdAt: Date;
     },
   ): Promise<boolean> {
     /**
-     * 1️⃣ Only HIDE actions are reversible
+     * 1️⃣ Only reversible HIDE actions are eligible
+     * - enum: HIDE
+     * - legacy: HIDE_*
      */
-    if (action.actionType !== ModerationActionType.HIDE) {
+    if (
+      !AdminActionsPolicy.isReversibleHideAction(
+        action,
+      )
+    ) {
       return false;
     }
 
     /**
-     * 2️⃣ UNHIDE is supported only for POST / COMMENT
-     * - USER: use BAN_USER / UNBAN (no isHidden)
-     * - CHAT_MESSAGE: no isHidden field
+     * 2️⃣ UNHIDE supported only for POST / COMMENT
      */
     if (
       action.targetType !== ModerationTargetType.POST &&
@@ -119,7 +121,7 @@ export class AdminActionsRepository {
     }
 
     /**
-     * 3️⃣ Check current hidden state
+     * 3️⃣ Check current hidden state (source of truth)
      */
     const isCurrentlyHidden =
       await this.isTargetCurrentlyHidden(
@@ -133,24 +135,29 @@ export class AdminActionsRepository {
 
     /**
      * 4️⃣ Ensure no newer UNHIDE exists
+     * - must support legacy UNHIDE_*
      */
-    const newerUnhide =
+    const newerActions =
       await this.prisma.moderationAction.findFirst(
         {
           where: {
             targetType: action.targetType,
             targetId: action.targetId,
-            actionType:
-              ModerationActionType.UNHIDE,
             createdAt: {
               gt: action.createdAt,
             },
           },
-          select: { id: true },
+          select: { actionType: true },
+          orderBy: { createdAt: 'asc' },
         },
       );
 
-    if (newerUnhide) {
+    if (
+      newerActions &&
+      AdminActionsPolicy.isUnhideAction(
+        newerActions,
+      )
+    ) {
       return false;
     }
 

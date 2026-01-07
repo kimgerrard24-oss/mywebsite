@@ -1,5 +1,3 @@
-// backend/src/reports/reports.service.ts
-
 import {
   ConflictException,
   NotFoundException,
@@ -22,88 +20,76 @@ export class ReportsService {
     private readonly withdrawpolicy: ReportWithdrawPolicy,
   ) {}
 
- async createReport(params: {
-  reporterId: string;
-  dto: CreateReportDto;
-}) {
-  const { reporterId, dto } = params;
+  async createReport(params: {
+    reporterId: string;
+    dto: CreateReportDto;
+  }) {
+    const { reporterId, dto } = params;
 
-  /**
-   * 1️⃣ Prevent duplicate report
-   * (DB + unique constraint is the final authority,
-   *  this is an early guard)
-   */
-  const duplicate = await this.repo.findDuplicate({
-    reporterId,
-    targetType: dto.targetType,
-    targetId: dto.targetId,
-  });
-
-  if (duplicate) {
-    throw new ConflictException(
-      'You have already reported this content',
-    );
-  }
-
-  /**
-   * 2️⃣ Resolve target owner (authority lookup)
-   * - POST         → post.authorId
-   * - COMMENT      → comment.authorId
-   * - USER         → user.id
-   * - CHAT_MESSAGE → chatMessage.senderId
-   *
-   * If target does not exist → NotFoundException
-   */
-  const targetOwnerId =
-    await this.repo.findTargetOwnerId({
+    const duplicate = await this.repo.findDuplicate({
+      reporterId,
       targetType: dto.targetType,
       targetId: dto.targetId,
     });
 
-  /**
-   * 3️⃣ Enforce business policy (backend authority)
-   * - cannot report own content
-   */
-  this.policy.assertCanReport({
-    reporterId,
-    targetOwnerId,
-  });
+    if (duplicate) {
+      throw new ConflictException(
+        'You have already reported this content',
+      );
+    }
 
-  /**
-   * 4️⃣ Create report (DB is source of truth)
-   */
-  await this.repo.create({
-    reporterId,
-    targetType: dto.targetType,
-    targetId: dto.targetId,
-    reason: dto.reason,
-    description: dto.description,
-  });
+    const targetOwnerId =
+      await this.repo.findTargetOwnerId({
+        targetType: dto.targetType,
+        targetId: dto.targetId,
+      });
 
-  /**
-   * 5️⃣ Audit log (side-effect)
-   * - must NOT affect main flow
-   */
-  try {
-    await this.audit.reportCreated({
-      userId: reporterId,
+    this.policy.assertCanReport({
+      reporterId,
+      targetOwnerId,
+    });
+
+    await this.repo.create({
+      reporterId,
       targetType: dto.targetType,
       targetId: dto.targetId,
+      reason: dto.reason,
+      description: dto.description,
     });
-  } catch {
-    // 🔕 production-safe: ignore audit failure
+
+    try {
+      await this.audit.reportCreated({
+        userId: reporterId,
+        targetType: dto.targetType,
+        targetId: dto.targetId,
+      });
+    } catch {
+      // production-safe: ignore audit failure
+    }
   }
-}
-
-
 
   async getMyReports(params: {
     reporterId: string;
     cursor: string | null;
     limit: number;
   }) {
+    /**
+     * Backend authority:
+     * - Do not trust raw query limit
+     * - Enforce safe minimum for pagination
+     */
+    const safeLimit =
+      typeof params.limit === 'number' &&
+      params.limit > 0
+        ? params.limit
+        : 20;
+
     const result =
-      await this.repo.findMyReports(params);
+      await this.repo.findMyReports({
+        reporterId: params.reporterId,
+        cursor: params.cursor,
+        limit: safeLimit,
+      });
 
     return {
       items: result.items.map(
@@ -135,9 +121,6 @@ export class ReportsService {
   }) {
     const { reporterId, reportId } = params;
 
-    /**
-     * 1️⃣ Load report (IDOR protected at DB level)
-     */
     const report = await this.repo.findForWithdraw({
       reportId,
       reporterId,
@@ -147,29 +130,19 @@ export class ReportsService {
       throw new NotFoundException('Report not found');
     }
 
-    /**
-     * 2️⃣ Enforce business rule (policy authority)
-     */
     this.withdrawpolicy.assertCanWithdraw(
       report.status,
     );
 
-    /**
-     * 3️⃣ State transition (DB is authority)
-     */
     await this.repo.markWithdrawn(report.id);
 
-    /**
-     * 4️⃣ Audit log (side-effect)
-     * - Must NOT affect main flow
-     */
     try {
       await this.audit.reportWithdrawn({
         userId: reporterId,
         reportId: report.id,
       });
     } catch {
-      // 🔕 production-safe
+      // production-safe
     }
   }
 }
