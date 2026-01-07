@@ -4,10 +4,7 @@ import type { GetServerSideProps } from "next";
 import Head from "next/head";
 import Link from "next/link";
 import { sessionCheckServerSide } from "@/lib/api/api";
-import {
-  getMyReports,
-  type MyReportItem,
-} from "@/lib/api/reports";
+import type { MyReportItem } from "@/lib/api/reports";
 
 type Props = {
   items: MyReportItem[];
@@ -21,10 +18,7 @@ export default function MyReportsPage({
     <>
       <Head>
         <title>My Reports | PhlyPhant</title>
-        <meta
-          name="robots"
-          content="noindex,nofollow"
-        />
+        <meta name="robots" content="noindex,nofollow" />
       </Head>
 
       <main className="mx-auto max-w-3xl p-6">
@@ -87,11 +81,12 @@ export default function MyReportsPage({
 export const getServerSideProps: GetServerSideProps<
   Props
 > = async (ctx) => {
-  const cookie = ctx.req.headers.cookie ?? "";
+  const cookieHeader =
+    ctx.req.headers.cookie ?? "";
 
-  // 🔐 Backend is authority
+  // 🔐 AuthN only — backend is authority
   const session = await sessionCheckServerSide(
-    cookie,
+    cookieHeader,
   );
 
   if (!session.valid) {
@@ -104,21 +99,39 @@ export const getServerSideProps: GetServerSideProps<
   }
 
   try {
-    /**
-     * 🔒 IMPORTANT:
-     * SSR must forward cookie to backend
-     * or backend will treat request as unauthenticated
-     */
-    const data = await getMyReports({
-      limit: 20,
-      // forward cookie explicitly
-      ...(cookie ? { headers: { cookie } } : {}),
-    } as any);
+    const base =
+      process.env.INTERNAL_BACKEND_URL ??
+      process.env.NEXT_PUBLIC_BACKEND_URL ??
+      "https://api.phlyphant.com";
+
+    const res = await fetch(
+      `${base}/reports/me?limit=20`,
+      {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+          ...(cookieHeader
+            ? { Cookie: cookieHeader }
+            : {}),
+        },
+        credentials: "include",
+        cache: "no-store",
+      },
+    );
+
+    if (!res.ok) {
+      throw new Error("Failed to load reports");
+    }
+
+    const data = (await res.json()) as {
+      items: MyReportItem[];
+      nextCursor: string | null;
+    };
 
     return {
       props: {
-        items: data.items,
-        nextCursor: data.nextCursor,
+        items: data.items ?? [],
+        nextCursor: data.nextCursor ?? null,
       },
     };
   } catch {

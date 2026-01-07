@@ -51,14 +51,16 @@ export default function AdminActionDetail({
 
       {/* ===== Contextual UNHIDE (Detail context, backend authority) ===== */}
       {action.canUnhide === true &&
-        moderationTargetType && (
-          <div className="mt-6">
-            <AdminAuditUnhidePanel
-              targetType={moderationTargetType}
-              targetId={action.targetId}
-            />
-          </div>
-        )}
+  moderationTargetType &&
+  action.targetId && (
+    <div className="mt-6">
+      <AdminAuditUnhidePanel
+        targetType={moderationTargetType}
+        targetId={action.targetId}
+      />
+    </div>
+  )}
+
     </section>
   );
 }

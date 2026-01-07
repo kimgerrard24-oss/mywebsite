@@ -1,7 +1,7 @@
 // frontend/src/components/admin/AdminActionItem.tsx
 
 import type { AdminAction } from "@/types/admin-action";
-import AdminAuditUnhidePanel from "@/components/admin/moderation/AdminAuditUnhidePanel";
+import AdminModerationPanel from "@/components/admin/moderation/AdminModerationPanel";
 import { isModerationTargetType } from "@/utils/isModerationTargetType";
 
 type Props = {
@@ -57,7 +57,7 @@ export default function AdminActionItem({
 
       {/* ===== Contextual UNHIDE (Audit context only) ===== */}
       {canUnhide && moderationTargetType && (
-        <AdminAuditUnhidePanel
+        <AdminModerationPanel
           targetType={moderationTargetType}
           targetId={action.targetId}
         />
