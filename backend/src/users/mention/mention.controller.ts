@@ -6,6 +6,7 @@ import { MentionSearchQueryDto } from './dto/mention-search.query.dto';
 import { AccessTokenCookieAuthGuard } from '../../auth/guards/access-token-cookie.guard';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import type { SessionUser } from '../../auth/services/validate-session.service';
+import { RateLimit } from '../../common/rate-limit/rate-limit.decorator';
 
 /**
  * MentionController
@@ -40,6 +41,7 @@ export class MentionController {
    * - filter inactive / disabled users (service layer)
    */
   @Get('search')
+  @RateLimit('mentionSearch') // ✅ add rate-limit for mention autocomplete
   @UseGuards(AccessTokenCookieAuthGuard)
   async search(
     @Query() query: MentionSearchQueryDto,

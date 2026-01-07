@@ -8,37 +8,47 @@ export class MentionService {
   constructor(private readonly prisma: PrismaService) {}
 
   async searchUsersForMention(params: {
-  query: string;
-  limit: number;
-  requesterId: string;
-}) {
-  const { query, limit, requesterId } = params;
+    query: string;
+    limit: number;
+    requesterId: string;
+  }) {
+    const { query, limit, requesterId } = params;
 
-  const users = await this.prisma.user.findMany({
-    where: {
-      AND: [
-        {
-          OR: [
-            { username: { contains: query, mode: 'insensitive' } },
-            { displayName: { contains: query, mode: 'insensitive' } },
-          ],
-        },
-        { active: true },
-        { isDisabled: false },
-        { id: { not: requesterId } },
-      ],
-    },
-    take: limit,
-    orderBy: { username: 'asc' },
-    select: {
-      id: true,
-      username: true,
-      displayName: true,
-      avatarUrl: true,
-    },
-  });
+    const users = await this.prisma.user.findMany({
+      where: {
+        AND: [
+          {
+            OR: [
+              {
+                username: {
+                  contains: query,
+                  mode: 'insensitive',
+                },
+              },
+              {
+                displayName: {
+                  contains: query,
+                  mode: 'insensitive',
+                },
+              },
+            ],
+          },
+          { active: true },
+          { isDisabled: false },
+          { id: { not: requesterId } },
+        ],
+      },
+      // 🔒 hard limit กัน abuse / spam query
+      take: Math.min(limit, 10),
+      orderBy: { username: 'asc' },
+      select: {
+        id: true,
+        username: true,
+        displayName: true,
+        avatarUrl: true,
+      },
+    });
 
-  return users; 
-}
-
+    return users;
+  }
 }

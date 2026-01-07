@@ -25,9 +25,8 @@ export type RateLimitAction =
   | 'reportCreate'
   | 'reportRead'
   | 'reportReadDetail'
-  | 'reportWithdraw';
-
-  
+  | 'reportWithdraw'
+  | 'mentionSearch';
   
 export type RateLimitEscalationConfig = {
   maxViolations: number;
@@ -456,6 +455,27 @@ reportWithdraw: {
     maxViolations: 3,
     windowSec: 86400,
     longBlockSec: 21600,
+  },
+},
+
+mentionSearch: {
+  /**
+   * Mention autocomplete
+   * - high frequency (typing)
+   * - must protect against scraping
+   */
+  points: 120,
+  duration: 60,
+  blockDuration: 300,
+
+  windowSec: 60,
+  max: 120,               // allow 120 searches / minute
+  blockDurationSec: 300,  // block 5 minutes
+
+  escalation: {
+    maxViolations: 3,
+    windowSec: 86400,     // within 24h
+    longBlockSec: 21600,  // block 6 hours
   },
 },
 

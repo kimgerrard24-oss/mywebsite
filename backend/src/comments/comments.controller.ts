@@ -38,6 +38,7 @@ export class PostCommentsController {
       postId,
       authorId: user.userId,
       content: dto.content,
+      mentions: dto.mentions,
     });
   }
 
