@@ -23,21 +23,9 @@ import ChatTypingIndicator from "@/components/chat/ChatTypingIndicator";
 import ChatRealtimeBridge from "@/components/chat/ChatRealtimeBridge";
 import { useAuth } from "@/hooks/useAuth";
 import type { ChatMessage } from "@/types/chat-message";
+import type { ChatMeta } from "@/types/chat";
 
-/**
- * ==============================
- * Types
- * ==============================
- */
-type ChatMeta = {
-  id: string;
-  isGroup: boolean;
-  peer: {
-    id: string;
-    displayName: string | null;
-    avatarUrl: string | null;
-  } | null;
-};
+
 
 type ChatMessages = {
   items: any[];

@@ -1,10 +1,6 @@
 // frontend/src/components/chat/ChatPermissionGuard.tsx
 import { ReactNode } from "react";
-
-type ChatMeta = {
-  isBlocked?: boolean;        // viewer blocked other
-  hasBlockedViewer?: boolean; // other blocked viewer
-};
+import type { ChatMeta } from "@/types/chat";
 
 type Props = {
   meta: ChatMeta | null;
@@ -43,3 +39,4 @@ export default function ChatPermissionGuard({
 
   return <>{children}</>;
 }
+
