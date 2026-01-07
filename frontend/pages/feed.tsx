@@ -17,8 +17,7 @@ import TextFeed from "@/components/feed/TextFeed";
 import VideoFeed from "@/components/feed/ShortVideoFeed";
 import PostComposer from "@/components/posts/PostComposer";
 import FeedModeSwitcher from "@/components/common/FeedModeSwitcher";
-import { useState } from "react";
-import { useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import NotificationBell from '@/components/notifications/NotificationBell';
 
 type FeedProps = {
@@ -37,6 +36,8 @@ export default function FeedPage({
 
   const [feedMode, setFeedMode] = useState<"text" | "video">("video");
   const refreshFeedRef = useRef<() => void>(() => {});
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement | null>(null);
 
   const handleLogout = async () => {
     try {
@@ -46,6 +47,36 @@ export default function FeedPage({
     }
     router.replace("/");
   };
+
+  useEffect(() => {
+  function handleClick(e: MouseEvent) {
+    if (
+      menuRef.current &&
+      !menuRef.current.contains(e.target as Node)
+    ) {
+      setMenuOpen(false);
+    }
+  }
+
+  if (menuOpen) {
+    document.addEventListener("mousedown", handleClick);
+  }
+
+  return () => {
+    document.removeEventListener("mousedown", handleClick);
+  };
+}, [menuOpen]);
+
+ useEffect(() => {
+  const handleRoute = () => setMenuOpen(false);
+
+  router.events.on("routeChangeStart", handleRoute);
+
+  return () => {
+    router.events.off("routeChangeStart", handleRoute);
+  };
+}, [router.events]);
+
 
  return (
   <>
@@ -139,6 +170,7 @@ export default function FeedPage({
           {/* ===== Right: Actions ===== */}
 <div
   className="
+    relative
     flex
     shrink-0
     items-center
@@ -146,30 +178,28 @@ export default function FeedPage({
     sm:gap-3
   "
 >
-  <LanguageSwitcher currentLang={lang} />
-
-  {/* 📨 Chat Rooms */}
+  {/* 📨 Chats */}
   <Link
-  href="/chat"
-  aria-label="Go to chats"
-  className="
-    relative
-    text-sm
-    font-medium
-    text-gray-700
-    hover:text-blue-600
-    focus:outline-none
-    focus-visible:ring-2
-    focus-visible:ring-blue-500
-    rounded
-  "
->
-  Chats
-</Link>
+    href="/chat"
+    aria-label="Go to chats"
+    className="
+      text-sm
+      font-medium
+      text-gray-700
+      hover:text-blue-600
+      focus:outline-none
+      focus-visible:ring-2
+      focus-visible:ring-blue-500
+      rounded
+    "
+  >
+    Chats
+  </Link>
 
-  {/* 🔔 NotificationBell วางตรงนี้ */}
+  {/* 🔔 Notifications */}
   <NotificationBell />
 
+  {/* 👤 Avatar */}
   <Link
     href="/profile"
     aria-label="Go to profile"
@@ -181,7 +211,7 @@ export default function FeedPage({
     "
   >
     <img
-      src={user?.avatarUrl || '/images/default-avatar.png'}
+      src={user?.avatarUrl || "/images/default-avatar.png"}
       alt="User avatar"
       className="
         h-8
@@ -199,25 +229,112 @@ export default function FeedPage({
     />
   </Link>
 
+  {/* ⚙️ Menu Button */}
   <button
     type="button"
-    onClick={handleLogout}
+    aria-haspopup="menu"
+    aria-expanded={menuOpen}
+    onClick={() => setMenuOpen((v) => !v)}
     className="
-      hidden
-      sm:inline-block
-      text-sm
-      font-medium
-      transition-colors
-      hover:text-red-600
+      inline-flex
+      items-center
+      justify-center
+      h-9
+      w-9
+      rounded-full
+      border
+      bg-white
+      text-gray-700
+      hover:bg-gray-100
       focus:outline-none
       focus-visible:ring-2
-      focus-visible:ring-red-500
-      rounded
+      focus-visible:ring-blue-500
     "
   >
-    {t.feed.nav.logout}
+    {/* ใช้เป็น ≡ หรือ ⚙️ ก็ได้ */}
+    <span aria-hidden className="text-lg leading-none">≡</span>
+    <span className="sr-only">Open user menu</span>
   </button>
+
+  {/* ===== Dropdown Menu ===== */}
+  {menuOpen && (
+    <div
+      ref={menuRef} 
+      role="menu"
+      aria-label="User menu"
+      className="
+        absolute
+        right-0
+        top-full
+        mt-2
+        w-52
+        rounded-md
+        border
+        bg-white
+        shadow-lg
+        z-30
+        overflow-hidden
+      "
+    >
+      <ul className="py-1 text-sm text-gray-700">
+        <li>
+          <Link
+            href="/account"
+            role="menuitem"
+            className="block px-4 py-2 hover:bg-gray-100"
+          >
+            Account
+          </Link>
+        </li>
+
+        <li>
+          <Link
+            href="/safety"
+            role="menuitem"
+            className="block px-4 py-2 hover:bg-gray-100"
+          >
+            Safety
+          </Link>
+        </li>
+
+        <li>
+          <Link
+            href="/reports/me"
+            role="menuitem"
+            className="block px-4 py-2 hover:bg-gray-100"
+          >
+            Reports
+          </Link>
+        </li>
+
+        {/* 🌐 Language */}
+        <li className="px-4 py-2 hover:bg-gray-100">
+          <LanguageSwitcher currentLang={lang} />
+        </li>
+
+        <li className="border-t my-1" />
+
+        <li>
+          <button
+            role="menuitem"
+            onClick={handleLogout}
+            className="
+              w-full
+              text-left
+              px-4
+              py-2
+              text-red-600
+              hover:bg-red-50
+            "
+          >
+            {t.feed.nav.logout}
+          </button>
+        </li>
+      </ul>
+    </div>
+  )}
 </div>
+
 
         </nav>
       </header>
