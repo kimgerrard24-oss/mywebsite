@@ -8,20 +8,45 @@ export class CommentsRepository {
     private readonly prisma: PrismaService,
   ) {}
 
-  async findPostForComment(postId: string) {
-    return this.prisma.post.findFirst({
-      where: {
-        id: postId,
-        isDeleted: false,
-        isHidden: false,
-        isPublished: true,
-      },
-      select: {
-        id: true,
-        authorId: true,
-      },
-    });
-  }
+  async findPostForComment(params: {
+  postId: string;
+  viewerUserId: string;
+}) {
+  const { postId, viewerUserId } = params;
+
+  return this.prisma.post.findFirst({
+    where: {
+      id: postId,
+      isDeleted: false,
+      isHidden: false,
+      isPublished: true,
+
+      AND: [
+        // viewer must NOT block author
+        {
+          author: {
+            blockedBy: {
+              none: { blockerId: viewerUserId },
+            },
+          },
+        },
+        // author must NOT block viewer
+        {
+          author: {
+            blockedUsers: {
+              none: { blockedId: viewerUserId },
+            },
+          },
+        },
+      ],
+    },
+    select: {
+      id: true,
+      authorId: true,
+    },
+  });
+}
+
 
   async createComment(params: {
     postId: string;
@@ -128,45 +153,80 @@ export class CommentsRepository {
   postId: string;
   limit: number;
   cursor?: string;
+  viewerUserId: string | null;
 }) {
-  const { postId, limit, cursor } = params;
+  const { postId, limit, cursor, viewerUserId } = params;
 
   return this.prisma.comment.findMany({
     where: {
       postId,
       isDeleted: false,
+
+      ...(viewerUserId
+        ? {
+            author: {
+              AND: [
+                {
+                  blockedBy: {
+                    none: { blockerId: viewerUserId },
+                  },
+                },
+                {
+                  blockedUsers: {
+                    none: { blockedId: viewerUserId },
+                  },
+                },
+              ],
+            },
+          }
+        : {}),
     },
-    orderBy: {
-      createdAt: 'desc',
-    },
+
+    orderBy: { createdAt: 'desc' },
     take: limit,
+
     ...(cursor && {
       skip: 1,
       cursor: { id: cursor },
     }),
+
     include: {
       author: {
-        select: {
-          id: true,
-          displayName: true,
-          avatarUrl: true,
-        },
-      },
+  select: {
+    id: true,
+    displayName: true,
+    avatarUrl: true,
+
+    // ✅ viewer blocked author?
+    blockedBy: viewerUserId
+      ? {
+          where: { blockerId: viewerUserId },
+          select: { blockerId: true },
+        }
+      : false,
+
+    // ✅ author blocked viewer?
+    blockedUsers: viewerUserId
+      ? {
+          where: { blockedId: viewerUserId },
+          select: { blockedId: true },
+        }
+      : false,
+  },
+},
+
 
       likes: {
-        select: {
-          userId: true, 
-        },
+        select: { userId: true },
       },
 
       _count: {
-        select: {
-          likes: true, 
-        },
+        select: { likes: true },
       },
     },
   });
- }
+}
+
 
  // =========================
   // 🔹 CREATE COMMENT MENTIONS
@@ -221,5 +281,29 @@ export class CommentsRepository {
   });
 }
 
+async canNotifyBetweenUsers(params: {
+  actorUserId: string;
+  targetUserId: string;
+}): Promise<boolean> {
+  const { actorUserId, targetUserId } = params;
+
+  const blocked = await this.prisma.userBlock.findFirst({
+    where: {
+      OR: [
+        {
+          blockerId: actorUserId,
+          blockedId: targetUserId,
+        },
+        {
+          blockerId: targetUserId,
+          blockedId: actorUserId,
+        },
+      ],
+    },
+    select: { blockerId: true },
+  });
+
+  return !blocked;
+}
 
 }

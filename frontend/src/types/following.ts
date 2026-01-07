@@ -7,5 +7,7 @@ export type Following = {
 
   isFollowing: boolean; 
   canFollow: boolean;   
+  isBlocked?: boolean;
+  hasBlockedViewer?: boolean;
 };
 

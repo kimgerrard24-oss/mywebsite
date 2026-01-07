@@ -44,18 +44,78 @@ export class FollowsRepository {
     });
   }
 
-   async findFollowers(params: {
+  // =====================================================
+  // 🔒 BLOCK RELATION (2-way)
+  // =====================================================
+  async isBlockedBetween(params: {
+    userA: string;
+    userB: string;
+  }): Promise<boolean> {
+    const { userA, userB } = params;
+
+    const blocked = await this.prisma.userBlock.findFirst({
+      where: {
+        OR: [
+          { blockerId: userA, blockedId: userB },
+          { blockerId: userB, blockedId: userA },
+        ],
+      },
+      select: { blockerId: true },
+    });
+
+    return Boolean(blocked);
+  }
+
+  // =====================================================
+  // Find followers (with block enforcement when viewer exists)
+  // =====================================================
+  async findFollowers(params: {
     userId: string;
+    viewerUserId?: string | null; // ✅ NEW (optional)
     cursor?: string;
     limit: number;
   }) {
-    const { userId, cursor, limit } = params;
+    const {
+      userId,
+      viewerUserId,
+      cursor,
+      limit,
+    } = params;
 
     return this.prisma.follow.findMany({
       where: {
         followingId: userId,
+
+        // ===== BLOCK FILTER (only when viewer exists) =====
+        ...(viewerUserId
+          ? {
+              follower: {
+                AND: [
+                  // viewer does NOT block follower
+                  {
+                    blockedBy: {
+                      none: {
+                        blockerId: viewerUserId,
+                      },
+                    },
+                  },
+
+                  // follower does NOT block viewer
+                  {
+                    blockedUsers: {
+                      none: {
+                        blockedId: viewerUserId,
+                      },
+                    },
+                  },
+                ],
+              },
+            }
+          : {}),
       },
+
       take: limit + 1,
+
       ...(cursor && {
         cursor: {
           followerId_followingId: {
@@ -65,18 +125,37 @@ export class FollowsRepository {
         },
         skip: 1,
       }),
+
       orderBy: {
         createdAt: 'desc',
       },
+
       include: {
-        follower: {
-          select: {
-            id: true,
-            displayName: true,
-            avatarUrl: true,
-          },
-        },
-      },
+  follower: {
+    select: {
+      id: true,
+      displayName: true,
+      avatarUrl: true,
+
+      // ✅ viewer blocked follower?
+      blockedBy: viewerUserId
+        ? {
+            where: { blockerId: viewerUserId },
+            select: { blockerId: true },
+          }
+        : false,
+
+      // ✅ follower blocked viewer?
+      blockedUsers: viewerUserId
+        ? {
+            where: { blockedId: viewerUserId },
+            select: { blockedId: true },
+          }
+        : false,
+    },
+  },
+},
+
     });
   }
 }

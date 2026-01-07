@@ -16,6 +16,7 @@ export type SearchPostItem = {
     id: string;
     displayName: string | null;
     avatarUrl: string | null;
+    isBlocked: boolean;
   };
 };
 

@@ -24,42 +24,55 @@ export class FollowsService {
     private readonly notifications: NotificationsService,
   ) {}
 
- async follow(params: {
-  followerId: string;
-  followingId: string;
-}): Promise<void> {
-  FollowCreatePolicy.assertCanFollow(params);
+  async follow(params: {
+    followerId: string;
+    followingId: string;
+  }): Promise<void> {
+    FollowCreatePolicy.assertCanFollow(params);
 
-  const exists = await this.repo.exists(params);
-  if (exists) {
-    throw new ConflictException('ALREADY_FOLLOWING');
-  }
+    // ==============================
+    // 🔒 BLOCK CHECK (2-way, fail-closed)
+    // ==============================
+    const blocked = await this.repo.isBlockedBetween({
+      userA: params.followerId,
+      userB: params.followingId,
+    });
 
-  await this.repo.createFollow(params);
-
-  // 🔔 CREATE NOTIFICATION (fire-and-forget, fail-soft)
-  if (params.followerId !== params.followingId) {
-    try {
-      await this.notifications.createNotification({
-        userId: params.followingId,     // ผู้รับ
-        actorUserId: params.followerId, // ผู้กระทำ
-        type: 'follow',
-        entityId: params.followerId,
-        payload: {}, // follow ไม่มี payload เพิ่ม
-      });
-    } catch {
-      // ❗ notification fail ต้องไม่กระทบ follow
+    if (blocked) {
+      // ❗ ไม่ reveal ว่าโดน block
+      throw new ConflictException('CANNOT_FOLLOW_USER');
     }
+
+    const exists = await this.repo.exists(params);
+    if (exists) {
+      throw new ConflictException('ALREADY_FOLLOWING');
+    }
+
+    await this.repo.createFollow(params);
+
+    // 🔔 CREATE NOTIFICATION (fire-and-forget, fail-soft)
+    if (params.followerId !== params.followingId) {
+      try {
+        await this.notifications.createNotification({
+          userId: params.followingId,     // ผู้รับ
+          actorUserId: params.followerId, // ผู้กระทำ
+          type: 'follow',
+          entityId: params.followerId,
+          payload: {}, // follow ไม่มี payload เพิ่ม
+        });
+      } catch {
+        // ❗ notification fail ต้องไม่กระทบ follow
+      }
+    }
+
+    await this.cache.invalidateCounts([
+      params.followerId,
+      params.followingId,
+    ]);
+
+    await this.eventcreate.emit(params);
+    await this.audit.record(params);
   }
-
-  await this.cache.invalidateCounts([
-    params.followerId,
-    params.followingId,
-  ]);
-
-  await this.eventcreate.emit(params);
-  await this.audit.record(params);
-}
 
   async unfollow(params: {
     followerId: string;
@@ -83,8 +96,9 @@ export class FollowsService {
     await this.audit.recordUnfollow(params);
   }
 
-   async getFollowers(params: {
+  async getFollowers(params: {
     userId: string;
+    viewerUserId?: string | null; // ✅ NEW (optional, backward compatible)
     cursor?: string;
     limit?: number;
   }) {
@@ -96,6 +110,7 @@ export class FollowsService {
 
     const rows = await this.repo.findFollowers({
       userId: params.userId,
+      viewerUserId: params.viewerUserId ?? null, // ✅ pass-through for block filter
       cursor: params.cursor,
       limit,
     });

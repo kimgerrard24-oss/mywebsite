@@ -7,7 +7,10 @@ type Props = {
   profile: PublicUserProfile;
 };
 
-export default function UserProfileHeader({ profile }: Props) {
+
+export default function UserProfileHeader({ profile }: Props) { 
+  const isBlocked = profile.isBlocked === true;
+  
   return (
     <header
       className="
@@ -71,16 +74,22 @@ export default function UserProfileHeader({ profile }: Props) {
           {profile.bio}
         </p>
       )}
+{isBlocked && !profile.isSelf && (
+  <p className="text-sm text-gray-500 mt-2">
+    ไม่สามารถโต้ตอบกับผู้ใช้นี้ได้
+  </p>
+)}
 
       {/* ===== Follow button (public profile only) ===== */}
-      {!profile.isSelf && (
-        <div className="mt-2">
-          <FollowButton
-            userId={profile.id}
-            isFollowing={profile.isFollowing}
-          />
-        </div>
-      )}
+      {!profile.isSelf && !isBlocked && (
+  <div className="mt-2">
+    <FollowButton
+      userId={profile.id}
+      isFollowing={profile.isFollowing}
+    />
+  </div>
+)}
+
     </header>
   );
 }

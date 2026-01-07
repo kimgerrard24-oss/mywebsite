@@ -20,6 +20,8 @@ export type ChatMessage = {
     id: string;
     displayName: string | null;
     avatarUrl: string | null;
+    isBlocked?: boolean;        // viewer block author
+    hasBlockedViewer?: boolean; // author block viewer
   };
 
   /**

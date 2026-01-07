@@ -61,11 +61,15 @@ export default function NotificationItem({ item }: Props) {
       }
     }
 
+    const isBlocked =
+  item.actor?.isBlocked === true ||
+  item.actor?.hasBlockedViewer === true;
+
     const href = resolveHref();
-    if (href) {
-      router.push(href);
-    }
-  }
+if (href && !isBlocked) {
+  router.push(href);
+}
+
 
   const actorName =
     item.actor?.displayName ?? 'Someone';
@@ -133,6 +137,12 @@ export default function NotificationItem({ item }: Props) {
 
       <div className="flex flex-col gap-1 min-w-0">
         <span className="text-sm text-gray-800">
+          {isBlocked && (
+  <span className="text-xs text-gray-400">
+    ไม่สามารถโต้ตอบกับผู้ใช้นี้ได้
+  </span>
+)}
+
           <strong className="font-medium">
             {actorName}
           </strong>{' '}
@@ -154,4 +164,5 @@ export default function NotificationItem({ item }: Props) {
       </div>
     </li>
   );
+}
 }

@@ -5,4 +5,6 @@ export type Follower = {
   displayName: string | null;
   avatarUrl: string | null;
   followedAt: string;
+  isBlocked?: boolean;        // viewer block target
+  hasBlockedViewer?: boolean; // target block viewer
 };

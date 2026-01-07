@@ -11,12 +11,14 @@ import { useUnfollowUser } from "@/hooks/useUnfollowUser";
 type Props = {
   userId: string;
   isFollowing: boolean;
+  isBlocked?: boolean;
   onChange?: (isFollowing: boolean) => void;
 };
 
 export default function FollowController({
   userId,
   isFollowing: initialIsFollowing,
+  isBlocked = false, 
   onChange,
 }: Props) {
   const [isFollowing, setIsFollowing] =
@@ -57,11 +59,12 @@ export default function FollowController({
   function toggleMenu(e: MouseEvent) {
     e.preventDefault();
     e.stopPropagation();
+    if (isBlocked) return;
     setOpen((v) => !v);
   }
 
   async function handleUnfollow() {
-    if (unfollowing) return;
+    if (unfollowing || isBlocked) return;
 
     try {
       await unfollow(); // backend authority
@@ -80,33 +83,38 @@ export default function FollowController({
       onClick={(e) => e.stopPropagation()}
     >
       {/* ===== FOLLOW ===== */}
-      {!isFollowing && (
-        <FollowButton
-          userId={userId}
-          isFollowing={false}
-          onFollowed={() => {
-            setIsFollowing(true);
-            onChange?.(true);
-          }}
-        />
-      )}
+      {!isFollowing && !isBlocked && (
+  <FollowButton
+    userId={userId}
+    isFollowing={false}
+    onFollowed={() => {
+      setIsFollowing(true);
+      onChange?.(true);
+    }}
+  />
+)}
+
 
       {/* ===== FOLLOWING + DROPDOWN ===== */}
       {isFollowing && (
-        <>
-          <button
-            type="button"
-            onClick={toggleMenu}
-            aria-haspopup="menu"
-            aria-expanded={open}
-            className="
-              inline-flex items-center gap-1
-              rounded-full bg-gray-200
-              px-4 py-1.5 text-sm font-medium
-              text-gray-700 hover:bg-gray-300
-              transition
-            "
-          >
+  <>
+    <button
+      type="button"
+      onClick={toggleMenu}
+      disabled={isBlocked}
+      aria-disabled={isBlocked}
+      aria-haspopup="menu"
+      aria-expanded={open}
+      className={`
+        inline-flex items-center gap-1
+        rounded-full bg-gray-200
+        px-4 py-1.5 text-sm font-medium
+        text-gray-700 hover:bg-gray-300
+        transition
+        ${isBlocked ? "opacity-60 cursor-not-allowed" : ""}
+      `}
+    >
+
             Following
             <span aria-hidden="true">▾</span>
           </button>

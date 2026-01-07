@@ -11,25 +11,62 @@ export class SearchPostsRepository {
     q: string;
     limit: number;
     cursor?: string;
+    viewerUserId?: string | null; // ✅ NEW (optional)
   }) {
-    const { q, limit, cursor } = params;
+    const { q, limit, cursor, viewerUserId } = params;
 
     const posts = await this.prisma.post.findMany({
       where: {
         isDeleted: false,
+        isHidden: false,
+        isPublished: true,
+
         content: {
           contains: q,
           mode: 'insensitive',
         },
+
+        // =========================
+        // 🔒 BLOCK FILTER (2-way)
+        // =========================
+        ...(viewerUserId
+          ? {
+              author: {
+                AND: [
+                  // viewer does NOT block author
+                  {
+                    blockedBy: {
+                      none: {
+                        blockerId: viewerUserId,
+                      },
+                    },
+                  },
+
+                  // author does NOT block viewer
+                  {
+                    blockedUsers: {
+                      none: {
+                        blockedId: viewerUserId,
+                      },
+                    },
+                  },
+                ],
+              },
+            }
+          : {}),
       },
+
       orderBy: {
         createdAt: 'desc',
       },
+
       take: limit + 1,
+
       ...(cursor && {
         skip: 1,
         cursor: { id: cursor },
       }),
+
       select: {
         id: true,
         content: true,

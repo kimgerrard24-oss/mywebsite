@@ -7,38 +7,62 @@ import { useCommentReplies } from "@/hooks/useCommentReplies";
 
 type Props = {
   commentId: string;
+    isBlocked?: boolean;
 };
 
-export default function ReplyToggle({ commentId }: Props) {
+export default function ReplyToggle({
+  commentId,
+  isBlocked = false,
+}: Props) {
   const [open, setOpen] = useState(false);
 
-  // SINGLE source of truth
   const replies = useCommentReplies({
     parentCommentId: commentId,
   });
+
+  function handleToggle() {
+    if (isBlocked) return; // UX guard only
+    setOpen((v) => !v);
+  }
 
   return (
     <div className="mt-1">
       <button
         type="button"
-        onClick={() => setOpen((v) => !v)}
-        className="text-xs text-blue-600 hover:underline"
+        onClick={handleToggle}
+        disabled={isBlocked}
+        aria-disabled={isBlocked}
         aria-expanded={open}
+        className={`
+          text-xs
+          ${isBlocked
+            ? "text-gray-400 cursor-not-allowed"
+            : "text-blue-600 hover:underline"}
+        `}
       >
         {open ? "Hide replies" : "Reply"}
       </button>
 
       {open && (
-        <div className="mt-2 pl-4 border-l">
-          <ReplyComposer
-            onSubmit={async (content) => {
-              const res = await replies.submitReply(content);
-              return Boolean(res);
-            }}
-            loading={replies.loading}
-            error={replies.error}
-          />
+        <div
+          className={`
+            mt-2 pl-4 border-l
+            ${isBlocked ? "opacity-60 pointer-events-none" : ""}
+          `}
+        >
+          {/* ===== Composer ===== */}
+          {!isBlocked && (
+            <ReplyComposer
+              onSubmit={async (content) => {
+                const res = await replies.submitReply(content);
+                return Boolean(res);
+              }}
+              loading={replies.loading}
+              error={replies.error}
+            />
+          )}
 
+          {/* ===== Reply list (allowed to view) ===== */}
           <CommentReplyList
             items={replies.items}
             loadInitialReplies={replies.loadInitialReplies}
@@ -54,3 +78,4 @@ export default function ReplyToggle({ commentId }: Props) {
     </div>
   );
 }
+

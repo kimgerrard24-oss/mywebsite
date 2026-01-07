@@ -3,25 +3,19 @@
 import Link from 'next/link';
 import ChatUnreadBadge from './ChatUnreadBadge';
 import { useChatUnreadCount } from '@/hooks/useChatUnreadCount';
+import type { ChatRoomItem as ChatRoom } from "@/types/chat-room";
 
 type Props = {
-  room: {
-    id: string;
-    peer: {
-      id: string;
-      displayName: string | null;
-      avatarUrl: string | null;
-    } | null;
-    lastMessage: {
-      content: string;
-      createdAt: string;
-    } | null;
-    unreadCount: number;
-  };
+  room: ChatRoom;
 };
 
 export default function ChatRoomItem({ room }: Props) {
   const peer = room.peer;
+
+  const isBlocked =
+  peer?.isBlocked === true ||
+  peer?.hasBlockedViewer === true;
+
 
   /**
    * ==============================
@@ -39,37 +33,59 @@ export default function ChatRoomItem({ room }: Props) {
       ? apiUnreadCount
       : room.unreadCount;
 
-  return (
-    <li>
-      <Link
-        href={`/chat/${room.id}`}
-        className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50"
+return (
+  <li>
+    {isBlocked ? (
+      <div
+        className="
+          flex items-center gap-3 px-4 py-3
+          opacity-60 cursor-not-allowed
+        "
+        aria-disabled="true"
       >
         <img
-          src={
-            peer?.avatarUrl ??
-            '/avatar-placeholder.png'
-          }
+          src={peer?.avatarUrl ?? "/avatar-placeholder.png"}
           alt=""
           className="h-10 w-10 rounded-full"
         />
 
         <div className="flex flex-1 flex-col overflow-hidden">
           <span className="truncate text-sm font-semibold">
-            {peer?.displayName ?? 'User'}
+            {peer?.displayName ?? "User"}
           </span>
 
-          <span className="truncate text-xs text-gray-500">
-            {room.lastMessage?.content ??
-              'No messages yet'}
+          <span className="truncate text-xs text-gray-400">
+            You can’t chat with this user
           </span>
         </div>
 
-        {/* =========================
-            Unread Badge
-            ========================= */}
+        <ChatUnreadBadge count={unreadCount} />
+      </div>
+    ) : (
+      <Link
+        href={`/chat/${room.id}`}
+        className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50"
+      >
+        <img
+          src={peer?.avatarUrl ?? "/avatar-placeholder.png"}
+          alt=""
+          className="h-10 w-10 rounded-full"
+        />
+
+        <div className="flex flex-1 flex-col overflow-hidden">
+          <span className="truncate text-sm font-semibold">
+            {peer?.displayName ?? "User"}
+          </span>
+
+          <span className="truncate text-xs text-gray-500">
+            {room.lastMessage?.content ?? "No messages yet"}
+          </span>
+        </div>
+
         <ChatUnreadBadge count={unreadCount} />
       </Link>
-    </li>
-  );
+    )}
+  </li>
+);
+
 }

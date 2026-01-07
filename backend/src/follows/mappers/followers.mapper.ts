@@ -1,4 +1,3 @@
-// backend/src/follows/mappers/followers.mapper.ts
 import { FollowersResponseDto } from '../dto/followers.response.dto';
 
 export class FollowersMapper {
@@ -10,12 +9,29 @@ export class FollowersMapper {
     const items = hasNext ? rows.slice(0, limit) : rows;
 
     return {
-      items: items.map((row) => ({
-        userId: row.follower.id,
-        displayName: row.follower.displayName ?? null,
-        avatarUrl: row.follower.avatarUrl ?? null,
-        followedAt: row.createdAt.toISOString(),
-      })),
+      items: items.map((row) => {
+        const follower = row.follower;
+
+        return {
+          userId: follower.id,
+          displayName: follower.displayName ?? null,
+          avatarUrl: follower.avatarUrl ?? null,
+          followedAt: row.createdAt.toISOString(),
+
+          /**
+           * 🔒 Block relationship (viewer-aware)
+           * UX guard only — backend still authority
+           */
+          isBlocked:
+            Array.isArray(follower.blockedBy) &&
+            follower.blockedBy.length > 0,
+
+          hasBlockedViewer:
+            Array.isArray(follower.blockedUsers) &&
+            follower.blockedUsers.length > 0,
+        };
+      }),
+
       nextCursor: hasNext
         ? items[items.length - 1].follower.id
         : null,

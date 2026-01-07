@@ -12,17 +12,21 @@ export class FollowingService {
 
   async getFollowing(params: {
     userId: string;
+    viewerUserId?: string | null; // viewer context (optional)
     cursor?: string;
     limit?: number;
   }) {
+    // 🔒 permission / privacy hook (future-proof)
     FollowingReadPolicy.assertCanReadFollowing({
       userId: params.userId,
+      viewerUserId: params.viewerUserId ?? null,
     });
 
     const limit = params.limit ?? 20;
 
     const rows = await this.repo.findFollowing({
       userId: params.userId,
+      viewerUserId: params.viewerUserId ?? null, // 🔒 enforcement in repo
       cursor: params.cursor,
       limit,
     });

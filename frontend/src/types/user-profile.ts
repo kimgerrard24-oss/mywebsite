@@ -8,6 +8,8 @@ export interface PublicUserProfile {
   createdAt: string;
   isSelf: boolean;
   isFollowing: boolean;
+  isBlocked: boolean;
+  hasBlockedViewer: boolean;
 
   stats: {
     followers: number;
@@ -25,6 +27,17 @@ export interface UserProfile {
   createdAt: string;
   updatedAt?: string;
   name: string | null;
+
+    /**
+   * 🔒 Block snapshot (from backend)
+   * target → viewer
+   */
+  hasBlockedViewer: boolean;
+
+  /**
+   * follow state (only when not blocked & not self)
+   */
+  isFollowing: boolean;
 
    stats?: {
     followers: number;

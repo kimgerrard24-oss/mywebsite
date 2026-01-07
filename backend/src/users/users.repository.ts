@@ -74,7 +74,7 @@ export class UsersRepository {
   // =====================================================
   // Public profile (used by /users/:id)
   // =====================================================
- async findPublicUserById(
+async findPublicUserById(
   userId: string,
   params?: {
     viewerUserId?: string | null;
@@ -93,7 +93,7 @@ export class UsersRepository {
       bio: true,
       createdAt: true,
 
-      // ===== เพิ่ม: จำนวน follower / following =====
+      // ===== counts =====
       _count: {
         select: {
           followers: true,
@@ -101,11 +101,33 @@ export class UsersRepository {
         },
       },
 
-      // ===== เพิ่ม: ใช้เช็ค isFollowing =====
+      // ===== isFollowing =====
       followers: viewerUserId
         ? {
             where: {
               followerId: viewerUserId,
+            },
+            take: 1,
+          }
+        : false,
+
+      // ===== block relations (ใช้ชื่อจริงจาก schema) =====
+
+      // viewer → target (viewer block user นี้ไหม)
+      blockedBy: viewerUserId
+        ? {
+            where: {
+              blockerId: viewerUserId,
+            },
+            take: 1,
+          }
+        : false,
+
+      // target → viewer (user นี้ block viewer ไหม)
+      blockedUsers: viewerUserId
+        ? {
+            where: {
+              blockedId: viewerUserId,
             },
             take: 1,
           }
@@ -168,48 +190,83 @@ export class UsersRepository {
   });
   }
 
-  async searchUsers(params: {
-    query: string;
-    limit: number;
-  }) {
-    const { query, limit } = params;
+ async searchUsers(params: {
+  query: string;
+  limit: number;
+  viewerUserId?: string | null; // ✅ NEW (optional)
+}) {
+  const { query, limit, viewerUserId } = params;
 
-    return this.prisma.user.findMany({
-      where: {
-        AND: [
-          { isDisabled: false },
-          {
-            OR: [
+  return this.prisma.user.findMany({
+    where: {
+      AND: [
+        { isDisabled: false },
+
+        // =========================
+        // 🔒 BLOCK FILTER (2-way)
+        // ใช้เฉพาะเมื่อมี viewer
+        // =========================
+        ...(viewerUserId
+          ? [
+              // viewer does NOT block target
               {
-                username: {
-                  contains: query,
-                  mode: 'insensitive',
+                blockedBy: {
+                  none: {
+                    blockerId: viewerUserId,
+                  },
                 },
               },
+
+              // target does NOT block viewer
               {
-                displayName: {
-                  contains: query,
-                  mode: 'insensitive',
+                blockedUsers: {
+                  none: {
+                    blockedId: viewerUserId,
+                  },
                 },
               },
-            ],
-          },
-        ],
-      },
-      take: limit,
-      orderBy: {
-        createdAt: 'desc',
-      },
-      select: {
-        id: true,
-        username: true,
-        displayName: true,
-        avatarUrl: true,
-        createdAt: true,
-        isDisabled: true,
-      },
-    });
-  }
+            ]
+          : []),
+
+        // =========================
+        // 🔍 SEARCH QUERY
+        // =========================
+        {
+          OR: [
+            {
+              username: {
+                contains: query,
+                mode: 'insensitive',
+              },
+            },
+            {
+              displayName: {
+                contains: query,
+                mode: 'insensitive',
+              },
+            },
+          ],
+        },
+      ],
+    },
+
+    take: limit,
+
+    orderBy: {
+      createdAt: 'desc',
+    },
+
+    select: {
+      id: true,
+      username: true,
+      displayName: true,
+      avatarUrl: true,
+      createdAt: true,
+      isDisabled: true,
+    },
+  });
+}
+
 
  async findUserStateWithCoverById(
   userId: string,

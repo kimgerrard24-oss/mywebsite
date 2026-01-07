@@ -36,6 +36,10 @@ export default function ChatMessageItem({
   
   const { remove } = useDeleteChatMessage();
   const [reportOpen, setReportOpen] = useState(false);
+  
+  const isBlocked =
+  message.sender?.isBlocked === true ||
+  message.sender?.hasBlockedViewer === true;
 
  /**
  * ==============================
@@ -90,24 +94,30 @@ if (message.isDeleted || message.deletedAt) {
     }`}
   >
     {!isOwn && (
-      <Link
-        href={`/users/${message.sender.id}`}
-        className="mr-2 flex-shrink-0"
-      >
-        <img
-          src={
-            message.sender.avatarUrl ??
-            "/avatar-placeholder.png"
-          }
-          className="h-8 w-8 rounded-full cursor-pointer"
-          alt={
-            message.sender.displayName ??
-            "User avatar"
-          }
-          loading="lazy"
-        />
-      </Link>
-    )}
+  isBlocked ? (
+    <div className="mr-2 flex-shrink-0 opacity-60 cursor-not-allowed">
+      <img
+        src={message.sender.avatarUrl ?? "/avatar-placeholder.png"}
+        className="h-8 w-8 rounded-full"
+        alt="User avatar"
+        loading="lazy"
+      />
+    </div>
+  ) : (
+    <Link
+      href={`/users/${message.sender.id}`}
+      className="mr-2 flex-shrink-0"
+    >
+      <img
+        src={message.sender.avatarUrl ?? "/avatar-placeholder.png"}
+        className="h-8 w-8 rounded-full cursor-pointer"
+        alt={message.sender.displayName ?? "User avatar"}
+        loading="lazy"
+      />
+    </Link>
+  )
+)}
+
 
     {/* ===== Message Content Wrapper ===== */}
     <div className="flex flex-col items-end max-w-xs sm:max-w-sm">
@@ -128,16 +138,21 @@ if (message.isDeleted || message.deletedAt) {
   loading="lazy"
   decoding="async"
   referrerPolicy="no-referrer"
-  className="
+  aria-disabled={isBlocked} 
+  onClick={() => {
+    if (isBlocked) return;
+    setPreviewImage(m.url);
+  }}
+  className={`
     rounded-xl
     max-w-[220px]
     sm:max-w-[260px]
     max-h-[260px]
     object-cover
-    cursor-pointer
-  "
-  onClick={() => setPreviewImage(m.url)}
+    ${isBlocked ? "cursor-not-allowed opacity-60" : "cursor-pointer"}
+  `}
 />
+
 
               );
             }
@@ -163,17 +178,24 @@ if (message.isDeleted || message.deletedAt) {
       {/* ===== Bubble (TEXT ONLY) ===== */}
       {hasText && (
         <div
-          className={`relative rounded-lg px-3 py-2 text-sm ${
-            isOwn
-              ? "bg-blue-600 text-white"
-              : "bg-gray-100 text-gray-900"
-          }`}
+        aria-disabled={isBlocked} 
+        className={`relative rounded-lg px-3 py-2 text-sm ${
+          isOwn
+            ? "bg-blue-600 text-white"
+            : "bg-gray-100 text-gray-900"
+         } ${isBlocked ? "opacity-60 pointer-events-none" : ""}`}
         >
+
           {!isOwn && (
-            <div className="mb-0.5 text-xs font-semibold">
-              {message.sender.displayName ?? "User"}
-            </div>
-          )}
+  <div
+    className={`mb-0.5 text-xs font-semibold ${
+      isBlocked ? "opacity-60" : ""
+    }`}
+  >
+    {message.sender.displayName ?? "User"}
+  </div>
+)}
+
 
           <div className="whitespace-pre-wrap">
             {message.content}
@@ -196,7 +218,7 @@ if (message.isDeleted || message.deletedAt) {
                 }
               />
             )}
-            {!isOwn && (
+            {!isOwn && !isBlocked && (
   <button
     type="button"
     onClick={() => setReportOpen(true)}
@@ -205,6 +227,7 @@ if (message.isDeleted || message.deletedAt) {
     Report
   </button>
 )}
+
 
           </div>
 

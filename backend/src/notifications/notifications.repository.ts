@@ -21,15 +21,44 @@ async findMany(params: {
   return this.prisma.notification.findMany({
     where: {
       userId,
+
+      // ✅ BLOCK FILTER (authority)
+      actor: {
+        NOT: {
+          OR: [
+            {
+              blockedBy: {
+                some: { blockerId: userId },
+              },
+            },
+            {
+              blockedUsers: {
+                some: { blockedId: userId },
+              },
+            },
+          ],
+        },
+      },
     },
 
-    // ✅ JOIN actor user (สำหรับแสดงผล)
     include: {
       actor: {
         select: {
           id: true,
           displayName: true,
           avatarUrl: true,
+
+          // ✅ snapshot for frontend UX (optional but recommended)
+          blockedBy: {
+            where: { blockerId: userId },
+            select: { blockerId: true },
+            take: 1,
+          },
+          blockedUsers: {
+            where: { blockedId: userId },
+            select: { blockedId: true },
+            take: 1,
+          },
         },
       },
     },
@@ -38,7 +67,8 @@ async findMany(params: {
       createdAt: 'desc',
     },
 
-    take: limit,
+    // ✅ important for cursor pagination
+    take: limit + 1,
 
     ...(cursor
       ? {
@@ -50,11 +80,12 @@ async findMany(params: {
 }
 
 
-   async findById(id: string) {
-    return this.prisma.notification.findUnique({
-      where: { id },
-    });
-  }
+ findByIdForOwnerCheck(id: string) {
+  return this.prisma.notification.findUnique({
+    where: { id },
+    select: { id: true, userId: true },
+  });
+}
 
   async markAsRead(params: {
     id: string;

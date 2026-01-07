@@ -20,6 +20,18 @@ export class PublicUserProfileDto {
   isFollowing!: boolean;
 
   /**
+   * viewer block user นี้อยู่หรือไม่
+   * (ใช้ตัดสิน Block / Unblock button)
+   */
+  isBlocked!: boolean;
+
+  /**
+   * target block viewer หรือไม่
+   * (ใช้กับ chat / follow / notif)
+   */
+  hasBlockedViewer?: boolean;
+
+  /**
    * follower / following counts
    */
   stats!: {
@@ -27,3 +39,4 @@ export class PublicUserProfileDto {
     following: number;
   };
 }
+

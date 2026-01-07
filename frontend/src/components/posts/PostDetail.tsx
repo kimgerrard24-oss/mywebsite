@@ -16,6 +16,11 @@ type Props = {
 export default function PostDetail({ post }: Props) {
   const router = useRouter();
 
+  const isBlocked =
+  post.author?.isBlocked === true ||
+  post.author?.hasBlockedViewer === true;
+
+
   const {
     likeCount,
     likes,
@@ -36,9 +41,10 @@ export default function PostDetail({ post }: Props) {
     const next = !prev;
 
     // โหลด likes เฉพาะตอน "เปิด"
-    if (next) {
-      loadLikes({ reset: true });
-    }
+    if (next && !isBlocked) {
+  loadLikes({ reset: true });
+}
+
 
     return next;
   });
@@ -61,47 +67,91 @@ export default function PostDetail({ post }: Props) {
         "
       >
         {post.author && (
-          <Link
-            href={`/users/${post.author.id}`}
-            className="
-              flex
-              items-center
-              gap-2
-              sm:gap-3
-              hover:underline
-              min-w-0
-            "
-          >
-            <img
-              src={
-                post.author.avatarUrl ??
-                "/images/avatar-placeholder.png"
-              }
-              alt={`${post.author.displayName} profile`}
-              className="
-                h-8
-                w-8
-                sm:h-10
-                sm:w-10
-                rounded-full
-                object-cover
-                flex-shrink-0
-              "
-              loading="lazy"
-            />
-            <span
-              className="
-                font-medium
-                text-sm
-                sm:text-base
-                truncate
-              "
-            >
-              {post.author.displayName}
-            </span>
-          </Link>
-        )}
+  isBlocked ? (
+    <div
+      className="
+        flex
+        items-center
+        gap-2
+        sm:gap-3
+        min-w-0
+        opacity-60
+        cursor-not-allowed
+      "
+      aria-label="Blocked user"
+    >
+      <img
+        src={
+          post.author.avatarUrl ??
+          "/images/avatar-placeholder.png"
+        }
+        alt=""
+        className="
+          h-8
+          w-8
+          sm:h-10
+          sm:w-10
+          rounded-full
+          object-cover
+          flex-shrink-0
+        "
+        loading="lazy"
+      />
+      <span
+        className="
+          font-medium
+          text-sm
+          sm:text-base
+          truncate
+        "
+      >
+        {post.author.displayName}
+      </span>
+    </div>
+  ) : (
+    <Link
+      href={`/users/${post.author.id}`}
+      className="
+        flex
+        items-center
+        gap-2
+        sm:gap-3
+        hover:underline
+        min-w-0
+      "
+    >
+      <img
+        src={
+          post.author.avatarUrl ??
+          "/images/avatar-placeholder.png"
+        }
+        alt={`${post.author.displayName} profile`}
+        className="
+          h-8
+          w-8
+          sm:h-10
+          sm:w-10
+          rounded-full
+          object-cover
+          flex-shrink-0
+        "
+        loading="lazy"
+      />
+      <span
+        className="
+          font-medium
+          text-sm
+          sm:text-base
+          truncate
+        "
+      >
+        {post.author.displayName}
+      </span>
+    </Link>
+  )
+)}
 
+      
         <div
           className="
             flex
@@ -124,14 +174,15 @@ export default function PostDetail({ post }: Props) {
           </time>
 
           <PostActionMenu
-            postId={post.id}
-            canDelete={post.canDelete}
-            canEdit={post.canDelete}
-            canReport={!post.canDelete}
-            onDeleted={() => {
-              router.replace("/feed");
-            }}
-          />
+  postId={post.id}
+  canDelete={!isBlocked && post.canDelete}
+  canEdit={!isBlocked && post.canDelete}
+  canReport={!isBlocked && !post.canDelete}
+  onDeleted={() => {
+    router.replace("/feed");
+  }}
+/>
+
         </div>
       </header>
 
@@ -230,25 +281,32 @@ export default function PostDetail({ post }: Props) {
       >
         <button
   type="button"
-  onClick={toggleLikes}
-  aria-expanded={showLikes}
+  onClick={() => {
+    if (isBlocked) return;
+    toggleLikes();
+  }}
+  disabled={isBlocked}
+  aria-disabled={isBlocked}
+  className={isBlocked ? "opacity-60 cursor-not-allowed" : undefined}
 >
+
 
           {showLikes ? "Hide likes" : `${likeCount} likes`}
 
         </button>
 
-        {showLikes && (
-          <div className="mt-3">
-            <PostLikeList
-              likes={likes}
-              loading={likesLoading}
-              error={likesError}
-              hasMore={hasMoreLikes}
-              onLoadMore={() => loadLikes()}
-            />
-          </div>
-        )}
+        {showLikes && !isBlocked && (
+  <div className="mt-3">
+    <PostLikeList
+      likes={likes}
+      loading={likesLoading}
+      error={likesError}
+      hasMore={hasMoreLikes}
+      onLoadMore={() => loadLikes()}
+    />
+  </div>
+)}
+
       </section>
     </>
   );

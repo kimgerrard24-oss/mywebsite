@@ -7,6 +7,9 @@ type Props = {
   userId: string;
   isFollowing: boolean;
 
+  // ✅ backend authority flag
+  isBlocked?: boolean;
+
   // แจ้ง parent เมื่อสถานะเปลี่ยน (fail-soft)
   onFollowed?: (isFollowing: boolean) => void;
 };
@@ -14,30 +17,26 @@ type Props = {
 export default function FollowButton({
   userId,
   isFollowing,
+  isBlocked = false,
   onFollowed,
 }: Props) {
-  const {
-    follow,
-    loading,
-    error,
-  } = useFollowUser(userId);
+  const { follow, loading, error } =
+    useFollowUser(userId);
 
   async function handleClick(
-    e: MouseEvent<HTMLButtonElement>
+    e: MouseEvent<HTMLButtonElement>,
   ) {
     e.preventDefault();
     e.stopPropagation();
 
-    // ป้องกัน double action และ state ซ้อน
-    if (loading || isFollowing) return;
+    // 🔒 UX guard only — backend still authority
+    if (loading || isFollowing || isBlocked) return;
 
     try {
       await follow();
-
-      // ✅ เปลี่ยน state หลัง backend สำเร็จจริงเท่านั้น
       onFollowed?.(true);
     } catch {
-      // fail-soft: backend คือ authority
+      // fail-soft
     }
   }
 
@@ -45,22 +44,29 @@ export default function FollowButton({
     <button
       type="button"
       onClick={handleClick}
-      disabled={loading}
-      aria-pressed={isFollowing}
+      disabled={loading || isBlocked}
+      aria-pressed={isFollowing && !isBlocked}
       aria-busy={loading}
+      aria-disabled={isBlocked}
       className={`
         inline-flex items-center justify-center
         rounded-full px-4 py-1.5 text-sm font-medium
         transition
         ${
-          isFollowing
+          isBlocked
+            ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+            : isFollowing
             ? 'bg-gray-200 text-gray-700'
             : 'bg-blue-600 text-white hover:bg-blue-700'
         }
         disabled:opacity-60
       `}
     >
-      {loading ? 'Following…' : 'Follow'}
+      {isBlocked
+        ? 'Cannot follow'
+        : loading
+        ? 'Following…'
+        : 'Follow'}
 
       {error && (
         <span className="sr-only">

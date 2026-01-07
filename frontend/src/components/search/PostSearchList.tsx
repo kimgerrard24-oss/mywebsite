@@ -30,7 +30,22 @@ export default function PostSearchList({
     );
   }
 
-  if (items.length === 0) {
+  /**
+   * 🔒 UX guard only (backend is authority)
+   * hide posts from blocked relations if any slip through
+   */
+  const visibleItems = items.filter((post) => {
+    const author = post.author as any;
+
+    if (!author) return true;
+
+    if (author.isBlocked === true) return false;
+    if (author.hasBlockedViewer === true) return false;
+
+    return true;
+  });
+
+  if (visibleItems.length === 0) {
     return (
       <p className="text-sm text-gray-400">
         No posts found
@@ -40,7 +55,7 @@ export default function PostSearchList({
 
   return (
     <ul className="space-y-3">
-      {items.map((post) => (
+      {visibleItems.map((post) => (
         <li key={post.id}>
           <PostSearchItem post={post} />
         </li>

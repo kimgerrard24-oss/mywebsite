@@ -9,6 +9,8 @@ export type PostDetail = {
     id: string;
     displayName: string;
     avatarUrl: string | null;
+    isBlocked?: boolean;
+    hasBlockedViewer?: boolean;
   };
 
   media: {

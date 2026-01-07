@@ -10,6 +10,11 @@ export default function UserProfileStats({ profile }: Props) {
   const followers = profile.stats?.followers ?? 0;
   const following = profile.stats?.following ?? 0;
 
+  // 🔒 UX guard only (backend is authority)
+  const isInteractionBlocked =
+    profile.isBlocked === true ||
+    profile.hasBlockedViewer === true;
+
   return (
     <section
       aria-label="Profile statistics"
@@ -33,28 +38,52 @@ export default function UserProfileStats({ profile }: Props) {
       >
         {/* Followers */}
         <li>
-          <Link
-            href={`/users/${profile.id}/followers`}
-            className="hover:underline"
-          >
-            <strong className="font-medium text-gray-900">
-              {followers}
-            </strong>{" "}
-            <span>Followers</span>
-          </Link>
+          {isInteractionBlocked ? (
+            <span
+              className="cursor-not-allowed opacity-60"
+              aria-disabled="true"
+            >
+              <strong className="font-medium text-gray-900">
+                {followers}
+              </strong>{" "}
+              <span>Followers</span>
+            </span>
+          ) : (
+            <Link
+              href={`/users/${profile.id}/followers`}
+              className="hover:underline"
+            >
+              <strong className="font-medium text-gray-900">
+                {followers}
+              </strong>{" "}
+              <span>Followers</span>
+            </Link>
+          )}
         </li>
 
         {/* Following */}
         <li>
-          <Link
-            href={`/users/${profile.id}/following`}
-            className="hover:underline"
-          >
-            <strong className="font-medium text-gray-900">
-              {following}
-            </strong>{" "}
-            <span>Following</span>
-          </Link>
+          {isInteractionBlocked ? (
+            <span
+              className="cursor-not-allowed opacity-60"
+              aria-disabled="true"
+            >
+              <strong className="font-medium text-gray-900">
+                {following}
+              </strong>{" "}
+              <span>Following</span>
+            </span>
+          ) : (
+            <Link
+              href={`/users/${profile.id}/following`}
+              className="hover:underline"
+            >
+              <strong className="font-medium text-gray-900">
+                {following}
+              </strong>{" "}
+              <span>Following</span>
+            </Link>
+          )}
         </li>
 
         {/* Joined */}

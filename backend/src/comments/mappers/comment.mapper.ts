@@ -1,4 +1,3 @@
-// backend/src/comments/mappers/comment.mapper.ts
 import { CommentItemDto } from '../dto/comment-item.dto';
 
 export class CommentMapper {
@@ -25,8 +24,6 @@ export class CommentMapper {
      * =========================
      * ❤️ Like metadata (safe)
      * =========================
-     * - likeCount: derived from _count.likes
-     * - isLiked: viewer-aware
      */
     const likeCount =
       typeof comment._count?.likes === 'number'
@@ -42,6 +39,22 @@ export class CommentMapper {
           )
         : false;
 
+    /**
+     * =========================
+     * 🔒 Block metadata (viewer-aware)
+     * =========================
+     * MUST be preloaded by query (no extra DB here)
+     */
+    const isBlocked =
+      Boolean(viewerUserId) &&
+      Array.isArray(comment.author.blockedBy) &&
+      comment.author.blockedBy.length > 0;
+
+    const hasBlockedViewer =
+      Boolean(viewerUserId) &&
+      Array.isArray(comment.author.blockedUsers) &&
+      comment.author.blockedUsers.length > 0;
+
     return {
       id: comment.id,
       content: comment.content,
@@ -50,7 +63,6 @@ export class CommentMapper {
 
       /**
        * ✏️ Edit metadata
-       * ใช้ field จาก DB โดยตรง (source of truth)
        */
       isEdited: Boolean(comment.isEdited),
       editedAt: comment.editedAt
@@ -58,7 +70,7 @@ export class CommentMapper {
         : undefined,
 
       /**
-       * 👤 Author
+       * 👤 Author (viewer-aware)
        */
       author: {
         id: comment.author.id,
@@ -66,6 +78,10 @@ export class CommentMapper {
           comment.author.displayName ?? null,
         avatarUrl:
           comment.author.avatarUrl ?? null,
+
+        // ✅ block flags for frontend UX
+        isBlocked,
+        hasBlockedViewer,
       },
 
       /**

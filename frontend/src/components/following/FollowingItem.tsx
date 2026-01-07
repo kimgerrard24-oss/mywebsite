@@ -12,8 +12,13 @@ type Props = {
 export default function FollowingItem({ following }: Props) {
   // ✅ local UI state (source of truth ยังมาจาก backend)
   const [isFollowing, setIsFollowing] = useState(
-    following.isFollowing
+    following.isFollowing,
   );
+
+  // 🔒 UX guard only — backend is authority
+  const isBlocked =
+    following.isBlocked === true ||
+    following.hasBlockedViewer === true;
 
   return (
     <li
@@ -26,38 +31,77 @@ export default function FollowingItem({ following }: Props) {
       "
     >
       {/* ================= User Info ================= */}
-      <Link
-        href={`/users/${following.userId}`}
-        className="flex items-center gap-3 min-w-0"
-      >
-        {following.avatarUrl ? (
-          <img
-            src={following.avatarUrl}
-            alt=""
-            className="h-8 w-8 rounded-full object-cover"
-            loading="lazy"
-          />
-        ) : (
-          <div
-            className="h-8 w-8 rounded-full bg-gray-300"
-            aria-hidden="true"
-          />
-        )}
-
-        <span
+      {isBlocked ? (
+        <div
           className="
-            text-sm
-            font-medium
-            text-gray-900
-            truncate
+            flex
+            items-center
+            gap-3
+            min-w-0
+            opacity-60
+            cursor-not-allowed
           "
+          aria-label="Blocked user"
         >
-          {following.displayName ?? 'Unknown user'}
-        </span>
-      </Link>
+          {following.avatarUrl ? (
+            <img
+              src={following.avatarUrl}
+              alt=""
+              className="h-8 w-8 rounded-full object-cover"
+              loading="lazy"
+            />
+          ) : (
+            <div
+              className="h-8 w-8 rounded-full bg-gray-300"
+              aria-hidden="true"
+            />
+          )}
+
+          <span
+            className="
+              text-sm
+              font-medium
+              text-gray-900
+              truncate
+            "
+          >
+            {following.displayName ?? 'Unknown user'}
+          </span>
+        </div>
+      ) : (
+        <Link
+          href={`/users/${following.userId}`}
+          className="flex items-center gap-3 min-w-0 hover:underline"
+        >
+          {following.avatarUrl ? (
+            <img
+              src={following.avatarUrl}
+              alt=""
+              className="h-8 w-8 rounded-full object-cover"
+              loading="lazy"
+            />
+          ) : (
+            <div
+              className="h-8 w-8 rounded-full bg-gray-300"
+              aria-hidden="true"
+            />
+          )}
+
+          <span
+            className="
+              text-sm
+              font-medium
+              text-gray-900
+              truncate
+            "
+          >
+            {following.displayName ?? 'Unknown user'}
+          </span>
+        </Link>
+      )}
 
       {/* ================= Follow Button ================= */}
-      {following.canFollow && (
+      {!isBlocked && following.canFollow && (
         <FollowButton
           userId={following.userId}
           isFollowing={isFollowing}

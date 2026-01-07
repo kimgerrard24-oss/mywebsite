@@ -36,23 +36,32 @@ async createComment(params: {
     mentions = [],
   } = params;
 
-  const post = await this.repo.findPostForComment(postId);
+  // ==================================================
+  // 🔒 LOAD POST + BLOCK ENFORCEMENT (2-way)
+  // ==================================================
+  const post = await this.repo.findPostForComment({
+    postId,
+    viewerUserId: authorId,
+  });
+
   if (!post) {
     throw new NotFoundException('Post not found');
   }
 
   this.commentpolicy.assertCanComment(post);
 
-  // 1️⃣ Create comment (เดิม)
+  // ==================================================
+  // 1️⃣ CREATE COMMENT (เดิม)
+  // ==================================================
   const created = await this.repo.createComment({
     postId,
     authorId,
     content,
   });
 
-  // =========================
-  // 🔹 MENTION HANDLING
-  // =========================
+  // ==================================================
+  // 🔹 MENTION HANDLING (persist only)
+  // ==================================================
   let uniqueMentions: string[] = [];
 
   if (mentions.length > 0) {
@@ -73,7 +82,6 @@ async createComment(params: {
 
     if (uniqueMentions.length > 0) {
       try {
-        // persist mention relation (เดิม)
         await this.repo.createCommentMentions({
           commentId: created.id,
           userIds: uniqueMentions,
@@ -81,86 +89,100 @@ async createComment(params: {
       } catch {
         /**
          * ❗ mention persistence fail
-         * ต้องไม่ทำให้ comment fail
+         * must not break comment
          */
       }
     }
   }
 
-  // =========================
-  // 🔔 NOTIFICATION: COMMENT (เดิม)
-  // =========================
+  // ==================================================
+  // 🔔 NOTIFICATION: COMMENT (respect block)
+  // ==================================================
   if (post.authorId !== authorId) {
     try {
-      await this.notifications.createNotification({
-        userId: post.authorId,
-        actorUserId: authorId,
-        type: 'comment',
-        entityId: postId,
-        payload: {
-          postId,
-        },
-      });
+      const canNotify =
+        await this.repo.canNotifyBetweenUsers({
+          actorUserId: authorId,
+          targetUserId: post.authorId,
+        });
+
+      if (canNotify) {
+        await this.notifications.createNotification({
+          userId: post.authorId,
+          actorUserId: authorId,
+          type: 'comment',
+          entityId: postId,
+          payload: {
+            postId,
+          },
+        });
+      }
     } catch {
-      // ❗ notification fail ต้องไม่ทำให้ comment fail
+      // ❗ notification fail must not break comment
     }
   }
 
-  // =========================
-  // 🔔 NOTIFICATION: COMMENT MENTION (NEW)
-  // =========================
+  // ==================================================
+  // 🔔 NOTIFICATION: COMMENT MENTION (respect block)
+  // ==================================================
   if (uniqueMentions.length > 0) {
     for (const userId of uniqueMentions) {
       try {
-        await this.notifications.createNotification({
-          userId,
-          actorUserId: authorId,
-          type: 'comment_mention',
-          entityId: created.id,
-          payload: {
-            postId,
-            commentId: created.id,
-          },
-        });
+        const canNotify =
+          await this.repo.canNotifyBetweenUsers({
+            actorUserId: authorId,
+            targetUserId: userId,
+          });
+
+        if (canNotify) {
+          await this.notifications.createNotification({
+            userId,
+            actorUserId: authorId,
+            type: 'comment_mention',
+            entityId: created.id,
+            payload: {
+              postId,
+              commentId: created.id,
+            },
+          });
+        }
       } catch {
         /**
          * ❗ mention notification fail
-         * ต้องไม่ทำให้ comment fail
+         * must not break comment
          */
       }
     }
   }
 
-  // =========================
-// 🔹 HASHTAG HANDLING (NEW)
-// =========================
-try {
-  const tags = parseHashtags(content);
+  // ==================================================
+  // 🔹 HASHTAG HANDLING (เดิม)
+  // ==================================================
+  try {
+    const tags = parseHashtags(content);
 
-  if (tags.length > 0) {
-    // upsert tags (ใช้ pattern เดียวกับ post)
-    const tagRows = await this.repo.upsertTags(tags);
+    if (tags.length > 0) {
+      const tagRows = await this.repo.upsertTags(tags);
 
-    // link comment ↔ tags
-    await this.repo.createCommentTags({
-      commentId: created.id,
-      tagIds: tagRows.map((t) => t.id),
-    });
+      await this.repo.createCommentTags({
+        commentId: created.id,
+        tagIds: tagRows.map((t) => t.id),
+      });
+    }
+  } catch {
+    /**
+     * ❗ hashtag persistence fail
+     * must not break comment
+     */
   }
-} catch {
-  /**
-   * ❗ hashtag persistence fail
-   * ต้องไม่ทำให้ comment fail
-   */
-}
 
-
-  // =========================
-  // 🔒 re-fetch with author (source of truth)
-  // =========================
+  // ==================================================
+  // 🔒 RE-FETCH WITH BLOCK FILTER (SOURCE OF TRUTH)
+  // ==================================================
   const rows = await this.repo.findByPostId({
     postId,
     limit: 1,
+    viewerUserId: authorId,
   });
 
   const [item] = CommentMapper.toItemDtos(
@@ -170,6 +192,7 @@ try {
 
   return item;
 }
+
 
 
  async getPostComments(params: {
@@ -190,6 +213,7 @@ try {
     postId: params.postId,
     limit: params.limit,
     cursor: params.cursor,
+    viewerUserId: params.viewerUserId,
   });
 
   const items = CommentMapper.toItemDtos(

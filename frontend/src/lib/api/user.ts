@@ -5,7 +5,7 @@
 
 import axios, { AxiosInstance, AxiosError } from "axios";
 import type { UpdateUserPayload } from "@/types/user-profile";
-import { api } from "./api";
+import { api,apiPost } from "./api";
 import type { PublicUserSearch } from "@/types/user-search";
 import { UserProfile,PublicUserProfile } from "@/types/user-profile";
 
@@ -272,3 +272,106 @@ export async function searchUsers(params: {
 
   return res.data;
 }
+
+
+/**
+ * POST /users/:id/block
+ * Backend authority
+ */
+export async function blockUser(
+  userId: string,
+): Promise<void> {
+  await apiPost<void>(`/users/${userId}/block`);
+}
+
+/**
+ * DELETE /users/:id/block
+ * Backend authority
+ */
+export async function unblockUser(
+  userId: string,
+): Promise<void> {
+  await api.delete(`/users/${userId}/block`, {
+    withCredentials: true,
+  });
+}
+
+/**
+ * ==============================
+ * GET /users/me/blocks
+ * CSR
+ * ==============================
+ */
+export async function getMyBlockedUsersClient(params?: {
+  cursor?: string | null;
+  limit?: number;
+}): Promise<{
+  items: Array<{
+    id: string;
+    username: string;
+    displayName: string | null;
+    avatarUrl: string | null;
+    blockedAt: string;
+  }>;
+  nextCursor: string | null;
+}> {
+  const res = await api.get("/users/me/blocks", {
+    params: {
+      cursor: params?.cursor ?? undefined,
+      limit: params?.limit ?? undefined,
+    },
+    withCredentials: true,
+  });
+
+  return res.data;
+}
+
+/**
+ * ==============================
+ * GET /users/me/blocks
+ * SSR
+ * ==============================
+ */
+export async function getMyBlockedUsersServer(
+  cookieHeader?: string,
+  params?: { cursor?: string | null; limit?: number },
+): Promise<{
+  items: Array<{
+    id: string;
+    username: string;
+    displayName: string | null;
+    avatarUrl: string | null;
+    blockedAt: string;
+  }>;
+  nextCursor: string | null;
+}> {
+  const baseUrl = normalizeBaseUrl(
+    process.env.INTERNAL_BACKEND_URL || PUBLIC_API_BASE_URL
+  );
+
+  const url = new URL(`${baseUrl}/users/me/blocks`);
+  if (params?.cursor) url.searchParams.set("cursor", params.cursor);
+  if (params?.limit) url.searchParams.set("limit", String(params.limit));
+
+  const res = await fetch(url.toString(), {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      ...(cookieHeader ? { Cookie: cookieHeader } : {}),
+    },
+    credentials: "include",
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    return { items: [], nextCursor: null };
+  }
+
+  const json = await res.json().catch(() => null);
+  if (!json || !Array.isArray(json.items)) {
+    return { items: [], nextCursor: null };
+  }
+
+  return json;
+}
+

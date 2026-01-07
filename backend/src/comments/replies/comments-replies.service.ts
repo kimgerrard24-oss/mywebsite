@@ -29,13 +29,13 @@ async createReply(params: {
   parentCommentId: string;
   authorId: string;
   content: string;
-  mentions?: string[]; // 🔹 NEW (optional)
+  mentions?: string[];
 }) {
   const {
     parentCommentId,
     authorId,
     content,
-    mentions = [], // 🔹 NEW
+    mentions = [],
   } = params;
 
   /**
@@ -48,6 +48,22 @@ async createReply(params: {
    * 🔒 Parent must exist & must not be deleted
    */
   if (!parent || parent.isDeleted) {
+    throw new NotFoundException(
+      'Parent comment not found',
+    );
+  }
+
+  /**
+   * 🔒 BLOCK CHECK (2-way)
+   * - author ↔ parent author must not block each other
+   * - fail-closed (do not reveal block)
+   */
+  const blocked = await this.repo.isBlockedBetween({
+    userA: authorId,
+    userB: parent.authorId,
+  });
+
+  if (blocked) {
     throw new NotFoundException(
       'Parent comment not found',
     );
@@ -93,11 +109,12 @@ async createReply(params: {
 
   /**
    * =========================
-   * 🔹 MENTION HANDLING (NEW)
+   * 🔹 MENTION HANDLING
    * =========================
-   * - fail-soft
-   * - no self mention
    * - dedupe
+   * - no self mention
+   * - skip blocked users
+   * - fail-soft
    */
   if (mentions.length > 0) {
     const uniqueMentions = Array.from(
@@ -111,20 +128,22 @@ async createReply(params: {
 
     if (uniqueMentions.length > 0) {
       try {
-        /**
-         * Persist reply mentions
-         * (table: reply_mentions
-         *  or shared comment_mentions)
-         */
+        // persist mention relations (even if blocked)
         await this.repo.createReplyMentions({
           replyId: created.id,
           userIds: uniqueMentions,
         });
 
-        /**
-         * 🔔 Fire notification (fail-soft)
-         */
+        // 🔔 notification (skip blocked)
         for (const userId of uniqueMentions) {
+          const blockedMention =
+            await this.repo.isBlockedBetween({
+              userA: authorId,
+              userB: userId,
+            });
+
+          if (blockedMention) continue;
+
           try {
             await this.notifications.createNotification({
               userId,
@@ -137,38 +156,32 @@ async createReply(params: {
               },
             });
           } catch {
-            // ❗ notification fail ต้องไม่ทำให้ reply fail
+            // notification fail-soft
           }
         }
       } catch {
-        /**
-         * ❗ mention fail ต้องไม่ทำให้ reply fail
-         */
+        // mention persistence fail-soft
       }
     }
   }
 
   // =========================
-// 🔹 HASHTAG HANDLING (NEW)
-// =========================
-try {
-  const tags = parseHashtags(content);
+  // 🔹 HASHTAG HANDLING
+  // =========================
+  try {
+    const tags = parseHashtags(content);
 
-  if (tags.length > 0) {
-    const tagRows = await this.repo.upsertTags(tags);
+    if (tags.length > 0) {
+      const tagRows = await this.repo.upsertTags(tags);
 
-    await this.repo.createCommentTags({
-      commentId: created.id, // reply = comment with parentId
-      tagIds: tagRows.map((t) => t.id),
-    });
+      await this.repo.createCommentTags({
+        commentId: created.id,
+        tagIds: tagRows.map((t) => t.id),
+      });
+    }
+  } catch {
+    // hashtag fail-soft
   }
-} catch {
-  /**
-   * ❗ hashtag persistence fail
-   * ต้องไม่ทำให้ reply fail
-   */
-}
-
 
   /**
    * 6️⃣ Re-fetch with author relation (source of truth)
@@ -184,7 +197,8 @@ try {
   );
 
   return item;
- }
+}
+
 
 
   async getReplies(params: {
@@ -211,6 +225,7 @@ try {
       parentCommentId: params.parentCommentId,
       limit: params.limit,
       cursor: params.cursor,
+      viewerUserId: params.viewerUserId,
     });
 
     const items = CommentMapper.toItemDtos(

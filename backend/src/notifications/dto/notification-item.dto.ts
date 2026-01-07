@@ -8,6 +8,8 @@ export class NotificationItemDto {
     id: string;
     displayName: string | null;
     avatarUrl: string | null;
+    isBlocked: boolean;
+    hasBlockedViewer: boolean;
   } | null;
 
   entityId!: string | null;

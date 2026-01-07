@@ -15,7 +15,7 @@ import { NotificationRealtimeModule } from './realtime/notification-realtime.mod
     NotificationsRepository,
     NotificationCacheService,
   ],
-  exports: [ NotificationsService, ],
+  exports: [ NotificationsService, NotificationCacheService, ],
   
 })
 export class NotificationsModule {}

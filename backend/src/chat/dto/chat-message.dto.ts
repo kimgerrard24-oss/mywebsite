@@ -14,6 +14,12 @@ export class ChatMessageDto {
     id: string;
     displayName: string | null;
     avatarUrl: string | null;
+
+    /**
+     * 🔒 user block user flags (backend authority)
+     */
+    isBlockedByViewer: boolean;
+    hasBlockedViewer: boolean;
   };
 
   /**
@@ -35,13 +41,21 @@ export class ChatMessageDto {
 
       isDeleted: !!row.deletedAt || !!row.isDeleted,
       deletedAt: row.deletedAt
-      ? row.deletedAt.toISOString()
-      : null,
+        ? row.deletedAt.toISOString()
+        : null,
 
       sender: {
         id: row.sender?.id,
         displayName: row.sender?.displayName ?? null,
         avatarUrl: row.sender?.avatarUrl ?? null,
+
+        // ✅ MUST be computed in query/service layer
+        // DTO only reflects backend decision
+        isBlockedByViewer:
+          row.sender?.isBlockedByViewer === true,
+
+        hasBlockedViewer:
+          row.sender?.hasBlockedViewer === true,
       },
 
       media: Array.isArray(row.media)

@@ -48,6 +48,7 @@ async findPublicFeed(params: {
       isDeleted: false,
       isHidden: false,
 
+      // ===== MEDIA FILTER (right video feed) =====
       ...(params.mediaType === 'video'
         ? {
             media: {
@@ -57,6 +58,35 @@ async findPublicFeed(params: {
                 },
               },
             },
+          }
+        : {}),
+
+      // ===== BLOCK ENFORCEMENT (2-way) =====
+      ...(params.viewerUserId
+        ? {
+            AND: [
+              // viewer must NOT block author
+              {
+                author: {
+                  blockedBy: {
+                    none: {
+                      blockerId: params.viewerUserId,
+                    },
+                  },
+                },
+              },
+
+              // author must NOT block viewer
+              {
+                author: {
+                  blockedUsers: {
+                    none: {
+                      blockedId: params.viewerUserId,
+                    },
+                  },
+                },
+              },
+            ],
           }
         : {}),
     },
@@ -74,6 +104,7 @@ async findPublicFeed(params: {
           displayName: true,
           avatarUrl: true,
 
+          // follow state (unchanged)
           followers: params.viewerUserId
             ? {
                 where: {
@@ -101,15 +132,47 @@ async findPublicFeed(params: {
       },
     },
   });
- }
+}
+
 
 
 async findPostById(
   postId: string,
   viewerUserId?: string,
 ) {
-  return this.prisma.post.findUnique({
-    where: { id: postId },
+  return this.prisma.post.findFirst({
+    where: {
+      id: postId,
+
+      ...(viewerUserId
+        ? {
+            AND: [
+              // viewer must NOT block author
+              {
+                author: {
+                  blockedBy: {
+                    none: {
+                      blockerId: viewerUserId,
+                    },
+                  },
+                },
+              },
+
+              // author must NOT block viewer
+              {
+                author: {
+                  blockedUsers: {
+                    none: {
+                      blockedId: viewerUserId,
+                    },
+                  },
+                },
+              },
+            ],
+          }
+        : {}),
+    },
+
     select: {
       id: true,
       content: true,
@@ -121,7 +184,7 @@ async findPostById(
 
       createdAt: true,
 
-      // ✅ FIX: ใช้ counter จาก Post table โดยตรง
+      // counters
       likeCount: true,
       commentCount: true,
 
@@ -158,6 +221,7 @@ async findPostById(
     },
   });
 }
+
 
 
   async findById(postId: string): Promise<{
@@ -250,11 +314,39 @@ async findPostById(
   } = params;
 
   return this.prisma.post.findMany({
-    where: {
-      authorId: userId,
-      isDeleted: false,
-      isHidden: false,
-    },
+   where: {
+  authorId: userId,
+
+  ...(params.scope === 'public'
+    ? {
+        isDeleted: false,
+        isHidden: false,
+        visibility: 'PUBLIC',
+      }
+    : {}),
+
+  ...(viewerUserId && params.scope === 'public'
+    ? {
+        AND: [
+          {
+            author: {
+              blockedBy: {
+                none: { blockerId: viewerUserId },
+              },
+            },
+          },
+          {
+            author: {
+              blockedUsers: {
+                none: { blockedId: viewerUserId },
+              },
+            },
+          },
+        ],
+      }
+    : {}),
+},
+
 
     take: limit,
     skip: cursor ? 1 : 0,
@@ -271,7 +363,7 @@ async findPostById(
           displayName: true,
           avatarUrl: true,
 
-          // ✅ FIX: ตรวจว่าผู้ดู follow อยู่หรือไม่
+          // ✅ follow state (unchanged)
           followers: viewerUserId
             ? {
                 where: {
@@ -293,49 +385,85 @@ async findPostById(
       },
     },
   });
- }
+}
+
 
   async findPostsByTag(params: {
-    tag: string;
-    cursor?: string;
-    limit: number;
-  }) {
-    const normalizedTag = params.tag.toLowerCase();
+  tag: string;
+  cursor?: string;
+  limit: number;
+  viewerUserId?: string | null; // ✅ NEW
+}) {
+  const normalizedTag = params.tag.toLowerCase();
+  const { viewerUserId } = params;
 
-    return this.prisma.post.findMany({
-      where: {
-        isDeleted: false,
-        isHidden: false,
-        tags: {
-          some: {
-            tag: {
-              name: normalizedTag,
+  return this.prisma.post.findMany({
+    where: {
+      isDeleted: false,
+      isHidden: false,
+
+      tags: {
+        some: {
+          tag: {
+            name: normalizedTag,
+          },
+        },
+      },
+
+      // ===== BLOCK FILTER (only when viewer exists) =====
+      ...(viewerUserId
+        ? {
+            author: {
+              AND: [
+                // viewer does NOT block author
+                {
+                  blockedBy: {
+                    none: {
+                      blockerId: viewerUserId,
+                    },
+                  },
+                },
+
+                // author does NOT block viewer
+                {
+                  blockedUsers: {
+                    none: {
+                      blockedId: viewerUserId,
+                    },
+                  },
+                },
+              ],
             },
-          },
+          }
+        : {}),
+    },
+
+    take: params.limit,
+    skip: params.cursor ? 1 : 0,
+    cursor: params.cursor ? { id: params.cursor } : undefined,
+
+    orderBy: {
+      createdAt: 'desc',
+    },
+
+    include: {
+      author: {
+        select: {
+          id: true,
+          displayName: true,
+          avatarUrl: true,
         },
       },
-      take: params.limit,
-      skip: params.cursor ? 1 : 0,
-      cursor: params.cursor ? { id: params.cursor } : undefined,
-      orderBy: {
-        createdAt: 'desc',
-      },
-      include: {
-        author: {
-          select: {
-            id: true,
-            displayName: true,
-            avatarUrl: true,
-          },
-        },
-        media: {
-          include: {
-            media: true,
-          },
+
+      media: {
+        include: {
+          media: true,
         },
       },
-    });
-  }
+    },
+  });
+}
+
   
   async findPublicPosts(params: {
   limit: number;
@@ -375,20 +503,56 @@ async findPostById(
   });
  }
  
- async findPostForLike(postId: string) {
-    return this.prisma.post.findFirst({
-      where: {
-        id: postId,
-        isDeleted: false,
-      },
-      select: {
-        id: true,
-        authorId: true,
-        isDeleted: true,
-        isHidden: true,
-      },
-    });
-  }
+ async findPostForLike(params: {
+  postId: string;
+  viewerUserId?: string | null;
+}) {
+  const { postId, viewerUserId } = params;
+
+  return this.prisma.post.findFirst({
+    where: {
+      id: postId,
+      isDeleted: false,
+
+      // ===== BLOCK ENFORCEMENT (only when viewer exists) =====
+      ...(viewerUserId
+        ? {
+            AND: [
+              // viewer must NOT block author
+              {
+                author: {
+                  blockedBy: {
+                    none: {
+                      blockerId: viewerUserId,
+                    },
+                  },
+                },
+              },
+
+              // author must NOT block viewer
+              {
+                author: {
+                  blockedUsers: {
+                    none: {
+                      blockedId: viewerUserId,
+                    },
+                  },
+                },
+              },
+            ],
+          }
+        : {}),
+    },
+
+    select: {
+      id: true,
+      authorId: true,
+      isDeleted: true,
+      isHidden: true,
+    },
+  });
+}
+
 
   async toggleLike(params: {
     postId: string;
@@ -508,50 +672,85 @@ async findPostById(
   }
 
   async findLikesByPostId(params: {
-    postId: string;
-    cursor?: string;
-    limit: number;
-  }): Promise<{
-    rows: Array<{
-      createdAt: Date;
-      user: {
-        id: string;
-        displayName: string | null;
-        avatarUrl: string | null;
-      };
-    }>;
-    nextCursor: string | null;
-  }> {
-    const { postId, cursor, limit } = params;
+  postId: string;
+  cursor?: string;
+  limit: number;
+  viewerUserId?: string | null;
+}): Promise<{
+  rows: Array<{
+    createdAt: Date;
+    user: {
+      id: string;
+      displayName: string | null;
+      avatarUrl: string | null;
+    };
+  }>;
+  nextCursor: string | null;
+}> {
+  const { postId, cursor, limit, viewerUserId } = params;
 
-    const rows = await this.prisma.postLike.findMany({
-      where: { postId },
-      take: limit + 1,
-      ...(cursor && {
-        skip: 1,
-        cursor: { id: cursor },
-      }),
-      orderBy: { createdAt: 'desc' },
-      select: {
-        id: true,
-        createdAt: true,
-        user: {
-          select: {
-            id: true,
-            displayName: true,
-            avatarUrl: true,
-          },
+  const rows = await this.prisma.postLike.findMany({
+    where: {
+      postId,
+
+      // ===== BLOCK FILTER (only when viewer exists) =====
+      ...(viewerUserId
+        ? {
+            user: {
+              AND: [
+                // viewer does NOT block user
+                {
+                  blockedBy: {
+                    none: {
+                      blockerId: viewerUserId,
+                    },
+                  },
+                },
+
+                // user does NOT block viewer
+                {
+                  blockedUsers: {
+                    none: {
+                      blockedId: viewerUserId,
+                    },
+                  },
+                },
+              ],
+            },
+          }
+        : {}),
+    },
+
+    take: limit + 1,
+
+    ...(cursor && {
+      skip: 1,
+      cursor: { id: cursor },
+    }),
+
+    orderBy: { createdAt: 'desc' },
+
+    select: {
+      id: true,
+      createdAt: true,
+      user: {
+        select: {
+          id: true,
+          displayName: true,
+          avatarUrl: true,
         },
       },
-    });
+    },
+  });
 
-    let nextCursor: string | null = null;
+  let nextCursor: string | null = null;
 
-    if (rows.length > limit) {
-      const next = rows.pop();
-      nextCursor = next!.id;
-    }
-
-    return { rows, nextCursor };
+  if (rows.length > limit) {
+    const next = rows.pop();
+    nextCursor = next!.id;
   }
+
+  return { rows, nextCursor };
+}
+
 }

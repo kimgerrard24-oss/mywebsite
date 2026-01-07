@@ -67,48 +67,56 @@ export class ChatRepository {
     });
   }
 
-  async findChatRoomsByUser(userId: string) {
-    return this.prisma.chat.findMany({
-      where: {
-        participants: {
-          some: {
-            userId,
-            leftAt: null,
-          },
+async findChatRoomsByUser(userId: string) {
+  return this.prisma.chat.findMany({
+    where: {
+      // ✅ viewer must be participant
+      participants: {
+        some: {
+          userId,
+          leftAt: null,
         },
       },
-      orderBy: {
-        updatedAt: 'desc',
-      },
-      include: {
-        participants: {
-          where: {
-            userId: { not: userId },
-          },
-          include: {
-            user: {
-              select: {
-                id: true,
-                displayName: true,
-                avatarUrl: true,
-              },
+      // ❗ block logic removed — enforced in ChatPermissionService
+    },
+
+    orderBy: {
+      updatedAt: 'desc',
+    },
+
+    include: {
+      participants: {
+        where: {
+          userId: { not: userId },
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              displayName: true,
+              avatarUrl: true,
             },
           },
         },
-        messages: {
-          orderBy: {
-            createdAt: 'desc',
-          },
-          take: 1,
+      },
+
+      messages: {
+        orderBy: {
+          createdAt: 'desc',
         },
-        readStates: {
-          where: {
-            userId,
-          },
+        take: 1,
+      },
+
+      readStates: {
+        where: {
+          userId,
         },
       },
-    });
-  }
+    },
+  });
+}
+
+
 
   async findChatMeta(chatId: string) {
     return this.prisma.chat.findUnique({

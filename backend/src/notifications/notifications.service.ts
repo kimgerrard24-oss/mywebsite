@@ -8,6 +8,7 @@ import { NotificationRow } from './types/notification-row.type';
 import { NotificationCreateInput } from './types/notification-create.input';
 import { NotificationPayloadMap } from './types/notification-payload.type';
 import { NotificationRealtimeService } from './realtime/notification-realtime.service';
+import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
 export class NotificationsService {
@@ -15,6 +16,7 @@ export class NotificationsService {
     private readonly repo: NotificationsRepository,
     private readonly cache: NotificationCacheService,
     private readonly realtime: NotificationRealtimeService,
+    private readonly prisma: PrismaService,
   ) {}
 
   async getNotifications(params: {
@@ -60,7 +62,7 @@ export class NotificationsService {
   }) {
     const { notificationId, viewerUserId } = params;
 
-    const notification = await this.repo.findById(notificationId);
+    const notification = await this.repo.findByIdForOwnerCheck(notificationId);
     if (!notification) {
       throw new NotFoundException('Notification not found');
     }
@@ -103,7 +105,30 @@ export class NotificationsService {
   } = params;
 
   // 🔐 defensive: ไม่แจ้งเตือนตัวเอง
-  if (userId === actorUserId) return;
+if (userId === actorUserId) return;
+
+// ✅ BLOCK CHECK (CRITICAL)
+const blocked = await this.prisma.userBlock.findFirst({
+  where: {
+    OR: [
+      // recipient blocked actor
+      {
+        blockerId: userId,
+        blockedId: actorUserId,
+      },
+
+      // actor blocked recipient
+      {
+        blockerId: actorUserId,
+        blockedId: userId,
+      },
+    ],
+  },
+  select: { blockerId: true },
+});
+
+if (blocked) return;
+
 
   // 1️⃣ Persist (DB = authority)
   const row = await this.repo.create({

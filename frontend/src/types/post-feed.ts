@@ -10,6 +10,7 @@ export type PostFeedItem = {
     avatarUrl: string | null;
 
     isFollowing: boolean;
+    isBlocked: boolean;
   };
 
   media: {

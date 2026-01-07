@@ -21,7 +21,9 @@ export class SearchService {
   ) {}
 
   async searchPosts(
-    query: SearchPostsQueryDto,
+    query: SearchPostsQueryDto & {
+      viewerUserId?: string | null; // ✅ optional (backward compatible)
+    },
   ): Promise<SearchPostsResponseDto> {
     const { q, limit, cursor } = query;
 
@@ -29,6 +31,7 @@ export class SearchService {
       q,
       limit: limit ?? 20,
       cursor,
+      viewerUserId: query.viewerUserId ?? null, // ✅ pass-through
     });
 
     return {
@@ -37,8 +40,10 @@ export class SearchService {
     };
   }
 
-   async searchUsers(
-    query: SearchUsersQueryDto,
+  async searchUsers(
+    query: SearchUsersQueryDto & {
+      viewerUserId?: string | null; // ✅ optional
+    },
   ): Promise<SearchUsersResponseDto> {
     const { q, limit, cursor } = query;
 
@@ -51,23 +56,27 @@ export class SearchService {
       q,
       limit: limit ?? 20,
       cursor,
+      viewerUserId: query.viewerUserId ?? null, // ✅ block-aware search
     });
   }
 
   async searchTags(
-  query: SearchTagsQueryDto,
-): Promise<SearchTagsResponseDto> {
-  const { q, limit, cursor } = query;
+    query: SearchTagsQueryDto & {
+      viewerUserId?: string | null; // ✅ optional
+    },
+  ): Promise<SearchTagsResponseDto> {
+    const { q, limit, cursor } = query;
 
-  const result = await this.tagsRepo.searchTags({
-    q,
-    limit: limit ?? 20,
-    cursor,
-  });
+    const result = await this.tagsRepo.searchTags({
+      q,
+      limit: limit ?? 20,
+      cursor,
+      viewerUserId: query.viewerUserId ?? null, // ✅ filter posts by block
+    });
 
-  return {
-    items: result.items.map(mapTagToSearchDto),
-    nextCursor: result.nextCursor,
-  };
- }
+    return {
+      items: result.items.map(mapTagToSearchDto),
+      nextCursor: result.nextCursor,
+    };
+  }
 }

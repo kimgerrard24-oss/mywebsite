@@ -8,6 +8,7 @@ import ReplyToggle from "@/components/comments/ReplyToggle";
 import { useCommentLike } from '@/hooks/useCommentLike';
 import CommentLikeButton from './CommentLikeButton';
 import ReportDialog from "@/components/report/ReportDialog";
+import Link from "next/link";
 
 type Props = {
   comment: Comment;
@@ -41,6 +42,7 @@ type Props = {
   onDeleted?: (commentId: string) => void;
 };
 
+
 export default function CommentItem({
   comment,
   isEditable = false,
@@ -58,6 +60,10 @@ export default function CommentItem({
   const [confirmingDelete, setConfirmingDelete] =
     useState(false);
   const [reportOpen, setReportOpen] = useState(false);
+
+  const isBlocked =
+  comment.author?.isBlocked === true ||
+  comment.author?.hasBlockedViewer === true;
 
   /**
    * =========================
@@ -160,55 +166,67 @@ export default function CommentItem({
   `}
   >
 
-     {/* ================= Author ================= */}
-{comment.author && (
-  <div className="mb-1 flex items-center gap-2">
-    {comment.author.avatarUrl ? (
-      <img
-        src={comment.author.avatarUrl}
-        alt={comment.author.displayName ?? "User"}
-        className="h-6 w-6 rounded-full object-cover"
-      />
-    ) : (
-      <div className="h-6 w-6 rounded-full bg-gray-300" />
-    )}
+  {comment.author && (() => {
+  const content = (
+    <>
+      {comment.author.avatarUrl ? (
+        <img
+          src={comment.author.avatarUrl}
+          alt={comment.author.displayName ?? "User"}
+          className="h-6 w-6 rounded-full object-cover"
+        />
+      ) : (
+        <div className="h-6 w-6 rounded-full bg-gray-300" />
+      )}
 
-    <span className="text-xs font-medium text-gray-800">
-      {comment.author.displayName ?? "Unknown user"}
-    </span>
-  </div>
+      <span className="text-xs font-medium text-gray-800 truncate">
+        {comment.author.displayName ?? "Unknown user"}
+      </span>
+    </>
+  );
+
+  return isBlocked ? (
+    <div
+      className="mb-1 flex items-center gap-2 opacity-60 cursor-not-allowed"
+      aria-label="Blocked user"
+    >
+      {content}
+    </div>
+  ) : (
+  <Link
+  href={`/users/${comment.author.id}`}
+  className="mb-1 flex items-center gap-2 hover:underline"
+>
+  {content}
+</Link>
+  );
+})()}
+
+{/* ================= Content ================= */}
+{!editing ? (
+  <p className="text-gray-900">
+    {renderContentWithMentions(comment.content, isBlocked)}
+    {comment.isEdited && (
+      <span className="ml-1 text-xs text-gray-400">
+        (แก้ไขแล้ว)
+      </span>
+    )}
+  </p>
+) : (
+  <textarea
+    className="
+      w-full resize-none rounded-md border
+      px-2 py-1 text-sm
+      focus:outline-none focus:ring
+    "
+    rows={2}
+    value={content}
+    disabled={loading || isBlocked}
+    onChange={(e) => setContent(e.target.value)}
+  />
 )}
 
-      {/* ================= Content ================= */}
-      {!editing ? (
-        <p className="text-gray-900">
-  {renderContentWithMentions(comment.content)}
-  {comment.isEdited && (
-    <span className="ml-1 text-xs text-gray-400">
-      (แก้ไขแล้ว)
-    </span>
-  )}
-</p>
 
-      ) : (
-        <textarea
-          className="
-            w-full
-            resize-none
-            rounded-md
-            border
-            px-2
-            py-1
-            text-sm
-            focus:outline-none
-            focus:ring
-          "
-          rows={2}
-          value={content}
-          disabled={loading}
-          onChange={(e) => setContent(e.target.value)}
-        />
-      )}
 
       {/* ================= Meta ================= */}
       <time
@@ -219,15 +237,21 @@ export default function CommentItem({
       </time>
 
            {/* ================= Actions ================= */}
-{(isEditable || isDeletable || true) && (
+{!isBlocked && (
+
   <div className="mt-1 flex items-center gap-4 text-xs">
     {/* ❤️ Like (ทุกคนเห็นได้) */}
     <CommentLikeButton
-      liked={liked}
-      likeCount={likeCount}
-      loading={liking}
-      onToggle={toggleLike}
-    />
+  liked={liked}
+  likeCount={likeCount}
+  loading={liking}
+  disabled={isBlocked}
+  onToggle={() => {
+    if (isBlocked) return;
+    toggleLike();
+  }}
+/>
+
 
     {/* ✏️ Edit */}
     {isEditable && (
@@ -312,9 +336,10 @@ export default function CommentItem({
 
 
       {/* ================= Reply ================= */}
-      <div className="mt-2">
-        <ReplyToggle commentId={comment.id} />
-      </div>
+      <div className={isBlocked ? "opacity-60 pointer-events-none" : ""}>
+  <ReplyToggle commentId={comment.id} />
+</div>
+
 
       {/* ================= Error ================= */}
       {error && (
@@ -338,35 +363,45 @@ export default function CommentItem({
   );
 }
 
-function renderContentWithMentions(text: string) {
+function renderContentWithMentions(
+  text: string,
+  disableLinks = false,
+) {
+
   return text.split(/(@[\w\d_]+|#[\w\d_]+)/g).map((part, i) => {
     // @mention
     if (part.startsWith("@")) {
-      const username = part.slice(1);
-      return (
-        <a
-          key={i}
-          href={`/users/${username}`}
-          className="text-blue-600 hover:underline"
-        >
-          {part}
-        </a>
-      );
-    }
+  if (disableLinks) return <span key={i}>{part}</span>;
+
+  const username = part.slice(1);
+  return (
+    <a
+      key={i}
+      href={`/users/${username}`}
+      className="text-blue-600 hover:underline"
+    >
+      {part}
+    </a>
+  );
+}
+
 
     // #hashtag ✅ FIX
     if (part.startsWith("#")) {
-      const tag = part.slice(1);
-      return (
-        <a
-          key={i}
-          href={`/tags/${encodeURIComponent(tag)}`}
-          className="text-blue-600 hover:underline"
-        >
-          {part}
-        </a>
-      );
-    }
+  if (disableLinks) return <span key={i}>{part}</span>;
+
+  const tag = part.slice(1);
+  return (
+    <a
+      key={i}
+      href={`/tags/${encodeURIComponent(tag)}`}
+      className="text-blue-600 hover:underline"
+    >
+      {part}
+    </a>
+  );
+}
+
 
     return <span key={i}>{part}</span>;
   });

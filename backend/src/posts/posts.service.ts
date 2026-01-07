@@ -392,6 +392,7 @@ async getUserPostFeed(params: {
       tag: params.tag,
       cursor: params.cursor,
       limit: params.limit,
+      viewerUserId: params.viewerUserId,
     });
 
     const items = rows.map((row) =>
@@ -413,7 +414,11 @@ async toggleLike(params: {
 }): Promise<PostLikeResponseDto> {
   const { postId, userId } = params;
 
-  const post = await this.repo.findPostForLike(postId);
+  const post = await this.repo.findPostForLike({
+  postId,
+  viewerUserId: userId, // ✅ ADD
+});
+
   if (!post) {
     throw new NotFoundException('Post not found');
   }
@@ -462,7 +467,11 @@ async toggleLike(params: {
   }): Promise<PostUnlikeResponseDto> {
     const { postId, userId } = params;
 
-    const post = await this.repo.findPostForLike(postId);
+    const post = await this.repo.findPostForLike({
+  postId,
+  viewerUserId: userId, // ✅ ADD
+});
+
     this.unlikePolicy.assertCanUnlike(post);
 
     // idempotent: unlike ซ้ำไม่ error
@@ -493,6 +502,7 @@ async toggleLike(params: {
         postId,
         cursor,
         limit,
+        viewerUserId: params.viewerUserId,
       });
 
     return {

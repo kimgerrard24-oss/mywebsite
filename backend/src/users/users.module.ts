@@ -14,6 +14,10 @@ import { UserSearchPolicy } from './policies/user-search.policy';
 import { NotificationsModule } from '../notifications/notifications.module';
 import { MentionController } from './mention/mention.controller';
 import { MentionService } from './mention/mention.service';
+import { UserBlockService } from './user-block/user-block.service';
+import { UserBlockRepository } from './user-block/user-block.repository';
+import { UserBlockPolicy } from './user-block/policy/user-block.policy';
+import { UserBlockController } from './user-block/user-block.controller';
 
 @Module({
   imports: [
@@ -22,7 +26,7 @@ import { MentionService } from './mention/mention.service';
     R2Module, 
     NotificationsModule, 
   ],
-  controllers: [UsersController, MentionController,],
+  controllers: [ UsersController, UserBlockController, MentionController,],
   providers: [
     UsersService,  
     UsersRepository,
@@ -32,6 +36,9 @@ import { MentionService } from './mention/mention.service';
     AuditLogService,
     MentionService,
     UserSearchPolicy,
+    UserBlockService,
+    UserBlockRepository,
+    UserBlockPolicy,
   ],
   exports: [UsersService],
 })

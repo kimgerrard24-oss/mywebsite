@@ -39,11 +39,12 @@ export default function FeedItem({ post, onDeleted }: Props) {
   const [isFollowing, setIsFollowing] = useState(
   post.author.isFollowing
 );
-  
+  const isBlocked = post.author.isBlocked === true;
+
   useEffect(() => {
   setIsFollowing(post.author.isFollowing);
 }, [post.author.isFollowing]);
-
+   
   return (
     <article
       className="
@@ -145,22 +146,24 @@ export default function FeedItem({ post, onDeleted }: Props) {
         {/* ขวา: Follow + PostAction */}
   <div className="flex items-center gap-2">
          {/* 💬 Chat */}
-  {!post.isSelf && (
-    <Link
-      href={`/chat/${post.author.id}`}
-      className="text-xs text-blue-600 hover:underline"
-    >
-      💬 แชท
-    </Link>
-  )}
+  {!post.isSelf && !isBlocked && (
+  <Link
+    href={`/chat/${post.author.id}`}
+    className="text-xs text-blue-600 hover:underline"
+  >
+    💬 แชท
+  </Link>
+)}
+
 
     {/* Follow (render only) */}
- {!post.isSelf && (
+ {!post.isSelf && !isBlocked && (
   <FollowControl
     userId={post.author.id}
     isFollowing={post.author.isFollowing}
   />
- )}
+)}
+
 
     <PostActionMenu
       postId={post.id}
@@ -271,25 +274,32 @@ export default function FeedItem({ post, onDeleted }: Props) {
         "
       >
         {/* 🆕 Like button (แทน span เดิมอย่างเดียว) */}
-        <PostLikeButton
-          liked={liked}
-          likeCount={likeCount}
-          loading={likeLoading}
-          onClick={toggleLike}
-        />
+        <div className={isBlocked ? "opacity-50 pointer-events-none" : ""}>
+  <PostLikeButton
+    liked={liked}
+    likeCount={likeCount}
+    loading={likeLoading}
+    onClick={() => {
+      if (isBlocked) return;
+      toggleLike();
+    }}
+  />
+</div>
 
         <button
-      type="button"
-      onClick={() => setShowCommentBox((v) => !v)}
-      className="hover:underline"
-      aria-expanded={showCommentBox}
-        >
+  type="button"
+  disabled={isBlocked}
+  onClick={() => setShowCommentBox((v) => !v)}
+  className={`hover:underline ${isBlocked ? "opacity-50 cursor-not-allowed" : ""}`}
+  aria-disabled={isBlocked}
+>
+
         💬 {commentCount}
         </button>
 
       </footer>
 
-       {showCommentBox && (
+       {showCommentBox && !isBlocked && (
   <section
     className="mt-3 border-t pt-3"
     aria-label="Post comments"

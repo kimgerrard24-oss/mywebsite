@@ -207,6 +207,11 @@ async getMe(userId: string): Promise<PublicUserProfileDto> {
     createdAt: user.createdAt.toISOString(),
 
     isSelf: true,
+
+    // ✅ self ไม่มี block concept
+    isBlocked: false,
+    hasBlockedViewer: false,
+
     isFollowing: false, // self ไม่มี concept follow ตัวเอง
 
     stats: {
@@ -216,21 +221,35 @@ async getMe(userId: string): Promise<PublicUserProfileDto> {
   };
 }
 
-
-
- async getPublicProfile(params: {
+async getPublicProfile(params: {
   targetUserId: string;
   viewerUserId: string | null;
 }): Promise<PublicUserProfileDto | null> {
   const { targetUserId, viewerUserId } = params;
 
-  const user = await this.repo.findPublicUserById(targetUserId, {
-    viewerUserId,
-  });
+  const user = await this.repo.findPublicUserById(
+    targetUserId,
+    { viewerUserId },
+  );
+
   if (!user) return null;
 
   const isSelf =
     viewerUserId !== null && viewerUserId === user.id;
+
+  /**
+   * ===== Block relation (IMPORTANT) =====
+   * repo join:
+   * - blockedBy      => viewer block target?
+   * - blockedUsers   => target block viewer?
+   */
+  const isBlockedByViewer =
+    Array.isArray(user.blockedBy) &&
+    user.blockedBy.length > 0;
+
+  const hasBlockedViewer =
+    Array.isArray(user.blockedUsers) &&
+    user.blockedUsers.length > 0;
 
   return {
     id: user.id,
@@ -242,8 +261,22 @@ async getMe(userId: string): Promise<PublicUserProfileDto> {
 
     isSelf,
 
+    /**
+     * 👇 FRONTEND ใช้ตัดสินปุ่ม Block / Unblock
+     */
+    isBlocked: isBlockedByViewer,
+
+    /**
+     * 👇 future use:
+     * - hide chat
+     * - hide follow
+     * - hide notification
+     */
+    hasBlockedViewer,
+
     isFollowing:
       !isSelf &&
+      !isBlockedByViewer &&
       Array.isArray(user.followers) &&
       user.followers.length > 0,
 
@@ -254,7 +287,7 @@ async getMe(userId: string): Promise<PublicUserProfileDto> {
   };
 }
 
-  
+
    async updateProfile(userId: string, dto: UpdateUserDto) {
     const updated = await this.repo.updateProfile(userId, dto);
 
@@ -359,27 +392,30 @@ async updateAvatar(params: {
 
 
   async searchUsers(params: {
-    query: string;
-    limit: number;
-    viewerUserId: string;
-  }): Promise<PublicUserSearchDto[]> {
-    const { query, limit, viewerUserId } = params;
+  query: string;
+  limit: number;
+  viewerUserId: string;
+}): Promise<PublicUserSearchDto[]> {
+  const { query, limit, viewerUserId } = params;
 
-    const users = await this.repo.searchUsers({
-      query,
-      limit,
-    });
+  // ✅ ให้ repo กรอง block ตั้งแต่ระดับ DB
+  const users = await this.repo.searchUsers({
+    query,
+    limit,
+    viewerUserId, // ✅ สำคัญมาก
+  });
 
-    // policy layer (สำคัญมาก)
-    const visibleUsers = users.filter(user =>
-      UserSearchPolicy.canView({
-        target: user,
-        viewerUserId,
-      }),
-    );
+  // ✅ policy layer ยังเก็บไว้ได้ (defense-in-depth)
+  const visibleUsers = users.filter(user =>
+    UserSearchPolicy.canView({
+      target: user,
+      viewerUserId,
+    }),
+  );
 
-    return visibleUsers.map(PublicUserSearchDto.fromEntity);
-  }
+  return visibleUsers.map(PublicUserSearchDto.fromEntity);
+}
+
 }
 
 

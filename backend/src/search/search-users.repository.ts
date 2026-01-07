@@ -11,25 +11,56 @@ export class SearchUsersRepository {
     q: string;
     limit: number;
     cursor?: string;
+    viewerUserId?: string | null; // ✅ NEW (optional, backward compatible)
   }) {
-    const { q, limit, cursor } = params;
+    const { q, limit, cursor, viewerUserId } = params;
 
     const users = await this.prisma.user.findMany({
       where: {
         active: true,
+
         OR: [
           { username: { contains: q, mode: 'insensitive' } },
           { displayName: { contains: q, mode: 'insensitive' } },
         ],
+
+        // ===== BLOCK FILTER (2-way, only when viewer exists) =====
+        ...(viewerUserId
+          ? {
+              AND: [
+                // viewer must NOT block target user
+                {
+                  blockedBy: {
+                    none: {
+                      blockerId: viewerUserId,
+                    },
+                  },
+                },
+
+                // target user must NOT block viewer
+                {
+                  blockedUsers: {
+                    none: {
+                      blockedId: viewerUserId,
+                    },
+                  },
+                },
+              ],
+            }
+          : {}),
       },
+
       orderBy: {
         username: 'asc',
       },
+
       take: limit + 1,
+
       ...(cursor && {
         skip: 1,
         cursor: { id: cursor },
       }),
+
       select: {
         id: true,
         username: true,

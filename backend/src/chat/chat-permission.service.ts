@@ -8,33 +8,28 @@ export class ChatPermissionService {
 
   /**
    * ตรวจว่า viewer สามารถคุยกับ target ได้หรือไม่
-   * - block
-   * - privacy
+   * - block (2 ทาง)
+   * - privacy (future)
    * (fail-closed)
    */
   async canChat(
     viewerUserId: string,
     targetUserId: string,
   ): Promise<boolean> {
-    // example: block check
+    // ===== BLOCK CHECK (2-way) =====
     const blocked = await this.prisma.userBlock.findFirst({
-      where: {
-        OR: [
-          {
-            blockerId: viewerUserId,
-            blockedId: targetUserId,
-          },
-          {
-            blockerId: targetUserId,
-            blockedId: viewerUserId,
-          },
-        ],
-      },
-    });
+  where: {
+    OR: [
+      { blockerId: viewerUserId, blockedId: targetUserId },
+      { blockerId: targetUserId, blockedId: viewerUserId },
+    ],
+  },
+});
 
-    if (blocked) return false;
+if (blocked) return false;
 
-    // privacy rules สามารถเพิ่มภายหลัง
+
+    // ===== FUTURE: privacy rules =====
     return true;
   }
 
@@ -53,7 +48,13 @@ export class ChatPermissionService {
 
   /**
    * ตรวจว่า viewer สามารถเข้าถึง chat นี้ได้หรือไม่
-   * (ใช้กับ GET /chat/:chatId, GET messages, PATCH, DELETE)
+   * (ใช้กับ GET meta, GET messages, PATCH, DELETE, READ, UNREAD)
+   *
+   * Enforcement:
+   * - must be participant
+   * - both users must be active
+   * - must NOT be blocked (2-way)
+   * (fail-closed)
    */
   async assertCanAccessChat(params: {
     chat: any;
@@ -65,6 +66,7 @@ export class ChatPermissionService {
       throw new ForbiddenException('Chat not found');
     }
 
+    // ===== participant check =====
     const participant = chat.participants.find(
       (p: any) => p.userId === viewerUserId,
     );
@@ -73,9 +75,24 @@ export class ChatPermissionService {
       throw new ForbiddenException('Access denied');
     }
 
-    const user = participant.user;
-    if (!user || !user.active || user.isDisabled) {
+    const viewer = participant.user;
+    if (!viewer || !viewer.active || viewer.isDisabled) {
       throw new ForbiddenException('Access denied');
+    }
+
+    // ===== find other participant (DM only) =====
+    // group chat: skip block enforcement (future: group policy)
+    if (!chat.isGroup && Array.isArray(chat.participants)) {
+      const other = chat.participants.find(
+        (p: any) => p.userId !== viewerUserId,
+      );
+
+      if (other?.userId) {
+        await this.assertNotBlockedBetween({
+          userA: viewerUserId,
+          userB: other.userId,
+        });
+      }
     }
   }
 
@@ -83,37 +100,50 @@ export class ChatPermissionService {
    * ==============================
    * Read Permission
    * ==============================
-   * รองรับ:
-   * POST /chat/:chatId/read
    */
   async assertCanReadChat(params: {
     chat: any;
     viewerUserId: string;
   }): Promise<void> {
-    // reuse rule เดิมแบบ 100%
+    // same rule as access
     await this.assertCanAccessChat(params);
   }
 
   /**
    * ==============================
-   * NEW: Unread Count Permission
+   * Unread Count Permission
    * ==============================
-   * รองรับ:
-   * GET /chat/:chatId/unread-count
-   *
-   * - ต้องเป็น participant
-   * - user ต้อง active
-   * - ไม่ต้องเป็น sender
-   * - fail-closed
-   *
-   * ❗ ใช้ rule เดียวกับ assertCanAccessChat
-   * ❗ แยก method เพื่อ semantic ชัดเจน
    */
   async assertCanViewUnreadCount(params: {
     chat: any;
     viewerUserId: string;
   }): Promise<void> {
-    // unread-count = read-scope
     await this.assertCanAccessChat(params);
+  }
+
+  // =====================================================
+  // 🔒 INTERNAL: Block Enforcement (2-way)
+  // =====================================================
+  private async assertNotBlockedBetween(params: {
+    userA: string;
+    userB: string;
+  }): Promise<void> {
+    const { userA, userB } = params;
+
+    const blocked = await this.prisma.userBlock.findFirst({
+  where: {
+    OR: [
+      { blockerId: userA, blockedId: userB },
+      { blockerId: userB, blockedId: userA },
+    ],
+  },
+});
+
+if (blocked) {
+  throw new ForbiddenException(
+    'Chat is not allowed due to block relationship',
+  );
+}
+
   }
 }

@@ -19,6 +19,8 @@ export default function VideoItem({ post, onLike }: Props) {
   const [muted, setMuted] = useState(true);
   const [volume, setVolume] = useState(0.8);
 
+  const isBlocked = post.author.isBlocked === true;
+
   if (!video?.url) return null;
 
   /**
@@ -44,8 +46,10 @@ export default function VideoItem({ post, onLike }: Props) {
 
     // ❤️ double tap = like
     if (now - lastTap.current < 300) {
-      onLike?.(post.id);
-    } else if (videoRef.current) {
+  if (!isBlocked) {
+    onLike?.(post.id);
+  }
+} else if (videoRef.current) {
       if (videoRef.current.paused) {
         videoRef.current.play().catch(() => {});
       } else {
@@ -58,8 +62,11 @@ export default function VideoItem({ post, onLike }: Props) {
 
   // 🔊 toggle mute
   function toggleSound() {
-    const v = videoRef.current;
-    if (!v) return;
+  if (isBlocked) return;
+
+  const v = videoRef.current;
+  if (!v) return;
+
 
     const nextMuted = !muted;
     v.muted = nextMuted;
@@ -89,8 +96,11 @@ export default function VideoItem({ post, onLike }: Props) {
 
   // ⛶ fullscreen
   function enterFullscreen() {
-    const el = containerRef.current;
-    if (!el) return;
+  if (isBlocked) return;
+
+  const el = containerRef.current;
+  if (!el) return;
+
 
     if (el.requestFullscreen) {
       el.requestFullscreen().catch(() => {});
@@ -148,22 +158,15 @@ export default function VideoItem({ post, onLike }: Props) {
 
         {/* ===== Controls ===== */}
         <div
-          className="
-            absolute
-            bottom-3
-            right-3
-            z-10
-            flex
-            items-center
-            gap-2
-            bg-black/60
-            rounded-full
-            px-2.5
-            py-1.5
-            sm:px-3
-            sm:py-2
-          "
-        >
+  className={`
+    absolute bottom-3 right-3 z-10
+    flex items-center gap-2
+    bg-black/60 rounded-full
+    px-2.5 py-1.5
+    ${isBlocked ? "opacity-50 pointer-events-none" : ""}
+  `}
+>
+
           {/* 🔊 mute */}
           <button
             type="button"

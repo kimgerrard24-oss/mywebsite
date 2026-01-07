@@ -6,12 +6,14 @@ import { useUnfollowUser } from '@/hooks/useUnfollowUser';
 type Props = {
   userId: string;
   isFollowing: boolean;
+  isBlocked?: boolean; // ✅ NEW
   onUnfollowed?: () => void;
 };
 
 export default function UnfollowButton({
   userId,
   isFollowing,
+  isBlocked = false,
   onUnfollowed,
 }: Props) {
   const {
@@ -28,8 +30,8 @@ export default function UnfollowButton({
     e.preventDefault();
     e.stopPropagation();
 
-    // ป้องกัน double action และ state ซ้อน
-    if (loading || !isFollowing) return;
+    // 🔒 UX guard only — backend is authority
+    if (loading || !isFollowing || isBlocked) return;
 
     try {
       await unfollow();
@@ -50,9 +52,10 @@ export default function UnfollowButton({
     <button
       type="button"
       onClick={handleClick}
-      disabled={loading}
+      disabled={loading || isBlocked}
       aria-busy={loading}
-      className="
+      aria-disabled={isBlocked}
+      className={`
         inline-flex items-center justify-center
         rounded-full px-4 py-1.5
         text-sm font-medium
@@ -60,7 +63,8 @@ export default function UnfollowButton({
         hover:bg-gray-300
         transition
         disabled:opacity-60
-      "
+        ${isBlocked ? 'cursor-not-allowed' : ''}
+      `}
     >
       {loading ? 'Unfollowing…' : 'Following'}
 
