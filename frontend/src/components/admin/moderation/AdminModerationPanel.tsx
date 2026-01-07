@@ -63,6 +63,9 @@ export default function AdminModerationPanel({
       reason: string;
     } | null>(null);
 
+  const [success, setSuccess] =
+    useState(false);
+
   return (
     <section className="rounded border p-4 space-y-3">
       <h3 className="font-medium">
@@ -73,7 +76,7 @@ export default function AdminModerationPanel({
       <AdminModerationForm
         targetType={targetType}
         targetId={targetId}
-        loading={loading}
+        loading={loading || success}
         isHidden={isHidden}
         onConfirm={(data) =>
           setPending(data)
@@ -102,6 +105,10 @@ export default function AdminModerationPanel({
               targetId,
               ...pending,
             });
+
+            // backend authority → reload to sync state
+            setSuccess(true);
+            window.location.reload();
           } finally {
             // production-safe: always close modal
             setPending(null);
@@ -110,17 +117,24 @@ export default function AdminModerationPanel({
       />
 
       {/* ===== Status ===== */}
-      {loading && (
+      {loading && !success && (
         <p className="text-sm text-gray-500">
           Processing…
         </p>
       )}
 
-      {error && (
+      {error && !success && (
         <p className="text-sm text-red-600">
           {error}
+        </p>
+      )}
+
+      {success && (
+        <p className="text-sm text-green-700">
+          Moderation action completed successfully.
         </p>
       )}
     </section>
   );
 }
+

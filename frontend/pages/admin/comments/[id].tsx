@@ -35,8 +35,10 @@ export default function AdminCommentDetailPage({
 export const getServerSideProps: GetServerSideProps<
   Props
 > = async (ctx) => {
+  const cookieHeader = ctx.req.headers.cookie ?? "";
+
   const session = await sessionCheckServerSide(
-    ctx.req.headers.cookie,
+    cookieHeader,
   );
 
   // 🔒 AuthN only — backend decides ADMIN permission
@@ -52,8 +54,10 @@ export const getServerSideProps: GetServerSideProps<
   const id = ctx.params?.id as string;
 
   try {
-    // ✅ helper รับ argument เดียวเท่านั้น
-    const comment = await fetchAdminCommentById(id);
+    // 🔒 MUST forward cookie to backend (backend = authority)
+    const comment = await fetchAdminCommentById(id, {
+      cookieHeader,
+    });
 
     return {
       props: { comment },
@@ -83,3 +87,4 @@ export const getServerSideProps: GetServerSideProps<
     };
   }
 };
+

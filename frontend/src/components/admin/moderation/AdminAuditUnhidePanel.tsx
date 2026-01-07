@@ -3,9 +3,7 @@
 import { useState } from "react";
 import { useCreateModerationAction } from "@/hooks/useCreateModerationAction";
 import AdminModerationConfirmModal from "./AdminModerationConfirmModal";
-import type {
-  ModerationTargetType,
-} from "@/types/moderation-action";
+import type { ModerationTargetType } from "@/types/moderation-action";
 
 type Props = {
   /**
@@ -28,6 +26,9 @@ export default function AdminAuditUnhidePanel({
 
   const [reason, setReason] =
     useState("");
+
+  const [success, setSuccess] =
+    useState(false);
 
   return (
     <section
@@ -52,7 +53,7 @@ export default function AdminAuditUnhidePanel({
           rows={3}
           className="mt-1 w-full rounded border px-2 py-1 text-sm"
           value={reason}
-          disabled={loading}
+          disabled={loading || success}
           required
           onChange={(e) =>
             setReason(e.target.value)
@@ -68,7 +69,11 @@ export default function AdminAuditUnhidePanel({
       {/* ===== Action ===== */}
       <button
         type="button"
-        disabled={loading || !reason.trim()}
+        disabled={
+          loading ||
+          success ||
+          !reason.trim()
+        }
         onClick={() => setOpenConfirm(true)}
         className="rounded bg-green-600 px-4 py-2 text-sm text-white disabled:opacity-60"
       >
@@ -83,7 +88,7 @@ export default function AdminAuditUnhidePanel({
           setOpenConfirm(false)
         }
         onConfirm={async () => {
-          if (loading) return;
+          if (loading || success) return;
 
           try {
             await submit({
@@ -92,6 +97,10 @@ export default function AdminAuditUnhidePanel({
               actionType: "UNHIDE",
               reason: reason.trim(),
             });
+
+            // backend authority → reload to sync state
+            setSuccess(true);
+            window.location.reload();
           } finally {
             setOpenConfirm(false);
           }
@@ -99,11 +108,19 @@ export default function AdminAuditUnhidePanel({
       />
 
       {/* ===== Error ===== */}
-      {error && (
+      {error && !success && (
         <p className="mt-2 text-sm text-red-600">
           {error}
+        </p>
+      )}
+
+      {/* ===== Success ===== */}
+      {success && (
+        <p className="mt-2 text-sm text-green-700">
+          Content has been unhidden successfully.
         </p>
       )}
     </section>
   );
 }
+

@@ -35,8 +35,10 @@ export default function AdminPostDetailPage({
 export const getServerSideProps: GetServerSideProps<
   Props
 > = async (ctx) => {
+  const cookieHeader = ctx.req.headers.cookie ?? "";
+
   const session = await sessionCheckServerSide(
-    ctx.req.headers.cookie,
+    cookieHeader,
   );
 
   // 🔒 AuthN only — backend decides ADMIN permission
@@ -52,8 +54,10 @@ export const getServerSideProps: GetServerSideProps<
   const id = ctx.params?.id as string;
 
   try {
-    // ✅ helper รับ argument เดียว
-    const post = await fetchAdminPostById(id);
+    // 🔒 MUST forward cookie to backend (backend = authority)
+    const post = await fetchAdminPostById(id, {
+      cookieHeader,
+    });
 
     return {
       props: { post },
@@ -83,3 +87,4 @@ export const getServerSideProps: GetServerSideProps<
     };
   }
 };
+

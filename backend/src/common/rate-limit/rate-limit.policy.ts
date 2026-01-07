@@ -396,7 +396,7 @@ commentLike: {
   blockDuration: 300,
 
   windowSec: 60,
-  max: 5,                // รายงานได้สูงสุด 5 ครั้ง / นาที
+  max: 10,                // รายงานได้สูงสุด 5 ครั้ง / นาที
   blockDurationSec: 300, // block 5 นาที
 
   escalation: {
