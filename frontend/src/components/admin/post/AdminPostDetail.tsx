@@ -2,7 +2,7 @@
 
 import type { AdminPostDetail } from "@/types/admin-post";
 import AdminPostMedia from "./AdminPostMedia";
-import AdminModerationPanel from "@/components/admin/moderation/AdminModerationPanel";
+import AdminAuditUnhidePanel from "@/components/admin/moderation/AdminAuditUnhidePanel";
 
 type Props = {
   post: AdminPostDetail;
@@ -74,7 +74,7 @@ export default function AdminPostDetail({
 
       {/* ===== Admin Moderation (authority = backend) ===== */}
       {!post.isDeleted && (
-        <AdminModerationPanel
+        <AdminAuditUnhidePanel
           targetType="POST"
           targetId={post.id}
         />

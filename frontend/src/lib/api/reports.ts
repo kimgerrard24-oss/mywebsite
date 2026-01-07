@@ -28,6 +28,66 @@ export type MyReportItem = {
   createdAt: string;
 };
 
+/**
+ * ===== Target Snapshot (read-only evidence from backend) =====
+ * Backend is authority — frontend must not infer anything
+ */
+export type MyReportTargetSnapshot =
+  | {
+      type: "POST";
+      id: string;
+      content: string;
+      createdAt: string;
+      isHidden: boolean;
+      isDeleted: boolean;
+      deletedSource?: string | null;
+      author: {
+        id: string;
+        username: string;
+        displayName: string | null;
+      };
+      stats?: {
+        commentCount: number;
+        likeCount: number;
+      };
+    }
+  | {
+      type: "COMMENT";
+      id: string;
+      content: string;
+      createdAt: string;
+      isHidden: boolean;
+      isDeleted: boolean;
+      author: {
+        id: string;
+        username: string;
+        displayName: string | null;
+      };
+      post?: {
+        id: string;
+      };
+    }
+  | {
+      type: "USER";
+      id: string;
+      username: string;
+      displayName: string | null;
+      createdAt: string;
+      isDisabled: boolean;
+    }
+  | {
+      type: "CHAT_MESSAGE";
+      id: string;
+      content: string;
+      createdAt: string;
+      isDeleted: boolean;
+      sender: {
+        id: string;
+        username: string;
+        displayName: string | null;
+      };
+    };
+
 export type MyReportDetail = {
   id: string;
   targetType: ReportTargetType;
@@ -36,6 +96,13 @@ export type MyReportDetail = {
   description: string | null;
   status: string;
   createdAt: string;
+
+  /**
+   * ===== Target Snapshot (optional) =====
+   * - Provided only when backend can resolve target
+   * - Read-only UX helper
+   */
+  targetSnapshot?: MyReportTargetSnapshot;
 };
 
 /**
@@ -72,11 +139,11 @@ export async function getMyReports(params?: {
    * apiGet may wrap response depending on axios config
    * Normalize here to keep hook simple and safe
    */
-  if (res?.items && 'nextCursor' in res) {
+  if (res?.items && "nextCursor" in res) {
     return res;
   }
 
-  if (res?.data?.items && 'nextCursor' in res.data) {
+  if (res?.data?.items && "nextCursor" in res.data) {
     return res.data;
   }
 
@@ -85,7 +152,6 @@ export async function getMyReports(params?: {
     nextCursor: null,
   };
 }
-
 
 export async function getMyReportById(
   reportId: string,

@@ -18,6 +18,7 @@ import { RateLimit } from '../common/rate-limit/rate-limit.decorator';
 import { GetMyReportsQueryDto } from './dto/get-my-reports.query.dto';
 import { GetMyReportParamDto } from './dto/get-my-report.param.dto';
 import { WithdrawReportParamDto } from './dto/withdraw-report.param.dto';
+import { ReportDetailDto } from './dto/report-detail.dto';
 
 @Controller('reports')
 export class ReportsController {
@@ -65,6 +66,7 @@ export class ReportsController {
   /**
    * GET /reports/me/:id
    * User reads own report (detail)
+   * - Includes target snapshot (resolved in service)
    */
   @Get('me/:id')
   @UseGuards(AccessTokenCookieAuthGuard)
@@ -72,7 +74,7 @@ export class ReportsController {
   async getMyReportById(
     @CurrentUser() user: SessionUser,
     @Param() param: GetMyReportParamDto,
-  ) {
+  ): Promise<ReportDetailDto> {
     return this.reportsService.getMyReportById({
       reporterId: user.userId,
       reportId: param.id,
@@ -98,3 +100,4 @@ export class ReportsController {
     return { success: true };
   }
 }
+

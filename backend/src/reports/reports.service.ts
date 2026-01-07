@@ -1,3 +1,5 @@
+// backend/src/reports/reports.service.ts 
+
 import {
   ConflictException,
   NotFoundException,
@@ -112,7 +114,111 @@ export class ReportsService {
       );
     }
 
-    return ReportDetailDto.fromEntity(report);
+    /**
+     * ==============================
+     * Target snapshot (backend authority)
+     * ==============================
+     *
+     * Purpose:
+     * - User must see what they reported (not only targetId)
+     * - Snapshot is fetched fresh from DB
+     * - If target already deleted → snapshot may be null
+     */
+
+    let targetSnapshot: any = undefined;
+
+    switch (report.targetType) {
+      case 'POST': {
+        const post =
+          await this.repo.findPostSnapshotById(
+            report.targetId,
+          );
+
+        if (post) {
+          targetSnapshot = {
+            type: 'POST',
+            id: post.id,
+            content: post.content,
+            createdAt: post.createdAt,
+            isHidden: post.isHidden === true,
+            isDeleted: post.isDeleted === true,
+            deletedSource:
+              post.deletedSource ?? null,
+            author: post.author,
+          };
+        }
+        break;
+      }
+
+      case 'COMMENT': {
+        const comment =
+          await this.repo.findCommentSnapshotById(
+            report.targetId,
+          );
+
+        if (comment) {
+          targetSnapshot = {
+            type: 'COMMENT',
+            id: comment.id,
+            content: comment.content,
+            createdAt: comment.createdAt,
+            isHidden: comment.isHidden === true,
+            isDeleted: comment.isDeleted === true,
+            author: comment.author,
+            post: {
+              id: comment.post.id,
+            },
+          };
+        }
+        break;
+      }
+
+      case 'USER': {
+        const user =
+          await this.repo.findUserSnapshotById(
+            report.targetId,
+          );
+
+        if (user) {
+          targetSnapshot = {
+            type: 'USER',
+            id: user.id,
+            username: user.username,
+            displayName: user.displayName,
+            createdAt: user.createdAt,
+            isDisabled: user.isDisabled === true,
+          };
+        }
+        break;
+      }
+
+      case 'CHAT_MESSAGE': {
+        const message =
+          await this.repo.findChatMessageSnapshotById(
+            report.targetId,
+          );
+
+        if (message) {
+          targetSnapshot = {
+            type: 'CHAT_MESSAGE',
+            id: message.id,
+            content: message.content,
+            createdAt: message.createdAt,
+            isDeleted: message.isDeleted === true,
+            sender: message.sender,
+          };
+        }
+        break;
+      }
+
+      default:
+        targetSnapshot = undefined;
+    }
+
+    return ReportDetailDto.fromEntity({
+      ...report,
+      targetSnapshot,
+    });
   }
 
   async withdrawReport(params: {
@@ -146,3 +252,4 @@ export class ReportsService {
     }
   }
 }
+

@@ -25,12 +25,73 @@ export class AdminReportDetailDto {
   resolutionNote?: string | null;
 
   /**
-   * ===== Target state (NEW)
-   * UX helper only — backend is authority
+   * ===== Target state (UX helper only)
+   * Backend is authority
    */
   target?: {
     isHidden: boolean;
   };
+
+  /**
+   * ===== Target snapshot (Admin evidence view)
+   * Read-only, backend-authoritative
+   * Shape depends on targetType
+   */
+  targetSnapshot?:
+    | {
+        type: 'POST';
+        id: string;
+        content: string;
+        createdAt: Date;
+        isHidden: boolean;
+        isDeleted: boolean;
+        deletedSource?: string | null;
+        author: {
+          id: string;
+          username: string;
+          displayName: string | null;
+        };
+        stats: {
+          commentCount: number;
+          likeCount: number;
+        };
+      }
+    | {
+        type: 'COMMENT';
+        id: string;
+        content: string;
+        createdAt: Date;
+        isHidden: boolean;
+        isDeleted: boolean;
+        author: {
+          id: string;
+          username: string;
+          displayName: string | null;
+        };
+        post: {
+          id: string;
+        };
+      }
+    | {
+        type: 'USER';
+        id: string;
+        username: string;
+        displayName: string | null;
+        createdAt: Date;
+        isDisabled: boolean;
+      }
+    | {
+        type: 'CHAT_MESSAGE';
+        id: string;
+        content: string;
+        createdAt: Date;
+        isDeleted: boolean;
+        sender: {
+          id: string;
+          username: string;
+          displayName: string | null;
+        };
+      };
 
   static from(entity: any): AdminReportDetailDto {
     return {
@@ -49,15 +110,22 @@ export class AdminReportDetailDto {
       resolutionNote: entity.resolutionNote ?? null,
 
       /**
-       * 🔒 Optional target state
-       * - Provided only when repository resolves it
-       * - Safe default = not hidden
+       * 🔒 Optional target state (UX helper)
        */
       target: entity.target
         ? {
             isHidden: entity.target.isHidden === true,
           }
         : undefined,
+
+      /**
+       * ===== Target snapshot (Admin evidence)
+       * Provided only when service resolves it
+       */
+      targetSnapshot: entity.targetSnapshot
+        ? entity.targetSnapshot
+        : undefined,
     };
   }
 }
+

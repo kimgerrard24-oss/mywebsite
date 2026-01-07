@@ -79,7 +79,7 @@ export class AdminReportsRepository {
     }
 
     /**
-     * ===== Resolve target state (NEW, optional)
+     * ===== Resolve target state (UX guard only)
      * Backend is authority
      */
     let target:
@@ -163,13 +163,106 @@ export class AdminReportsRepository {
         }
       }
     } catch {
-      // 🔕 production-safe: do not block report view
+      // production-safe: do not block report view
     }
 
     return {
       ...report,
       target,
     };
+  }
+
+  /**
+   * ==============================
+   * Target snapshot (admin evidence)
+   * ==============================
+   * Used by AdminReportsService.getReportById
+   * Backend is authority
+   */
+
+ async findPostSnapshotById(postId: string) {
+  return this.prisma.post.findUnique({
+    where: { id: postId },
+    select: {
+      id: true,
+      content: true,
+      createdAt: true,
+      isHidden: true,
+      isDeleted: true,
+      deletedSource: true,
+      author: {
+        select: {
+          id: true,
+          username: true,
+          displayName: true,
+        },
+      },
+      _count: {
+        select: {
+          comments: true,
+          likes: true,
+        },
+      },
+    },
+  });
+}
+
+
+  async findCommentSnapshotById(commentId: string) {
+    return this.prisma.comment.findUnique({
+      where: { id: commentId },
+      select: {
+        id: true,
+        content: true,
+        createdAt: true,
+        isHidden: true,
+        isDeleted: true,
+        author: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+          },
+        },
+        post: {
+          select: {
+            id: true,
+          },
+        },
+      },
+    });
+  }
+
+  async findUserSnapshotById(userId: string) {
+    return this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        username: true,
+        displayName: true,
+        createdAt: true,
+        isDisabled: true,
+      },
+    });
+  }
+
+  async findChatMessageSnapshotById(messageId: string) {
+    return this.prisma.chatMessage.findUnique({
+      where: { id: messageId },
+      select: {
+        id: true,
+        content: true,
+        createdAt: true,
+        isDeleted: true,
+        sender: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+          },
+        },
+      },
+    });
   }
 
   async countAll(): Promise<number> {
@@ -239,3 +332,4 @@ export class AdminReportsRepository {
     });
   }
 }
+

@@ -145,76 +145,158 @@ export class ReportsRepository {
     });
   }
 
-  
-/**
- * Resolve owner of report target
- * (Backend authority)
- */
-async findTargetOwnerId(params: {
-  targetType: ReportTargetType;
-  targetId: string;
-}): Promise<string | null> {
-  const { targetType, targetId } = params;
+  /**
+   * Resolve owner of report target
+   * (Backend authority)
+   */
+  async findTargetOwnerId(params: {
+    targetType: ReportTargetType;
+    targetId: string;
+  }): Promise<string | null> {
+    const { targetType, targetId } = params;
 
-  switch (targetType) {
-    case ReportTargetType.POST: {
-      const post = await this.prisma.post.findUnique({
-        where: { id: targetId },
-        select: { authorId: true },
-      });
-
-      if (!post) {
-        throw new NotFoundException('Post not found');
-      }
-
-      return post.authorId;
-    }
-
-    case ReportTargetType.COMMENT: {
-      const comment = await this.prisma.comment.findUnique({
-        where: { id: targetId },
-        select: { authorId: true },
-      });
-
-      if (!comment) {
-        throw new NotFoundException('Comment not found');
-      }
-
-      return comment.authorId;
-    }
-
-    case ReportTargetType.USER: {
-      const user = await this.prisma.user.findUnique({
-        where: { id: targetId },
-        select: { id: true },
-      });
-
-      if (!user) {
-        throw new NotFoundException('User not found');
-      }
-
-      return user.id;
-    }
-
-    case ReportTargetType.CHAT_MESSAGE: {
-      const message =
-        await this.prisma.chatMessage.findUnique({
+    switch (targetType) {
+      case ReportTargetType.POST: {
+        const post = await this.prisma.post.findUnique({
           where: { id: targetId },
-          select: { senderId: true },
+          select: { authorId: true },
         });
 
-      if (!message) {
-        throw new NotFoundException(
-          'Chat message not found',
-        );
+        if (!post) {
+          throw new NotFoundException('Post not found');
+        }
+
+        return post.authorId;
       }
 
-      return message.senderId;
-    }
+      case ReportTargetType.COMMENT: {
+        const comment = await this.prisma.comment.findUnique({
+          where: { id: targetId },
+          select: { authorId: true },
+        });
 
-    default:
-      // exhaustive safety (should never happen)
-      return null;
+        if (!comment) {
+          throw new NotFoundException('Comment not found');
+        }
+
+        return comment.authorId;
+      }
+
+      case ReportTargetType.USER: {
+        const user = await this.prisma.user.findUnique({
+          where: { id: targetId },
+          select: { id: true },
+        });
+
+        if (!user) {
+          throw new NotFoundException('User not found');
+        }
+
+        return user.id;
+      }
+
+      case ReportTargetType.CHAT_MESSAGE: {
+        const message =
+          await this.prisma.chatMessage.findUnique({
+            where: { id: targetId },
+            select: { senderId: true },
+          });
+
+        if (!message) {
+          throw new NotFoundException(
+            'Chat message not found',
+          );
+        }
+
+        return message.senderId;
+      }
+
+      default:
+        return null;
+    }
   }
- }
+
+  /**
+   * ==============================
+   * Target Snapshot (for User Report Detail)
+   * ==============================
+   */
+
+  async findPostSnapshotById(postId: string) {
+    return this.prisma.post.findUnique({
+      where: { id: postId },
+      select: {
+        id: true,
+        content: true,
+        createdAt: true,
+        isHidden: true,
+        isDeleted: true,
+        deletedSource: true,
+        author: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+          },
+        },
+      },
+    });
+  }
+
+  async findCommentSnapshotById(commentId: string) {
+    return this.prisma.comment.findUnique({
+      where: { id: commentId },
+      select: {
+        id: true,
+        content: true,
+        createdAt: true,
+        isHidden: true,
+        isDeleted: true,
+        author: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+          },
+        },
+        post: {
+          select: {
+            id: true,
+          },
+        },
+      },
+    });
+  }
+
+  async findUserSnapshotById(userId: string) {
+    return this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        username: true,
+        displayName: true,
+        createdAt: true,
+        isDisabled: true,
+      },
+    });
+  }
+
+  async findChatMessageSnapshotById(messageId: string) {
+    return this.prisma.chatMessage.findUnique({
+      where: { id: messageId },
+      select: {
+        id: true,
+        content: true,
+        createdAt: true,
+        isDeleted: true,
+        sender: {
+          select: {
+            id: true,
+            username: true,
+            displayName: true,
+          },
+        },
+      },
+    });
+  }
 }

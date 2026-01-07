@@ -13,6 +13,7 @@ import { AccessTokenCookieAuthGuard } from '../../auth/guards/access-token-cooki
 import { AdminRoleGuard } from '../guards/admin-role.guard';
 import { GetAdminReportParamDto } from './dto/get-admin-report.param.dto';
 import { AdminReportStatsDto } from './dto/admin-report-stats.dto';
+import { AdminReportDetailDto } from './dto/admin-report-detail.dto';
 import { RateLimit } from '../../common/rate-limit/rate-limit.decorator';
 
 @Controller('admin/reports')
@@ -42,14 +43,16 @@ export class AdminReportsController {
     return this.service.getStats();
   }
 
-    /**
+  /**
    * GET /admin/reports/:id
    * - Read-only admin evidence view
+   * - Includes target snapshot (resolved in service)
    */
   @Get(':id')
   async getReportById(
     @Param() param: GetAdminReportParamDto,
-  ) {
+  ): Promise<AdminReportDetailDto> {
     return this.service.getReportById(param.id);
   }
 }
+

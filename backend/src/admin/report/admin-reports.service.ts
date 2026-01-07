@@ -1,5 +1,4 @@
 // backend/src/admin/report/admin-reports.service.ts
-
 import {
   Injectable,
   NotFoundException,
@@ -37,30 +36,141 @@ export class AdminReportsService {
    * GET /admin/reports/:id
    * - Read-only admin evidence view
    * - Backend is authority
-   * - Includes optional target state (isHidden)
+   * - Includes target snapshot (evidence at time of review)
    */
-  async getReportById(
-    reportId: string,
-  ): Promise<AdminReportDetailDto> {
-    const report =
-      await this.repo.findReportById(reportId);
+async getReportById(
+  reportId: string,
+): Promise<AdminReportDetailDto> {
+  const report =
+    await this.repo.findReportById(reportId);
 
-    if (!report) {
-      throw new NotFoundException(
-        'Report not found',
-      );
+  if (!report) {
+    throw new NotFoundException(
+      'Report not found',
+    );
+  }
+
+  // 🔒 Business rule: admin can read only allowed reports
+  AdminReportPolicy.assertReadable(report);
+
+  /**
+   * ==============================
+   * Target snapshot (backend authority)
+   * ==============================
+   *
+   * Purpose:
+   * - Admin must see real content, not only targetId
+   * - Snapshot is fetched fresh from DB (not from client)
+   * - If target already deleted → snapshot may be null
+   */
+
+  let targetSnapshot: any = undefined;
+
+  switch (report.targetType) {
+    case 'POST': {
+      const post =
+        await this.repo.findPostSnapshotById(
+          report.targetId,
+        );
+
+      if (post) {
+        targetSnapshot = {
+          type: 'POST',
+          id: post.id,
+          content: post.content,
+          createdAt: post.createdAt,
+          isHidden: post.isHidden === true,
+          isDeleted: post.isDeleted === true,
+          deletedSource:
+            post.deletedSource ?? null,
+          author: post.author,
+          stats: {
+            commentCount:
+              post._count?.comments ?? 0,
+            likeCount:
+              post._count?.likes ?? 0,
+          },
+        };
+      }
+      break;
     }
 
-    // 🔒 Business rule: admin can read only allowed reports
-    AdminReportPolicy.assertReadable(report);
+    case 'COMMENT': {
+      const comment =
+        await this.repo.findCommentSnapshotById(
+          report.targetId,
+        );
 
-    /**
-     * IMPORTANT:
-     * - Do NOT strip extra fields (e.g. report.target)
-     * - DTO is responsible for shaping response
-     */
-    return AdminReportDetailDto.from(report);
+      if (comment) {
+        targetSnapshot = {
+          type: 'COMMENT',
+          id: comment.id,
+          content: comment.content,
+          createdAt: comment.createdAt,
+          isHidden: comment.isHidden === true,
+          isDeleted: comment.isDeleted === true,
+          author: comment.author,
+          post: {
+            id: comment.post.id,
+          },
+        };
+      }
+      break;
+    }
+
+    case 'USER': {
+      const user =
+        await this.repo.findUserSnapshotById(
+          report.targetId,
+        );
+
+      if (user) {
+        targetSnapshot = {
+          type: 'USER',
+          id: user.id,
+          username: user.username,
+          displayName: user.displayName,
+          createdAt: user.createdAt,
+          isDisabled: user.isDisabled === true,
+        };
+      }
+      break;
+    }
+
+    case 'CHAT_MESSAGE': {
+      const message =
+        await this.repo.findChatMessageSnapshotById(
+          report.targetId,
+        );
+
+      if (message) {
+        targetSnapshot = {
+          type: 'CHAT_MESSAGE',
+          id: message.id,
+          content: message.content,
+          createdAt: message.createdAt,
+          isDeleted: message.isDeleted === true,
+          sender: message.sender,
+        };
+      }
+      break;
+    }
+
+    default:
+      targetSnapshot = undefined;
   }
+
+  /**
+   * IMPORTANT:
+   * - Do NOT trust frontend for content
+   * - Attach snapshot here, DTO will shape response
+   */
+  return AdminReportDetailDto.from({
+    ...report,
+    targetSnapshot,
+  });
+}
+
 
   /**
    * GET /admin/reports/stats

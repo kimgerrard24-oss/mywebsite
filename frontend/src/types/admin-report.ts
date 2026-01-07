@@ -68,13 +68,71 @@ export type AdminReportDetail = {
   resolutionNote?: string | null;
 
   /**
-   * ===== Target snapshot (read-only, optional) =====
-   * - Used for UX guard only (hide / unhide toggle)
-   * - Backend remains the sole authority
-   * - Present only when backend can resolve target
+   * ===== Target state (UX helper only) =====
+   * Backend is authority
    */
   target?: {
     isHidden?: boolean;
     isDeleted?: boolean;
   };
+
+  /**
+   * ===== Target snapshot (Admin evidence view) =====
+   * Read-only, backend-authoritative
+   */
+  targetSnapshot?:
+    | {
+        type: "POST";
+        id: string;
+        content: string;
+        createdAt: string;
+        isHidden: boolean;
+        isDeleted: boolean;
+        deletedSource?: string | null;
+        author: {
+          id: string;
+          username: string;
+          displayName: string | null;
+        };
+        stats: {
+          commentCount: number;
+          likeCount: number;
+        };
+      }
+    | {
+        type: "COMMENT";
+        id: string;
+        content: string;
+        createdAt: string;
+        isHidden: boolean;
+        isDeleted: boolean;
+        author: {
+          id: string;
+          username: string;
+          displayName: string | null;
+        };
+        post: {
+          id: string;
+        };
+      }
+    | {
+        type: "USER";
+        id: string;
+        username: string;
+        displayName: string | null;
+        createdAt: string;
+        isDisabled: boolean;
+      }
+    | {
+        type: "CHAT_MESSAGE";
+        id: string;
+        content: string;
+        createdAt: string;
+        isDeleted: boolean;
+        sender: {
+          id: string;
+          username: string;
+          displayName: string | null;
+        };
+      };
 };

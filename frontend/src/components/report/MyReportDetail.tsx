@@ -35,12 +35,15 @@ function canWithdraw(status: MyReportDetail["status"]) {
 }
 
 export default function MyReportDetail({ report }: Props) {
+  const snapshot = report.targetSnapshot;
+
   return (
     <article className="rounded-md border p-4">
       <header className="mb-2">
         <h1 className="text-lg font-semibold">
           Report Detail
         </h1>
+
         <p className="text-sm text-gray-500">
           Target{" "}
           {renderTargetLabel(report.targetType)} (
@@ -67,6 +70,106 @@ export default function MyReportDetail({ report }: Props) {
         </p>
       </section>
 
+      {/* ===== Target Snapshot (read-only, backend authority) ===== */}
+      {snapshot &&
+        snapshot.type === report.targetType && (
+          <section className="mt-4 rounded border bg-gray-50 p-3 text-sm space-y-2">
+            <p className="font-medium text-gray-700">
+              Reported content
+            </p>
+
+            {snapshot.type === "POST" && (
+              <div className="space-y-1">
+                <p className="text-gray-800 whitespace-pre-wrap">
+                  {snapshot.content}
+                </p>
+
+                <p className="text-xs text-gray-500">
+                  By{" "}
+                  {snapshot.author.displayName ??
+                    snapshot.author.username}{" "}
+                  ·{" "}
+                  {new Date(
+                    snapshot.createdAt,
+                  ).toLocaleString()}
+                </p>
+
+                {(snapshot.isHidden ||
+                  snapshot.isDeleted) && (
+                  <p className="text-xs text-red-600">
+                    This post is no longer visible
+                  </p>
+                )}
+              </div>
+            )}
+
+            {snapshot.type === "COMMENT" && (
+              <div className="space-y-1">
+                <p className="text-gray-800 whitespace-pre-wrap">
+                  {snapshot.content}
+                </p>
+
+                <p className="text-xs text-gray-500">
+                  By{" "}
+                  {snapshot.author.displayName ??
+                    snapshot.author.username}{" "}
+                  ·{" "}
+                  {new Date(
+                    snapshot.createdAt,
+                  ).toLocaleString()}
+                </p>
+
+                {(snapshot.isHidden ||
+                  snapshot.isDeleted) && (
+                  <p className="text-xs text-red-600">
+                    This comment is no longer visible
+                  </p>
+                )}
+              </div>
+            )}
+
+            {snapshot.type === "USER" && (
+              <div className="space-y-1">
+                <p>
+                  <strong>User:</strong>{" "}
+                  {snapshot.displayName ??
+                    snapshot.username}
+                </p>
+
+                {snapshot.isDisabled && (
+                  <p className="text-xs text-red-600">
+                    This user is disabled
+                  </p>
+                )}
+              </div>
+            )}
+
+            {snapshot.type === "CHAT_MESSAGE" && (
+              <div className="space-y-1">
+                <p className="text-gray-800 whitespace-pre-wrap">
+                  {snapshot.content}
+                </p>
+
+                <p className="text-xs text-gray-500">
+                  By{" "}
+                  {snapshot.sender.displayName ??
+                    snapshot.sender.username}{" "}
+                  ·{" "}
+                  {new Date(
+                    snapshot.createdAt,
+                  ).toLocaleString()}
+                </p>
+
+                {snapshot.isDeleted && (
+                  <p className="text-xs text-red-600">
+                    This message is deleted
+                  </p>
+                )}
+              </div>
+            )}
+          </section>
+        )}
+
       {canWithdraw(report.status) && (
         <div className="mt-4">
           <WithdrawReportButton
@@ -86,3 +189,5 @@ export default function MyReportDetail({ report }: Props) {
     </article>
   );
 }
+
+
