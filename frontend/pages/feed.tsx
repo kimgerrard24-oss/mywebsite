@@ -307,6 +307,16 @@ export default function FeedPage({
           </Link>
         </li>
 
+          <li>
+        <Link
+          href="/users/blocks"
+          role="menuitem"
+          className="block px-4 py-2 hover:bg-gray-100"
+        >
+          Blocked Users
+        </Link>
+      </li>
+
         {/* 🌐 Language */}
         <li className="px-4 py-2 hover:bg-gray-100">
           <LanguageSwitcher currentLang={lang} />

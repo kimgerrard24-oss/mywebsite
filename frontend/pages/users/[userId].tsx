@@ -17,133 +17,133 @@ import type { PostFeedItem } from "@/types/post-feed";
 
 type Props = {
   profile: PublicUserProfile;
-  posts: PostFeedItem[]; // kept for compatibility (fail-soft SSR)
+  posts: PostFeedItem[];
 };
 
 export default function UserProfilePage({ profile }: Props) {
   const siteUrl =
     process.env.NEXT_PUBLIC_SITE_URL || "https://www.phlyphant.com";
 
-return (
-  <>
-    <Head>
-      <title>{profile.displayName ?? 'User'} | PhlyPhant</title>
-      <meta
-        name="description"
-        content={`ดูโปรไฟล์และโพสต์ของ ${
-          profile.displayName ?? 'ผู้ใช้'
-        } บน PhlyPhant`}
-      />
-      <link
-        rel="canonical"
-        href={`${siteUrl}/users/${profile.id}`}
-      />
-      <meta property="og:type" content="profile" />
-      <meta
-        property="og:title"
-        content={`${profile.displayName ?? 'User'} | PhlyPhant`}
-      />
-      <meta
-        property="og:url"
-        content={`${siteUrl}/users/${profile.id}`}
-      />
-    </Head>
+  return (
+    <>
+      <Head>
+        <title>{profile.displayName ?? "User"} | PhlyPhant</title>
+        <meta
+          name="description"
+          content={`ดูโปรไฟล์และโพสต์ของ ${
+            profile.displayName ?? "ผู้ใช้"
+          } บน PhlyPhant`}
+        />
+        <link
+          rel="canonical"
+          href={`${siteUrl}/users/${profile.id}`}
+        />
+        <meta property="og:type" content="profile" />
+        <meta
+          property="og:title"
+          content={`${profile.displayName ?? "User"} | PhlyPhant`}
+        />
+        <meta
+          property="og:url"
+          content={`${siteUrl}/users/${profile.id}`}
+        />
+      </Head>
 
-    <ProfileLayout>
-      <main
-        className="
-          min-h-screen
-          bg-gray-50
-        "
-      >
-        {/* ===== Top navigation ===== */}
-        <nav
-          aria-label="Profile navigation"
-          className="
-            mx-auto
-            w-full
-            max-w-5xl
-            px-4
-            pt-4
-            sm:pt-6
-          "
-        >
-          <Link
-            href="/feed"
-            prefetch={false}
+      <ProfileLayout>
+        <main className="min-h-screen bg-gray-50">
+          {/* ===== Top navigation ===== */}
+          <nav
+            aria-label="Profile navigation"
             className="
-              inline-block
-              text-xs
-              sm:text-sm
-              text-blue-600
-              hover:underline
-              focus:outline-none
-              focus-visible:ring-2
-              focus-visible:ring-blue-500
-              rounded
+              mx-auto
+              w-full
+              max-w-5xl
+              px-4
+              pt-4
+              sm:pt-6
             "
           >
-            ← Back to feed
-          </Link>
-        </nav>
+            <Link
+              href="/feed"
+              prefetch={false}
+              className="
+                inline-block
+                text-xs
+                sm:text-sm
+                text-blue-600
+                hover:underline
+                focus:outline-none
+                focus-visible:ring-2
+                focus-visible:ring-blue-500
+                rounded
+              "
+            >
+              ← Back to feed
+            </Link>
+          </nav>
 
-        {/* ===== Profile card ===== */}
-        <section
-          aria-label="User profile"
-          className="
-            mx-auto
-            w-full
-            max-w-5xl
-            px-4
-            pt-4
-            sm:pt-6
-            pb-6
-            sm:pb-8
-          "
-        >
-          <ProfileCard
-            profile={profile}
-            isSelf={profile.isSelf === true}
-          />
-          
-{/* ===== Block / Unblock (public profile only) ===== */}
-{!profile.isSelf && (
-  <div className="mt-3 flex justify-center">
-    {profile.isBlocked ? (
-      <UnblockUserButton
-        targetUserId={profile.id}
-        onUnblocked={() => window.location.reload()}
-      />
-    ) : (
-      <BlockUserButton
-        targetUserId={profile.id}
-        onBlocked={() => window.location.reload()}
-      />
-    )}
-  </div>
-)}
+          {/* ===== Profile card ===== */}
+          <section
+            aria-label="User profile"
+            className="
+              mx-auto
+              w-full
+              max-w-5xl
+              px-4
+              pt-4
+              sm:pt-6
+              pb-6
+              sm:pb-8
+            "
+          >
+            {/* ⬇️ wrapper for absolute action */}
+            <div className="relative">
+              <ProfileCard
+                profile={profile}
+                isSelf={profile.isSelf === true}
+              />
 
-        </section>
+              {/* ===== Block / Unblock (top-right on card) ===== */}
+              {!profile.isSelf && (
+                <div className="absolute top-4 right-4">
+                  {profile.isBlocked ? (
+                    <UnblockUserButton
+                      targetUserId={profile.id}
+                      onUnblocked={() =>
+                        window.location.reload()
+                      }
+                    />
+                  ) : (
+                    <BlockUserButton
+                      targetUserId={profile.id}
+                      onBlocked={() =>
+                        window.location.reload()
+                      }
+                    />
+                  )}
+                </div>
+              )}
+            </div>
+          </section>
 
-        {/* ===== Profile posts ===== */}
-        <section
-          aria-label="User posts"
-          className="
-            mx-auto
-            w-full
-            max-w-5xl
-            px-4
-            pb-8
-            sm:pb-12
-          "
-        >
-          <ProfilePosts userId={profile.id} />
-        </section>
-      </main>
-    </ProfileLayout>
-  </>
-);
-
+          {/* ===== Profile posts ===== */}
+          <section
+            aria-label="User posts"
+            className="
+              mx-auto
+              w-full
+              max-w-5xl
+              px-4
+              pb-8
+              sm:pb-12
+            "
+          >
+            <ProfilePosts userId={profile.id} />
+          </section>
+        </main>
+      </ProfileLayout>
+    </>
+  );
 }
 
 export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
@@ -154,10 +154,11 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
   }
 
   try {
-    const { profile } = await fetchPublicUserProfileServer(
-      userId,
-      ctx.req.headers.cookie
-    );
+    const { profile } =
+      await fetchPublicUserProfileServer(
+        userId,
+        ctx.req.headers.cookie
+      );
 
     if (!profile) {
       return { notFound: true };
@@ -187,3 +188,5 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
     return { notFound: true };
   }
 };
+
+

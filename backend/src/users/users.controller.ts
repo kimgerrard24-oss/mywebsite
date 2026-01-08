@@ -100,37 +100,54 @@ async getMe(
 
 
     @Get('search')
-  async searchUsers(
-    @Query() query: SearchUsersQueryDto,
-    @Req() req: Request,
-  ): Promise<PublicUserSearchDto[]> {
-    const viewerUserId = (req.user as any)?.userId;
+@UseGuards(AccessTokenCookieAuthGuard)
+async searchUsers(
+  @Query() query: SearchUsersQueryDto,
+  @Req() req: Request,
+): Promise<PublicUserSearchDto[]> {
+  const viewerUserId = (req.user as any)?.userId;
 
-    return this.usersService.searchUsers({
-      query: query.query,
-      limit: query.limit,
-      viewerUserId,
-    });
+  if (!viewerUserId) {
+    throw new UnauthorizedException('Authentication required');
   }
+
+  return this.usersService.searchUsers({
+    query: query.query,
+    limit: query.limit,
+    viewerUserId,
+  });
+}
+
 
   @Get(':id')
-  async getPublicProfile(
-    @Param('id', ParseUserIdPipe) userId: string,
-    @Req() req: Request,
-  ) {
-    const viewer = req.user ?? null;
+@UseGuards(AccessTokenCookieAuthGuard)
+async getPublicProfile(
+  @Param('id', ParseUserIdPipe) userId: string,
+  @Req() req: Request,
+) {
+  const viewer = req.user as { userId: string } | undefined;
 
-    const profile = await this.usersService.getPublicProfile({
-      targetUserId: userId,
-      viewerUserId: viewer?.userId ?? null,
-    });
-
-    if (!profile) {
-      throw new NotFoundException('User not found');
-    }
-
-    return profile;
+  if (!viewer?.userId) {
+    throw new UnauthorizedException('Authentication required');
   }
+
+  const profile = await this.usersService.getPublicProfile({
+    targetUserId: userId,
+    viewerUserId: viewer.userId,
+  });
+
+  /**
+   * 🔒 HARD VISIBILITY
+   * - not found
+   * - or blocked (service returns null)
+   */
+  if (!profile) {
+    throw new NotFoundException('User not found');
+  }
+
+  return profile;
+}
+
 
   @Put('update')
   @UseGuards(AccessTokenCookieAuthGuard)

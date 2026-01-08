@@ -1,6 +1,7 @@
 // frontend/src/components/users/BlockedUserList.tsx
 
 import Image from "next/image";
+import UnblockUserButton from "./UnblockUserButton";
 
 type Item = {
   id: string;
@@ -35,6 +36,7 @@ export default function BlockedUserList({
           key={u.id}
           className="flex items-center gap-3 p-3"
         >
+          {/* Avatar */}
           <div className="relative h-10 w-10 overflow-hidden rounded-full bg-gray-200">
             {u.avatarUrl && (
               <Image
@@ -46,6 +48,7 @@ export default function BlockedUserList({
             )}
           </div>
 
+          {/* Name */}
           <div className="flex-1">
             <p className="text-sm font-medium">
               {u.displayName ?? u.username}
@@ -55,14 +58,27 @@ export default function BlockedUserList({
             </p>
           </div>
 
+          {/* Blocked date */}
           <time
             dateTime={u.blockedAt}
             className="text-xs text-gray-400"
           >
             {new Date(u.blockedAt).toLocaleDateString()}
           </time>
+
+          {/* ✅ Unblock action */}
+          <div className="ml-3">
+            <UnblockUserButton
+              targetUserId={u.id}
+              onUnblocked={() => {
+                // backend authority → reload to sync state
+                window.location.reload();
+              }}
+            />
+          </div>
         </li>
       ))}
     </ul>
   );
 }
+

@@ -77,7 +77,35 @@ async findChatRoomsByUser(userId: string) {
           leftAt: null,
         },
       },
-      // ❗ block logic removed — enforced in ChatPermissionService
+
+      // 🔒 EXCLUDE BLOCKED CHATS (DM ONLY, BOTH DIRECTIONS)
+      NOT: {
+        participants: {
+          some: {
+            user: {
+              OR: [
+                // peer blocked by viewer
+                {
+                  blockedBy: {
+                    some: {
+                      blockerId: userId,
+                    },
+                  },
+                },
+
+                // viewer blocked by peer
+                {
+                  blockedUsers: {
+                    some: {
+                      blockedId: userId,
+                    },
+                  },
+                },
+              ],
+            },
+          },
+        },
+      },
     },
 
     orderBy: {
@@ -88,6 +116,7 @@ async findChatRoomsByUser(userId: string) {
       participants: {
         where: {
           userId: { not: userId },
+          leftAt: null,
         },
         include: {
           user: {
@@ -101,22 +130,16 @@ async findChatRoomsByUser(userId: string) {
       },
 
       messages: {
-        orderBy: {
-          createdAt: 'desc',
-        },
+        orderBy: { createdAt: 'desc' },
         take: 1,
       },
 
       readStates: {
-        where: {
-          userId,
-        },
+        where: { userId },
       },
     },
   });
 }
-
-
 
   async findChatMeta(chatId: string) {
     return this.prisma.chat.findUnique({

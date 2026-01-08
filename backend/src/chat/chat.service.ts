@@ -269,30 +269,39 @@ async sendMessage(params: {
 
 
    async getUnreadCount(params: {
-    chatId: string;
-    viewerUserId: string;
-  }) {
-    const { chatId, viewerUserId } = params;
+  chatId: string;
+  viewerUserId: string;
+}) {
+  const { chatId, viewerUserId } = params;
 
-    // โหลด chat + participants
-    const chat =
-      await this.repo.findChatWithParticipants(
-        chatId,
-      );
+  // 1) Load chat + participants (existence check)
+  const chat =
+    await this.repo.findChatWithParticipants(chatId);
 
-    // permission (fail-closed)
+  // 2) Permission (fail-soft for unread badge)
+  try {
     await this.permission.assertCanAccessChat({
       chat,
       viewerUserId,
     });
-
-    const count =
-      await this.repo.countUnreadMessages({
-        chatId,
-        userId: viewerUserId,
-      });
-
-    return mapUnreadCount(count);
+  } catch {
+    /**
+     * 🔒 If blocked / no longer allowed:
+     * - Do NOT throw (badge polling should not error-spam)
+     * - Treat as 0 unread
+     */
+    return mapUnreadCount(0);
   }
+
+  // 3) Count unread messages (authoritative)
+  const count =
+    await this.repo.countUnreadMessages({
+      chatId,
+      userId: viewerUserId,
+    });
+
+  return mapUnreadCount(count);
+}
+
   
 }

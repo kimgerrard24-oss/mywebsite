@@ -7,7 +7,7 @@ export class ChatPermissionService {
   constructor(private readonly prisma: PrismaService) {}
 
   /**
-   * ตรวจว่า viewer สามารถคุยกับ target ได้หรือไม่
+   * ตรวจว่า viewer สามารถเริ่มแชทกับ target ได้หรือไม่
    * - block (2 ทาง)
    * - privacy (future)
    * (fail-closed)
@@ -18,21 +18,24 @@ export class ChatPermissionService {
   ): Promise<boolean> {
     // ===== BLOCK CHECK (2-way) =====
     const blocked = await this.prisma.userBlock.findFirst({
-  where: {
-    OR: [
-      { blockerId: viewerUserId, blockedId: targetUserId },
-      { blockerId: targetUserId, blockedId: viewerUserId },
-    ],
-  },
-});
+      where: {
+        OR: [
+          { blockerId: viewerUserId, blockedId: targetUserId },
+          { blockerId: targetUserId, blockedId: viewerUserId },
+        ],
+      },
+      select: { blockerId: true },
+    });
 
-if (blocked) return false;
-
+    if (blocked) return false;
 
     // ===== FUTURE: privacy rules =====
     return true;
   }
 
+  /**
+   * ตรวจว่า user ยัง active และไม่ถูก disable
+   */
   async assertUserActive(userId: string): Promise<void> {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -48,12 +51,11 @@ if (blocked) return false;
 
   /**
    * ตรวจว่า viewer สามารถเข้าถึง chat นี้ได้หรือไม่
-   * (ใช้กับ GET meta, GET messages, PATCH, DELETE, READ, UNREAD)
    *
    * Enforcement:
    * - must be participant
-   * - both users must be active
-   * - must NOT be blocked (2-way)
+   * - viewer must be active
+   * - must NOT be blocked (2-way) in DM
    * (fail-closed)
    */
   async assertCanAccessChat(params: {
@@ -62,8 +64,8 @@ if (blocked) return false;
   }): Promise<void> {
     const { chat, viewerUserId } = params;
 
-    if (!chat) {
-      throw new ForbiddenException('Chat not found');
+    if (!chat || !Array.isArray(chat.participants)) {
+      throw new ForbiddenException('Access denied');
     }
 
     // ===== participant check =====
@@ -80,19 +82,21 @@ if (blocked) return false;
       throw new ForbiddenException('Access denied');
     }
 
-    // ===== find other participant (DM only) =====
+    // ===== DM block enforcement =====
     // group chat: skip block enforcement (future: group policy)
-    if (!chat.isGroup && Array.isArray(chat.participants)) {
+    if (!chat.isGroup) {
       const other = chat.participants.find(
         (p: any) => p.userId !== viewerUserId,
       );
 
-      if (other?.userId) {
-        await this.assertNotBlockedBetween({
-          userA: viewerUserId,
-          userB: other.userId,
-        });
+      if (!other?.userId) {
+        throw new ForbiddenException('Access denied');
       }
+
+      await this.assertNotBlockedBetween({
+        userA: viewerUserId,
+        userB: other.userId,
+      });
     }
   }
 
@@ -105,7 +109,6 @@ if (blocked) return false;
     chat: any;
     viewerUserId: string;
   }): Promise<void> {
-    // same rule as access
     await this.assertCanAccessChat(params);
   }
 
@@ -131,19 +134,20 @@ if (blocked) return false;
     const { userA, userB } = params;
 
     const blocked = await this.prisma.userBlock.findFirst({
-  where: {
-    OR: [
-      { blockerId: userA, blockedId: userB },
-      { blockerId: userB, blockedId: userA },
-    ],
-  },
-});
+      where: {
+        OR: [
+          { blockerId: userA, blockedId: userB },
+          { blockerId: userB, blockedId: userA },
+        ],
+      },
+      select: { blockerId: true },
+    });
 
-if (blocked) {
-  throw new ForbiddenException(
-    'Chat is not allowed due to block relationship',
-  );
-}
-
+    if (blocked) {
+      throw new ForbiddenException(
+        'Chat is not allowed due to block relationship',
+      );
+    }
   }
 }
+
