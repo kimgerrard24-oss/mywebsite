@@ -465,16 +465,21 @@ async findPostById(
 }
 
   
-  async findPublicPosts(params: {
+async findPublicPosts(params: {
   limit: number;
   cursor?: string;
   mediaType?: "video";
- }) {
+  viewerUserId?: string | null; // ✅ ADD
+}) {
+  const { viewerUserId } = params;
+
   return this.prisma.post.findMany({
     where: {
       isDeleted: false,
       isHidden: false,
       visibility: "PUBLIC",
+
+      // ===== MEDIA FILTER =====
       ...(params.mediaType === "video"
         ? {
             media: {
@@ -486,22 +491,62 @@ async findPostById(
             },
           }
         : {}),
+
+      // ===== BLOCK ENFORCEMENT (2-way, authority) =====
+      ...(viewerUserId
+        ? {
+            AND: [
+              // viewer must NOT block author
+              {
+                author: {
+                  blockedBy: {
+                    none: {
+                      blockerId: viewerUserId,
+                    },
+                  },
+                },
+              },
+
+              // author must NOT block viewer
+              {
+                author: {
+                  blockedUsers: {
+                    none: {
+                      blockedId: viewerUserId,
+                    },
+                  },
+                },
+              },
+            ],
+          }
+        : {}),
     },
+
     include: {
-      author: true,
+      author: {
+        select: {
+          id: true,
+          displayName: true,
+          avatarUrl: true,
+        },
+      },
       media: {
         include: {
           media: true,
         },
       },
     },
+
     orderBy: { createdAt: "desc" },
+
     take: params.limit,
+
     ...(params.cursor
       ? { skip: 1, cursor: { id: params.cursor } }
       : {}),
   });
- }
+}
+
  
  async findPostForLike(params: {
   postId: string;

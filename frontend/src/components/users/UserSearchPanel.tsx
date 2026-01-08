@@ -47,6 +47,8 @@ export default function UserSearchPanel({
   const handleSearch = useCallback(
     async (value: string) => {
       setQuery(value);
+      setUsers([]); // ✅ CLEAR PREVIOUS RESULTS (important)
+      setError(null);
       const keyword = value.trim();
 
       if (!keyword || keyword.length < MIN_QUERY_LENGTH) {
@@ -87,7 +89,9 @@ export default function UserSearchPanel({
           setUsers(data);
           onResultCountChange?.(data.length);
         } catch {
+          setUsers([]); // ✅ important
           setError("Unable to search users at the moment");
+          onResultCountChange?.(0)
         } finally {
           setLoading(false);
         }

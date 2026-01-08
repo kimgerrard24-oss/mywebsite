@@ -25,8 +25,6 @@ import { useAuth } from "@/hooks/useAuth";
 import type { ChatMessage } from "@/types/chat-message";
 import type { ChatMeta } from "@/types/chat";
 
-
-
 type ChatMessages = {
   items: any[];
   nextCursor: string | null;
@@ -61,6 +59,13 @@ export default function ChatPage({
    */
   const [typingUsers, setTypingUsers] =
     useState<TypingUser[]>([]);
+
+  /**
+   * 🔒 Block snapshot (backend authority)
+   */
+  const isBlocked =
+    meta?.isBlocked === true ||
+    meta?.hasBlockedViewer === true;
 
   /**
    * 🔔 Realtime: new message
@@ -151,39 +156,48 @@ export default function ChatPage({
       </Head>
 
       <ChatLayout
-  header={
-    <ChatPermissionGuard meta={meta}>
-      <ChatHeader meta={meta} />
-    </ChatPermissionGuard>
-  }
-  messages={
-    <>
-    
-      <ChatMessageList
-  ref={listRef}
-  chatId={meta.id}
-  initialData={initialMessages}
-  typingUsers={typingUsers}
+        header={
+          <ChatPermissionGuard meta={meta}>
+            {/* 
+              🔒 IMPORTANT:
+              If blocked, do NOT render ChatHeader (which links to profile)
+              Backend already blocks profile API, this is UX hardening only
+            */}
+            {isBlocked ? (
+              <div className="px-4 py-3 border-b text-sm font-medium text-gray-700">
+                {meta.peer?.displayName ?? "User"}
+              </div>
+            ) : (
+              <ChatHeader meta={meta} />
+            )}
+          </ChatPermissionGuard>
+        }
+        messages={
+          <>
+            <ChatMessageList
+              ref={listRef}
+              chatId={meta.id}
+              initialData={initialMessages}
+              typingUsers={typingUsers}
+            />
+
+            <ChatRealtimeBridge
+              chatId={meta.id}
+              onMessageReceived={handleRealtimeMessage}
+              onMessageDeleted={handleRealtimeDeleted}
+              onTyping={handleRealtimeTyping}
+            />
+
+            <ChatReadObserver chatId={meta.id} />
+          </>
+        }
+        composer={
+          <ChatComposer
+            chatId={meta.id}
+            onMessageSent={handleMessageSent}
+          />
+        }
       />
-
-      <ChatRealtimeBridge
-        chatId={meta.id}
-        onMessageReceived={handleRealtimeMessage}
-        onMessageDeleted={handleRealtimeDeleted}
-        onTyping={handleRealtimeTyping}
-      />
-
-      <ChatReadObserver chatId={meta.id} />
-    </>
-  }
-  composer={
-    <ChatComposer
-      chatId={meta.id}
-      onMessageSent={handleMessageSent}
-    />
-  }
-/>
-
     </>
   );
 }

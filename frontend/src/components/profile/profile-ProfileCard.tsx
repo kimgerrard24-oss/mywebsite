@@ -39,6 +39,15 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
     profile.displayName && profile.displayName.trim().length > 0
       ? profile.displayName
       : "User";
+  const isPublic =
+     profile && isPublicUserProfile(profile);
+
+  const isBlocked =
+     isPublic && profile.isBlocked === true;
+
+  const hasBlockedViewer =
+     isPublic && profile.hasBlockedViewer === true;
+    
 
   return (
     <section
@@ -232,9 +241,11 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
               leading-relaxed
             "
           >
-            {profile.bio && profile.bio.trim().length > 0
-              ? profile.bio
-              : "ยังไม่มีข้อมูลแนะนำตัว"}
+            {isBlocked || hasBlockedViewer
+    ? "ไม่สามารถดูข้อมูลของผู้ใช้นี้ได้"
+    : profile.bio && profile.bio.trim().length > 0
+    ? profile.bio
+    : "ยังไม่มีข้อมูลแนะนำตัว"}
           </p>
         </div>
 
@@ -265,9 +276,12 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
         </dl>
 
         {/* ===== Followers / Following ===== */}
-         {isPublicUserProfile(profile) && (
-          <UserProfileStats profile={profile} />
-        )}
+         {isPublicUserProfile(profile) &&
+  !isBlocked &&
+  !hasBlockedViewer && (
+    <UserProfileStats profile={profile} />
+)}
+
       </div>
     </section>
   );

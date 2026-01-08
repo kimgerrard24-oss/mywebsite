@@ -238,8 +238,7 @@ async getPublicProfile(params: {
     viewerUserId !== null && viewerUserId === user.id;
 
   /**
-   * ===== Block relation (IMPORTANT) =====
-   * repo join:
+   * ===== Block relation (from repo joins) =====
    * - blockedBy      => viewer block target?
    * - blockedUsers   => target block viewer?
    */
@@ -250,6 +249,15 @@ async getPublicProfile(params: {
   const hasBlockedViewer =
     Array.isArray(user.blockedUsers) &&
     user.blockedUsers.length > 0;
+
+  /**
+   * 🔒 HARD VISIBILITY GUARD (CRITICAL)
+   * If either side blocks → profile must not be visible at all
+   * Backend is authority.
+   */
+  if (!isSelf && (isBlockedByViewer || hasBlockedViewer)) {
+    return null; // Controller should map to 404
+  }
 
   return {
     id: user.id,
@@ -262,16 +270,10 @@ async getPublicProfile(params: {
     isSelf,
 
     /**
-     * 👇 FRONTEND ใช้ตัดสินปุ่ม Block / Unblock
+     * 👇 UX snapshot only (frontend decides button)
      */
     isBlocked: isBlockedByViewer,
 
-    /**
-     * 👇 future use:
-     * - hide chat
-     * - hide follow
-     * - hide notification
-     */
     hasBlockedViewer,
 
     isFollowing:
@@ -286,6 +288,7 @@ async getPublicProfile(params: {
     },
   };
 }
+
 
 
    async updateProfile(userId: string, dto: UpdateUserDto) {

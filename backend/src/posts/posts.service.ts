@@ -220,21 +220,51 @@ async getPublicFeed(params: {
     if (cached) return cached;
   }
 
-  // 2) Load post
+  // 2) Load post (with author)
   const post = await this.repo.findPostById(
-  postId,
-  viewer?.userId,
- );
+    postId,
+    viewer?.userId,
+  );
   if (!post) return null;
 
-  // 3) Visibility
+  // =====================================================
+  // 🔒 HARD BLOCK GUARD (2-way)
+  // - viewer block author
+  // - author block viewer
+  // - deny BEFORE visibility & mapping
+  // =====================================================
+  if (viewer?.userId) {
+    const blocked = await this.prisma.userBlock.findFirst({
+      where: {
+        OR: [
+          {
+            blockerId: viewer.userId,
+            blockedId: post.author.id,
+          },
+          {
+            blockerId: post.author.id,
+            blockedId: viewer.userId,
+          },
+        ],
+      },
+      select: { blockerId: true },
+    });
+
+    if (blocked) {
+      // production behavior:
+      // - do not reveal existence
+      return null;
+    }
+  }
+
+  // 3) Visibility (existing logic — KEEP)
   const canView = await this.visibility.canViewPost({
     post,
     viewer,
   });
   if (!canView) return null;
 
-  // 4) Map DTO (✅ FIX: pass viewerUserId)
+  // 4) Map DTO
   const dto = PostDetailDto.from(
     post,
     viewer?.userId,
@@ -258,6 +288,7 @@ async getPublicFeed(params: {
 
   return dto;
 }
+
 
 
 async deletePost(params: { postId: string; actorUserId: string }) {
@@ -342,6 +373,40 @@ async getUserPostFeed(params: {
 }) {
   const { targetUserId, query, viewer } = params;
 
+  // =====================================================
+  // 🔒 HARD BLOCK GUARD (2-way)
+  // - viewer block target
+  // - target block viewer
+  // - ต้อง deny ตั้งแต่ระดับ service (authority)
+  // =====================================================
+  if (viewer?.userId) {
+    const blocked = await this.prisma.userBlock.findFirst({
+      where: {
+        OR: [
+          {
+            blockerId: viewer.userId,
+            blockedId: targetUserId,
+          },
+          {
+            blockerId: targetUserId,
+            blockedId: viewer.userId,
+          },
+        ],
+      },
+      select: { blockerId: true },
+    });
+
+    if (blocked) {
+      // production behavior:
+      // - ไม่บอกว่า block
+      // - behave เหมือน user ไม่อยู่
+      throw new NotFoundException();
+    }
+  }
+
+  // =====================================================
+  // 🔐 Existing visibility logic (KEEP)
+  // =====================================================
   const visibilityScope =
     await this.visibility.resolveUserPostVisibility({
       targetUserId,
@@ -376,7 +441,6 @@ async getUserPostFeed(params: {
     nextCursor,
   };
 }
-
 
 
  async getPostsByTag(params: {

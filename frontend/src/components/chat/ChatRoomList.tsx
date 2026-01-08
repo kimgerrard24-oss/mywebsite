@@ -13,6 +13,13 @@ type Room = {
     createdAt: string;
   } | null;
   unreadCount: number;
+
+  /**
+   * ===== Block flags (from backend authority) =====
+   * optional → fail-soft if backend versionยังไม่ส่งมา
+   */
+  isBlocked?: boolean;        // viewer blocked peer
+  hasBlockedViewer?: boolean; // peer blocked viewer
 };
 
 type Props = {
@@ -20,12 +27,24 @@ type Props = {
 };
 
 export default function ChatRoomList({ rooms }: Props) {
+  /**
+   * 🔒 HARD FILTER (Backend authority)
+   * ถ้าฝั่งใดฝั่งหนึ่ง block → ไม่ต้องแสดงใน chat list
+   */
+  const visibleRooms = Array.isArray(rooms)
+    ? rooms.filter(
+        (room) =>
+          room.isBlocked !== true &&
+          room.hasBlockedViewer !== true,
+      )
+    : [];
+
   return (
     <ul
       className="divide-y"
       aria-label="Chat rooms list"
     >
-      {rooms.map((room) => (
+      {visibleRooms.map((room) => (
         <ChatRoomItem
           key={room.id}
           room={room}
