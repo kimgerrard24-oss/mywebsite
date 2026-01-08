@@ -37,7 +37,7 @@ export default function FeedPage({
   const [feedMode, setFeedMode] = useState<"text" | "video">("video");
   const refreshFeedRef = useRef<() => void>(() => {});
   const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement | null>(null);
+  const menuWrapperRef = useRef<HTMLDivElement | null>(null);
 
   const handleLogout = async () => {
     try {
@@ -51,8 +51,8 @@ export default function FeedPage({
   useEffect(() => {
   function handleClick(e: MouseEvent) {
     if (
-      menuRef.current &&
-      !menuRef.current.contains(e.target as Node)
+      menuWrapperRef.current &&
+      !menuWrapperRef.current.contains(e.target as Node)
     ) {
       setMenuOpen(false);
     }
@@ -66,6 +66,7 @@ export default function FeedPage({
     document.removeEventListener("mousedown", handleClick);
   };
 }, [menuOpen]);
+
 
  useEffect(() => {
   const handleRoute = () => setMenuOpen(false);
@@ -169,6 +170,7 @@ export default function FeedPage({
 
           {/* ===== Right: Actions ===== */}
 <div
+  ref={menuWrapperRef}
   className="
     relative
     flex
@@ -178,6 +180,7 @@ export default function FeedPage({
     sm:gap-3
   "
 >
+
   {/* 📨 Chats */}
   <Link
     href="/chat"
@@ -259,7 +262,6 @@ export default function FeedPage({
   {/* ===== Dropdown Menu ===== */}
   {menuOpen && (
     <div
-      ref={menuRef} 
       role="menu"
       aria-label="User menu"
       className="

@@ -83,48 +83,45 @@ export default function UserProfilePage({ profile }: Props) {
           </nav>
 
           {/* ===== Profile card ===== */}
-          <section
-            aria-label="User profile"
-            className="
-              mx-auto
-              w-full
-              max-w-5xl
-              px-4
-              pt-4
-              sm:pt-6
-              pb-6
-              sm:pb-8
-            "
-          >
-            {/* ⬇️ wrapper for absolute action */}
-            <div className="relative">
-              <ProfileCard
-                profile={profile}
-                isSelf={profile.isSelf === true}
-              />
+<section
+  aria-label="User profile"
+  className="
+    mx-auto
+    w-full
+    max-w-5xl
+    px-4
+    pt-4
+    sm:pt-6
+    pb-6
+    sm:pb-8
+  "
+>
+  {/* ⬇️ wrapper now fits card width */}
+  <div className="relative w-fit mx-auto">
+    <ProfileCard
+      profile={profile}
+      isSelf={profile.isSelf === true}
+    />
 
-              {/* ===== Block / Unblock (top-right on card) ===== */}
-              {!profile.isSelf && (
-                <div className="absolute top-4 right-4">
-                  {profile.isBlocked ? (
-                    <UnblockUserButton
-                      targetUserId={profile.id}
-                      onUnblocked={() =>
-                        window.location.reload()
-                      }
-                    />
-                  ) : (
-                    <BlockUserButton
-                      targetUserId={profile.id}
-                      onBlocked={() =>
-                        window.location.reload()
-                      }
-                    />
-                  )}
-                </div>
-              )}
-            </div>
-          </section>
+    {/* ===== Block / Unblock (inside card) ===== */}
+    {!profile.isSelf && (
+      <div className="absolute right-4 top-[5.5rem] sm:top-[6.5rem]">
+        {profile.isBlocked ? (
+          <UnblockUserButton
+            targetUserId={profile.id}
+            onUnblocked={() => window.location.reload()}
+          />
+        ) : (
+          <BlockUserButton
+            targetUserId={profile.id}
+            onBlocked={() => window.location.reload()}
+          />
+        )}
+      </div>
+    )}
+  </div>
+</section>
+
 
           {/* ===== Profile posts ===== */}
           <section

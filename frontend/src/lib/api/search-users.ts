@@ -32,5 +32,11 @@ export async function searchUsers(params: {
       limit,
       cursor: cursor ?? undefined,
     },
+
+    /**
+     * 🔒 CRITICAL: ensure cookie is sent
+     * required for backend block filtering
+     */
+    withCredentials: true,
   });
 }
