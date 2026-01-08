@@ -17,6 +17,8 @@ import { NotificationRealtimeService } from '../notifications/realtime/notificat
 import { NotificationMapper } from '../notifications/mapper/notification.mapper';
 import { ChatRealtimeService } from './realtime/chat-realtime.service'
 import { ChatMessageRepository } from './chat-message.repository';
+import { AuditService } from '../auth/audit.service'
+
 
 @Injectable()
 export class ChatService {
@@ -27,6 +29,7 @@ export class ChatService {
     private readonly notificationRealtime: NotificationRealtimeService,
     private readonly chatRealtime: ChatRealtimeService, 
     private readonly chatMessageRepo: ChatMessageRepository,
+    private readonly audit: AuditService,
   ) {}
 
   async getOrCreateDirectChat(params: {
@@ -51,17 +54,32 @@ export class ChatService {
 
     // 2) find existing chat
     let chat = await this.repo.findDirectChat(
-      viewerUserId,
-      targetUserId,
-    );
+  viewerUserId,
+  targetUserId,
+);
 
-    // 3) create if not exists
-    if (!chat) {
-      chat = await this.repo.createDirectChat(
-        viewerUserId,
-        targetUserId,
-      );
-    }
+let isNew = false;
+
+if (!chat) {
+  chat = await this.repo.createDirectChat(
+    viewerUserId,
+    targetUserId,
+  );
+  isNew = true;
+}
+
+if (isNew) {
+  try {
+  await this.audit.createLog({
+    userId: viewerUserId,
+    action: 'chat.start',
+    success: true,
+    targetId: targetUserId,
+  });
+} catch {}
+
+}
+
 
     return ChatRoomDto.fromEntity(chat, {
       viewerUserId,
@@ -103,6 +121,17 @@ export class ChatService {
       viewerUserId,
     });
 
+    try {
+  await this.audit.createLog({
+    userId: viewerUserId,
+    action: 'chat.view_meta',
+    success: true,
+    targetId: chatId,
+  });
+} catch {}
+
+
+
     // 3. Map to DTO
     return ChatMetaDto.fromChat(chat, {
       viewerUserId,
@@ -136,6 +165,16 @@ export class ChatService {
       cursor,
       limit,
     });
+
+   try {
+  await this.audit.createLog({
+    userId: viewerUserId,
+    action: 'chat.view_messages',
+    success: true,
+    targetId: chatId,
+  });
+} catch {}
+
 
     return ChatMessageListDto.fromRows(rows, {
       limit,
@@ -221,6 +260,21 @@ async sendMessage(params: {
       fullMessage = retry;
     }
   }
+
+  try {
+  await this.audit.createLog({
+    userId: senderUserId,
+    action: 'chat.send_message',
+    success: true,
+    targetId: message.id,
+    metadata: {
+      chatId,
+      hasText: hasContent,
+      hasMedia,
+    },
+  });
+} catch {}
+
 
   // 7) Realtime emit (delivery only, fail-soft)
   try {

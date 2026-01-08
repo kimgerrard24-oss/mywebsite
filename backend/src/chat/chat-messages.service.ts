@@ -53,6 +53,17 @@ export class ChatMessagesService {
       content,
     });
 
+    // ✅ AUDIT: EDIT MESSAGE (fail-soft)
+try {
+  await this.audit.recordEdit({
+    messageId,
+    chatId,
+    actorUserId: viewerUserId,
+  });
+} catch {
+  // must not affect edit flow
+}
+
     return ChatMessageMapper.toEditedResponse(updated);
   }
 

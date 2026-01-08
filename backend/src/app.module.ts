@@ -35,6 +35,7 @@ import { RequestContextMiddleware } from './common/middleware/request-context.mi
 import { AdminModule } from './admin/admin.module';
 import { ReportsModule } from './reports/reports.module';
 import { SecurityModule } from './common/security/security.module';
+import { AuditModule } from './users/audit/audit.module';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { SecurityModule } from './common/security/security.module';
     ScheduleModule.forRoot(),
     AlertModule,
     ChatModule,
+    AuditModule,
     SecurityModule,
     ReportsModule,
     SearchModule,

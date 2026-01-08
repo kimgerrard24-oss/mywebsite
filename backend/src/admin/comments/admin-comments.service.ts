@@ -20,50 +20,81 @@ export class AdminCommentsService {
   ) {}
 
   async deleteComment(params: {
-    commentId: string;
-    reason?: string;
-  }) {
-    const { commentId, reason } = params;
+  commentId: string;
+  reason?: string;
+}) {
+  const { commentId, reason } = params;
 
-    const admin = this.ctx.getUser();
-    if (!admin) {
-      throw new BadRequestException(
-        'Admin context missing',
-      );
-    }
+  const admin = this.ctx.getUser();
+  if (!admin) {
+    // 🔍 audit: admin context missing
+    try {
+      await this.audit.log({
+        action: 'ADMIN_DELETE_COMMENT_CONTEXT_MISSING',
+        targetId: commentId,
+      });
+    } catch {}
 
-    const comment = await this.repo.findById(
-      commentId,
+    throw new BadRequestException(
+      'Admin context missing',
     );
+  }
 
-    if (!comment) {
-      throw new NotFoundException(
-        'Comment not found',
-      );
-    }
+  const comment = await this.repo.findById(commentId);
 
-    if (comment.isDeleted) {
-      throw new BadRequestException(
-        'Comment already deleted',
-      );
-    }
+  if (!comment) {
+    // 🔍 audit: target not found
+    try {
+      await this.audit.log({
+        action: 'ADMIN_DELETE_COMMENT_TARGET_NOT_FOUND',
+        targetId: commentId,
+      });
+    } catch {}
 
-    await this.repo.softDelete({
-      commentId,
-      reason,
-      adminId: admin.userId,
-    });
+    throw new NotFoundException(
+      'Comment not found',
+    );
+  }
 
+  if (comment.isDeleted) {
+  try {
     await this.audit.log({
-      action: 'ADMIN_DELETE_COMMENT',
+      action: 'ADMIN_DELETE_COMMENT_NOOP_ALREADY_DELETED',
       targetId: commentId,
       detail: {
-        reason,
+        authorId: comment.authorId,
       },
     });
+  } catch {}
 
-    return { success: true };
-  }
+  throw new BadRequestException(
+    'Comment already deleted',
+  );
+}
+
+
+  await this.repo.softDelete({
+    commentId,
+    reason,
+    adminId: admin.userId,
+  });
+
+  // ✅ audit: delete success
+  try {
+  await this.audit.log({
+    action: 'ADMIN_DELETE_COMMENT',
+    targetId: commentId,
+    detail: {
+      reason,
+      authorId: comment.authorId,
+    },
+  });
+} catch {}
+
+
+  return { success: true };
+}
+
 
    async getCommentById(
     commentId: string,

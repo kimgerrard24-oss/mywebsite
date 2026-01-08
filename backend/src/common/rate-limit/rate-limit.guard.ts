@@ -11,6 +11,7 @@ import { Request, Response } from 'express';
 import { RateLimitService } from './rate-limit.service';
 import { RATE_LIMIT_CONTEXT_KEY } from './rate-limit.decorator';
 import { RateLimitAction } from './rate-limit.policy';
+import { SecurityEventService } from '../security/security-event.service';
 
 export type RateLimitConsumeResult = {
   limit: number;
@@ -26,6 +27,7 @@ export class RateLimitGuard implements CanActivate {
   constructor(
     private readonly rlService: RateLimitService,
     private readonly reflector: Reflector,
+    private readonly securityEvent: SecurityEventService,
   ) {}
 
   private extractRealIp(req: Request): string {
@@ -134,10 +136,23 @@ export class RateLimitGuard implements CanActivate {
         res.setHeader('X-RateLimit-Limit', String(result.limit));
         res.setHeader('X-RateLimit-Remaining', '0');
         res.setHeader('X-RateLimit-Reset', String(result.reset));
-
+    
         this.logger.warn(
           `Rate limit blocked: action="logout" key="${key}" ip="${rawIp}" retryAfter=${result.retryAfterSec}`,
         );
+        try {
+  this.securityEvent.log({
+    type: 'security.rate_limit.hit',
+    severity: 'warning',
+    meta: {
+      scope: 'logout',
+      action: 'logout',
+      ip: rawIp,
+      path,
+      blocked: true,
+    },
+  });
+} catch {}
 
         return false;
       }
@@ -169,6 +184,19 @@ export class RateLimitGuard implements CanActivate {
       this.logger.warn(
         `Rate limit blocked: action="${action}" key="${ipKey}" ip="${rawIp}" retryAfter=${info.retryAfterSec}`,
       );
+     try {
+  this.securityEvent.log({
+    type: 'security.rate_limit.hit',
+    severity: 'warning',
+    meta: {
+      scope: 'api',
+      action,
+      ip: rawIp,
+      path,
+      blocked: true,
+    },
+  });
+} catch {}
 
       return false;
     }

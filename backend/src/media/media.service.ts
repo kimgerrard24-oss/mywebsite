@@ -12,6 +12,7 @@ import { R2Service } from '../r2/r2.service';
 import { MediaType } from '@prisma/client';
 import { MediaMetadataDto } from './dto/media-metadata.dto';
 import { MediaMetadataMapper } from './mappers/media-metadata.mapper';
+import { AuditLogService } from '../users/audit/audit-log.service';
 
 @Injectable()
 export class MediaService {
@@ -19,6 +20,8 @@ export class MediaService {
     private readonly presign: PresignService,
     private readonly mediaRepository: MediaRepository,
     private readonly r2Service: R2Service,
+    private readonly auditLogService: AuditLogService,
+
   ) {}
 
   async validateAndPresign(params: {
@@ -47,6 +50,25 @@ export class MediaService {
       contentType: dto.mimeType,
       expiresInSeconds: 60 * 5, // 5 minutes
     });
+
+    // ===============================
+// ✅ AUDIT: REQUEST PRESIGN UPLOAD
+// ===============================
+try {
+  await this.auditLogService.log({
+    userId: actorUserId,
+    action: 'MEDIA_REQUEST_UPLOAD_URL',
+    success: true,
+    metadata: {
+      mediaType: dto.mediaType,
+      mimeType: dto.mimeType,
+      fileSize: dto.fileSize,
+    },
+  });
+} catch {
+  // must not affect upload flow
+}
+
 
     return {
       uploadUrl,
@@ -88,6 +110,23 @@ export class MediaService {
         : MediaType.VIDEO,
     mimeType,
   });
+// ===============================
+// ✅ AUDIT: MEDIA REGISTERED
+// ===============================
+try {
+  await this.auditLogService.log({
+    userId: actorUserId,
+    action: 'MEDIA_UPLOAD_COMPLETE',
+    success: true,
+    targetId: media.id,
+    metadata: {
+      mediaType,
+      mimeType,
+    },
+  });
+} catch {
+  // must not affect main flow
+}
 
   // 4️⃣ response
   return {

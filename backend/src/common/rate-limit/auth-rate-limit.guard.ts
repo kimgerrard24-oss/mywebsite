@@ -10,12 +10,14 @@ import { Reflector } from '@nestjs/core';
 import { RateLimitService } from './rate-limit.service';
 import { RATE_LIMIT_CONTEXT_KEY } from './rate-limit.decorator';
 import { RateLimitAction } from './rate-limit.policy';
+import { SecurityEventService } from '../security/security-event.service';
 
 @Injectable()
 export class AuthRateLimitGuard implements CanActivate {
   constructor(
     private readonly rlService: RateLimitService,
     private readonly reflector: Reflector,
+    private readonly securityEvent: SecurityEventService,
   ) {}
 
   private extractRealIp(req: Request): string {
@@ -101,13 +103,34 @@ export class AuthRateLimitGuard implements CanActivate {
     const info = await this.rlService.consume(action, ipKey);
 
     // 🔴 FIX: เช็ค blocked โดยตรง
-    if (info.blocked) {
-      res.setHeader('Retry-After', String(info.retryAfterSec));
-      res.setHeader('X-RateLimit-Limit', String(info.limit));
-      res.setHeader('X-RateLimit-Remaining', '0');
-      res.setHeader('X-RateLimit-Reset', String(info.reset));
-      return false;
-    }
+   if (info.blocked) {
+  res.setHeader('Retry-After', String(info.retryAfterSec));
+  res.setHeader('X-RateLimit-Limit', String(info.limit));
+  res.setHeader('X-RateLimit-Remaining', '0');
+  res.setHeader('X-RateLimit-Reset', String(info.reset));
+
+  // ===============================
+  // 🔐 Security Event: rate-limit auth
+  // ===============================
+  try {
+    this.securityEvent.log({
+      type: 'security.rate_limit.hit',
+      severity: 'warning',
+      meta: {
+        scope: 'auth',
+        action,
+        ip: rawIp,
+        path,
+        blocked: true,
+      },
+    });
+  } catch {
+    // must not affect auth flow
+  }
+
+  return false;
+}
+
 
     res.setHeader('X-RateLimit-Limit', String(info.limit));
     res.setHeader('X-RateLimit-Remaining', String(info.remaining));

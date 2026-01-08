@@ -9,6 +9,7 @@ import { NotificationCreateInput } from './types/notification-create.input';
 import { NotificationPayloadMap } from './types/notification-payload.type';
 import { NotificationRealtimeService } from './realtime/notification-realtime.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { AuditService } from '../auth/audit.service';
 
 @Injectable()
 export class NotificationsService {
@@ -17,6 +18,7 @@ export class NotificationsService {
     private readonly cache: NotificationCacheService,
     private readonly realtime: NotificationRealtimeService,
     private readonly prisma: PrismaService,
+    private readonly audit: AuditService,
   ) {}
 
   async getNotifications(params: {
@@ -50,6 +52,18 @@ export class NotificationsService {
       items,
       nextCursor,
     };
+   
+  try {
+  await this.audit.createLog({
+    userId: viewerUserId,
+    action: 'notification.view_list',
+    success: true,
+    metadata: {
+      cursor,
+      limit,
+    },
+  });
+} catch {}
 
     await this.cache.set(viewerUserId, cursor, response);
 
@@ -76,6 +90,15 @@ export class NotificationsService {
       id: notificationId,
       userId: viewerUserId,
     });
+
+    try {
+  await this.audit.createLog({
+    userId: viewerUserId,
+    action: 'notification.read',
+    success: true,
+    targetId: notificationId,
+  });
+} catch {}
 
     await this.cache.invalidateList(viewerUserId);
 
@@ -138,7 +161,20 @@ if (blocked) return;
     entityId,
     payload, // ✅ ส่ง payload ต่อ
   });
-
+   
+  try {
+  await this.audit.createLog({
+    userId: actorUserId ?? null, // system allowed
+    action: 'notification.create',
+    success: true,
+    targetId: row.id,
+    metadata: {
+      type,
+      entityId,
+      recipient: userId,
+    },
+  });
+} catch {}
   // 2️⃣ Realtime emit (fail-soft)
   try {
     const dto = NotificationMapper.toDto(row);

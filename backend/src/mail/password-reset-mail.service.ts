@@ -14,35 +14,54 @@ export class PasswordResetMailService {
   private readonly fromAddress: string;
 
   constructor() {
-    // Default region (note: your AWS is ap-southeast-7, but SES may only exist ap-southeast-1)
-    // This must match SES region in AWS console
-    const region = process.env.AWS_REGION || 'ap-southeast-1';
+    /**
+     * IMPORTANT:
+     * SES region must match verified identity region
+     */
+    const region =
+      process.env.AWS_REGION || 'ap-southeast-1';
 
-    // Production email sender
-    // Always use domain you verified in SES
     this.fromAddress =
       process.env.SES_FROM_ADDRESS ||
       process.env.NEXT_PUBLIC_EMAIL_FROM ||
       'support@phlyphant.com';
 
-    this.ses = new SES({ region });
+    if (!this.fromAddress) {
+      this.logger.error(
+        'SES_FROM_ADDRESS is not configured',
+      );
+    }
+
+    if (!region) {
+      this.logger.error(
+        'AWS_REGION is not configured for SES',
+      );
+    }
+
+    this.ses = new SES({
+      region,
+      maxRetries: 3, // production-safe retry
+    });
   }
 
   async sendPasswordResetEmail(
     to: string,
-    params: Omit<PasswordResetEmailTemplateParams, 'usernameOrEmail'> & {
+    params: Omit<
+      PasswordResetEmailTemplateParams,
+      'usernameOrEmail'
+    > & {
       usernameOrEmail?: string | null;
     },
   ): Promise<void> {
-    // Display name or fallback to email
-    const usernameOrEmail = params.usernameOrEmail || to;
+    const usernameOrEmail =
+      params.usernameOrEmail || to;
 
-    // Build content using your template
-    const { subject, text, html } = buildPasswordResetEmailTemplate({
-      usernameOrEmail,
-      resetUrl: params.resetUrl,
-      expiresInMinutes: params.expiresInMinutes,
-    });
+    const { subject, text, html } =
+      buildPasswordResetEmailTemplate({
+        usernameOrEmail,
+        resetUrl: params.resetUrl,
+        expiresInMinutes: params.expiresInMinutes,
+      });
 
     const emailParams: SES.SendEmailRequest = {
       Source: this.fromAddress,
@@ -50,29 +69,34 @@ export class PasswordResetMailService {
         ToAddresses: [to],
       },
       Message: {
-        Subject: {
-          Data: subject,
-        },
+        Subject: { Data: subject },
         Body: {
-          Text: {
-            Data: text,
-          },
-          Html: {
-            Data: html,
-          },
+          Text: { Data: text },
+          Html: { Data: html },
         },
       },
     };
 
     try {
       await this.ses.sendEmail(emailParams).promise();
-    } catch (error) {
-      // Only log here for monitoring
-      // Do not reveal error to client
+    } catch (error: any) {
+      /**
+       * ❗ SECURITY & PRIVACY
+       * - Do NOT log email address
+       * - Do NOT log reset URL
+       * - Log only technical failure
+       */
       this.logger.error(
-        `Failed to send password reset email to ${to}: ${String(error)}`,
+        'Failed to send password reset email via SES',
+        error?.stack || String(error),
       );
-      // Do not throw: email failure should not leak info
+
+      /**
+       * IMPORTANT:
+       * - Do NOT throw
+       * - Email failure must not reveal account existence
+       * - Business flow continues
+       */
     }
   }
 }

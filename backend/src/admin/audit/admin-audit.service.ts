@@ -1,6 +1,6 @@
 // backend/src/admin/audit/admin-audit.service.ts
 
-import { UnauthorizedException, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { RequestContextService } from '../../common/middleware/request-context.service';
 
@@ -15,23 +15,30 @@ export class AdminAuditService {
     action: string;
     targetId?: string;
     detail?: any;
+    adminId?: string; // optional override
   }) {
-    const admin = this.ctx.getUser();
+    try {
+      const adminFromCtx = this.ctx.getUser();
 
-    if (!admin) {
-      throw new UnauthorizedException(
-        'Admin context missing for audit log',
-      );
+      const adminId =
+        params.adminId ??
+        adminFromCtx?.userId ??
+        null;
+
+      // ❗ audit must never break business flow
+      if (!adminId) return;
+
+      await this.prisma.adminActionLog.create({
+        data: {
+          adminId,
+          action: params.action,
+          targetId: params.targetId,
+          detail: params.detail ?? null,
+          ip: this.ctx.getIp() ?? null,
+        },
+      });
+    } catch {
+      // NEVER throw from audit
     }
-
-    await this.prisma.adminActionLog.create({
-      data: {
-        adminId: admin.userId,
-        action: params.action,
-        targetId: params.targetId,
-        detail: params.detail,
-        ip: this.ctx.getIp(),
-      },
-    });
   }
 }

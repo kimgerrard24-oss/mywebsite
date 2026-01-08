@@ -23,9 +23,7 @@ import {
 import { LoginDto } from './dto/login.dto';
 import { AuthService } from './auth.service';
 import { Response, Request } from 'express';
-import IORedis from 'ioredis';
 import axios from 'axios';
-import { RateLimitContext } from '../common/rate-limit/rate-limit.decorator';
 import { Public } from './decorators/public.decorator';
 import { RegisterDto } from './dto/register.dto';
 import { RateLimit } from '../common/rate-limit/rate-limit.decorator';
@@ -33,16 +31,13 @@ import { AuthRepository } from './auth.repository';
 import { AuditService } from './audit.service';
 import { RateLimitGuard } from '../common/rate-limit/rate-limit.guard';
 import { RateLimitService } from '../common/rate-limit/rate-limit.service';
-import { AuthGuard } from './auth.guard';
-import { UserProfileDto } from './dto/user-profile.dto';
 import { AccessTokenCookieAuthGuard } from './guards/access-token-cookie.guard';
 
 interface JwtUserPayload {
-  // ปรับตาม payload จริงของคุณ
-  sub?: string;      // กรณีใช้ sub เป็น userId
-  userId?: string;   // กรณีใช้ userId ตรง ๆ
+  sub?: string;      
+  userId?: string;  
   email?: string;
-  // ...field อื่น ๆ ที่ strategy ใส่ให้
+ 
 }
 
 interface AuthenticatedRequest extends Request {
@@ -124,35 +119,72 @@ export class AuthController {
       },
     }),
   )
-  async register(@Body() dto: RegisterDto & { turnstileToken?: string }) {
-    const secret = process.env.TURNSTILE_SECRET_KEY;
-    const token = dto.turnstileToken;
+  async register(
+  @Body() dto: RegisterDto & { turnstileToken?: string },
+  @Req() req: Request,
+) {
+  const secret = process.env.TURNSTILE_SECRET_KEY;
+  const token = dto.turnstileToken;
 
-    if (!token) {
-      throw new BadRequestException('Missing Turnstile token');
-    }
+  const forwarded = req.headers['x-forwarded-for'];
+  const rawIp =
+    typeof forwarded === 'string'
+      ? forwarded.split(',')[0].trim()
+      : req.ip || req.socket?.remoteAddress || 'unknown';
 
-    if (!secret) {
-      throw new BadRequestException('Server missing Turnstile secret key');
-    }
+  const ip =
+    rawIp.replace(/^::ffff:/, '').replace(/:\d+$/, '').trim() || 'unknown';
 
-    const verify = await axios.post(
-      'https://challenges.cloudflare.com/turnstile/v0/siteverify',
-      `secret=${encodeURIComponent(secret)}&response=${encodeURIComponent(
-        token,
-      )}`,
-      {
-        headers: {
-          'content-type': 'application/x-www-form-urlencoded',
-        },
-      },
-    );
+  const userAgent =
+    (req.headers['user-agent'] as string) || 'unknown';
 
-    if (!verify.data.success) {
-      throw new BadRequestException('Turnstile verification failed');
-    }
+  if (!token) {
+    throw new BadRequestException('Missing Turnstile token');
+  }
 
+  if (!secret) {
+    throw new BadRequestException('Server missing Turnstile secret key');
+  }
+
+  const verify = await axios.post(
+    'https://challenges.cloudflare.com/turnstile/v0/siteverify',
+    `secret=${encodeURIComponent(secret)}&response=${encodeURIComponent(token)}`,
+    {
+      headers: { 'content-type': 'application/x-www-form-urlencoded' },
+    },
+  );
+
+  if (!verify.data.success) {
+    try {
+      await this.audit.createLog({
+        userId: null,
+        action: 'auth.register',
+        success: false,
+        reason: 'turnstile_failed',
+        ip,
+        userAgent,
+      });
+    } catch {}
+
+    throw new BadRequestException('Turnstile verification failed');
+  }
+
+  try {
     const user = await this.authService.register(dto);
+
+    try {
+      await this.audit.createLog({
+        userId: user.id,
+        email: user.email,
+        action: 'auth.register',
+        success: true,
+        ip,
+        userAgent,
+        metadata: {
+          method: 'local',
+        },
+      });
+    } catch {}
 
     return {
       success: true,
@@ -164,7 +196,23 @@ export class AuthController {
         createdAt: user.createdAt,
       },
     };
+  } catch (err) {
+    // register service error เช่น email ซ้ำ
+    try {
+      await this.audit.createLog({
+        userId: null,
+        action: 'auth.register',
+        success: false,
+        reason: 'register_failed',
+        ip,
+        userAgent,
+      });
+    } catch {}
+
+    throw err;
   }
+}
+
 
 // =========================================================
 // local login (CORRECT & SAFE)
@@ -327,23 +375,58 @@ async login(
 @HttpCode(200)
 async logout(@Req() req: Request, @Res() res: Response) {
   await this.authService.logout(req, res);
+  const user = (req as any).user;
+
+try {
+  await this.audit.createLog({
+    userId: user?.userId ?? null,
+    action: 'auth.logout',
+    success: true,
+  });
+} catch {}
+
   return res.json({ message: 'Logged out successfully' });
+  
 }
 
 
   // verify-email
-  @Get('verify-email')
-  async verifyEmail(@Query('uid') uid: string, @Query('token') token: string) {
-    if (!uid || !token) {
-      throw new BadRequestException('Missing verification token or uid');
-    }
+ @Get('verify-email')
+async verifyEmail(@Query('uid') uid: string, @Query('token') token: string) {
+  if (!uid || !token) {
+    throw new BadRequestException('Missing verification token or uid');
+  }
 
+  try {
     const result = await this.authService.verifyEmailLocal(uid, token);
+
+    try {
+      await this.audit.createLog({
+        userId: uid,
+        action: 'auth.verify_email',
+        success: true,
+      });
+    } catch {}
 
     return {
       message: 'Email verified successfully',
       result,
     };
+
+  } catch (err) {
+
+    try {
+      await this.audit.createLog({
+        userId: uid,
+        action: 'auth.verify_email',
+        success: false,
+        reason: 'invalid_or_expired_token',
+      });
+    } catch {}
+
+    throw err;
   }
+}
+
 
 }

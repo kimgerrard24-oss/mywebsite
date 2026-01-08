@@ -11,6 +11,7 @@ import { SearchTagsRepository } from './search-tags.repository';
 import { SearchTagsQueryDto } from './dto/search-tags.query.dto';
 import { SearchTagsResponseDto } from './dto/search-tags.response.dto';
 import { mapTagToSearchDto } from '../common/mappers/tag.mapper';
+import { AuditService } from '../auth/audit.service';
 
 @Injectable()
 export class SearchService {
@@ -18,11 +19,12 @@ export class SearchService {
     private readonly postsRepo: SearchPostsRepository,
     private readonly usersRepo: SearchUsersRepository,
     private readonly tagsRepo: SearchTagsRepository,
+    private readonly audit: AuditService,
   ) {}
 
-  async searchPosts(
+    async searchPosts(
     query: SearchPostsQueryDto & {
-      viewerUserId?: string | null; // ✅ optional (backward compatible)
+      viewerUserId?: string | null;
     },
   ): Promise<SearchPostsResponseDto> {
     const { q, limit, cursor } = query;
@@ -31,8 +33,23 @@ export class SearchService {
       q,
       limit: limit ?? 20,
       cursor,
-      viewerUserId: query.viewerUserId ?? null, // ✅ pass-through
+      viewerUserId: query.viewerUserId ?? null,
     });
+
+    // ✅ AUDIT (fail-soft)
+    try {
+      await this.audit.createLog({
+        userId: query.viewerUserId ?? null,
+        action: 'search.posts',
+        success: true,
+        metadata: {
+          q,
+          limit: limit ?? 20,
+          hasCursor: !!cursor,
+          resultCount: result.items.length,
+        },
+      });
+    } catch {}
 
     return {
       items: result.items.map(mapPostToSearchDto),
@@ -40,29 +57,43 @@ export class SearchService {
     };
   }
 
-  async searchUsers(
+
+    async searchUsers(
     query: SearchUsersQueryDto & {
-      viewerUserId?: string | null; // ✅ optional
+      viewerUserId?: string | null;
     },
   ): Promise<SearchUsersResponseDto> {
     const { q, limit, cursor } = query;
 
-    /**
-     * Fail-soft:
-     * - ไม่เจอ user = items ว่าง
-     * - ไม่ throw error
-     */
-    return this.usersRepo.searchUsers({
+    const result = await this.usersRepo.searchUsers({
       q,
       limit: limit ?? 20,
       cursor,
-      viewerUserId: query.viewerUserId ?? null, // ✅ block-aware search
+      viewerUserId: query.viewerUserId ?? null,
     });
+
+    // ✅ AUDIT (fail-soft)
+    try {
+      await this.audit.createLog({
+        userId: query.viewerUserId ?? null,
+        action: 'search.users',
+        success: true,
+        metadata: {
+          q,
+          limit: limit ?? 20,
+          hasCursor: !!cursor,
+          resultCount: result.items.length,
+        },
+      });
+    } catch {}
+
+    return result;
   }
 
-  async searchTags(
+
+    async searchTags(
     query: SearchTagsQueryDto & {
-      viewerUserId?: string | null; // ✅ optional
+      viewerUserId?: string | null;
     },
   ): Promise<SearchTagsResponseDto> {
     const { q, limit, cursor } = query;
@@ -71,12 +102,28 @@ export class SearchService {
       q,
       limit: limit ?? 20,
       cursor,
-      viewerUserId: query.viewerUserId ?? null, // ✅ filter posts by block
+      viewerUserId: query.viewerUserId ?? null,
     });
+
+    // ✅ AUDIT (fail-soft)
+    try {
+      await this.audit.createLog({
+        userId: query.viewerUserId ?? null,
+        action: 'search.tags',
+        success: true,
+        metadata: {
+          q,
+          limit: limit ?? 20,
+          hasCursor: !!cursor,
+          resultCount: result.items.length,
+        },
+      });
+    } catch {}
 
     return {
       items: result.items.map(mapTagToSearchDto),
       nextCursor: result.nextCursor,
     };
   }
+
 }

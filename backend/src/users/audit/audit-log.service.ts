@@ -1,3 +1,4 @@
+// backend/src/users/audit/audit-log.service.ts
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 
@@ -12,6 +13,7 @@ async log(params: {
   email?: string;
   action: string;
   success: boolean;
+  targetId?: string;
   reason?: string;
   ip?: string;
   userAgent?: string;
@@ -23,6 +25,7 @@ async log(params: {
       email: params.email ?? 'system',
       action: params.action,
       success: params.success,
+      targetId: params.targetId,
       reason: params.reason,
       ip: params.ip,
       userAgent: params.userAgent,

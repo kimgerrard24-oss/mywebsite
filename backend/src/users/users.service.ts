@@ -69,17 +69,33 @@ export class UsersService {
   }
 
   async setEmailVerifyToken(userId: string, hash: string, expires: Date) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user) throw new NotFoundException("User not found");
+  const user = await this.prisma.user.findUnique({ where: { id: userId } });
+  if (!user) throw new NotFoundException("User not found");
 
-    return this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        emailVerifyTokenHash: hash,
-        emailVerifyTokenExpires: expires,
-      },
+  const updated = await this.prisma.user.update({
+    where: { id: userId },
+    data: {
+      emailVerifyTokenHash: hash,
+      emailVerifyTokenExpires: expires,
+    },
+  });
+
+  // ===============================
+  // ✅ AUDIT LOG: REQUEST EMAIL VERIFY
+  // ===============================
+  try {
+    await this.auditLogService.log({
+      userId,
+      action: 'USER_REQUEST_EMAIL_VERIFY',
+      success: true,
     });
+  } catch {
+    // must not affect main flow
   }
+
+  return updated;
+}
+
 
  async setPasswordResetToken(
   userId: string,

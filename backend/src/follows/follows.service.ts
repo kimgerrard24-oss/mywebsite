@@ -39,14 +39,29 @@ export class FollowsService {
     });
 
     if (blocked) {
-      // ❗ ไม่ reveal ว่าโดน block
-      throw new ConflictException('CANNOT_FOLLOW_USER');
-    }
+  try {
+    await this.audit.recordBlockedAttempt({
+      followerId: params.followerId,
+      followingId: params.followingId,
+    });
+  } catch {}
+
+  throw new ConflictException('CANNOT_FOLLOW_USER');
+}
+
 
     const exists = await this.repo.exists(params);
     if (exists) {
-      throw new ConflictException('ALREADY_FOLLOWING');
-    }
+  try {
+    await this.audit.recordDuplicateAttempt({
+      followerId: params.followerId,
+      followingId: params.followingId,
+    });
+  } catch {}
+
+  throw new ConflictException('ALREADY_FOLLOWING');
+}
+
 
     await this.repo.createFollow(params);
 
@@ -82,8 +97,16 @@ export class FollowsService {
 
     const exists = await this.repo.exists(params);
     if (!exists) {
-      throw new ConflictException(UNFOLLOW_ERRORS.NOT_FOLLOWING);
-    }
+  try {
+    await this.audit.recordInvalidUnfollowAttempt({
+      followerId: params.followerId,
+      followingId: params.followingId,
+    });
+  } catch {}
+
+  throw new ConflictException(UNFOLLOW_ERRORS.NOT_FOLLOWING);
+}
+
 
     await this.repo.deleteFollow(params);
 

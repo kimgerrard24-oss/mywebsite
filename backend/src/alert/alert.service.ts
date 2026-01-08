@@ -25,10 +25,12 @@ export class AlertService {
     context?: Record<string, any>,
   ): Promise<void> {
     try {
+      const safeContext = this.safeSerialize(context);
+
       const payload = {
         level: 'CRITICAL',
         message,
-        context,
+        context: safeContext,
         env: process.env.NODE_ENV,
         service: 'backend',
         timestamp: new Date().toISOString(),
@@ -36,16 +38,15 @@ export class AlertService {
 
       /**
        * 1️⃣ Log (always)
+       * - ห้าม log object ตรง ๆ (กัน circular + huge payload)
        */
       this.logger.error(
         `[CRITICAL] ${message}`,
-        context ? JSON.stringify(context) : undefined,
+        safeContext ? JSON.stringify(safeContext) : undefined,
       );
 
       /**
        * 2️⃣ Optional: Slack / Webhook
-       * - ไม่บังคับ
-       * - ถ้าไม่ตั้ง env → ข้าม
        */
       if (process.env.ALERT_WEBHOOK_URL) {
         await this.sendWebhook(
@@ -55,8 +56,8 @@ export class AlertService {
       }
 
       /**
-       * 3️⃣ Optional: Sentry (ถ้ามี)
-       * - ปล่อยให้ global filter handle
+       * 3️⃣ Optional: Sentry
+       * - ให้ global exception filter / interceptor handle
        */
     } catch (err) {
       /**
@@ -80,9 +81,11 @@ export class AlertService {
     context?: Record<string, any>,
   ): Promise<void> {
     try {
+      const safeContext = this.safeSerialize(context);
+
       this.logger.warn(
         `[WARN] ${message}`,
-        context ? JSON.stringify(context) : undefined,
+        safeContext ? JSON.stringify(safeContext) : undefined,
       );
     } catch {
       // fail-soft
@@ -98,12 +101,16 @@ export class AlertService {
     url: string,
     payload: Record<string, any>,
   ): Promise<void> {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 5000); // 5s hard timeout
+
     try {
       await fetch(url, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
+        signal: controller.signal,
         body: JSON.stringify({
           text: `🚨 *${payload.level}*\n${payload.message}`,
           attachments: payload.context
@@ -113,7 +120,7 @@ export class AlertService {
                   fields: Object.entries(payload.context).map(
                     ([key, value]) => ({
                       title: key,
-                      value: String(value),
+                      value: String(value).slice(0, 500), // กัน payload ยาวผิดปกติ
                       short: true,
                     }),
                   ),
@@ -130,6 +137,49 @@ export class AlertService {
         'Alert webhook failed',
         err instanceof Error ? err.stack : undefined,
       );
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  /**
+   * =========================================================
+   * Safe serializer
+   * - กัน circular
+   * - กัน payload ใหญ่
+   * - กัน secret หลุด
+   * =========================================================
+   */
+  private safeSerialize(
+    input?: Record<string, any>,
+  ): Record<string, any> | undefined {
+    if (!input) return undefined;
+
+    try {
+      const seen = new WeakSet();
+
+      const json = JSON.stringify(input, (key, value) => {
+        if (typeof value === 'object' && value !== null) {
+          if (seen.has(value)) return '[Circular]';
+          seen.add(value);
+        }
+
+        // simple secret masking
+        if (
+          typeof key === 'string' &&
+          /token|secret|password|authorization/i.test(key)
+        ) {
+          return '[REDACTED]';
+        }
+
+        return value;
+      });
+
+      const parsed = JSON.parse(json);
+
+      return parsed;
+    } catch {
+      return { note: 'context_unserializable' };
     }
   }
 }

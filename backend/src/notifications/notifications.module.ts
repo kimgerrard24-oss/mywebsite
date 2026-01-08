@@ -6,6 +6,7 @@ import { NotificationsRepository } from './notifications.repository';
 import { NotificationCacheService } from './cache/notification-cache.service';
 import { AuthModule } from '../auth/auth.module';
 import { NotificationRealtimeModule } from './realtime/notification-realtime.module'
+import { AuditService } from '../auth/audit.service';
 
 @Module({
   imports: [ AuthModule, NotificationRealtimeModule, ],
@@ -14,6 +15,7 @@ import { NotificationRealtimeModule } from './realtime/notification-realtime.mod
     NotificationsService,
     NotificationsRepository,
     NotificationCacheService,
+    AuditService,
   ],
   exports: [ NotificationsService, NotificationCacheService, ],
   

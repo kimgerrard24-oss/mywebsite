@@ -18,38 +18,58 @@ export class AdminPostsService {
   ) {}
 
   async deletePost(params: {
-    postId: string;
-    reason: string;
-  }) {
-    const { postId, reason } = params;
+  postId: string;
+  reason: string;
+}) {
+  const { postId, reason } = params;
 
-    const post = await this.repo.findById(postId);
+  const post = await this.repo.findById(postId);
 
-    if (!post) {
-      throw new NotFoundException(
-        'Post not found',
-      );
-    }
+  if (!post) {
+    // 🔍 audit: target not found
+    try {
+      await this.audit.log({
+        action: 'ADMIN_DELETE_POST_TARGET_NOT_FOUND',
+        targetId: postId,
+      });
+    } catch {}
 
-    if (post.isDeleted) {
-      // idempotent
-      return;
-    }
+    throw new NotFoundException('Post not found');
+  }
 
-    await this.repo.softDelete({
-      postId,
-      reason,
-    });
+  if (post.isDeleted) {
+    // ♻️ audit: idempotent delete
+    try {
+      await this.audit.log({
+        action: 'ADMIN_DELETE_POST_NOOP_ALREADY_DELETED',
+        targetId: postId,
+        detail: {
+          authorId: post.authorId,
+        },
+      });
+    } catch {}
 
+    return;
+  }
+
+  await this.repo.softDelete({
+    postId,
+    reason,
+  });
+
+  // ✅ audit: delete success
+  try {
     await this.audit.log({
-      action: 'DELETE_POST',
+      action: 'ADMIN_DELETE_POST',
       targetId: postId,
       detail: {
         reason,
         authorId: post.authorId,
       },
     });
-  }
+  } catch {}
+}
+
 
   async getPostById(
     postId: string,

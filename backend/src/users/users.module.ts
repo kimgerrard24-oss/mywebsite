@@ -40,6 +40,6 @@ import { UserBlockController } from './user-block/user-block.controller';
     UserBlockRepository,
     UserBlockPolicy,
   ],
-  exports: [UsersService],
+  exports: [UsersService, AuditLogService,],
 })
 export class UsersModule {}

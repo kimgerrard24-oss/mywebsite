@@ -19,110 +19,142 @@ export class AdminModerationService {
   ) {}
 
   async createAction(
-    adminId: string,
-    dto: CreateModerationActionDto,
-  ): Promise<ModerationActionDto> {
-    /**
-     * 1️⃣ Policy (business authority)
-     */
-    AdminModerationPolicy.assertAllowed(
-      adminId,
-      dto,
-    );
+  adminId: string,
+  dto: CreateModerationActionDto,
+): Promise<ModerationActionDto> {
 
-    /**
-     * 2️⃣ Validate target existence
-     */
+  /**
+   * 1️⃣ Policy (business authority)
+   */
+  try {
+    AdminModerationPolicy.assertAllowed(adminId, dto);
+  } catch (err) {
+    try {
+      await this.audit.logAdminAction({
+        adminId,
+        action: dto.actionType,
+        targetId: dto.targetId,
+        reason: dto.reason,
+        metadata: {
+          targetType: dto.targetType,
+          blocked: 'policy',
+        },
+      });
+    } catch {}
+    throw err;
+  }
+
+  /**
+   * 2️⃣ Validate target existence
+   */
+  try {
     await this.repo.assertTargetExists(
       dto.targetType,
       dto.targetId,
     );
-
-    /**
-     * 2.5️⃣ Validate UNHIDE is allowed (state check)
-     *
-     * - Backend MUST re-check
-     * - Frontend is NOT authority
-     */
-    if (
-      dto.actionType ===
-      ModerationActionType.UNHIDE
-    ) {
-      const canUnhide =
-        await this.repo.canUnhideTarget(
-          dto.targetType,
-          dto.targetId,
-        );
-
-      if (!canUnhide) {
-        throw new BadRequestException(
-          'Target cannot be unhidden',
-        );
-      }
-    }
-
-    /**
-     * 3️⃣ Create audit log
-     */
-    const action =
-      await this.repo.createModerationAction({
+  } catch (err) {
+    try {
+      await this.audit.logAdminAction({
         adminId,
-        ...dto,
-      });
-
-    /**
-     * 4️⃣ Apply side-effect
-     * (hide / unhide / ban, etc.)
-     */
-    await this.repo.applyActionEffect(
-      dto.targetType,
-      dto.targetId,
-      dto.actionType,
-    );
-
-    /**
-     * 5️⃣ Mark related report as ACTION_TAKEN
-     * (only when real moderation happens)
-     */
-    if (
-      dto.actionType ===
-        ModerationActionType.HIDE ||
-      dto.actionType ===
-        ModerationActionType.UNHIDE ||
-      dto.actionType ===
-        ModerationActionType.BAN_USER
-    ) {
-      await this.repo.markReportActionTaken(
-        {
+        action: dto.actionType,
+        targetId: dto.targetId,
+        reason: dto.reason,
+        metadata: {
           targetType: dto.targetType,
-          targetId: dto.targetId,
-          adminId,
-          reason: dto.reason,
+          blocked: 'target_not_found',
         },
+      });
+    } catch {}
+    throw err;
+  }
+
+  /**
+   * 2.5️⃣ Validate UNHIDE is allowed (state check)
+   */
+  if (dto.actionType === ModerationActionType.UNHIDE) {
+    const canUnhide =
+      await this.repo.canUnhideTarget(
+        dto.targetType,
+        dto.targetId,
+      );
+
+    if (!canUnhide) {
+      try {
+        await this.audit.logAdminAction({
+          adminId,
+          action: dto.actionType,
+          targetId: dto.targetId,
+          reason: dto.reason,
+          metadata: {
+            targetType: dto.targetType,
+            blocked: 'invalid_state',
+          },
+        });
+      } catch {}
+
+      throw new BadRequestException(
+        'Target cannot be unhidden',
       );
     }
-
-    /**
- * 6️⃣ AUDIT LOG (after DB success only)
- */
-await this.audit.logAdminAction({
-  adminId,
-  action: dto.actionType, // enum -> string ok
-  targetId: dto.targetId,
-  reason: dto.reason,
-  metadata: {
-    targetType: dto.targetType,
-  },
-});
-
-
-    return {
-      id: action.id,
-      actionType: action.actionType,
-      targetType: action.targetType,
-      targetId: action.targetId,
-      reason: action.reason,
-      createdAt: action.createdAt,
-    };
   }
+
+  /**
+   * 3️⃣ Create moderation action (DB)
+   */
+  const action =
+    await this.repo.createModerationAction({
+      adminId,
+      ...dto,
+    });
+
+  /**
+   * 4️⃣ Apply side-effect
+   */
+  await this.repo.applyActionEffect(
+    dto.targetType,
+    dto.targetId,
+    dto.actionType,
+  );
+
+  /**
+   * 5️⃣ Mark related report as ACTION_TAKEN
+   */
+  if (
+    dto.actionType === ModerationActionType.HIDE ||
+    dto.actionType === ModerationActionType.UNHIDE ||
+    dto.actionType === ModerationActionType.BAN_USER
+  ) {
+    await this.repo.markReportActionTaken({
+      targetType: dto.targetType,
+      targetId: dto.targetId,
+      adminId,
+      reason: dto.reason,
+    });
+  }
+
+  /**
+   * 6️⃣ ✅ AUDIT LOG — SUCCESS ONLY
+   */
+  try {
+    await this.audit.logAdminAction({
+      adminId,
+      action: dto.actionType,
+      targetId: dto.targetId,
+      reason: dto.reason,
+      metadata: {
+        targetType: dto.targetType,
+        success: true,
+      },
+    });
+  } catch {}
+
+  return {
+    id: action.id,
+    actionType: action.actionType,
+    targetType: action.targetType,
+    targetId: action.targetId,
+    reason: action.reason,
+    createdAt: action.createdAt,
+  };
+}
 }

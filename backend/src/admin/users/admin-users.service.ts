@@ -52,6 +52,14 @@ async banUser(params: {
   const user = await this.repo.findById(targetUserId);
 
   if (!user) {
+    // (optional) audit not-found attempt
+    try {
+      await this.audit.log({
+        action: 'BAN_USER_TARGET_NOT_FOUND',
+        targetId: targetUserId,
+      });
+    } catch {}
+
     throw new NotFoundException('User not found');
   }
 
@@ -60,6 +68,13 @@ async banUser(params: {
    * - ADMIN ห้ามถูกจัดการผ่าน admin-ban API นี้
    */
   if (user.role === 'ADMIN') {
+    try {
+      await this.audit.log({
+        action: 'BAN_USER_BLOCKED_ADMIN_TARGET',
+        targetId: targetUserId,
+      });
+    } catch {}
+
     throw new ForbiddenException(
       'Cannot manage admin user',
     );
@@ -72,8 +87,15 @@ async banUser(params: {
    * Authority = isBanned
    */
   if (banned === false) {
-    // ไม่ได้ถูกแบนอยู่แล้ว → idempotent
+    // idempotent → not banned already
     if (!user.isBanned) {
+      try {
+        await this.audit.log({
+          action: 'UNBAN_USER_NOOP_ALREADY_ACTIVE',
+          targetId: targetUserId,
+        });
+      } catch {}
+
       return;
     }
 
@@ -83,10 +105,12 @@ async banUser(params: {
      * 🧾 audit log
      * - unban ไม่ revoke session
      */
-    await this.audit.log({
-      action: 'UNBAN_USER',
-      targetId: targetUserId,
-    });
+    try {
+      await this.audit.log({
+        action: 'UNBAN_USER',
+        targetId: targetUserId,
+      });
+    } catch {}
 
     return;
   }
@@ -97,13 +121,27 @@ async banUser(params: {
    * =========================
    */
 
-  // ถูกแบนอยู่แล้ว → idempotent
+  // idempotent → already banned
   if (user.isBanned) {
+    try {
+      await this.audit.log({
+        action: 'BAN_USER_NOOP_ALREADY_BANNED',
+        targetId: targetUserId,
+      });
+    } catch {}
+
     return;
   }
 
-  // defensive check (DTO ควร block ไว้แล้ว)
+  // defensive check
   if (!reason || reason.trim().length < 3) {
+    try {
+      await this.audit.log({
+        action: 'BAN_USER_BLOCKED_INVALID_REASON',
+        targetId: targetUserId,
+      });
+    } catch {}
+
     throw new ForbiddenException(
       'Ban reason is required',
     );
@@ -119,21 +157,22 @@ async banUser(params: {
    * - revoke session ทันที
    * - ไม่ reset TTL
    */
-  await this.revokeSessions.revokeAll(
-    targetUserId,
-  );
+  await this.revokeSessions.revokeAll(targetUserId);
 
   /**
    * 🧾 audit log
    */
-  await this.audit.log({
-    action: 'BAN_USER',
-    targetId: targetUserId,
-    detail: {
-      reason: reason.trim(),
-    },
-  });
- }
+  try {
+    await this.audit.log({
+      action: 'BAN_USER',
+      targetId: targetUserId,
+      detail: {
+        reason: reason.trim(),
+      },
+    });
+  } catch {}
+}
+
 
   async getUserById(
     userId: string,

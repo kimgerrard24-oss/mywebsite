@@ -16,18 +16,15 @@ export class ChatPermissionService {
     viewerUserId: string,
     targetUserId: string,
   ): Promise<boolean> {
-    // ===== BLOCK CHECK (2-way) =====
-    const blocked = await this.prisma.userBlock.findFirst({
-      where: {
-        OR: [
-          { blockerId: viewerUserId, blockedId: targetUserId },
-          { blockerId: targetUserId, blockedId: viewerUserId },
-        ],
-      },
-      select: { blockerId: true },
-    });
-
-    if (blocked) return false;
+    // 🔒 reuse same block enforcement logic
+    try {
+      await this.assertNotBlockedBetween({
+        userA: viewerUserId,
+        userB: targetUserId,
+      });
+    } catch {
+      return false;
+    }
 
     // ===== FUTURE: privacy rules =====
     return true;
@@ -64,7 +61,12 @@ export class ChatPermissionService {
   }): Promise<void> {
     const { chat, viewerUserId } = params;
 
-    if (!chat || !Array.isArray(chat.participants)) {
+    // 🔒 hard fail if chat shape invalid
+    if (
+      !chat ||
+      !Array.isArray(chat.participants) ||
+      typeof chat.isGroup !== 'boolean'
+    ) {
       throw new ForbiddenException('Access denied');
     }
 
@@ -77,8 +79,15 @@ export class ChatPermissionService {
       throw new ForbiddenException('Access denied');
     }
 
+    // 🔒 defensive: ensure joined user exists & valid
     const viewer = participant.user;
-    if (!viewer || !viewer.active || viewer.isDisabled) {
+    if (
+      !viewer ||
+      typeof viewer.active !== 'boolean' ||
+      typeof viewer.isDisabled !== 'boolean' ||
+      !viewer.active ||
+      viewer.isDisabled
+    ) {
       throw new ForbiddenException('Access denied');
     }
 
@@ -150,4 +159,3 @@ export class ChatPermissionService {
     }
   }
 }
-

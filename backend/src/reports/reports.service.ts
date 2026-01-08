@@ -35,10 +35,19 @@ export class ReportsService {
     });
 
     if (duplicate) {
-      throw new ConflictException(
-        'You have already reported this content',
-      );
-    }
+  try {
+    await this.audit.reportDuplicateAttempt({
+      userId: reporterId,
+      targetType: dto.targetType,
+      targetId: dto.targetId,
+    });
+  } catch {}
+
+  throw new ConflictException(
+    'You have already reported this content',
+  );
+}
+
 
     const targetOwnerId =
       await this.repo.findTargetOwnerId({
@@ -214,6 +223,15 @@ export class ReportsService {
       default:
         targetSnapshot = undefined;
     }
+     // BEFORE return
+try {
+  await this.audit.reportViewed({
+    userId: params.reporterId,
+    reportId: report.id,
+  });
+} catch {
+  // must not affect response
+}
 
     return ReportDetailDto.fromEntity({
       ...report,

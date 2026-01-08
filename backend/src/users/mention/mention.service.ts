@@ -2,12 +2,16 @@
 
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { AuditService } from '../../auth/audit.service';
 
 @Injectable()
 export class MentionService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly audit: AuditService,
+  ) {}
 
-  async searchUsersForMention(params: {
+    async searchUsersForMention(params: {
     query: string;
     limit: number;
     requesterId: string;
@@ -17,7 +21,6 @@ export class MentionService {
     const users = await this.prisma.user.findMany({
       where: {
         AND: [
-          // ===== name match =====
           {
             OR: [
               {
@@ -34,39 +37,25 @@ export class MentionService {
               },
             ],
           },
-
-          // ===== basic visibility =====
           { active: true },
           { isDisabled: false },
           { id: { not: requesterId } },
 
-          // =========================
           // 🔒 BLOCK FILTER (2-WAY)
-          // =========================
-
-          // requester does NOT block this user
           {
             blockedBy: {
-              none: {
-                blockerId: requesterId,
-              },
+              none: { blockerId: requesterId },
             },
           },
-
-          // this user does NOT block requester
           {
             blockedUsers: {
-              none: {
-                blockedId: requesterId,
-              },
+              none: { blockedId: requesterId },
             },
           },
         ],
       },
 
-      // 🔒 hard limit กัน abuse / spam query
       take: Math.min(limit, 10),
-
       orderBy: { username: 'asc' },
 
       select: {
@@ -77,6 +66,26 @@ export class MentionService {
       },
     });
 
+    // ==============================
+    // ✅ AUDIT: MENTION USER SEARCH
+    // ==============================
+    try {
+      await this.audit.createLog({
+        userId: requesterId,
+        action: 'mention.search_users',
+        success: true,
+        metadata: {
+          q: query,
+          requestedLimit: limit,
+          actualLimit: Math.min(limit, 10),
+          resultCount: users.length,
+        },
+      });
+    } catch {
+      // must not affect mention UX
+    }
+
     return users;
   }
+
 }
