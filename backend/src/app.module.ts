@@ -46,7 +46,6 @@ import { SecurityModule } from './common/security/security.module';
       isGlobal: true,
       cache: true,
     }),
-    
     ScheduleModule.forRoot(),
     AlertModule,
     ChatModule,
