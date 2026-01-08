@@ -1,20 +1,21 @@
 // frontend/pages/users/[userId].tsx
+
 import { GetServerSideProps } from "next";
 import Head from "next/head";
 import Link from "next/link";
 
 import ProfileLayout from "@/components/layout/ProfileLayout";
-import { ProfileCard } from "@/components/profile/profile-ProfileCard";
-import ProfilePosts from "@/components/profile/ProfilePosts";
+import PublicUserProfile from "@/components/profile/PublicUserProfile";
+import PublicUserPosts from "@/components/profile/PublicUserPosts";
 
 import { fetchPublicUserProfileServer } from "@/lib/api/user";
 import { getUserPosts } from "@/lib/api/posts";
 
-import type { PublicUserProfile } from "@/types/user-profile";
+import type { PublicUserProfile as PublicUserProfileType } from "@/types/user-profile";
 import type { PostFeedItem } from "@/types/post-feed";
 
 type Props = {
-  profile: PublicUserProfile;
+  profile: PublicUserProfileType;
   posts: PostFeedItem[]; // kept for compatibility (fail-soft SSR)
 };
 
@@ -22,108 +23,109 @@ export default function UserProfilePage({ profile }: Props) {
   const siteUrl =
     process.env.NEXT_PUBLIC_SITE_URL || "https://www.phlyphant.com";
 
-return (
-  <>
-    <Head>
-      <title>{profile.displayName ?? 'User'} | PhlyPhant</title>
-      <meta
-        name="description"
-        content={`ดูโปรไฟล์และโพสต์ของ ${
-          profile.displayName ?? 'ผู้ใช้'
-        } บน PhlyPhant`}
-      />
-      <link
-        rel="canonical"
-        href={`${siteUrl}/users/${profile.id}`}
-      />
-      <meta property="og:type" content="profile" />
-      <meta
-        property="og:title"
-        content={`${profile.displayName ?? 'User'} | PhlyPhant`}
-      />
-      <meta
-        property="og:url"
-        content={`${siteUrl}/users/${profile.id}`}
-      />
-    </Head>
+  return (
+    <>
+      <Head>
+        <title>{profile.displayName ?? "User"} | PhlyPhant</title>
+        <meta
+          name="description"
+          content={`ดูโปรไฟล์และโพสต์ของ ${
+            profile.displayName ?? "ผู้ใช้"
+          } บน PhlyPhant`}
+        />
+        <link
+          rel="canonical"
+          href={`${siteUrl}/users/${profile.id}`}
+        />
+        <meta property="og:type" content="profile" />
+        <meta
+          property="og:title"
+          content={`${profile.displayName ?? "User"} | PhlyPhant`}
+        />
+        <meta
+          property="og:url"
+          content={`${siteUrl}/users/${profile.id}`}
+        />
+      </Head>
 
-    <ProfileLayout>
-      <main
-        className="
-          min-h-screen
-          bg-gray-50
-        "
-      >
-        {/* ===== Top navigation ===== */}
-        <nav
-          aria-label="Profile navigation"
+      <ProfileLayout>
+        <main
           className="
-            mx-auto
-            w-full
-            max-w-5xl
-            px-4
-            pt-4
-            sm:pt-6
+            min-h-screen
+            bg-gray-50
           "
         >
-          <Link
-            href="/feed"
-            prefetch={false}
+          {/* ===== Top navigation ===== */}
+          <nav
+            aria-label="Profile navigation"
             className="
-              inline-block
-              text-xs
-              sm:text-sm
-              text-blue-600
-              hover:underline
-              focus:outline-none
-              focus-visible:ring-2
-              focus-visible:ring-blue-500
-              rounded
+              mx-auto
+              w-full
+              max-w-5xl
+              px-4
+              pt-4
+              sm:pt-6
             "
           >
-            ← Back to feed
-          </Link>
-        </nav>
+            <Link
+              href="/feed"
+              prefetch={false}
+              className="
+                inline-block
+                text-xs
+                sm:text-sm
+                text-blue-600
+                hover:underline
+                focus:outline-none
+                focus-visible:ring-2
+                focus-visible:ring-blue-500
+                rounded
+              "
+            >
+              ← Back to feed
+            </Link>
+          </nav>
 
-        {/* ===== Profile card ===== */}
-        <section
-          aria-label="User profile"
-          className="
-            mx-auto
-            w-full
-            max-w-5xl
-            px-4
-            pt-4
-            sm:pt-6
-            pb-6
-            sm:pb-8
-          "
-        >
-          <ProfileCard
-            profile={profile}
-            isSelf={profile.isSelf === true}
-          />
-        </section>
+          {/* ===== Public profile (with Block / Unblock) ===== */}
+          <section
+            aria-label="User profile"
+            className="
+              mx-auto
+              w-full
+              max-w-5xl
+              px-4
+              pt-4
+              sm:pt-6
+              pb-6
+              sm:pb-8
+            "
+          >
+            {/* 
+              IMPORTANT:
+              - ใช้ PublicUserProfile เท่านั้น
+              - UserProfileHeader (ภายใน) จะตัดสิน Block/Unblock จาก backend fields
+            */}
+            <PublicUserProfile profile={profile} />
+          </section>
 
-        {/* ===== Profile posts ===== */}
-        <section
-          aria-label="User posts"
-          className="
-            mx-auto
-            w-full
-            max-w-5xl
-            px-4
-            pb-8
-            sm:pb-12
-          "
-        >
-          <ProfilePosts userId={profile.id} />
-        </section>
-      </main>
-    </ProfileLayout>
-  </>
-);
-
+          {/* ===== Public user posts ===== */}
+          <section
+            aria-label="User posts"
+            className="
+              mx-auto
+              w-full
+              max-w-5xl
+              px-4
+              pb-8
+              sm:pb-12
+            "
+          >
+            <PublicUserPosts userId={profile.id} />
+          </section>
+        </main>
+      </ProfileLayout>
+    </>
+  );
 }
 
 export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
