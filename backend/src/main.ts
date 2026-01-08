@@ -52,9 +52,9 @@ function normalizeToOrigin(raw: string | undefined): string {
     s = s.replace(/\/+$/g, '');
     return s;
   }
-}
+ }
 
-async function bootstrap(): Promise<void> {
+ async function bootstrap(): Promise<void> {
   // Initialize Sentry (server-side)
   Sentry.init({
     dsn: process.env.SENTRY_DSN || '',
@@ -65,6 +65,31 @@ async function bootstrap(): Promise<void> {
     // Do not capture PII by default here; we'll add user context explicitly in filters/interceptors
     attachStacktrace: true,
     serverName: process.env.SERVICE_NAME || 'backend-api',
+
+    beforeSend(event, hint) {
+  const req = event.request as any;
+
+  // drop health / system check
+  const url = req?.url || '';
+  if (
+    url.includes('/health') ||
+    url.includes('/system-check') ||
+    url.includes('/ready')
+  ) {
+    return null;
+  }
+
+  // sanitize headers
+  if (req?.headers) {
+    delete req.headers.cookie;
+    delete req.headers.authorization;
+  }
+
+  return event;
+ },
+ sendDefaultPii: false,
+
+
   });
 
   initSentry();
@@ -103,7 +128,7 @@ async function bootstrap(): Promise<void> {
       },
     },
   }),
-);
+ );
 
   expressApp.use(cookieParser());
 
@@ -242,22 +267,29 @@ nestApp.useWebSocketAdapter(redisIoAdapter);
 await nestApp.init();
 
 
-  process.on('unhandledRejection', (reason) => {
-    logger.error('Unhandled Rejection:', String(reason));
-    try {
+ process.on('unhandledRejection', (reason) => {
+  logger.error('Unhandled Rejection:', String(reason));
+  try {
+    Sentry.withScope((scope) => {
+      scope.setTag('process', 'unhandledRejection');
       Sentry.captureException(reason as any);
-    } catch {}
-  });
+    });
+  } catch {}
+});
 
-  process.on('uncaughtException', (err) => {
-    logger.error(
-      'Uncaught Exception:',
-      err instanceof Error ? err.stack || err.message : String(err),
-    );
-    try {
+ process.on('uncaughtException', (err) => {
+  logger.error(
+    'Uncaught Exception:',
+    err instanceof Error ? err.stack || err.message : String(err),
+  );
+  try {
+    Sentry.withScope((scope) => {
+      scope.setTag('process', 'uncaughtException');
       Sentry.captureException(err as any);
-    } catch {}
-  });
+    });
+  } catch {}
+});
+
 
  const raw = process.env.PORT;
 if (!raw) {

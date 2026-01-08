@@ -30,6 +30,7 @@ import { RedisService } from '../redis/redis.service';
 import { UserProfileDto } from './dto/user-profile.dto';
 import * as jwt from 'jsonwebtoken';
 import { SessionService } from './session/session.service';
+import { SecurityEventService } from '../common/security/security-event.service';
 
 interface GoogleOAuthConfig {
   clientId: string;
@@ -74,6 +75,7 @@ constructor(
   private readonly audit: AuditService,
   private readonly redisService: RedisService,
   private readonly sessionService: SessionService,
+  private readonly securityEvent: SecurityEventService,
     @Inject('REDIS_CLIENT')
     private readonly redis: Redis,
 ) {}
@@ -108,25 +110,48 @@ constructor(
 // Local Login (Validate Credentials Only)
 // -------------------------------------------------------
 async validateUser(email: string, password: string) {
-  
   // 1) Normalize email (single source of truth)
   const normalizedEmail = email.trim().toLowerCase();
 
   // 2) Find user by email
   const user = await this.repo.findUserByEmail(normalizedEmail);
   if (!user) {
+    // ---- Security Event: login fail (user not found) ----
+    this.securityEvent.log({
+      type: 'auth.login.fail',
+      severity: 'warning',
+      emailHash: this.securityEvent.hash(normalizedEmail),
+      reason: 'user_not_found',
+    });
+
     // invalid credential (controller decides rate-limit & audit)
     return null;
   }
 
   // 3) Disabled account = hard stop
   if (user.isDisabled) {
+    // ---- Security Event: suspicious login (disabled account) ----
+    this.securityEvent.log({
+      type: 'auth.login.suspicious',
+      severity: 'warning',
+      userId: user.id,
+      reason: 'account_disabled',
+    });
+
     // business rule → exception is correct
     throw new ForbiddenException('Account disabled');
   }
 
   // 4) Local login requires password hash
   if (!user.hashedPassword || typeof user.hashedPassword !== 'string') {
+    // ---- Security Event: system misconfiguration / invalid user state ----
+    this.securityEvent.log({
+      type: 'system.misconfiguration',
+      severity: 'error',
+      userId: user.id,
+      reason: 'missing_password_hash',
+    });
+
     return null;
   }
 
@@ -138,16 +163,39 @@ async validateUser(email: string, password: string) {
       password,
     );
   } catch {
+    // ---- Security Event: crypto verify failure (system) ----
+    this.securityEvent.log({
+      type: 'system.misconfiguration',
+      severity: 'error',
+      userId: user.id,
+      reason: 'argon2_verify_error',
+    });
+
     // treat argon2 error as invalid credential
     return null;
   }
 
   if (!passwordMatched) {
+    // ---- Security Event: login fail (password mismatch) ----
+    this.securityEvent.log({
+      type: 'auth.login.fail',
+      severity: 'warning',
+      userId: user.id,
+      reason: 'password_mismatch',
+    });
+
     return null;
   }
 
   // 6) Success → update last login
   await this.repo.updateLastLogin(user.id);
+
+  // ---- Security Event: login success ----
+  this.securityEvent.log({
+    type: 'auth.login.success',
+    severity: 'info',
+    userId: user.id,
+  });
 
   // 7) Return safe user object (remove password hash)
   const safeUser: any = { ...user };
@@ -155,6 +203,7 @@ async validateUser(email: string, password: string) {
 
   return safeUser;
 }
+
 
 // -------------------------------------------------------
 // Create Session Token (NEW SYSTEM: use SessionService for Redis)
@@ -174,6 +223,14 @@ async createSessionToken(userId: string, meta?: SessionMeta) {
 
   const secret = process.env.JWT_ACCESS_SECRET;
   if (!secret) {
+    // ---- Security Event: system misconfiguration ----
+    this.securityEvent.log({
+      type: 'system.misconfiguration',
+      severity: 'error',
+      userId,
+      reason: 'JWT_ACCESS_SECRET missing',
+    });
+
     throw new Error('JWT_ACCESS_SECRET not configured');
   }
 
@@ -184,6 +241,9 @@ async createSessionToken(userId: string, meta?: SessionMeta) {
 
   const refreshToken = randomBytes(48).toString('hex');
 
+  // --------------------------------------------------
+  // Redis = authority (DO NOT change session rules)
+  // --------------------------------------------------
   await this.sessionService.createSession(
     { userId },
     jti,
@@ -195,6 +255,18 @@ async createSessionToken(userId: string, meta?: SessionMeta) {
     },
   );
 
+  // ---- Security Event: login success (session issued) ----
+  this.securityEvent.log({
+    type: 'auth.login.success',
+    severity: 'info',
+    userId,
+    meta: {
+      hasIp: Boolean(meta?.ip),
+      hasUserAgent: Boolean(meta?.userAgent),
+      hasDeviceId: Boolean(meta?.deviceId),
+    },
+  });
+
   return {
     accessToken,
     refreshToken,
@@ -202,33 +274,66 @@ async createSessionToken(userId: string, meta?: SessionMeta) {
   };
 }
 
+
+
+
 // -------------------------------------------------------
 // Verify Access Token (JWT)
 // -------------------------------------------------------
 async verifyAccessToken(
   token: string,
 ): Promise<{ sub: string; jti: string }> {
+
+  // =================================================
+  // 1) Missing token
+  // =================================================
   if (!token || typeof token !== 'string') {
+    this.securityEvent.log({
+      type: 'auth.session.missing',
+      severity: 'warning',
+      reason: 'access_token_missing',
+    });
+
     throw new UnauthorizedException('Missing access token');
   }
 
+  // =================================================
+  // 2) Server misconfiguration
+  // =================================================
   const secret = process.env.JWT_ACCESS_SECRET;
   if (!secret) {
-    // misconfiguration = server error
+    this.securityEvent.log({
+      type: 'system.misconfiguration',
+      severity: 'error',
+      reason: 'JWT_ACCESS_SECRET missing',
+    });
+
+    // misconfiguration = server error (แต่ไม่ leak detail)
     throw new UnauthorizedException('JWT secret not configured');
   }
 
   try {
+    // =================================================
+    // 3) Verify JWT (signature + exp)
+    // =================================================
     const payload = jwt.verify(token, secret, {
       algorithms: ['HS256'],
     }) as AccessTokenPayload;
 
-    // strict payload validation
+    // =================================================
+    // 4) Strict payload validation
+    // =================================================
     if (
       !payload ||
       typeof payload.sub !== 'string' ||
       typeof payload.jti !== 'string'
     ) {
+      this.securityEvent.log({
+        type: 'auth.jwt.invalid',
+        severity: 'warning',
+        reason: 'payload_shape_invalid',
+      });
+
       throw new UnauthorizedException('Invalid JWT payload');
     }
 
@@ -237,37 +342,133 @@ async verifyAccessToken(
       jti: payload.jti,
     };
   } catch (err: any) {
+    // =================================================
+    // 5) Verify failed (expired / forged / malformed)
+    // =================================================
+    let reason = 'unknown';
+
+    if (err?.name === 'TokenExpiredError') {
+      reason = 'expired';
+    } else if (err?.name === 'JsonWebTokenError') {
+      reason = 'invalid_signature_or_format';
+    } else if (err?.name === 'NotBeforeError') {
+      reason = 'not_active_yet';
+    }
+
+    this.securityEvent.log({
+      type: 'auth.jwt.invalid',
+      severity: 'warning',
+      meta: { reason },
+    });
+
     // keep error generic for security
-    throw new UnauthorizedException('Invalid or expired access token');
+    throw new UnauthorizedException(
+      'Invalid or expired access token',
+    );
   }
 }
 
 
 // Local Logout
 async logout(req: any, res: any) {
-  const accessCookie = process.env.ACCESS_TOKEN_COOKIE_NAME || 'phl_access';
-  const refreshCookie = process.env.REFRESH_TOKEN_COOKIE_NAME || 'phl_refresh';
+  const accessCookie =
+    process.env.ACCESS_TOKEN_COOKIE_NAME || 'phl_access';
+  const refreshCookie =
+    process.env.REFRESH_TOKEN_COOKIE_NAME || 'phl_refresh';
 
   const accessToken = req.cookies?.[accessCookie];
   const refreshToken = req.cookies?.[refreshCookie];
 
+  let accessSessionRevoked = false;
+  let refreshSessionRevoked = false;
+  let jwtVerifyFailed = false;
+
+  // ============================================
+  // Revoke access session (by jti)
+  // ============================================
   if (accessToken) {
     try {
       const secret = process.env.JWT_ACCESS_SECRET as string;
-      const payload = jwt.verify(accessToken, secret) as AccessTokenPayload;
+
+      const payload = jwt.verify(
+        accessToken,
+        secret,
+      ) as AccessTokenPayload;
 
       if (payload?.jti) {
-        await this.redis.del(`session:access:${payload.jti}`);
+        await this.redis.del(
+          `session:access:${payload.jti}`,
+        );
+        accessSessionRevoked = true;
       }
-    } catch (err) {
-      // token invalid → ignore
+    } catch (err: any) {
+      // token invalid / expired / forged
+      // must not block logout
+      jwtVerifyFailed = true;
+
+      // ---- Security Event: JWT invalid during logout ----
+      try {
+        this.securityEvent.log({
+          type: 'auth.jwt.invalid',
+          severity: 'warning',
+          meta: {
+            phase: 'logout_access_revoke',
+            reason: err?.name || 'verify_failed',
+          },
+        });
+      } catch {
+        // must never affect logout flow
+      }
     }
   }
 
+  // ============================================
+  // Revoke refresh session
+  // ============================================
   if (refreshToken) {
-    await this.redis.del(`session:refresh:${refreshToken}`);
+    try {
+      await this.redis.del(
+        `session:refresh:${refreshToken}`,
+      );
+      refreshSessionRevoked = true;
+
+      // ---- Security Event: refresh session revoked ----
+      try {
+        this.securityEvent.log({
+          type: 'auth.session.revoked',
+          severity: 'info',
+          meta: {
+            phase: 'logout_refresh_revoke',
+          },
+        });
+      } catch {}
+    } catch {
+      // Redis failure must not block logout
+    }
   }
 
+  // ============================================
+  // Security Event: logout summary
+  // ============================================
+  try {
+    this.securityEvent.log({
+      type: 'auth.logout',
+      severity: 'info',
+      meta: {
+        hadAccessCookie: Boolean(accessToken),
+        hadRefreshCookie: Boolean(refreshToken),
+        accessSessionRevoked,
+        refreshSessionRevoked,
+        jwtVerifyFailed,
+      },
+    });
+  } catch {
+    // must never affect logout flow
+  }
+
+  // ============================================
+  // Clear cookies (always)
+  // ============================================
   res.clearCookie(accessCookie, {
     httpOnly: true,
     secure: true,
@@ -286,6 +487,7 @@ async logout(req: any, res: any) {
 
   return { success: true };
 }
+
 
  async hashPassword(password: string): Promise<string> {
     return await argon2.hash(password);  

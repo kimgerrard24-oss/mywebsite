@@ -8,14 +8,14 @@ import { AdminModerationRepository } from './admin-moderation.repository';
 import { AdminModerationPolicy } from './policy/admin-moderation.policy';
 import { CreateModerationActionDto } from './dto/create-moderation-action.dto';
 import { ModerationActionDto } from './dto/moderation-action.dto';
-import {
-  ModerationActionType,
-} from '@prisma/client';
+import { ModerationActionType } from '@prisma/client';
+import { AuditService } from '../../auth/audit.service'
 
 @Injectable()
 export class AdminModerationService {
   constructor(
     private readonly repo: AdminModerationRepository,
+    private readonly audit: AuditService,
   ) {}
 
   async createAction(
@@ -101,6 +101,20 @@ export class AdminModerationService {
         },
       );
     }
+
+    /**
+ * 6️⃣ AUDIT LOG (after DB success only)
+ */
+await this.audit.logAdminAction({
+  adminId,
+  action: dto.actionType, // enum -> string ok
+  targetId: dto.targetId,
+  reason: dto.reason,
+  metadata: {
+    targetType: dto.targetType,
+  },
+});
+
 
     return {
       id: action.id,

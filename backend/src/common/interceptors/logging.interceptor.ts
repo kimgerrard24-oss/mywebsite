@@ -9,7 +9,6 @@ import {
 import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import * as Sentry from '@sentry/node';
-import type { Span } from '@sentry/core';
 
 @Injectable()
 export class LoggingInterceptor implements NestInterceptor {
@@ -28,58 +27,80 @@ export class LoggingInterceptor implements NestInterceptor {
 
   intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
     const req: any = context.switchToHttp().getRequest();
+    const res: any = context.switchToHttp().getResponse();
     const start = Date.now();
 
-    const rawRoute = req?.url || 'unknown';
+    const rawRoute = req?.originalUrl || req?.url || 'unknown';
     const route = this.sanitizeRoute(rawRoute);
     const method = req?.method || 'GET';
     const realIp = this.getRealIp(req);
 
-    const span: Span | undefined = Sentry.startInactiveSpan({
-      op: 'http.server',
-      name: `${method} ${route}`,
-      attributes: {
-        ip: realIp,
+    // ===== Breadcrumb: request start =====
+    Sentry.addBreadcrumb({
+      category: 'http',
+      message: `${method} ${route}`,
+      level: 'info',
+      data: {
         method,
         route,
       },
     });
 
-    Sentry.addBreadcrumb({
-      category: 'request',
-      message: `${method} ${route}`,
-      level: 'info',
-      data: { ip: realIp },
-    });
-
     return next.handle().pipe(
-      tap(
-        () => {
+      tap({
+        next: () => {
           const duration = Date.now() - start;
+          const statusCode = res?.statusCode;
 
-          if (duration > Number(process.env.SLOW_REQUEST_THRESHOLD_MS || 1500)) {
+          // ===== Breadcrumb: request finished =====
+          Sentry.addBreadcrumb({
+            category: 'http',
+            message: `Response ${statusCode}`,
+            level: statusCode >= 500 ? 'error' : 'info',
+            data: {
+              method,
+              route,
+              statusCode,
+              durationMs: duration,
+            },
+          });
+
+          // ===== Performance signal =====
+          const slowThreshold =
+            Number(process.env.SLOW_REQUEST_THRESHOLD_MS) || 1500;
+
+          if (duration > slowThreshold) {
             Sentry.addBreadcrumb({
               category: 'performance',
-              message: `Slow request ${duration}ms`,
+              message: 'Slow request detected',
               level: 'warning',
-              data: { duration, route },
+              data: {
+                durationMs: duration,
+                thresholdMs: slowThreshold,
+                route,
+              },
             });
-
-            span?.setAttribute('slow_request', true);
           }
-
-          // OK = 1
-          span?.setStatus({ code: 1 });
-          span?.end();
         },
-        (err) => {
-          Sentry.captureException(err);
 
-          // ERROR = 2
-          span?.setStatus({ code: 2 });
-          span?.end();
+        error: () => {
+          // ❗ DO NOT capture exception here
+          // Global SentryExceptionFilter will handle error reporting
+
+          const duration = Date.now() - start;
+
+          Sentry.addBreadcrumb({
+            category: 'http',
+            message: 'Request failed',
+            level: 'error',
+            data: {
+              method,
+              route,
+              durationMs: duration,
+            },
+          });
         },
-      ),
+      }),
     );
   }
 }

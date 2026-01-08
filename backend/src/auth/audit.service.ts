@@ -11,13 +11,20 @@ export class AuditService {
 
   constructor(private prisma: PrismaService) {}
 
+  // =====================================================
+  // Public: Generic Audit Log
+  // =====================================================
+
   /**
    * สร้าง audit log แบบทั่วไป (ใช้สำหรับ action อื่น ๆ)
+   * IMPORTANT:
+   * - must NEVER throw
+   * - best-effort only
    */
   async createLog(params: {
     userId: string | null;
     action: string;
-    email?: string | null; 
+    email?: string | null;
     success: boolean;
     reason?: string | null;
     targetId?: string | null;
@@ -28,7 +35,7 @@ export class AuditService {
     const {
       userId,
       action,
-      email = null, 
+      email = null,
       success,
       reason = null,
       targetId = null,
@@ -48,20 +55,35 @@ export class AuditService {
           targetId,
           ip,
           userAgent,
-          metadata,
+          metadata: this.sanitizeMetadata(metadata),
         },
       });
     } catch (err: unknown) {
       const error = err as Error;
 
-      this.logger.error(`Failed to create audit log: ${error.message}`);
+      this.logger.error(
+        `Failed to create audit log: ${error.message}`,
+      );
 
-      Sentry.captureException(error, {
-        tags: { module: 'audit' },
-        extra: params,
-      });
+      try {
+        Sentry.captureException(error, {
+          tags: { module: 'audit' },
+          extra: {
+            action,
+            success,
+            targetId,
+            reason,
+          },
+        });
+      } catch {
+        // must never throw
+      }
     }
   }
+
+  // =====================================================
+  // Public: Login Attempt Audit
+  // =====================================================
 
   /**
    * สำหรับ Login Attempt โดยเฉพาะ
@@ -69,7 +91,7 @@ export class AuditService {
    */
   async logLoginAttempt(payload: {
     userId?: string | null;
-    email: string; 
+    email: string;
     ip?: string | null;
     userAgent?: string | null;
     success: boolean;
@@ -92,12 +114,78 @@ export class AuditService {
     } catch (err) {
       const error = err as Error;
 
-      this.logger.warn(`Audit login logging failed: ${error.message}`);
+      this.logger.warn(
+        `Audit login logging failed: ${error.message}`,
+      );
 
-      Sentry.captureException(error, {
-        tags: { module: 'audit-login' },
-        extra: payload,
-      });
+      try {
+        Sentry.captureException(error, {
+          tags: { module: 'audit-login' },
+          extra: {
+            success: payload.success,
+            reason: payload.reason,
+          },
+        });
+      } catch {
+        // must never throw
+      }
+    }
+  }
+
+  // =====================================================
+  // Public: Admin Action Helper (NEW)
+  // =====================================================
+
+  /**
+   * ใช้สำหรับ admin / moderation / system action
+   * เพื่อให้ format audit เหมือนกันทั้งระบบ
+   */
+  async logAdminAction(params: {
+    adminId: string;
+    action: string; // e.g. BAN_USER, HIDE_POST
+    targetId?: string | null;
+    reason?: string | null;
+    metadata?: any | null;
+    ip?: string | null;
+    userAgent?: string | null;
+  }) {
+    return this.createLog({
+      userId: params.adminId,
+      action: `admin:${params.action}`,
+      success: true,
+      targetId: params.targetId ?? null,
+      reason: params.reason ?? null,
+      metadata: params.metadata ?? null,
+      ip: params.ip ?? null,
+      userAgent: params.userAgent ?? null,
+    });
+  }
+
+  // =====================================================
+  // Internal Helpers
+  // =====================================================
+
+  /**
+   * Prevent huge / unsafe metadata from going to DB
+   * (DB audit should stay lean and queryable)
+   */
+  private sanitizeMetadata(input: any) {
+    if (!input) return null;
+
+    try {
+      const json = JSON.stringify(input);
+
+      // hard limit ~4KB
+      if (json.length > 4096) {
+        return {
+          _truncated: true,
+          keys: Object.keys(input ?? {}),
+        };
+      }
+
+      return input;
+    } catch {
+      return { _invalid_metadata: true };
     }
   }
 }

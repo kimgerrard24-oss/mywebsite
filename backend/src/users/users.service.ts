@@ -81,58 +81,119 @@ export class UsersService {
     });
   }
 
-  async setPasswordResetToken(userId: string, hash: string, expires: Date) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user) throw new NotFoundException("User not found");
+ async setPasswordResetToken(
+  userId: string,
+  hash: string,
+  expires: Date,
+) {
+  const user = await this.prisma.user.findUnique({
+    where: { id: userId },
+  });
+  if (!user)
+    throw new NotFoundException('User not found');
 
-    return this.prisma.user.update({
-      where: { id: userId },
-      data: {
-        passwordResetTokenHash: hash,
-        passwordResetTokenExpires: expires,
-      },
+  const updated = await this.prisma.user.update({
+    where: { id: userId },
+    data: {
+      passwordResetTokenHash: hash,
+      passwordResetTokenExpires: expires,
+    },
+  });
+
+  // ===============================
+  // ✅ AUDIT LOG: REQUEST PASSWORD RESET
+  // ===============================
+  try {
+    await this.auditLogService.log({
+      userId,
+      action: 'USER_REQUEST_PASSWORD_RESET',
+      success: true,
     });
+  } catch {
+    // must not affect main flow
   }
+
+  return updated;
+}
+
 
   async verifyEmailByToken(tokenHash: string) {
-    const user = await this.prisma.user.findFirst({
-      where: {
-        emailVerifyTokenHash: tokenHash,
-        emailVerifyTokenExpires: { gt: new Date() },
-      },
-    });
+  const user = await this.prisma.user.findFirst({
+    where: {
+      emailVerifyTokenHash: tokenHash,
+      emailVerifyTokenExpires: { gt: new Date() },
+    },
+  });
 
-    if (!user) throw new BadRequestException("Invalid or expired token");
+  if (!user) throw new BadRequestException('Invalid or expired token');
 
-    return this.prisma.user.update({
-      where: { id: user.id },
-      data: {
-        isEmailVerified: true,
-        emailVerifyTokenHash: null,
-        emailVerifyTokenExpires: null,
-      },
+  const updated = await this.prisma.user.update({
+    where: { id: user.id },
+    data: {
+      isEmailVerified: true,
+      emailVerifyTokenHash: null,
+      emailVerifyTokenExpires: null,
+    },
+  });
+
+  // ===============================
+  // ✅ AUDIT LOG: VERIFY EMAIL
+  // ===============================
+  try {
+    await this.auditLogService.log({
+      userId: user.id,
+      action: 'USER_VERIFY_EMAIL',
+      success: true,
     });
+  } catch {
+    // must not affect verify flow
   }
 
-  async resetPasswordByToken(tokenHash: string, newPasswordHash: string) {
-    const user = await this.prisma.user.findFirst({
-      where: {
-        passwordResetTokenHash: tokenHash,
-        passwordResetTokenExpires: { gt: new Date() },
-      },
-    });
+  return updated;
+}
 
-    if (!user) throw new BadRequestException("Invalid or expired token");
 
-    return this.prisma.user.update({
-      where: { id: user.id },
-      data: {
-        hashedPassword: newPasswordHash,
-        passwordResetTokenHash: null,
-        passwordResetTokenExpires: null,
-      },
+  async resetPasswordByToken(
+  tokenHash: string,
+  newPasswordHash: string,
+) {
+  const user = await this.prisma.user.findFirst({
+    where: {
+      passwordResetTokenHash: tokenHash,
+      passwordResetTokenExpires: { gt: new Date() },
+    },
+  });
+
+  if (!user)
+    throw new BadRequestException(
+      'Invalid or expired token',
+    );
+
+  const updated = await this.prisma.user.update({
+    where: { id: user.id },
+    data: {
+      hashedPassword: newPasswordHash,
+      passwordResetTokenHash: null,
+      passwordResetTokenExpires: null,
+    },
+  });
+
+  // ===============================
+  // ✅ AUDIT LOG: RESET PASSWORD
+  // ===============================
+  try {
+    await this.auditLogService.log({
+      userId: user.id,
+      action: 'USER_RESET_PASSWORD',
+      success: true,
     });
+  } catch {
+    // must not affect reset flow
   }
+
+  return updated;
+}
+
 
   async findSafeProfileById(userId: string) {
     const user = await this.prisma.user.findUnique({

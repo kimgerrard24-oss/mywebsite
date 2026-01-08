@@ -17,6 +17,8 @@ import type Redis from 'ioredis';
 import type { Request } from 'express';
 import cookieParser from 'cookie-parser';
 import { ValidateSessionService } from '../auth/services/validate-session.service';
+import { SecurityEventService } from '../common/security/security-event.service';
+import * as Sentry from '@sentry/node';
 
 export class RedisIoAdapter extends IoAdapter {
   private readonly logger = new Logger(RedisIoAdapter.name);
@@ -77,43 +79,95 @@ export class RedisIoAdapter extends IoAdapter {
     // SOCKET AUTH (HANDSHAKE LEVEL)
     // =====================================
     server.use(
-      async (
-        socket: Socket,
-        next: (err?: Error) => void,
-      ) => {
-        try {
-          const req = socket.request as Request;
+  async (socket: Socket, next: (err?: Error) => void) => {
+    try {
+      const req = socket.request as Request;
 
-          // 🔑 IMPORTANT: parse cookies manually for Socket.IO
-          cookieParser()(req as any, {} as any, () => {});
+      // 🔑 parse cookies for socket
+      cookieParser()(req as any, {} as any, () => {});
 
-          const validateSession =
-            this.app.get(ValidateSessionService);
+      const validateSession =
+        this.app.get(ValidateSessionService);
 
-          const user =
-            await validateSession.validateAccessTokenFromRequest(
-              req,
-            );
+      const user =
+        await validateSession.validateAccessTokenFromRequest(req);
 
-          (socket as any).user = user;
+      (socket as any).user = user;
 
-          // auto join per-user room
-          const room = `user:${user.userId}`;
-          socket.join(room);
+      // auto join per-user room
+      socket.join(`user:${user.userId}`);
 
-          this.logger.log(
-            `[socket] authenticated user=${user.userId} socket=${socket.id}`,
-          );
+      this.logger.log(
+        `[socket] authenticated user=${user.userId} socket=${socket.id}`,
+      );
 
-          next();
-        } catch (err) {
-          this.logger.warn(
-            `[socket] authentication failed socket=${socket.id}`,
-          );
-          next(new Error('UNAUTHORIZED'));
+      next();
+    } catch (err) {
+      // ===============================
+      // classify reason (log only)
+      // ===============================
+      let reason = 'unauthorized';
+
+      if (err instanceof Error) {
+        const msg = err.message?.toLowerCase?.() || '';
+
+        if (msg.includes('cookie')) {
+          reason = 'missing_cookie';
+        } else if (msg.includes('jwt')) {
+          reason = 'jwt_invalid';
+        } else if (msg.includes('session')) {
+          reason = 'session_revoked';
+        } else if (msg.includes('banned')) {
+          reason = 'banned_user';
         }
-      },
-    );
+      }
+
+      // ===============================
+      // Security Event (centralized)
+      // ===============================
+      try {
+        const securityEvent =
+          this.app.get(SecurityEventService);
+
+        securityEvent.log({
+          type: 'security.abuse.detected', // ✅ ใช้ type ที่มีจริง
+          severity: 'warning',
+          meta: {
+            channel: 'socket',
+            reason,
+            socketId: socket.id,
+            transport: socket.conn.transport.name,
+          },
+        });
+      } catch {
+        // must never block socket flow
+      }
+
+      // ===============================
+      // Sentry only for abnormal error
+      // ===============================
+      if (reason === 'unauthorized') {
+        try {
+          Sentry.withScope((scope) => {
+            scope.setTag('domain', 'socket-auth');
+            scope.setTag('socket.id', socket.id);
+            Sentry.captureException(err as any);
+          });
+        } catch {
+          // ignore
+        }
+      }
+
+      this.logger.warn(
+        `[socket] authentication failed socket=${socket.id} reason=${reason}`,
+      );
+
+      // ❗ do NOT leak reason to client
+      next(new Error('UNAUTHORIZED'));
+    }
+  },
+);
+
 
     this.logger.log(
       'Socket.IO auth middleware registered',

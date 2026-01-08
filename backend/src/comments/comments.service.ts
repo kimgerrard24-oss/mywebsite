@@ -13,6 +13,7 @@ import { CommentItemDto } from './dto/comment-item.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationMapper } from '../notifications/mapper/notification.mapper';
 import { parseHashtags } from '../posts/utils/parse-hashtags.util';
+import { AuditService } from '../auth/audit.service'
 
 @Injectable()
 export class CommentsService {
@@ -21,6 +22,7 @@ export class CommentsService {
     private readonly commentpolicy: CommentsPolicy,
     private readonly readpolicy: CommentReadPolicy,
     private readonly notifications: NotificationsService,
+    private readonly audit: AuditService,
   ) {}
 
 async createComment(params: {
@@ -94,6 +96,23 @@ async createComment(params: {
       }
     }
   }
+   // ===============================
+// ✅ AUDIT LOG: CREATE COMMENT
+// ===============================
+try {
+  await this.audit.createLog({
+    userId: authorId,
+    action: 'comment.create',
+    success: true,
+    targetId: created.id,
+    metadata: {
+      postId,
+      hasMentions: uniqueMentions.length > 0,
+    },
+  });
+} catch {
+  // must not affect main flow
+}
 
   // ==================================================
   // 🔔 NOTIFICATION: COMMENT (respect block)
@@ -256,6 +275,18 @@ async createComment(params: {
       content,
     });
 
+    // ===============================
+// ✅ AUDIT LOG: UPDATE COMMENT
+// ===============================
+try {
+  await this.audit.createLog({
+    userId: viewerUserId,
+    action: 'comment.update',
+    success: true,
+    targetId: commentId,
+  });
+} catch {}
+
     return {
       id: updated.id,
       content: updated.content,
@@ -282,5 +313,19 @@ async createComment(params: {
     });
 
     await this.repo.deleteById(commentId);
+
+    // ===============================
+// ✅ AUDIT LOG: DELETE COMMENT
+// ===============================
+try {
+  await this.audit.createLog({
+    userId: viewerUserId,
+    action: 'comment.delete',
+    success: true,
+    targetId: commentId,
+  });
+} catch {}
   }
+
+  
 }

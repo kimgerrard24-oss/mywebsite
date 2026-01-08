@@ -1,3 +1,5 @@
+// backend/src/common/filters/sentry-exception.filter.ts
+
 import {
   ExceptionFilter,
   Catch,
@@ -7,6 +9,12 @@ import {
 } from '@nestjs/common';
 import * as Sentry from '@sentry/node';
 import { Request, Response } from 'express';
+
+const DROP_PATHS = [
+  '/health',
+  '/system-check',
+  '/ready',
+];
 
 @Catch()
 export class SentryExceptionFilter implements ExceptionFilter {
@@ -20,40 +28,108 @@ export class SentryExceptionFilter implements ExceptionFilter {
         ? exception.getStatus()
         : HttpStatus.INTERNAL_SERVER_ERROR;
 
-    // --- Log to Sentry ---
-    Sentry.withScope((scope) => {
-      try {
-        scope.setTag('route', req?.url || 'unknown');
-        scope.setTag('method', req?.method || 'unknown');
-        scope.setTag('service', process.env.SERVICE_NAME || 'backend-api');
-        scope.setTag('env', process.env.NODE_ENV || 'production');
+    const path = req?.originalUrl || req?.url || '';
 
-        if (req?.ip) scope.setTag('ip', req.ip);
-        if (req?.headers) scope.setContext('headers', sanitizeHeaders(req.headers));
+    // =====================================================
+    // Skip health / infra endpoints
+    // =====================================================
+    const shouldDrop =
+      DROP_PATHS.some((p) => path.startsWith(p));
 
-        const user = (req as any)?.user;
-        if (user) {
-          scope.setUser({
-            id: user.id || user.userId,
-            role: user.role || undefined,
-          });
+    if (!shouldDrop) {
+      Sentry.withScope((scope) => {
+        try {
+          // ----------------------------
+          // Tags (low-cardinality)
+          // ----------------------------
+          scope.setTag('http.method', req?.method || 'unknown');
+          scope.setTag('http.route', path || 'unknown');
+          scope.setTag(
+            'service',
+            process.env.SERVICE_NAME || 'backend-api',
+          );
+          scope.setTag(
+            'env',
+            process.env.NODE_ENV || 'production',
+          );
+
+          if (req?.ip) {
+            scope.setTag('client.ip', req.ip);
+          }
+
+          // ----------------------------
+          // User (if exists)
+          // ----------------------------
+          const user = (req as any)?.user;
+          if (user) {
+            scope.setUser({
+              id: user.id || user.userId,
+            });
+          }
+
+          // ----------------------------
+          // Context (sanitized)
+          // ----------------------------
+          if (req?.headers) {
+            scope.setContext(
+              'headers',
+              sanitizeHeaders(req.headers),
+            );
+          }
+
+          if (req?.query) {
+            scope.setContext(
+              'query',
+              sanitizeObject(req.query),
+            );
+          }
+
+          if (req?.body) {
+            scope.setContext(
+              'body',
+              sanitizeObject(req.body),
+            );
+          }
+
+          // ----------------------------
+          // Severity mapping
+          // ----------------------------
+          let level: Sentry.SeverityLevel = 'error';
+
+          if (status >= 500) {
+            level = 'error';
+          } else if (status === 401 || status === 403) {
+            // auth errors are security signals but not system failure
+            level = 'warning';
+          } else if (status >= 400) {
+            // expected client errors
+            level = 'info';
+          }
+
+          scope.setLevel(level);
+
+          // ----------------------------
+          // Capture
+          // ----------------------------
+          if (exception instanceof HttpException) {
+            Sentry.captureException(exception);
+          } else {
+            Sentry.captureException(exception as any);
+          }
+        } catch (err) {
+          // absolutely must not affect response path
+          // eslint-disable-next-line no-console
+          console.error(
+            'SentryExceptionFilter internal error',
+            err,
+          );
         }
+      });
+    }
 
-        if (req?.body) scope.setContext('body', maskSensitiveData(req.body));
-        if (req?.query) scope.setContext('query', req.query);
-
-        const sentryLevel =
-          status >= 500 ? 'error' : status >= 400 ? 'warning' : 'info';
-
-        scope.setLevel(sentryLevel as any);
-
-        Sentry.captureException(exception as any);
-      } catch (err) {
-        console.error('SentryExceptionFilter capture error', err);
-      }
-    });
-
-    // --- Respect original HTTP status ---
+    // =====================================================
+    // Preserve original HTTP response behavior
+    // =====================================================
     const payload =
       exception instanceof HttpException
         ? exception.getResponse()
@@ -68,35 +144,59 @@ export class SentryExceptionFilter implements ExceptionFilter {
   }
 }
 
-function sanitizeHeaders(headers: Record<string, any>) {
+// =====================================================
+// Helpers
+// =====================================================
+
+function sanitizeHeaders(
+  headers: Record<string, any>,
+) {
   const copy = { ...headers };
-  if (copy.authorization) copy.authorization = '**redacted**';
-  if (copy.cookie) copy.cookie = '**redacted**';
+
+  const SENSITIVE = [
+    'authorization',
+    'cookie',
+    'set-cookie',
+    'x-api-key',
+  ];
+
+  for (const k of Object.keys(copy)) {
+    if (SENSITIVE.includes(k.toLowerCase())) {
+      copy[k] = '**redacted**';
+    }
+  }
+
   return copy;
 }
 
-function maskSensitiveData(obj: any) {
+function sanitizeObject(obj: any): any {
   if (!obj || typeof obj !== 'object') return obj;
 
-  const masked: any = Array.isArray(obj) ? [] : {};
-  const sensitiveKeys = [
+  const SENSITIVE_KEYS = [
     'password',
     'token',
     'access_token',
     'refresh_token',
-    'ssn',
-    'creditCard',
+    'secret',
+    'otp',
+    'pin',
   ];
 
+  if (Array.isArray(obj)) {
+    return obj.map((v) => sanitizeObject(v));
+  }
+
+  const out: any = {};
+
   for (const k of Object.keys(obj)) {
-    if (sensitiveKeys.includes(k)) {
-      masked[k] = '**redacted**';
+    if (SENSITIVE_KEYS.includes(k.toLowerCase())) {
+      out[k] = '**redacted**';
     } else if (typeof obj[k] === 'object') {
-      masked[k] = maskSensitiveData(obj[k]);
+      out[k] = sanitizeObject(obj[k]);
     } else {
-      masked[k] = obj[k];
+      out[k] = obj[k];
     }
   }
 
-  return masked;
+  return out;
 }

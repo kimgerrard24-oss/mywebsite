@@ -494,6 +494,18 @@ async toggleLike(params: {
     userId,
   });
 
+  // ===============================
+// ✅ AUDIT LOG: TOGGLE LIKE
+// ===============================
+try {
+  await this.audit.logGeneric({
+    userId,
+    action: result.liked ? 'post.like' : 'post.unlike',
+    targetId: postId,
+  });
+} catch {}
+
+
   // 🔔 CREATE NOTIFICATION (only when liked, fire-and-forget, fail-soft)
   if (
     result.liked === true &&
@@ -539,10 +551,23 @@ async toggleLike(params: {
     this.unlikePolicy.assertCanUnlike(post);
 
     // idempotent: unlike ซ้ำไม่ error
-    return this.repo.unlike({
-      postId,
-      userId,
-    });
+const result = await this.repo.unlike({ postId, userId });
+
+// ===============================
+// ✅ AUDIT LOG: UNLIKE
+// ===============================
+try {
+  await this.audit.logGeneric({
+    userId,
+    action: 'post.unlike',
+    targetId: postId,
+  });
+} catch {}
+
+return result;
+
+
+    
   }
 
   async getLikes(params: {
