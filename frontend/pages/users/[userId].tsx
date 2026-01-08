@@ -9,8 +9,6 @@ import ProfilePosts from "@/components/profile/ProfilePosts";
 
 import { fetchPublicUserProfileServer } from "@/lib/api/user";
 import { getUserPosts } from "@/lib/api/posts";
-import BlockUserButton from "@/components/users/BlockUserButton";
-import UnblockUserButton from "@/components/users/UnblockUserButton";
 
 import type { PublicUserProfile } from "@/types/user-profile";
 import type { PostFeedItem } from "@/types/post-feed";
@@ -83,45 +81,26 @@ export default function UserProfilePage({ profile }: Props) {
           </nav>
 
           {/* ===== Profile card ===== */}
-<section
-  aria-label="User profile"
-  className="
-    mx-auto
-    w-full
-    max-w-5xl
-    px-4
-    pt-4
-    sm:pt-6
-    pb-6
-    sm:pb-8
-  "
->
-  {/* ⬇️ wrapper now fits card width */}
-  <div className="relative w-fit mx-auto">
-    <ProfileCard
-      profile={profile}
-      isSelf={profile.isSelf === true}
-    />
-
-    {/* ===== Block / Unblock (inside card) ===== */}
-    {!profile.isSelf && (
-      <div className="absolute right-4 top-[5.5rem] sm:top-[6.5rem]">
-        {profile.isBlocked ? (
-          <UnblockUserButton
-            targetUserId={profile.id}
-            onUnblocked={() => window.location.reload()}
-          />
-        ) : (
-          <BlockUserButton
-            targetUserId={profile.id}
-            onBlocked={() => window.location.reload()}
-          />
-        )}
-      </div>
-    )}
-  </div>
-</section>
-
+          <section
+            aria-label="User profile"
+            className="
+              mx-auto
+              w-full
+              max-w-5xl
+              px-4
+              pt-4
+              sm:pt-6
+              pb-6
+              sm:pb-8
+            "
+          >
+            <div className="relative">
+              <ProfileCard
+                profile={profile}
+                isSelf={profile.isSelf === true}
+              />
+            </div>
+          </section>
 
           {/* ===== Profile posts ===== */}
           <section
@@ -185,5 +164,6 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
     return { notFound: true };
   }
 };
+
 
 

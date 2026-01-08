@@ -5,7 +5,9 @@ import {
   Get,
   Query,
   UseGuards,
+  Req,
 } from '@nestjs/common';
+import { Request } from 'express';
 import { SearchService } from './search.service';
 import { SearchPostsQueryDto } from './dto/search-posts.query.dto';
 import { AccessTokenCookieAuthGuard } from '../auth/guards/access-token-cookie.guard';
@@ -18,40 +20,53 @@ export class SearchController {
 
   /**
    * GET /search/posts?q=
-   * - Cookie-based auth
-   * - Backend authority
    */
   @Get('posts')
   @UseGuards(AccessTokenCookieAuthGuard)
   async searchPosts(
     @Query() query: SearchPostsQueryDto,
+    @Req() req: Request,
   ) {
-    return this.service.searchPosts(query);
+    const viewerUserId = (req.user as any)?.userId ?? null;
+
+    return this.service.searchPosts({
+      ...query,
+      viewerUserId, // ✅ สำคัญ
+    });
   }
 
   /**
    * GET /search/users?q=
-   * - Cookie-based auth
-   * - Backend authority
    */
   @Get('users')
   @UseGuards(AccessTokenCookieAuthGuard)
   async searchUsers(
     @Query() query: SearchUsersQueryDto,
+    @Req() req: Request,
   ) {
-    return this.service.searchUsers(query);
+    const viewerUserId = (req.user as any)?.userId ?? null;
+
+    return this.service.searchUsers({
+      ...query,
+      viewerUserId, // ✅ ตัวนี้ทำให้ block filter ทำงาน
+    });
   }
 
-   /**
+  /**
    * GET /search/tags?q=
-   * - Cookie-based auth
-   * - Backend authority
    */
   @Get('tags')
   @UseGuards(AccessTokenCookieAuthGuard)
   async searchTags(
     @Query() query: SearchTagsQueryDto,
+    @Req() req: Request,
   ) {
-    return this.service.searchTags(query);
+    const viewerUserId = (req.user as any)?.userId ?? null;
+
+    return this.service.searchTags({
+      ...query,
+      viewerUserId, // ✅ filter post ของ tag ด้วย
+    });
   }
 }
+

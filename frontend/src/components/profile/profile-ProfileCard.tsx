@@ -1,8 +1,10 @@
 // frontend/src/components/profile/profile-ProfileCard.tsx
 import React from "react";
 import Link from "next/link";
-import type { UserProfile,PublicUserProfile } from "@/types/user-profile";
+import type { UserProfile, PublicUserProfile } from "@/types/user-profile";
 import UserProfileStats from "@/components/profile/UserProfileStats";
+import BlockUserButton from "@/components/users/BlockUserButton";
+import UnblockUserButton from "@/components/users/UnblockUserButton";
 
 export interface ProfileCardProps {
   profile: UserProfile | PublicUserProfile | null;
@@ -12,11 +14,7 @@ export interface ProfileCardProps {
 function isPublicUserProfile(
   profile: UserProfile | PublicUserProfile
 ): profile is PublicUserProfile {
-  return (
-    "stats" in profile &&
-    "isSelf" in profile &&
-    "isFollowing" in profile
-  );
+  return "stats" in profile && "isSelf" in profile && "isFollowing" in profile;
 }
 
 const formatDate = (iso: string) => {
@@ -39,15 +37,12 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
     profile.displayName && profile.displayName.trim().length > 0
       ? profile.displayName
       : "User";
-  const isPublic =
-     profile && isPublicUserProfile(profile);
 
-  const isBlocked =
-     isPublic && profile.isBlocked === true;
+  const isPublic = profile && isPublicUserProfile(profile);
 
-  const hasBlockedViewer =
-     isPublic && profile.hasBlockedViewer === true;
-    
+  const isBlocked = isPublic && profile.isBlocked === true;
+
+  const hasBlockedViewer = isPublic && profile.hasBlockedViewer === true;
 
   return (
     <section
@@ -96,7 +91,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
           sm:pb-6
         "
       >
-        {/* ===== Avatar + name ===== */}
+        {/* ===== Avatar + name + actions ===== */}
         <div
           className="
             -mt-8
@@ -110,6 +105,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
             sm:gap-4
           "
         >
+          {/* ===== Left: Avatar + name ===== */}
           <div
             className="
               flex
@@ -189,35 +185,55 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
             </div>
           </div>
 
-          {/* ===== Edit button (owner only) ===== */}
-          {isSelf && (
-            <Link
-              href="/settings/profile"
-              prefetch={false}
-              className="
-                inline-flex
-                items-center
-                justify-center
-                rounded-md
-                sm:rounded-lg
-                border
-                border-gray-300
-                bg-white
-                px-3
-                sm:px-4
-                py-1.5
-                sm:py-2
-                text-xs
-                sm:text-sm
-                font-medium
-                text-gray-700
-                hover:bg-gray-50
-                transition
-              "
-            >
-              แก้ไขโปรไฟล์
-            </Link>
-          )}
+          {/* ===== Right-side actions ===== */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* Edit (owner only) */}
+            {isSelf && (
+              <Link
+                href="/settings/profile"
+                prefetch={false}
+                className="
+                  inline-flex
+                  items-center
+                  justify-center
+                  rounded-md
+                  sm:rounded-lg
+                  border
+                  border-gray-300
+                  bg-white
+                  px-3
+                  sm:px-4
+                  py-1.5
+                  sm:py-2
+                  text-xs
+                  sm:text-sm
+                  font-medium
+                  text-gray-700
+                  hover:bg-gray-50
+                  transition
+                "
+              >
+                แก้ไขโปรไฟล์
+              </Link>
+            )}
+
+            {/* Block / Unblock (viewer only) */}
+            {!isSelf && isPublic && !hasBlockedViewer && (
+              <>
+                {isBlocked ? (
+                  <UnblockUserButton
+                    targetUserId={profile.id}
+                    onUnblocked={() => window.location.reload()}
+                  />
+                ) : (
+                  <BlockUserButton
+                    targetUserId={profile.id}
+                    onBlocked={() => window.location.reload()}
+                  />
+                )}
+              </>
+            )}
+          </div>
         </div>
 
         {/* ===== Bio ===== */}
@@ -242,10 +258,10 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
             "
           >
             {isBlocked || hasBlockedViewer
-    ? "ไม่สามารถดูข้อมูลของผู้ใช้นี้ได้"
-    : profile.bio && profile.bio.trim().length > 0
-    ? profile.bio
-    : "ยังไม่มีข้อมูลแนะนำตัว"}
+              ? "ไม่สามารถดูข้อมูลของผู้ใช้นี้ได้"
+              : profile.bio && profile.bio.trim().length > 0
+              ? profile.bio
+              : "ยังไม่มีข้อมูลแนะนำตัว"}
           </p>
         </div>
 
@@ -276,13 +292,11 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
         </dl>
 
         {/* ===== Followers / Following ===== */}
-         {isPublicUserProfile(profile) &&
-  !isBlocked &&
-  !hasBlockedViewer && (
-    <UserProfileStats profile={profile} />
-)}
-
+        {isPublicUserProfile(profile) && !isBlocked && !hasBlockedViewer && (
+          <UserProfileStats profile={profile} />
+        )}
       </div>
     </section>
   );
 };
+
