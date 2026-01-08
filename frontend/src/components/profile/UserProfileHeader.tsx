@@ -2,11 +2,12 @@
 
 import type { PublicUserProfile } from '@/types/user-profile';
 import FollowButton from '@/components/follows/FollowButton';
+import BlockUserButton from '@/components/users/BlockUserButton';
+import UnblockUserButton from '@/components/users/UnblockUserButton';
 
 type Props = {
   profile: PublicUserProfile;
 };
-
 
 export default function UserProfileHeader({ profile }: Props) { 
   const isBlocked = profile.isBlocked === true;
@@ -74,21 +75,45 @@ export default function UserProfileHeader({ profile }: Props) {
           {profile.bio}
         </p>
       )}
-{isBlocked && !profile.isSelf && (
-  <p className="text-sm text-gray-500 mt-2">
-    ไม่สามารถโต้ตอบกับผู้ใช้นี้ได้
-  </p>
-)}
+
+      {isBlocked && !profile.isSelf && (
+        <p className="text-sm text-gray-500 mt-2">
+          ไม่สามารถโต้ตอบกับผู้ใช้นี้ได้
+        </p>
+      )}
 
       {/* ===== Follow button (public profile only) ===== */}
       {!profile.isSelf && !isBlocked && (
-  <div className="mt-2">
-    <FollowButton
-      userId={profile.id}
-      isFollowing={profile.isFollowing}
-    />
-  </div>
-)}
+        <div className="mt-2">
+          <FollowButton
+            userId={profile.id}
+            isFollowing={profile.isFollowing}
+          />
+        </div>
+      )}
+
+      {/* ===== Block/Unblock buttons ===== */}
+      {!profile.isSelf && (
+        <div className="mt-2">
+          {isBlocked ? (
+            <UnblockUserButton
+              targetUserId={profile.id}
+              onUnblocked={() => {
+                // Refresh profile or redirect
+                window.location.reload();
+              }}
+            />
+          ) : (
+            <BlockUserButton
+              targetUserId={profile.id}
+              onBlocked={() => {
+                // Refresh profile or redirect
+                window.location.reload();
+              }}
+            />
+          )}
+        </div>
+      )}
 
     </header>
   );
