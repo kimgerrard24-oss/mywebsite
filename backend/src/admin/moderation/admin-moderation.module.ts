@@ -19,6 +19,7 @@ import { NotificationsModule } from '../../notifications/notifications.module';
     AdminModerationService,
     AdminModerationRepository,
   ],
+  
 })
 export class AdminModerationModule {}
 
