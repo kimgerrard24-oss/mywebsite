@@ -124,15 +124,14 @@ export default function ModeratedPostPage({
               </p>
 
               {canAppeal && (
-  <div className="pt-2">
-    <AppealButton
- targetType="POST"
-    targetId={post.id}
-    canAppeal={canAppeal}
-/>
-  </div>
-)}
-
+                <div className="pt-2">
+                  <AppealButton
+                    targetType="POST"
+                    targetId={post.id}
+                    canAppeal={canAppeal}
+                  />
+                </div>
+              )}
             </div>
           </section>
 
@@ -187,7 +186,7 @@ export const getServerSideProps: GetServerSideProps<
   try {
     const data = await getModeratedPostDetail({
       postId,
-      cookie: cookieHeader,
+      cookieHeader, // ✅ แก้ตรงนี้
     });
 
     return {

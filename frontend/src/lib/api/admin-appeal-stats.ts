@@ -1,27 +1,55 @@
 // frontend/src/lib/api/admin-appeal-stats.ts
 
-import type { GetServerSidePropsContext } from "next";
+import { apiPath } from "@/lib/api/api";
 import type { AdminAppealStats } from "@/types/admin-appeal-stats";
 
+type SSRContext = {
+  cookieHeader?: string;
+};
+
+/**
+ * ==============================
+ * GET /admin/appeals/stats
+ * ==============================
+ *
+ * - SSR: fetch + manual Cookie forward
+ * - CSR: fetch with credentials
+ *
+ * Backend is authority
+ */
 export async function getAdminAppealStats(
-  ctx: GetServerSidePropsContext,
+  ctx?: SSRContext,
 ): Promise<AdminAppealStats> {
-  const cookie =
-    ctx.req.headers.cookie ?? "";
-
-  const base =
-    process.env.INTERNAL_BACKEND_URL ??
-    process.env.NEXT_PUBLIC_BACKEND_URL ??
-    "https://api.phlyphant.com";
-
-  const res = await fetch(
-    `${base}/admin/appeals/stats`,
-    {
-      method: "GET",
-      headers: {
-        Accept: "application/json",
-        ...(cookie ? { Cookie: cookie } : {}),
+  // 🔒 SSR path
+  if (ctx?.cookieHeader) {
+    const res = await fetch(
+      apiPath("/admin/appeals/stats"),
+      {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+          Cookie: ctx.cookieHeader,
+        },
+        credentials: "include",
+        cache: "no-store",
       },
+    );
+
+    if (!res.ok) {
+      const err: any = new Error(
+        `HTTP ${res.status}`,
+      );
+      err.status = res.status;
+      throw err;
+    }
+
+    return res.json();
+  }
+
+  // ✅ CSR path
+  const res = await fetch(
+    apiPath("/admin/appeals/stats"),
+    {
       credentials: "include",
       cache: "no-store",
     },
@@ -29,11 +57,11 @@ export async function getAdminAppealStats(
 
   if (!res.ok) {
     const err: any = new Error(
-      "Failed to load appeal stats",
+      `HTTP ${res.status}`,
     );
     err.status = res.status;
     throw err;
   }
 
-  return (await res.json()) as AdminAppealStats;
+  return res.json();
 }

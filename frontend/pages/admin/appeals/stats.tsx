@@ -63,9 +63,11 @@ export const getServerSideProps: GetServerSideProps<Props> =
     }
 
     try {
-      // 🔒 AuthZ — backend authority
+      // 🔒 AuthZ — backend authority (ต้องส่ง cookie ให้ backend)
       const stats =
-        await getAdminAppealStats(ctx);
+        await getAdminAppealStats({
+          cookieHeader: cookie,
+        });
 
       return {
         props: {

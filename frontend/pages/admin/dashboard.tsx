@@ -65,7 +65,7 @@ export default function AdminDashboardPage({
   <ul className="space-y-1 text-sm">
     <li>
       <Link
-        href="/admin/appeals"
+        href="/admin/appeals/appeals"
         className="text-blue-600 hover:underline"
       >
         View appeals

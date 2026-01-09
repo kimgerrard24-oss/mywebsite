@@ -27,13 +27,13 @@ export default function NotificationItem({ item }: Props) {
    */
   const resolveHref = useCallback((): string | null => {
     switch (item.type) {
-      
+
       case 'moderation_action': {
   const { targetType, targetId } = item.payload || {};
   if (!targetType || !targetId) return null;
 
   if (targetType === 'POST')
-    return `/moderation/post/${targetId}`;
+    return `/moderation/posts/${targetId}`;
 
   if (targetType === 'COMMENT')
     return `/moderation/comment/${targetId}`;
