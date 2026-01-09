@@ -92,7 +92,9 @@ async findPublicUserById(
       coverUrl: true,
       bio: true,
       createdAt: true,
-
+      
+      isBanned: true,
+      isDisabled: true,
       // ===== counts =====
       _count: {
         select: {

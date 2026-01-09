@@ -223,6 +223,7 @@ export class CommentsRepository {
       _count: {
         select: { likes: true },
       },
+      
     },
   });
 }

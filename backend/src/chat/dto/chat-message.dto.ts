@@ -33,7 +33,27 @@ export class ChatMessageDto {
     durationSec?: number | null;
   }[];
 
-  static fromRow(row: any): ChatMessageDto {
+  /**
+   * ✅ UX guard only
+   * backend still validates in POST /appeals
+   */
+  canAppeal?: boolean;
+
+  static fromRow(
+    row: any,
+    viewerUserId?: string,
+  ): ChatMessageDto {
+    const isOwner =
+      Boolean(viewerUserId) &&
+      row.senderId === viewerUserId;
+
+    const hasActiveModeration =
+      row.isDeleted === true ||
+      Boolean(row.deletedAt)
+      // ถ้าอนาคตมี admin hide:
+      // || Boolean(row.hiddenByAdminId)
+      ;
+
     return {
       id: row.id,
       content: row.content ?? null,
@@ -50,7 +70,6 @@ export class ChatMessageDto {
         avatarUrl: row.sender?.avatarUrl ?? null,
 
         // ✅ MUST be computed in query/service layer
-        // DTO only reflects backend decision
         isBlockedByViewer:
           row.sender?.isBlockedByViewer === true,
 
@@ -79,6 +98,11 @@ export class ChatMessageDto {
               };
             })
         : [],
+
+      canAppeal: Boolean(
+        isOwner && hasActiveModeration,
+      ),
     };
   }
 }
+

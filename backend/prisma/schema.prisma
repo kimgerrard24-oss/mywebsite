@@ -799,7 +799,7 @@ model Appeal {
   /// ===== Constraints =====
 
   /// 1 target มี appeal active ได้ครั้งเดียวต่อ user
-  @@unique([userId, targetType, targetId])
+  @@unique([userId, moderationActionId])
 
   /// ===== Indexes =====
   @@index([userId, createdAt])                // GET /appeals/me

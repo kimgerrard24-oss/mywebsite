@@ -24,4 +24,5 @@ export type PostDetail = {
   isLikedByViewer: boolean;
 
   canDelete: boolean;
+  canAppeal?: boolean;
 };

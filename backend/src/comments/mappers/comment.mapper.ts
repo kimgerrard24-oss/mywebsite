@@ -1,3 +1,4 @@
+// backend/src/comments/mappers/comment.mapper.ts
 import { CommentItemDto } from '../dto/comment-item.dto';
 
 export class CommentMapper {
@@ -55,49 +56,49 @@ export class CommentMapper {
       Array.isArray(comment.author.blockedUsers) &&
       comment.author.blockedUsers.length > 0;
 
+    /**
+     * =========================
+     * ⚖️ Moderation state (UX guard only)
+     * =========================
+     */
+    const hasActiveModeration =
+      comment.isHidden === true ||
+      comment.isDeleted === true;
+
+    const isOwner =
+      Boolean(viewerUserId) &&
+      comment.authorId === viewerUserId;
+
     return {
       id: comment.id,
       content: comment.content,
 
       createdAt: comment.createdAt.toISOString(),
 
-      /**
-       * ✏️ Edit metadata
-       */
       isEdited: Boolean(comment.isEdited),
       editedAt: comment.editedAt
         ? comment.editedAt.toISOString()
         : undefined,
 
-      /**
-       * 👤 Author (viewer-aware)
-       */
       author: {
         id: comment.author.id,
-        displayName:
-          comment.author.displayName ?? null,
-        avatarUrl:
-          comment.author.avatarUrl ?? null,
-
-        // ✅ block flags for frontend UX
+        displayName: comment.author.displayName ?? null,
+        avatarUrl: comment.author.avatarUrl ?? null,
         isBlocked,
         hasBlockedViewer,
       },
 
-      /**
-       * 🔐 Permission (viewer-aware)
-       */
-      isOwner:
-        Boolean(viewerUserId) &&
-        comment.authorId === viewerUserId,
+      isOwner,
 
-      /**
-       * ❤️ Like state (viewer-aware)
-       */
       likeCount,
       isLiked,
+
+      /**
+       * ✅ UX guard only — backend still validates in POST /appeals
+       */
+      canAppeal: Boolean(isOwner && hasActiveModeration),
     };
-  }
+  } // ✅ ปิด toItemDto ตรงนี้
 
   /**
    * =====================================================
@@ -117,3 +118,4 @@ export class CommentMapper {
     );
   }
 }
+

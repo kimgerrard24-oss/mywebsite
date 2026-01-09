@@ -130,27 +130,54 @@ export class NotificationsService {
   // 🔐 defensive: ไม่แจ้งเตือนตัวเอง
   if (userId === actorUserId) return null;
 
-  // ✅ BLOCK CHECK (CRITICAL)
-  const blocked = await this.prisma.userBlock.findFirst({
-    where: {
-      OR: [
-        // recipient blocked actor
-        {
-          blockerId: userId,
-          blockedId: actorUserId,
-        },
+  // 🛡️ Payload validation by type (defensive, production-safe)
+  switch (type) {
+    case 'moderation_action': {
+      const p = payload as any;
+      if (!p?.actionType || !p?.targetType || !p?.targetId) {
+        throw new Error(
+          'Invalid payload for moderation_action notification',
+        );
+      }
+      break;
+    }
 
-        // actor blocked recipient
-        {
-          blockerId: actorUserId,
-          blockedId: userId,
-        },
-      ],
-    },
-    select: { blockerId: true },
-  });
+    case 'appeal_resolved': {
+      const p = payload as any;
+      if (!p?.appealId || !p?.decision) {
+        throw new Error(
+          'Invalid payload for appeal_resolved notification',
+        );
+      }
+      break;
+    }
 
-  if (blocked) return null;
+    default:
+      // legacy types — no extra validation
+      break;
+  }
+
+  // ✅ BLOCK CHECK (CRITICAL) — only when actor exists
+  if (actorUserId) {
+    const blocked =
+      await this.prisma.userBlock.findFirst({
+        where: {
+          OR: [
+            {
+              blockerId: userId,
+              blockedId: actorUserId,
+            },
+            {
+              blockerId: actorUserId,
+              blockedId: userId,
+            },
+          ],
+        },
+        select: { blockerId: true },
+      });
+
+    if (blocked) return null;
+  }
 
   // 1️⃣ Persist (DB = authority)
   const row = await this.repo.create({
@@ -161,6 +188,7 @@ export class NotificationsService {
     payload,
   });
 
+  // 1.5️⃣ Audit (fail-soft)
   try {
     await this.audit.createLog({
       userId: actorUserId ?? null, // system allowed
@@ -173,9 +201,7 @@ export class NotificationsService {
         recipient: userId,
       },
     });
-  } catch {
-    // fail-soft
-  }
+  } catch {}
 
   const dto = NotificationMapper.toDto(row);
 
@@ -184,15 +210,15 @@ export class NotificationsService {
     this.realtime.emitNewNotification(userId, {
       notification: dto,
     });
-  } catch {
-    /**
-     * realtime fail ต้องไม่ทำให้ notification หลัก fail
-     */
-  }
+  } catch {}
 
-  // ✅ IMPORTANT: return dto for callers that need it (non-breaking)
+  // ✅ IMPORTANT: invalidate cache so next fetch is fresh
+  await this.cache.invalidateList(userId);
+
+  // ✅ return dto for callers (admin / appeal flows)
   return dto;
 }
+
 
 
 }

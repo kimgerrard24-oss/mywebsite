@@ -6,11 +6,16 @@ import type { AppealTargetType } from "@/types/appeal";
 type Props = {
   targetType: AppealTargetType;
   targetId: string;
+
   onSubmit: (data: {
     reason: string;
     detail?: string;
   }) => Promise<void>;
+
   onCancel: () => void;
+
+  /** UX only — parent can control loading */
+  loading?: boolean;
 };
 
 export default function AppealForm({
@@ -18,6 +23,7 @@ export default function AppealForm({
   targetId,
   onSubmit,
   onCancel,
+  loading = false,
 }: Props) {
   const [reason, setReason] = useState("");
   const [detail, setDetail] = useState("");
@@ -26,10 +32,15 @@ export default function AppealForm({
   const [error, setError] =
     useState<string | null>(null);
 
+  const isSubmitting = loading || submitting;
+
   async function handleSubmit(
     e: React.FormEvent
   ) {
     e.preventDefault();
+
+    if (isSubmitting) return;
+
     setError(null);
 
     if (reason.trim().length < 3) {
@@ -39,13 +50,14 @@ export default function AppealForm({
 
     try {
       setSubmitting(true);
+
       await onSubmit({
         reason: reason.trim(),
         detail: detail.trim() || undefined,
       });
     } catch (err: any) {
       setError(
-        err?.body?.message ||
+        err?.response?.data?.message ||
           "Failed to submit appeal"
       );
     } finally {
@@ -59,6 +71,7 @@ export default function AppealForm({
       className="space-y-4"
       aria-label="Appeal form"
     >
+      {/* backend is authority — hidden inputs are only for semantics */}
       <input
         type="hidden"
         name="targetType"
@@ -91,6 +104,7 @@ export default function AppealForm({
           onChange={(e) =>
             setReason(e.target.value)
           }
+          disabled={isSubmitting}
         />
       </div>
 
@@ -113,6 +127,7 @@ export default function AppealForm({
           onChange={(e) =>
             setDetail(e.target.value)
           }
+          disabled={isSubmitting}
         />
       </div>
 
@@ -129,9 +144,11 @@ export default function AppealForm({
         <button
           type="button"
           onClick={onCancel}
+          disabled={isSubmitting}
           className="
             rounded border px-4 py-2 text-sm
             hover:bg-gray-100
+            disabled:opacity-60
           "
         >
           Cancel
@@ -139,14 +156,14 @@ export default function AppealForm({
 
         <button
           type="submit"
-          disabled={submitting}
+          disabled={isSubmitting}
           className="
             rounded bg-blue-600 px-4 py-2
             text-sm text-white hover:bg-blue-700
             disabled:opacity-60
           "
         >
-          {submitting
+          {isSubmitting
             ? "Submitting..."
             : "Submit Appeal"}
         </button>
@@ -154,3 +171,4 @@ export default function AppealForm({
     </form>
   );
 }
+

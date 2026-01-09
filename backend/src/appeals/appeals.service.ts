@@ -46,17 +46,18 @@ export class AppealsService {
 
     if (!hasModeration) {
       throw new BadRequestException(
-        'Target has no moderation action to appeal',
+        'Target is not under moderation',
       );
     }
 
     // 3) duplicate check
     const existing =
-      await this.repo.findExistingAppeal(
-        userId,
-        dto.targetType,
-        dto.targetId,
-      );
+  await this.repo.findExistingAppeal({
+    userId,
+    targetType: dto.targetType,
+    targetId: dto.targetId,
+  });
+
 
     if (existing) {
       throw new BadRequestException(

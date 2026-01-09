@@ -10,12 +10,16 @@ import { CreateModerationActionDto } from './dto/create-moderation-action.dto';
 import { ModerationActionDto } from './dto/moderation-action.dto';
 import { ModerationActionType } from '@prisma/client';
 import { AuditService } from '../../auth/audit.service'
+import { NotificationsService } from '../../notifications/notifications.service'
+import { RedisService } from '../../redis/redis.service'
 
 @Injectable()
 export class AdminModerationService {
   constructor(
     private readonly repo: AdminModerationRepository,
     private readonly audit: AuditService,
+    private readonly notifications: NotificationsService,
+    private readonly redis: RedisService,
   ) {}
 
   async createAction(
@@ -115,6 +119,46 @@ export class AdminModerationService {
     dto.targetId,
     dto.actionType,
   );
+
+   /**
+   * 4.2️⃣ Revoke all sessions if BAN_USER (security critical)
+   * fail-soft: ห้ามทำให้ moderation fail
+   */
+  if (dto.actionType === ModerationActionType.BAN_USER) {
+    try {
+      await this.redis.revokeAllSessionsByUser(dto.targetId);
+    } catch {
+      // fail-soft
+    }
+  }
+   
+  /**
+ * 4.5️⃣ Notify affected user (best-effort)
+ */
+try {
+  const targetUserId =
+    await this.repo.resolveTargetOwnerUserId(
+      dto.targetType,
+      dto.targetId,
+    );
+
+  if (targetUserId) {
+    await this.notifications.createNotification({
+      userId: targetUserId,
+      actorUserId: adminId, // admin เป็น actor
+      type: 'moderation_action',
+      entityId: dto.targetId,
+      payload: {
+        actionType: dto.actionType,
+        targetType: dto.targetType,
+        targetId: dto.targetId,
+        reason: dto.reason,
+      },
+    });
+  }
+} catch {
+  // fail-soft: notification ล้มเหลวห้ามทำให้ moderation fail
+}
 
   /**
    * 5️⃣ Mark related report as ACTION_TAKEN

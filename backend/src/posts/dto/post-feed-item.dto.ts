@@ -1,4 +1,5 @@
 // backend/src/posts/dto/post-feed-item.dto.ts
+
 export class PostFeedItemDto {
   id!: string;
   content!: string;
@@ -17,13 +18,19 @@ export class PostFeedItemDto {
     url: string;
     objectKey: string;
   }[];
-   
+
   isSelf!: boolean;
-    
+
   stats!: {
     likeCount: number;
     commentCount: number;
   };
-  
+
   canDelete!: boolean;
+
+  /**
+   * 📨 Appeal (UX guard only)
+   * backend authority อยู่ที่ POST /appeals
+   */
+  canAppeal?: boolean;
 }

@@ -1,4 +1,5 @@
 // backend/src/notifications/mapper/notification.mapper.ts
+
 import { NotificationItemDto } from '../dto/notification-item.dto';
 
 export class NotificationMapper {
@@ -21,9 +22,15 @@ export class NotificationMapper {
       Array.isArray(row.actor?.blockedUsers) &&
       row.actor.blockedUsers.length > 0;
 
+    // ✅ payload must be object or null (defensive)
+    const payload =
+      row.payload && typeof row.payload === 'object'
+        ? row.payload
+        : null;
+
     return {
       id: row.id,
-      type: row.type,
+      type: row.type, // ← backend is authority
 
       actor: row.actor
         ? {
@@ -35,13 +42,18 @@ export class NotificationMapper {
             isBlocked,
             hasBlockedViewer,
           }
-        : null,
+        : null, // ← system / admin notification allowed
 
       entityId: row.entityId ?? null,
-      payload: row.payload ?? null,
+
+      // ✅ supports:
+      // - comment / like / follow
+      // - moderation_action
+      // - appeal_resolved
+      payload,
+
       createdAt: row.createdAt.toISOString(),
       isRead: row.isRead,
     };
   }
 }
-

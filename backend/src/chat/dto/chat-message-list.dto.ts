@@ -7,7 +7,10 @@ export class ChatMessageListDto {
 
   static fromRows(
     rows: any[],
-    options: { limit: number },
+    options: {
+      limit: number;
+      viewerUserId?: string;
+    },
   ): ChatMessageListDto {
     const hasMore = rows.length > options.limit;
     const sliced = hasMore
@@ -15,10 +18,17 @@ export class ChatMessageListDto {
       : rows;
 
     return {
-      items: sliced.map(ChatMessageDto.fromRow),
+      items: sliced.map((row) =>
+        ChatMessageDto.fromRow(
+          row,
+          options.viewerUserId,
+        ),
+      ),
+
       nextCursor: hasMore
         ? sliced[sliced.length - 1].id
         : null,
     };
   }
 }
+

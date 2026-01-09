@@ -26,10 +26,28 @@ export class PostDetailDto {
   isLikedByViewer!: boolean;
   canDelete!: boolean;
 
+  /**
+   * 📨 Appeal (UX guard only)
+   * backend authority อยู่ที่ POST /appeals
+   */
+  canAppeal?: boolean;
+
   static from(
     post: any,
     viewerUserId?: string,
   ): PostDetailDto {
+    const isOwner =
+      Boolean(viewerUserId) &&
+      post.author?.id === viewerUserId;
+
+    /**
+     * 🚨 Moderation snapshot (fail-soft)
+     * field อาจไม่มีในบาง query
+     */
+    const hasActiveModeration =
+      post.isHidden === true ||
+      post.isDeleted === true;
+
     return {
       id: post.id,
       content: post.content,
@@ -59,9 +77,12 @@ export class PostDetailDto {
         ? Array.isArray(post.likes) && post.likes.length > 0
         : false,
 
-      canDelete: Boolean(
-        viewerUserId && post.author.id === viewerUserId,
-      ),
+      canDelete: Boolean(isOwner),
+
+      /**
+       * ✅ UX guard only
+       */
+      canAppeal: Boolean(isOwner && hasActiveModeration),
     };
   }
 }

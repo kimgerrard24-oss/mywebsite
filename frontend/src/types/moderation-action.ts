@@ -8,7 +8,13 @@ export type ModerationActionType =
   | "UNHIDE"
   | "DELETE"
   | "BAN_USER"
-  | "WARN"
+  | "WARN";
+
+/**
+ * (optional) for UI only — not sent to backend
+ */
+export type ModerationDecisionType =
+  | ModerationActionType
   | "NO_ACTION";
 
 export type ModerationTargetType =
@@ -21,7 +27,7 @@ export type ModerationTargetType =
  * Payload for POST /admin/moderation/actions
  */
 export type CreateModerationActionInput = {
-  actionType: ModerationActionType;
+  actionType: ModerationActionType; // ✅ only valid actions
   targetType: ModerationTargetType;
   targetId: string;
   reason: string;
@@ -38,3 +44,4 @@ export type ModerationActionResult = {
   reason: string;
   createdAt: string;
 };
+

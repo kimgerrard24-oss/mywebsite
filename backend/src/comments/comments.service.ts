@@ -214,20 +214,21 @@ try {
 
 
 
- async getPostComments(params: {
+async getPostComments(params: {
   postId: string;
   viewerUserId: string | null;
   limit: number;
   cursor?: string;
 }) {
-  const post = await this.repo.findReadablePost(params.postId);
+  const post = await this.repo.findReadablePost(
+    params.postId,
+  );
   if (!post) {
     throw new NotFoundException('Post not found');
   }
 
   this.readpolicy.assertCanRead(post);
 
-  // ✅ ใช้ method ที่ include author + filter isDeleted
   const rows = await this.repo.findByPostId({
     postId: params.postId,
     limit: params.limit,
@@ -235,10 +236,32 @@ try {
     viewerUserId: params.viewerUserId,
   });
 
-  const items = CommentMapper.toItemDtos(
+  const baseItems = CommentMapper.toItemDtos(
     rows,
     params.viewerUserId,
   );
+
+  /**
+   * ===== canAppeal (UX guard only) =====
+   * backend remains authority in POST /appeals
+   */
+  const items = baseItems.map((item, idx) => {
+    const row = rows[idx];
+    const viewerId = params.viewerUserId;
+
+    const isOwner =
+      !!viewerId && row.authorId === viewerId;
+
+    const hasActiveModeration =
+      row.isHidden === true ||
+      row.isDeleted === true;
+
+    return {
+      ...item,
+      canAppeal:
+        Boolean(isOwner && hasActiveModeration),
+    };
+  });
 
   const nextCursor =
     rows.length === params.limit
@@ -250,6 +273,8 @@ try {
     nextCursor,
   };
 }
+
+
 
 
    async updateComment(params: {

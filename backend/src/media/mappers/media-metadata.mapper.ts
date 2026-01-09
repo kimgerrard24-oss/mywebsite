@@ -11,6 +11,48 @@ export class MediaMetadataMapper {
   ): MediaMetadataDto {
     const ownerId = row.owner?.id ?? null;
 
+    /**
+     * =====================================================
+     * 🔎 Resolve related post (support both old & new shape)
+     * =====================================================
+     */
+    const relatedPost =
+      row.post ??
+      row.posts?.[0]?.post ??
+      null;
+
+    const postId =
+      relatedPost &&
+      relatedPost.isDeleted !== true &&
+      relatedPost.isHidden !== true
+        ? relatedPost.id
+        : null;
+
+    /**
+     * =====================================================
+     * 🔐 Ownership
+     * =====================================================
+     */
+    const isOwner =
+      !!viewerUserId &&
+      !!ownerId &&
+      viewerUserId === ownerId;
+
+    /**
+     * =====================================================
+     * ⚠️ Active moderation snapshot (UX only)
+     * =====================================================
+     * - media deleted
+     * - or attached post hidden / deleted
+     */
+    const hasActiveModeration =
+      Boolean(row.deletedAt) ||
+      Boolean(
+        relatedPost &&
+          (relatedPost.isDeleted === true ||
+            relatedPost.isHidden === true),
+      );
+
     return {
       id: row.id,
 
@@ -25,17 +67,17 @@ export class MediaMetadataMapper {
 
       ownerUserId: ownerId,
 
-      postId:
-        row.post && !row.post.isDeleted && !row.post.isHidden
-          ? row.post.id
-          : null,
+      postId,
 
       createdAt: row.createdAt.toISOString(),
 
-      isOwner:
-        !!viewerUserId &&
-        !!ownerId &&
-        viewerUserId === ownerId,
+      isOwner,
+
+      /**
+       * ✅ UX guard only
+       * backend authority is enforced in POST /appeals
+       */
+      canAppeal: Boolean(isOwner && hasActiveModeration),
     };
   }
 }

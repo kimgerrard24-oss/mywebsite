@@ -38,5 +38,6 @@ export class PublicUserProfileDto {
     followers: number;
     following: number;
   };
+  canAppeal?: boolean;
 }
 

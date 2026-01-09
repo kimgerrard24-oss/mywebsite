@@ -10,6 +10,28 @@ export class PostFeedMapper {
   ): PostFeedItemDto {
     const author = row.author ?? null;
 
+    /**
+     * =========================
+     * 🔐 Owner check (viewer-aware)
+     * =========================
+     */
+    const isOwner =
+      Boolean(viewerUserId) &&
+      Boolean(author) &&
+      viewerUserId === author.id;
+
+    /**
+     * =========================
+     * 🚨 Moderation snapshot (fail-soft)
+     * =========================
+     * NOTE:
+     * - field อาจไม่มีในบาง query → ต้องไม่ throw
+     * - authority จริงอยู่ที่ POST /appeals
+     */
+    const hasActiveModeration =
+      row.isHidden === true ||
+      row.isDeleted === true;
+
     return {
       id: row.id,
       content: row.content,
@@ -20,7 +42,7 @@ export class PostFeedMapper {
         displayName: author?.displayName ?? null,
         avatarUrl: author?.avatarUrl ?? null,
 
-        // ✅ FIX: อ่านจาก followers ที่ query มา
+        // ✅ viewer follow author?
         isFollowing:
           Array.isArray(author?.followers) &&
           author.followers.length > 0,
@@ -33,23 +55,27 @@ export class PostFeedMapper {
               pm.media.mediaType === MediaType.IMAGE
                 ? 'image'
                 : 'video',
-
             url: buildCdnUrl(pm.media.objectKey),
             objectKey: pm.media.objectKey,
           }))
         : [],
 
-      isSelf: viewerUserId === author?.id,
+      isSelf: isOwner,
 
       stats: {
         likeCount: row.likeCount,
         commentCount: row.commentCount,
       },
 
-      canDelete:
-        !!viewerUserId &&
-        !!author &&
-        viewerUserId === author.id,
+      canDelete: isOwner,
+
+      /**
+       * =========================
+       * 📨 Appeal (UX guard only)
+       * =========================
+       * Backend authority อยู่ที่ POST /appeals
+       */
+      canAppeal: Boolean(isOwner && hasActiveModeration),
     };
   }
 }

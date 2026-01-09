@@ -1,6 +1,6 @@
 // frontend/src/lib/api/admin-moderation.ts
 
-import { apiPost } from "@/lib/api/api";
+import { apiPost, api } from "@/lib/api/api";
 import type {
   CreateModerationActionInput,
   ModerationActionResult,
@@ -52,4 +52,21 @@ export async function createModerationAction(
       withCredentials: true, // 🔒 HttpOnly cookie
     },
   );
+}
+
+export async function getModeratedPostDetail(params: {
+  postId: string;
+  cookie?: string;
+}) {
+  const res = await api.get(
+    `/moderation/post/${params.postId}`,
+    {
+      headers: params.cookie
+        ? { cookie: params.cookie }
+        : undefined,
+      withCredentials: true,
+    },
+  );
+
+  return res.data;
 }

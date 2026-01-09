@@ -100,7 +100,7 @@ export class AdminAppealsRepository {
     });
   }
 
-   async resolveAppealTx(input: {
+async resolveAppealTx(input: {
   adminUserId: string;
   appealId: string;
   decision: 'APPROVED' | 'REJECTED';
@@ -114,6 +114,13 @@ export class AdminAppealsRepository {
           id: true,
           userId: true,
           status: true,
+          targetType: true,
+          targetId: true,
+          moderationAction: {
+            select: {
+              actionType: true,
+            },
+          },
         },
       });
 
@@ -123,18 +130,79 @@ export class AdminAppealsRepository {
         return appeal;
       }
 
+      // ===== update appeal status =====
       const resolved = await tx.appeal.update({
         where: { id: input.appealId },
         data: {
-          status: input.decision, // APPROVED | REJECTED
+          status: input.decision,
           resolvedAt: new Date(),
-          resolutionNote:
-            input.resolutionNote ?? undefined,
+          resolutionNote: input.resolutionNote ?? undefined,
           resolvedByAdminId: input.adminUserId,
         },
       });
 
-      // ✅ Admin audit log (schema-aligned)
+      // ===== rollback moderation only if APPROVED and action matches =====
+      if (input.decision === 'APPROVED') {
+        const actionType =
+          appeal.moderationAction?.actionType;
+
+        if (
+          appeal.targetType === 'POST' &&
+          actionType === 'HIDE'
+        ) {
+          await tx.post.update({
+            where: { id: appeal.targetId },
+            data: {
+              isHidden: false,
+              hiddenAt: null,
+            },
+          });
+        }
+
+        if (
+          appeal.targetType === 'COMMENT' &&
+          actionType === 'HIDE'
+        ) {
+          await tx.comment.update({
+            where: { id: appeal.targetId },
+            data: {
+              isHidden: false,
+              hiddenAt: null,
+            },
+          });
+        }
+
+        if (
+          appeal.targetType === 'CHAT_MESSAGE' &&
+          actionType === 'HIDE'
+        ) {
+          await tx.chatMessage.update({
+            where: { id: appeal.targetId },
+            data: {
+              isDeleted: false,
+              deletedAt: null,
+            },
+          });
+        }
+
+        if (
+          appeal.targetType === 'USER' &&
+          actionType === 'BAN_USER'
+        ) {
+          await tx.user.update({
+            where: { id: appeal.targetId },
+            data: {
+              isDisabled: false,
+              disabledAt: null,
+              bannedAt: null,
+              banReason: null,
+              bannedByAdminId: null,
+            },
+          });
+        }
+      }
+
+      // ===== admin audit log =====
       await tx.adminActionLog.create({
         data: {
           adminId: input.adminUserId,
@@ -158,6 +226,8 @@ export class AdminAppealsRepository {
     },
   );
 }
+
+
 
 
    async aggregateStats(

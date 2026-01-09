@@ -259,6 +259,8 @@ async getMe(userId: string): Promise<PublicUserProfileDto> {
       bio: true,
       createdAt: true,
       updatedAt: true,
+      isDisabled: true,
+
 
       _count: {
         select: {
@@ -275,27 +277,31 @@ async getMe(userId: string): Promise<PublicUserProfileDto> {
     );
   }
 
-  return {
-    id: user.id,
-    displayName: user.displayName,
-    avatarUrl: user.avatarUrl,
-    coverUrl: user.coverUrl ?? null,
-    bio: user.bio,
-    createdAt: user.createdAt.toISOString(),
+  const hasActiveModeration =
+  user.isDisabled === true; // self route ไม่มี isBanned ปกติ
 
-    isSelf: true,
+return {
+  id: user.id,
+  displayName: user.displayName,
+  avatarUrl: user.avatarUrl,
+  coverUrl: user.coverUrl ?? null,
+  bio: user.bio,
+  createdAt: user.createdAt.toISOString(),
 
-    // ✅ self ไม่มี block concept
-    isBlocked: false,
-    hasBlockedViewer: false,
+  isSelf: true,
+  isBlocked: false,
+  hasBlockedViewer: false,
+  isFollowing: false,
 
-    isFollowing: false, // self ไม่มี concept follow ตัวเอง
+  stats: {
+    followers: user._count.followers,
+    following: user._count.following,
+  },
 
-    stats: {
-      followers: user._count.followers,
-      following: user._count.following,
-    },
-  };
+  /** UX guard */
+  canAppeal: Boolean(hasActiveModeration),
+ };
+
 }
 
 async getPublicProfile(params: {
@@ -314,11 +320,6 @@ async getPublicProfile(params: {
   const isSelf =
     viewerUserId !== null && viewerUserId === user.id;
 
-  /**
-   * ===== Block relation (from repo joins) =====
-   * - blockedBy      => viewer block target?
-   * - blockedUsers   => target block viewer?
-   */
   const isBlockedByViewer =
     Array.isArray(user.blockedBy) &&
     user.blockedBy.length > 0;
@@ -327,14 +328,17 @@ async getPublicProfile(params: {
     Array.isArray(user.blockedUsers) &&
     user.blockedUsers.length > 0;
 
-  /**
-   * 🔒 HARD VISIBILITY GUARD (CRITICAL)
-   * If either side blocks → profile must not be visible at all
-   * Backend is authority.
-   */
   if (!isSelf && (isBlockedByViewer || hasBlockedViewer)) {
-    return null; // Controller should map to 404
+    return null;
   }
+
+  /** ===== Appeal UX Guard (backend still authority) ===== */
+  const hasActiveModeration =
+    user.isBanned === true ||
+    user.isDisabled === true;
+
+  const canAppeal =
+    Boolean(isSelf && hasActiveModeration);
 
   return {
     id: user.id,
@@ -346,11 +350,7 @@ async getPublicProfile(params: {
 
     isSelf,
 
-    /**
-     * 👇 UX snapshot only (frontend decides button)
-     */
     isBlocked: isBlockedByViewer,
-
     hasBlockedViewer,
 
     isFollowing:
@@ -363,10 +363,11 @@ async getPublicProfile(params: {
       followers: user._count?.followers ?? 0,
       following: user._count?.following ?? 0,
     },
+
+    /** ✅ UX guard only */
+    canAppeal,
   };
-}
-
-
+ }
 
    async updateProfile(userId: string, dto: UpdateUserDto) {
     const updated = await this.repo.updateProfile(userId, dto);

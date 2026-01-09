@@ -185,43 +185,61 @@ async findChatRoomsByUser(userId: string) {
     });
   }
 
-  async findMessages(params: {
-    chatId: string;
-    cursor: string | null;
-    limit: number;
-  }) {
-    const { chatId, cursor, limit } = params;
+ async findMessages(params: {
+  chatId: string;
+  cursor: string | null;
+  limit: number;
+}) {
+  const { chatId, cursor, limit } = params;
 
-    return this.prisma.chatMessage.findMany({
-      where: {
-        chatId,
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-      take: limit + 1,
-      ...(cursor
-        ? {
-            cursor: { id: cursor },
-            skip: 1,
-          }
-        : {}),
-      include: {
-        sender: {
-          select: {
-            id: true,
-            displayName: true,
-            avatarUrl: true,
-          },
+  return this.prisma.chatMessage.findMany({
+    where: {
+      chatId,
+    },
+
+    orderBy: {
+      createdAt: 'desc',
+    },
+
+    take: limit + 1,
+
+    ...(cursor
+      ? {
+          cursor: { id: cursor },
+          skip: 1,
+        }
+      : {}),
+
+    // ✅ ใช้ select อย่างเดียว
+    select: {
+      id: true,
+      content: true,
+      createdAt: true,
+
+      // ===== delete state (for appeal UX guard) =====
+      isDeleted: true,
+      deletedAt: true,
+
+      senderId: true, // ✅ owner check
+
+      sender: {
+        select: {
+          id: true,
+          displayName: true,
+          avatarUrl: true,
         },
-        media: {
-          include: {
-            media: true,
-          },
+      },
+
+      media: {
+        select: {
+          media: true,
         },
       },
-    });
-  }
+    },
+  });
+}
+
+
 
   async createMessage(params: {
     chatId: string;
@@ -331,7 +349,20 @@ async findChatRoomsByUser(userId: string) {
   async findMessageById(messageId: string) {
   return this.prisma.chatMessage.findUnique({
     where: { id: messageId },
-    include: {
+
+    // ✅ ใช้ select อย่างเดียว (Prisma ห้ามใช้ select + include พร้อมกัน)
+    select: {
+      id: true,
+      content: true,
+      createdAt: true,
+
+      // ===== delete state (for appeal UX guard) =====
+      isDeleted: true,
+      deletedAt: true,
+
+      // ===== owner check =====
+      senderId: true,
+
       sender: {
         select: {
           id: true,
@@ -339,13 +370,15 @@ async findChatRoomsByUser(userId: string) {
           avatarUrl: true,
         },
       },
+
       media: {
-        include: {
+        select: {
           media: true,
         },
       },
     },
   });
 }
+
 
 }

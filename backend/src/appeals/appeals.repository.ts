@@ -55,58 +55,104 @@ export class AppealsRepository {
   // ===== Must be moderated already =====
 
   async hasModerationAction(
-    type: AppealTargetType,
-    targetId: string,
-  ): Promise<boolean> {
-    const moderationType = type as unknown as ModerationTargetType;
+  type: AppealTargetType,
+  targetId: string,
+): Promise<boolean> {
 
-    const count = await this.prisma.moderationAction.count({
-      where: {
-        targetType: moderationType,
-        targetId,
-      },
+  if (type === 'POST') {
+    const post = await this.prisma.post.findUnique({
+      where: { id: targetId },
+      select: { isHidden: true, isDeleted: true },
     });
-
-    return count > 0;
+    return !!post && post.isHidden === true;
   }
+
+  if (type === 'COMMENT') {
+    const comment = await this.prisma.comment.findUnique({
+      where: { id: targetId },
+      select: { isHidden: true, isDeleted: true },
+    });
+    return !!comment && comment.isHidden === true;
+  }
+
+  if (type === 'USER') {
+    const user = await this.prisma.user.findUnique({
+      where: { id: targetId },
+      select: { isDisabled: true },
+    });
+    return !!user && user.isDisabled === true;
+  }
+
+  if (type === 'CHAT_MESSAGE') {
+    const msg = await this.prisma.chatMessage.findUnique({
+      where: { id: targetId },
+      select: { isDeleted: true },
+    });
+    return !!msg && msg.isDeleted === true;
+  }
+
+  return false;
+}
+
+
+
 
   // ===== Duplicate appeal =====
 
-  async findExistingAppeal(
-    userId: string,
-    type: AppealTargetType,
-    targetId: string,
-  ) {
-    return this.prisma.appeal.findUnique({
-      where: {
-        userId_targetType_targetId: {
-          userId,
-          targetType: type,
-          targetId,
-        },
+  async findExistingAppeal(params: {
+  userId: string;
+  targetType: AppealTargetType;
+  targetId: string;
+}) {
+  return this.prisma.appeal.findFirst({
+    where: {
+      userId: params.userId,
+      targetType: params.targetType,
+      targetId: params.targetId,
+      status: {
+        in: [AppealStatus.PENDING, AppealStatus.APPROVED],
       },
-    });
-  }
+    },
+    select: { id: true },
+  });
+}
+
+
 
   // ===== Create =====
 
-  async createAppeal(params: {
-    userId: string;
-    targetType: AppealTargetType;
-    targetId: string;
-    reason: string;
-    detail?: string;
-  }) {
-    return this.prisma.appeal.create({
-      data: {
-        userId: params.userId,
-        targetType: params.targetType,
+ async createAppeal(params: {
+  userId: string;
+  targetType: AppealTargetType;
+  targetId: string;
+  reason: string;
+  detail?: string;
+}) {
+  const moderationType =
+    params.targetType as unknown as ModerationTargetType;
+
+  const latestAction =
+    await this.prisma.moderationAction.findFirst({
+      where: {
+        targetType: moderationType,
         targetId: params.targetId,
-        reason: params.reason,
-        detail: params.detail,
       },
+      orderBy: { createdAt: 'desc' },
+      select: { id: true },
     });
-  }
+
+  return this.prisma.appeal.create({
+    data: {
+      userId: params.userId,
+      targetType: params.targetType,
+      targetId: params.targetId,
+      reason: params.reason,
+      detail: params.detail,
+      moderationActionId: latestAction?.id,
+    },
+  });
+}
+
 
   // ===== Audit =====
 

@@ -318,4 +318,41 @@ export class AdminModerationRepository {
     // USER / CHAT_MESSAGE cannot be unhidden
     return false;
   }
+
+  async resolveTargetOwnerUserId(
+  targetType: ModerationTargetType,
+  targetId: string,
+): Promise<string | null> {
+
+  if (targetType === ModerationTargetType.USER) {
+    return targetId; // owner = user เอง
+  }
+
+  if (targetType === ModerationTargetType.POST) {
+    const post = await this.prisma.post.findUnique({
+      where: { id: targetId },
+      select: { authorId: true },
+    });
+    return post?.authorId ?? null;
+  }
+
+  if (targetType === ModerationTargetType.COMMENT) {
+    const comment = await this.prisma.comment.findUnique({
+      where: { id: targetId },
+      select: { authorId: true },
+    });
+    return comment?.authorId ?? null;
+  }
+
+  if (targetType === ModerationTargetType.CHAT_MESSAGE) {
+    const msg = await this.prisma.chatMessage.findUnique({
+      where: { id: targetId },
+      select: { senderId: true },
+    });
+    return msg?.senderId ?? null;
+  }
+
+  return null;
+}
+
 }

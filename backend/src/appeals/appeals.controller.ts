@@ -26,33 +26,37 @@ type AuthedRequest = Request & {
 };
 
 @Controller('appeals')
+@UseGuards(AccessTokenCookieAuthGuard)
 export class AppealsController {
   constructor(
     private readonly service: AppealsService,
   ) {}
 
+  /**
+   * POST /appeals
+   * Create appeal (service validates eligibility)
+   */
   @Post()
-  @UseGuards(AccessTokenCookieAuthGuard)
   async createAppeal(
-    @Req() req: Request & {
-      user?: { userId: string; jti: string };
-    },
+    @Req() req: AuthedRequest,
     @Body() dto: CreateAppealDto,
   ) {
-    const userId = req.user!.userId;
-
-    return this.service.createAppeal(userId, dto, {
-      ip: req.ip,
-      userAgent: req.headers['user-agent'],
-    });
+    return this.service.createAppeal(
+      req.user.userId,
+      dto,
+      {
+        ip: req.ip,
+        userAgent: req.headers['user-agent'],
+      },
+    );
   }
 
-  @UseGuards(AccessTokenCookieAuthGuard)
+  /**
+   * GET /appeals/me
+   */
   @Get('me')
   async getMyAppeals(
-    @Req() req: Request & {
-      user: { userId: string; jti: string };
-    },
+    @Req() req: AuthedRequest,
     @Query() query: GetMyAppealsQueryDto,
   ) {
     return this.service.getMyAppeals({
@@ -62,29 +66,25 @@ export class AppealsController {
     });
   }
 
-   /**
+  /**
    * GET /appeals/me/:id
    * Owner-only appeal detail
    */
-  @UseGuards(AccessTokenCookieAuthGuard)
   @Get('me/:id')
   async getMyAppealById(
     @Req() req: AuthedRequest,
     @Param() params: GetMyAppealParamsDto,
   ) {
-    const userId = req.user.userId;
-
     return this.service.getMyAppealById({
-      userId,
+      userId: req.user.userId,
       appealId: params.id,
     });
   }
 
-   /**
+  /**
    * POST /appeals/:id/withdraw
    * Owner can withdraw only when status = PENDING
    */
-  @UseGuards(AccessTokenCookieAuthGuard)
   @Post(':id/withdraw')
   async withdrawAppeal(
     @Req() req: AuthedRequest,

@@ -7,6 +7,15 @@ import { RedisService } from '../../redis/redis.service';
 export class AdminAppealStatsCache {
   private readonly TTL_SECONDS = 60;
 
+  private readonly PREFIX =
+    'admin:appeals:stats:';
+
+  private readonly RANGES = [
+    '24h',
+    '7d',
+    '30d',
+  ] as const;
+
   constructor(
     private readonly redis: RedisService,
   ) {}
@@ -32,5 +41,23 @@ export class AdminAppealStatsCache {
       this.TTL_SECONDS,
     );
   }
+
+  /**
+   * Invalidate all appeal stats caches
+   * (24h / 7d / 30d)
+   *
+   * Production-safe:
+   * - no redis scan
+   * - delete only known keys
+   */
+  async invalidateAll(): Promise<void> {
+    const keys = this.RANGES.map(
+      (r) => `${this.PREFIX}${r}`,
+    );
+
+    await this.redis.delMany(keys);
+  }
 }
+
+
 

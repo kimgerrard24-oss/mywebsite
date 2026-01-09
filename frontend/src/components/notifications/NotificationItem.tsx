@@ -17,12 +17,42 @@ export default function NotificationItem({ item }: Props) {
   const markAsReadInStore =
     useNotificationStore((s) => s.markAsRead);
 
+  const isBlocked =
+    item.actor?.isBlocked === true ||
+    item.actor?.hasBlockedViewer === true;
+
   /**
    * Resolve destination URL from notification
    * frontend = routing authority
    */
   const resolveHref = useCallback((): string | null => {
     switch (item.type) {
+      
+      case 'moderation_action': {
+  const { targetType, targetId } = item.payload || {};
+  if (!targetType || !targetId) return null;
+
+  if (targetType === 'POST')
+    return `/moderation/post/${targetId}`;
+
+  if (targetType === 'COMMENT')
+    return `/moderation/comment/${targetId}`;
+
+  if (targetType === 'USER')
+    return `/moderation/user/${targetId}`;
+
+  if (targetType === 'CHAT_MESSAGE')
+    return `/moderation/chat-message/${targetId}`;
+
+  return null;
+}
+
+
+      case 'appeal_resolved':
+        return item.payload?.appealId
+          ? `/appeals/${item.payload.appealId}`
+          : null;
+
       case 'comment':
       case 'like':
         return item.entityId
@@ -49,11 +79,6 @@ export default function NotificationItem({ item }: Props) {
     }
   }, [item]);
 
-  const isBlocked =
-  item.actor?.isBlocked === true ||
-  item.actor?.hasBlockedViewer === true;
-
-
   async function handleClick() {
     if (!isRead) {
       setIsRead(true);
@@ -66,19 +91,22 @@ export default function NotificationItem({ item }: Props) {
       }
     }
 
-    const isBlocked =
-  item.actor?.isBlocked === true ||
-  item.actor?.hasBlockedViewer === true;
-
     const href = resolveHref();
- if (href && !isBlocked) {
-  router.push(href);
- }
-  
+    if (href && !isBlocked) {
+      router.push(href);
+    }
   }
-  const actorName =
-    item.actor?.displayName ?? 'Someone';
 
+  const actorName =
+    item.actor?.displayName ??
+    (item.type === 'moderation_action' ||
+    item.type === 'appeal_resolved'
+      ? 'Moderator'
+      : 'Someone');
+
+  /**
+   * Resolve display message (text only)
+   */
   const message = (() => {
     switch (item.type) {
       case 'comment':
@@ -96,8 +124,32 @@ export default function NotificationItem({ item }: Props) {
       case 'chat_message':
         return 'sent you a message';
 
+      case 'moderation_action': {
+        const action = item.payload?.actionType;
+
+        switch (action) {
+          case 'HIDE':
+            return 'your content was hidden by moderator';
+          case 'UNHIDE':
+            return 'your content was restored by moderator';
+          case 'DELETE':
+            return 'your content was removed by moderator';
+          case 'BAN_USER':
+            return 'your account was restricted by moderator';
+          case 'WARN':
+            return 'you received a warning from moderator';
+          default:
+            return 'moderation action was applied';
+        }
+      }
+
+      case 'appeal_resolved':
+        return item.payload?.decision === 'APPROVED'
+          ? 'your appeal was approved'
+          : 'your appeal was rejected';
+
       default:
-        return null;
+        return 'You have a new notification';
     }
   })();
 
@@ -143,10 +195,10 @@ export default function NotificationItem({ item }: Props) {
       <div className="flex flex-col gap-1 min-w-0">
         <span className="text-sm text-gray-800">
           {isBlocked && (
-  <span className="text-xs text-gray-400">
-    ไม่สามารถโต้ตอบกับผู้ใช้นี้ได้
-  </span>
- )}
+            <span className="mr-2 text-xs text-gray-400">
+              ไม่สามารถโต้ตอบกับผู้ใช้นี้ได้
+            </span>
+          )}
 
           <strong className="font-medium">
             {actorName}
@@ -170,4 +222,3 @@ export default function NotificationItem({ item }: Props) {
     </li>
   );
 }
-

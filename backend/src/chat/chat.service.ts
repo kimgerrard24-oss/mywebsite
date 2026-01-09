@@ -178,6 +178,7 @@ if (isNew) {
 
     return ChatMessageListDto.fromRows(rows, {
       limit,
+      viewerUserId,
     });
   }
 
@@ -279,9 +280,13 @@ async sendMessage(params: {
   // 7) Realtime emit (delivery only, fail-soft)
   try {
     this.chatRealtime.emitNewMessage({
-      chatId,
-      message: ChatMessageDto.fromRow(fullMessage),
-    });
+  chatId,
+  message: ChatMessageDto.fromRow(
+    fullMessage,
+    senderUserId, // viewer = sender
+  ),
+});
+
   } catch {
     // realtime must never break message send
   }
@@ -317,7 +322,11 @@ async sendMessage(params: {
   }
 
   // 8) Return authoritative response
-  return ChatMessageDto.fromRow(fullMessage);
+  return ChatMessageDto.fromRow(
+  fullMessage,
+  senderUserId,
+);
+
 }
 
 

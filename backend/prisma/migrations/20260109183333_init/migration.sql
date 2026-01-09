@@ -762,7 +762,7 @@ CREATE INDEX "Appeal_targetType_targetId_idx" ON "Appeal"("targetType", "targetI
 CREATE INDEX "Appeal_resolvedByAdminId_resolvedAt_idx" ON "Appeal"("resolvedByAdminId", "resolvedAt");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "Appeal_userId_targetType_targetId_key" ON "Appeal"("userId", "targetType", "targetId");
+CREATE UNIQUE INDEX "Appeal_userId_moderationActionId_key" ON "Appeal"("userId", "moderationActionId");
 
 -- AddForeignKey
 ALTER TABLE "User" ADD CONSTRAINT "User_bannedByAdminId_fkey" FOREIGN KEY ("bannedByAdminId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;

@@ -299,7 +299,7 @@ async findPostById(
     });
   }
 
- async findUserPosts(params: {
+async findUserPosts(params: {
   userId: string;
   viewerUserId: string | null;
   limit?: number;
@@ -314,39 +314,38 @@ async findPostById(
   } = params;
 
   return this.prisma.post.findMany({
-   where: {
-  authorId: userId,
+    where: {
+      authorId: userId,
 
-  ...(params.scope === 'public'
-    ? {
-        isDeleted: false,
-        isHidden: false,
-        visibility: 'PUBLIC',
-      }
-    : {}),
+      ...(params.scope === 'public'
+        ? {
+            isDeleted: false,
+            isHidden: false,
+            visibility: 'PUBLIC',
+          }
+        : {}),
 
-  ...(viewerUserId && params.scope === 'public'
-    ? {
-        AND: [
-          {
-            author: {
-              blockedBy: {
-                none: { blockerId: viewerUserId },
+      ...(viewerUserId && params.scope === 'public'
+        ? {
+            AND: [
+              {
+                author: {
+                  blockedBy: {
+                    none: { blockerId: viewerUserId },
+                  },
+                },
               },
-            },
-          },
-          {
-            author: {
-              blockedUsers: {
-                none: { blockedId: viewerUserId },
+              {
+                author: {
+                  blockedUsers: {
+                    none: { blockedId: viewerUserId },
+                  },
+                },
               },
-            },
-          },
-        ],
-      }
-    : {}),
-},
-
+            ],
+          }
+        : {}),
+    },
 
     take: limit,
     skip: cursor ? 1 : 0,
@@ -356,14 +355,27 @@ async findPostById(
       createdAt: 'desc',
     },
 
-    include: {
+    // ✅ USE SELECT ONLY (no include)
+    select: {
+      id: true,
+      content: true,
+      createdAt: true,
+
+      /** ✅ required for canAppeal + ownership */
+      authorId: true,
+      isHidden: true,
+      isDeleted: true,
+
+      likeCount: true,
+      commentCount: true,
+
       author: {
         select: {
           id: true,
           displayName: true,
           avatarUrl: true,
 
-          // ✅ follow state (unchanged)
+          // follow state (unchanged)
           followers: viewerUserId
             ? {
                 where: {
@@ -379,14 +391,22 @@ async findPostById(
       },
 
       media: {
-        include: {
-          media: true,
+        select: {
+          media: {
+            select: {
+              id: true,
+              mediaType: true,
+              objectKey: true,
+              width: true,
+              height: true,
+              duration: true,
+            },
+          },
         },
       },
     },
   });
 }
-
 
   async findPostsByTag(params: {
   tag: string;
