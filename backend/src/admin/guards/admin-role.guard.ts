@@ -7,6 +7,7 @@ import {
   Injectable,
   Logger,
 } from '@nestjs/common';
+import type { Request } from 'express'; 
 import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
@@ -21,11 +22,13 @@ export class AdminRoleGuard implements CanActivate {
     context: ExecutionContext,
   ): Promise<boolean> {
     const req =
-      context.switchToHttp().getRequest();
+      context.switchToHttp().getRequest<
+        Request & {
+          user?: { userId: string; jti: string };
+        }
+      >(); // ✅ added strong typing, no runtime impact
 
-    const user = req.user as
-      | { userId: string; jti: string }
-      | undefined;
+    const user = req.user;
 
     if (!user?.userId) {
       // auth guard should already block this,

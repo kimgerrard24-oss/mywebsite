@@ -36,6 +36,7 @@ import { AdminModule } from './admin/admin.module';
 import { ReportsModule } from './reports/reports.module';
 import { SecurityModule } from './common/security/security.module';
 import { AuditModule } from './users/audit/audit.module';
+import { AppealsModule } from './appeals/appeals.module';
 
 @Module({
   imports: [
@@ -50,6 +51,7 @@ import { AuditModule } from './users/audit/audit.module';
     ScheduleModule.forRoot(),
     AlertModule,
     ChatModule,
+    AppealsModule,
     AuditModule,
     SecurityModule,
     ReportsModule,

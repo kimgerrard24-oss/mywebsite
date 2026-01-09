@@ -28,6 +28,12 @@ CREATE TYPE "ModerationTargetType" AS ENUM ('USER', 'POST', 'COMMENT', 'CHAT_MES
 -- CreateEnum
 CREATE TYPE "ModerationActionType" AS ENUM ('HIDE', 'UNHIDE', 'DELETE', 'BAN_USER', 'WARN', 'NO_ACTION');
 
+-- CreateEnum
+CREATE TYPE "AppealStatus" AS ENUM ('PENDING', 'APPROVED', 'REJECTED', 'WITHDRAWN');
+
+-- CreateEnum
+CREATE TYPE "AppealTargetType" AS ENUM ('POST', 'COMMENT', 'USER', 'CHAT_MESSAGE');
+
 -- CreateTable
 CREATE TABLE "User" (
     "id" TEXT NOT NULL,
@@ -454,6 +460,7 @@ CREATE TABLE "AdminActionLog" (
     "detail" JSONB,
     "ip" TEXT,
     "reportId" TEXT,
+    "appealId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "AdminActionLog_pkey" PRIMARY KEY ("id")
@@ -488,6 +495,27 @@ CREATE TABLE "ModerationAction" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "ModerationAction_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "Appeal" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "targetType" "AppealTargetType" NOT NULL,
+    "targetId" TEXT NOT NULL,
+    "moderationActionId" TEXT,
+    "reportId" TEXT,
+    "reason" TEXT NOT NULL,
+    "detail" TEXT,
+    "status" "AppealStatus" NOT NULL DEFAULT 'PENDING',
+    "withdrawnAt" TIMESTAMP(3),
+    "resolvedByAdminId" TEXT,
+    "resolvedAt" TIMESTAMP(3),
+    "resolutionNote" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "Appeal_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
@@ -698,6 +726,9 @@ CREATE INDEX "AdminActionLog_action_idx" ON "AdminActionLog"("action");
 CREATE INDEX "AdminActionLog_reportId_idx" ON "AdminActionLog"("reportId");
 
 -- CreateIndex
+CREATE INDEX "AdminActionLog_appealId_idx" ON "AdminActionLog"("appealId");
+
+-- CreateIndex
 CREATE INDEX "Report_targetType_targetId_idx" ON "Report"("targetType", "targetId");
 
 -- CreateIndex
@@ -717,6 +748,21 @@ CREATE UNIQUE INDEX "Report_reporterId_targetType_targetId_key" ON "Report"("rep
 
 -- CreateIndex
 CREATE INDEX "ModerationAction_targetType_targetId_idx" ON "ModerationAction"("targetType", "targetId");
+
+-- CreateIndex
+CREATE INDEX "Appeal_userId_createdAt_idx" ON "Appeal"("userId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "Appeal_status_createdAt_idx" ON "Appeal"("status", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "Appeal_targetType_targetId_idx" ON "Appeal"("targetType", "targetId");
+
+-- CreateIndex
+CREATE INDEX "Appeal_resolvedByAdminId_resolvedAt_idx" ON "Appeal"("resolvedByAdminId", "resolvedAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Appeal_userId_targetType_targetId_key" ON "Appeal"("userId", "targetType", "targetId");
 
 -- AddForeignKey
 ALTER TABLE "User" ADD CONSTRAINT "User_bannedByAdminId_fkey" FOREIGN KEY ("bannedByAdminId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
@@ -857,6 +903,9 @@ ALTER TABLE "ChatReport" ADD CONSTRAINT "ChatReport_chatId_fkey" FOREIGN KEY ("c
 ALTER TABLE "ChatReport" ADD CONSTRAINT "ChatReport_reporterId_fkey" FOREIGN KEY ("reporterId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "AdminActionLog" ADD CONSTRAINT "AdminActionLog_appealId_fkey" FOREIGN KEY ("appealId") REFERENCES "Appeal"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "AdminActionLog" ADD CONSTRAINT "AdminActionLog_reportId_fkey" FOREIGN KEY ("reportId") REFERENCES "Report"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -870,3 +919,15 @@ ALTER TABLE "Report" ADD CONSTRAINT "Report_resolvedByAdminId_fkey" FOREIGN KEY 
 
 -- AddForeignKey
 ALTER TABLE "ModerationAction" ADD CONSTRAINT "ModerationAction_adminId_fkey" FOREIGN KEY ("adminId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Appeal" ADD CONSTRAINT "Appeal_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Appeal" ADD CONSTRAINT "Appeal_resolvedByAdminId_fkey" FOREIGN KEY ("resolvedByAdminId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Appeal" ADD CONSTRAINT "Appeal_moderationActionId_fkey" FOREIGN KEY ("moderationActionId") REFERENCES "ModerationAction"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Appeal" ADD CONSTRAINT "Appeal_reportId_fkey" FOREIGN KEY ("reportId") REFERENCES "Report"("id") ON DELETE SET NULL ON UPDATE CASCADE;

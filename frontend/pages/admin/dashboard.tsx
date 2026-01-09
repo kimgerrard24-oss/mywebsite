@@ -57,6 +57,30 @@ export default function AdminDashboardPage({
               </li>
             </ul>
           </div>
+           {/* Appeals */}
+<div className="rounded border p-4">
+  <h2 className="mb-2 font-medium">
+    Appeals
+  </h2>
+  <ul className="space-y-1 text-sm">
+    <li>
+      <Link
+        href="/admin/appeals"
+        className="text-blue-600 hover:underline"
+      >
+        View appeals
+      </Link>
+    </li>
+    <li>
+      <Link
+        href="/admin/appeals/stats"
+        className="text-blue-600 hover:underline"
+      >
+        Appeal statistics
+      </Link>
+    </li>
+  </ul>
+</div>
 
           {/* Content */}
           <div className="rounded border p-4">

@@ -128,30 +128,29 @@ export class NotificationsService {
   } = params;
 
   // 🔐 defensive: ไม่แจ้งเตือนตัวเอง
-if (userId === actorUserId) return;
+  if (userId === actorUserId) return null;
 
-// ✅ BLOCK CHECK (CRITICAL)
-const blocked = await this.prisma.userBlock.findFirst({
-  where: {
-    OR: [
-      // recipient blocked actor
-      {
-        blockerId: userId,
-        blockedId: actorUserId,
-      },
+  // ✅ BLOCK CHECK (CRITICAL)
+  const blocked = await this.prisma.userBlock.findFirst({
+    where: {
+      OR: [
+        // recipient blocked actor
+        {
+          blockerId: userId,
+          blockedId: actorUserId,
+        },
 
-      // actor blocked recipient
-      {
-        blockerId: actorUserId,
-        blockedId: userId,
-      },
-    ],
-  },
-  select: { blockerId: true },
-});
+        // actor blocked recipient
+        {
+          blockerId: actorUserId,
+          blockedId: userId,
+        },
+      ],
+    },
+    select: { blockerId: true },
+  });
 
-if (blocked) return;
-
+  if (blocked) return null;
 
   // 1️⃣ Persist (DB = authority)
   const row = await this.repo.create({
@@ -159,26 +158,29 @@ if (blocked) return;
     actorUserId,
     type,
     entityId,
-    payload, // ✅ ส่ง payload ต่อ
+    payload,
   });
-   
+
   try {
-  await this.audit.createLog({
-    userId: actorUserId ?? null, // system allowed
-    action: 'notification.create',
-    success: true,
-    targetId: row.id,
-    metadata: {
-      type,
-      entityId,
-      recipient: userId,
-    },
-  });
-} catch {}
+    await this.audit.createLog({
+      userId: actorUserId ?? null, // system allowed
+      action: 'notification.create',
+      success: true,
+      targetId: row.id,
+      metadata: {
+        type,
+        entityId,
+        recipient: userId,
+      },
+    });
+  } catch {
+    // fail-soft
+  }
+
+  const dto = NotificationMapper.toDto(row);
+
   // 2️⃣ Realtime emit (fail-soft)
   try {
-    const dto = NotificationMapper.toDto(row);
-
     this.realtime.emitNewNotification(userId, {
       notification: dto,
     });
@@ -187,6 +189,10 @@ if (blocked) return;
      * realtime fail ต้องไม่ทำให้ notification หลัก fail
      */
   }
+
+  // ✅ IMPORTANT: return dto for callers that need it (non-breaking)
+  return dto;
 }
+
 
 }

@@ -42,6 +42,8 @@ model User {
   bannedAt          DateTime?
   banReason         String?
   bannedByAdminId   String?
+  appeals Appeal[]
+  resolvedAppeals Appeal[] @relation("AppealResolvedByAdmin")
   reports Report[] @relation("UserReports")
   resolvedReports Report[] @relation("ReportResolvedBy")
   // relation (optional แต่ production-grade)
@@ -654,6 +656,8 @@ model AdminActionLog {
   detail   Json?
   ip       String?
   reportId String?
+  appealId String?
+  appeal   Appeal? @relation(fields: [appealId], references: [id], onDelete: SetNull)
   report   Report? @relation("ReportActionLogs",fields: [reportId],references: [id],onDelete: SetNull)
   createdAt DateTime @default(now())
   admin User @relation(fields: [adminId], references: [id], onDelete: Cascade)
@@ -661,6 +665,7 @@ model AdminActionLog {
   @@index([adminId, createdAt])
   @@index([action])
   @@index([reportId])
+  @@index([appealId])
 }
 
 model Report {
@@ -672,7 +677,7 @@ model Report {
   
   reason        ReportReason
   description   String?
- 
+  appeals       Appeal[]
   status        ReportStatus @default(PENDING)
   withdrawnAt DateTime?
 
@@ -693,12 +698,13 @@ model Report {
 }
 
 model ModerationAction {
-  id         String   @id @default(cuid())
+  id         String @id @default(uuid())
   adminId    String
   actionType ModerationActionType
   targetType ModerationTargetType
   targetId   String
   reason     String
+  appeals    Appeal[]
   createdAt  DateTime @default(now())
 
   admin User @relation("AdminModerationActions", fields: [adminId], references: [id], onDelete: Cascade)
@@ -745,6 +751,75 @@ enum ModerationActionType {
   BAN_USER
   WARN
   NO_ACTION
+}
+
+model Appeal {
+  id        String   @id @default(uuid())
+
+  /// ===== Owner =====
+  userId    String
+
+  /// ===== Target being appealed =====
+  targetType AppealTargetType
+  targetId   String
+
+  /// reference to moderation / report (optional but important for audit)
+  moderationActionId String?
+  reportId           String?
+
+  /// ===== Appeal content =====
+  reason     String
+  detail     String?
+
+  /// ===== Status =====
+  status     AppealStatus @default(PENDING)
+
+  withdrawnAt DateTime?
+
+  /// ===== Admin resolution =====
+  resolvedByAdminId String?
+  resolvedAt        DateTime?
+  resolutionNote    String?
+
+  /// ===== Timestamps =====
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  /// ===== Relations =====
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  resolvedByAdmin User? @relation("AppealResolvedByAdmin",fields: [resolvedByAdminId],references: [id],onDelete: SetNull)
+
+  moderationAction ModerationAction? @relation(fields: [moderationActionId],references: [id],onDelete: SetNull)
+
+  report Report? @relation(fields: [reportId], references: [id], onDelete: SetNull)
+
+  adminActionLogs AdminActionLog[]
+
+  /// ===== Constraints =====
+
+  /// 1 target มี appeal active ได้ครั้งเดียวต่อ user
+  @@unique([userId, targetType, targetId])
+
+  /// ===== Indexes =====
+  @@index([userId, createdAt])                // GET /appeals/me
+  @@index([status, createdAt])                // admin queue
+  @@index([targetType, targetId])
+  @@index([resolvedByAdminId, resolvedAt])
+}
+
+enum AppealStatus {
+  PENDING     // user ส่ง appeal แล้ว รอ admin
+  APPROVED    // admin เห็นด้วย → rollback moderation
+  REJECTED    // admin ปฏิเสธ
+  WITHDRAWN   // user ถอน appeal
+}
+
+enum AppealTargetType {
+  POST
+  COMMENT
+  USER
+  CHAT_MESSAGE
 }
 
 

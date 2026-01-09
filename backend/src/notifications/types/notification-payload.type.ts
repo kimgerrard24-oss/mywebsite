@@ -43,5 +43,10 @@ export type NotificationPayloadMap = {
     postId: string;
     commentId: string;
   };
+
+   appeal_resolved: {
+    appealId: string;
+    decision: 'APPROVED' | 'REJECTED';
+  };
 };
 

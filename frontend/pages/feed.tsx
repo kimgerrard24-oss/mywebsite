@@ -308,6 +308,15 @@ export default function FeedPage({
             Reports
           </Link>
         </li>
+         <li>
+  <Link
+    href="/appeals/me"
+    role="menuitem"
+    className="block px-4 py-2 hover:bg-gray-100"
+  >
+    Appeals
+  </Link>
+</li>
 
           <li>
         <Link

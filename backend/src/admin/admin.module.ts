@@ -9,10 +9,12 @@ import { AdminUsersModule } from './users/admin-users.module';
 import { AdminDashboardModule } from './dashboard/admin-dashboard.module';
 import { AdminModerationModule } from './moderation/admin-moderation.module';
 import { AdminActionsModule } from './actions/admin-actions.module';
+import { AdminAppealsModule } from './appeals/admin-appeals.module';
 
 @Module({
   imports: [
     AdminReportsModule,
+    AdminAppealsModule,
     AdminPostsModule,
     AdminCommentsModule,
     AdminUsersModule,
