@@ -31,8 +31,6 @@ function renderActionLabel(
       return "delete this content";
     case "WARN":
       return "warn this user";
-    case "NO_ACTION":
-      return "mark as no action";
     default:
       return assertNever(action);
   }
@@ -137,4 +135,3 @@ export default function AdminModerationPanel({
     </section>
   );
 }
-
