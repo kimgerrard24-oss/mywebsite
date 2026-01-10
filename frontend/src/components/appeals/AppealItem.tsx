@@ -1,6 +1,7 @@
 // frontend/src/components/appeals/AppealItem.tsx
 
 import type { Appeal } from "@/types/appeal";
+import AppealStatusBadge from "./AppealStatusBadge";
 
 type Props = {
   appeal: Appeal;
@@ -29,18 +30,13 @@ export default function AppealItem({ appeal }: Props) {
         space-y-2
       "
     >
-      <header className="flex justify-between">
+      <header className="flex justify-between items-start gap-2">
         <div className="text-sm font-medium">
           Target: {appeal.targetType}
         </div>
-        <span
-          className="
-            text-xs rounded px-2 py-0.5
-            bg-gray-100 text-gray-700
-          "
-        >
-          {statusLabel(appeal.status)}
-        </span>
+
+        {/* ✅ status badge (shared component) */}
+        <AppealStatusBadge status={appeal.status} />
       </header>
 
       <p className="text-sm text-gray-800">

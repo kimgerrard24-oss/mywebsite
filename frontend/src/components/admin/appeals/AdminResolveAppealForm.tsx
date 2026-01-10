@@ -1,6 +1,7 @@
 // frontend/src/components/admin/appeals/AdminResolveAppealForm.tsx
 
 import { useState } from "react";
+import { useRouter } from "next/router";
 import { resolveAppeal } from "@/lib/api/admin-appeals";
 import AdminResolveConfirmDialog from "./AdminResolveConfirmDialog";
 
@@ -11,19 +12,20 @@ type Props = {
 export default function AdminResolveAppealForm({
   appealId,
 }: Props) {
+  const router = useRouter();
+
   const [note, setNote] = useState("");
   const [decision, setDecision] =
-    useState<"APPROVED" | "REJECTED" | null>(
-      null,
-    );
+    useState<"APPROVED" | "REJECTED" | null>(null);
 
   const [isSubmitting, setIsSubmitting] =
     useState(false);
 
-  const [error, setError] = useState<
-    string | null
-  >(null);
+  const [error, setError] = useState<string | null>(
+    null,
+  );
 
+  /* ===== Confirm Dialog ===== */
   if (decision) {
     return (
       <AdminResolveConfirmDialog
@@ -46,10 +48,10 @@ export default function AdminResolveAppealForm({
             });
 
             /**
-             * Backend is authority
-             * reload to re-fetch resolved status
+             * ✅ Backend is authority
+             * Re-fetch SSR data via router
              */
-            window.location.reload();
+            await router.replace(router.asPath);
           } catch (e) {
             setError(
               "Failed to resolve appeal. Please try again.",
@@ -61,6 +63,7 @@ export default function AdminResolveAppealForm({
     );
   }
 
+  /* ===== Resolve Form ===== */
   return (
     <div className="space-y-2 border-t pt-3">
       <textarea
@@ -100,4 +103,3 @@ export default function AdminResolveAppealForm({
     </div>
   );
 }
-

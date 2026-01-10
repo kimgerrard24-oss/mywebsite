@@ -2,20 +2,21 @@
 
 type Props = {
   status:
-    | 'PENDING'
-    | 'APPROVED'
-    | 'REJECTED'
-    | 'WITHDRAWN';
+    | "PENDING"
+    | "APPROVED"
+    | "REJECTED"
+    | "WITHDRAWN";
 };
 
-const COLOR: Record<
-  Props['status'],
-  string
-> = {
-  PENDING: 'bg-yellow-100 text-yellow-800',
-  APPROVED: 'bg-green-100 text-green-800',
-  REJECTED: 'bg-red-100 text-red-800',
-  WITHDRAWN: 'bg-gray-100 text-gray-700',
+const COLOR: Record<Props["status"], string> = {
+  PENDING:
+    "bg-yellow-200 text-yellow-900 border border-yellow-400",
+  APPROVED:
+    "bg-green-200 text-green-900 border border-green-400",
+  REJECTED:
+    "bg-red-200 text-red-900 border border-red-400",
+  WITHDRAWN:
+    "bg-gray-200 text-gray-800 border border-gray-400",
 };
 
 export default function AppealStatusBadge({
@@ -23,7 +24,7 @@ export default function AppealStatusBadge({
 }: Props) {
   return (
     <span
-      className={`inline-flex rounded px-2 py-1 text-xs font-medium ${COLOR[status]}`}
+      className={`inline-flex items-center rounded px-2 py-1 text-xs font-semibold ${COLOR[status]}`}
     >
       {status}
     </span>
