@@ -1,27 +1,20 @@
 // frontend/pages/moderation/posts/[id].tsx
 
-import type { GetServerSideProps } from 'next';
-import Head from 'next/head';
-import Link from 'next/link';
+import Head from "next/head";
+import type { GetServerSideProps } from "next";
+import Link from "next/link";
 
-import ProfileLayout from '@/components/layout/ProfileLayout';
-import PostDetail from '@/components/posts/PostDetail';
+import ProfileLayout from "@/components/layout/ProfileLayout";
+import PostDetail from "@/components/posts/PostDetail";
+import ModerationBanner from "@/components/moderation/ModerationBanner";
+import AppealButton from "@/components/appeals/AppealButton";
 
-import AppealButton from '@/components/appeals/AppealButton';
-import { sessionCheckServerSide } from '@/lib/api/api';
-import { getModeratedPostDetail } from '@/lib/api/admin-moderation';
+import { requireSessionSSR } from "@/lib/auth/require-session-ssr";
+import { getMyModeratedPostSSR } from "@/lib/api/moderation";
 
-import type { PostDetail as PostDetailType } from '@/types/post-detail';
+import type { ModeratedPostDetail } from "@/types/moderation";
 
-type Props = {
-  post: PostDetailType | null;
-  moderation: {
-    actionType: string;
-    reason?: string | null;
-    createdAt: string;
-  } | null;
-  canAppeal: boolean;
-};
+type Props = ModeratedPostDetail;
 
 export default function ModeratedPostPage({
   post,
@@ -55,99 +48,46 @@ export default function ModeratedPostPage({
 
       <ProfileLayout>
         <main className="min-h-screen bg-gray-50">
-          {/* ===== Back nav ===== */}
+          {/* Back */}
           <nav
             aria-label="Navigation"
-            className="
-              mx-auto
-              w-full
-              max-w-5xl
-              px-4
-              pt-4
-              sm:pt-6
-            "
+            className="mx-auto max-w-5xl px-4 pt-4"
           >
             <Link
               href="/feed"
-              className="
-                inline-block
-                text-xs
-                sm:text-sm
-                text-blue-600
-                hover:underline
-              "
+              className="text-sm text-blue-600 hover:underline"
             >
               ← Back to feed
             </Link>
           </nav>
 
-          {/* ===== Moderation banner ===== */}
-          <section
-            className="
-              mx-auto
-              w-full
-              max-w-5xl
-              px-4
-              pt-4
-              sm:pt-6
-            "
-          >
-            <div
-              className="
-                rounded-lg
-                border
-                border-red-200
-                bg-red-50
-                p-4
-                space-y-2
-              "
-              role="alert"
-            >
-              <p className="text-sm font-medium text-red-700">
-                This post has been moderated by admin
-              </p>
+          {/* Moderation */}
+          <section className="mx-auto max-w-5xl px-4 pt-4">
+            <ModerationBanner
+              actionType={moderation.actionType}
+              reason={moderation.reason}
+              createdAt={moderation.createdAt}
+            />
 
-              <p className="text-xs text-red-700">
-                Action: {moderation.actionType}
-              </p>
-
-              {moderation.reason && (
-                <p className="text-xs text-red-700">
-                  Reason: {moderation.reason}
-                </p>
-              )}
-
-              <p className="text-xs text-gray-600">
-                {new Date(
-                  moderation.createdAt,
-                ).toLocaleString()}
-              </p>
-
-              {canAppeal && (
-                <div className="pt-2">
-                  <AppealButton
-                    targetType="POST"
-                    targetId={post.id}
-                    canAppeal={canAppeal}
-                  />
-                </div>
-              )}
-            </div>
+            {canAppeal && (
+              <div className="pt-3">
+                <AppealButton
+                  targetType="POST"
+                  targetId={post.id}
+                  canAppeal={canAppeal}
+                />
+              </div>
+            )}
           </section>
 
-          {/* ===== Post preview ===== */}
+          {/* Post preview */}
           <section
             aria-label="Post preview"
-            className="
-              mx-auto
-              w-full
-              max-w-5xl
-              px-4
-              pt-6
-              pb-10
-            "
+            className="mx-auto max-w-5xl px-4 pt-6 pb-10"
           >
-            <PostDetail post={post} />
+            {/* PostDetail expects normal PostDetail type,
+                but this is moderation preview — cast is acceptable */}
+            <PostDetail post={post as any} />
           </section>
         </main>
       </ProfileLayout>
@@ -157,46 +97,38 @@ export default function ModeratedPostPage({
 
 /* ================= SSR ================= */
 
-export const getServerSideProps: GetServerSideProps<
-  Props
-> = async (ctx) => {
-  const cookieHeader =
-    ctx.req.headers.cookie ?? '';
+export const getServerSideProps: GetServerSideProps<Props> =
+  async (ctx) => {
+    const postId = ctx.params?.id;
 
-  // 🔐 session check (backend authority)
-  const session = await sessionCheckServerSide(
-    cookieHeader,
-  );
+    if (typeof postId !== "string") {
+      return { notFound: true };
+    }
 
-  if (!session.valid) {
-    return {
-      redirect: {
-        destination: '/',
-        permanent: false,
-      },
-    };
-  }
+    // 🔐 UX guard only — backend is still authority
+    const session = await requireSessionSSR(ctx);
 
-  const postId = String(ctx.params?.id ?? '');
+if (!session) {
+  return {
+    redirect: {
+      destination: "/login",
+      permanent: false,
+    },
+  };
+}
 
-  if (!postId) {
-    return { notFound: true };
-  }
 
-  try {
-    const data = await getModeratedPostDetail({
-      postId,
-      cookieHeader, // ✅ แก้ตรงนี้
-    });
+    try {
+      const data = await getMyModeratedPostSSR(
+        postId,
+        ctx, // ✅ pass ctx, not cookie string
+      );
 
-    return {
-      props: {
-        post: data.post ?? null,
-        moderation: data.moderation ?? null,
-        canAppeal: data.canAppeal === true,
-      },
-    };
-  } catch {
-    return { notFound: true };
-  }
-};
+      if (!data) return { notFound: true };
+
+      return { props: data };
+    } catch {
+      return { notFound: true };
+    }
+  };
+

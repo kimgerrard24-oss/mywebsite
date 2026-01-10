@@ -37,6 +37,7 @@ import { ReportsModule } from './reports/reports.module';
 import { SecurityModule } from './common/security/security.module';
 import { AuditModule } from './users/audit/audit.module';
 import { AppealsModule } from './appeals/appeals.module';
+import { UserModerationModule } from './moderation/user/user-moderation.module';
 
 @Module({
   imports: [
@@ -50,6 +51,7 @@ import { AppealsModule } from './appeals/appeals.module';
     }),
     ScheduleModule.forRoot(),
     AlertModule,
+    UserModerationModule,
     ChatModule,
     AppealsModule,
     AuditModule,

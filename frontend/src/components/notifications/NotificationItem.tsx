@@ -32,22 +32,18 @@ export default function NotificationItem({ item }: Props) {
   const { targetType, targetId } = item.payload || {};
   if (!targetType || !targetId) return null;
 
-  if (targetType === 'POST')
-    return `/moderation/posts/${targetId}`;
+ if (targetType === 'POST')
+  return `/moderation/posts/${targetId}`;
 
-  if (targetType === 'COMMENT')
-    return `/moderation/comment/${targetId}`;
+if (targetType === 'COMMENT')
+  return `/moderation/comments/${targetId}`;
 
-  if (targetType === 'USER')
-    return `/moderation/user/${targetId}`;
+if (targetType === 'CHAT_MESSAGE')
+  return `/moderation/chat-message/${targetId}`;
 
-  if (targetType === 'CHAT_MESSAGE')
-    return `/moderation/chat-message/${targetId}`;
 
   return null;
 }
-
-
       case 'appeal_resolved':
         return item.payload?.appealId
           ? `/appeals/${item.payload.appealId}`
