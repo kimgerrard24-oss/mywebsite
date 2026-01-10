@@ -295,4 +295,39 @@ async canNotifyBetweenUsers(params: {
   return !blocked;
 }
 
+async findByIdWithPost(commentId: string) {
+  return this.prisma.comment.findUnique({
+    where: { id: commentId },
+    select: {
+      id: true,
+      authorId: true,
+      postId: true,
+    },
+  });
+}
+
+async softDeleteAndDecrement(params: {
+  commentId: string;
+  postId: string;
+}) {
+  const { commentId, postId } = params;
+
+  await this.prisma.$transaction([
+    this.prisma.comment.update({
+      where: { id: commentId },
+      data: {
+        isDeleted: true,
+        deletedAt: new Date(),
+      },
+    }),
+    this.prisma.post.update({
+      where: { id: postId },
+      data: {
+        commentCount: { decrement: 1 },
+      },
+    }),
+  ]);
+}
+
+
 }

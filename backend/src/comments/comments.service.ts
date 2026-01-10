@@ -336,37 +336,51 @@ try {
     };
   }
 
-  async deleteComment(params: {
-    commentId: string;
-    viewerUserId: string;
-  }) {
-    const { commentId, viewerUserId } = params;
+ async deleteComment(params: {
+  commentId: string;
+  viewerUserId: string;
+}) {
+  const { commentId, viewerUserId } = params;
 
-    const comment = await this.repo.findById(commentId);
+  /**
+   * 🔒 Load comment with postId (authority)
+   */
+  const comment = await this.repo.findByIdWithPost(
+    commentId,
+  );
 
-    if (!comment) {
-      throw new NotFoundException('Comment not found');
-    }
-
-    CommentDeletePolicy.assertCanDelete({
-      viewerUserId,
-      authorId: comment.authorId,
-    });
-
-    await this.repo.deleteById(commentId);
-
-    // ===============================
-// ✅ AUDIT LOG: DELETE COMMENT
-// ===============================
-try {
-  await this.audit.createLog({
-    userId: viewerUserId,
-    action: 'comment.delete',
-    success: true,
-    targetId: commentId,
-  });
-} catch {}
+  if (!comment) {
+    throw new NotFoundException('Comment not found');
   }
+
+  CommentDeletePolicy.assertCanDelete({
+    viewerUserId,
+    authorId: comment.authorId,
+  });
+
+  /**
+   * ✅ Soft delete + decrement post.commentCount (atomic)
+   */
+  await this.repo.softDeleteAndDecrement({
+    commentId: comment.id,
+    postId: comment.postId,
+  });
+
+  // ===============================
+  // ✅ AUDIT LOG: DELETE COMMENT
+  // ===============================
+  try {
+    await this.audit.createLog({
+      userId: viewerUserId,
+      action: 'comment.delete',
+      success: true,
+      targetId: commentId,
+    });
+  } catch {
+    // must not affect main flow
+  }
+}
+
 
   
 }
