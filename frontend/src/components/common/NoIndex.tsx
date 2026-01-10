@@ -1,5 +1,6 @@
 // frontend/src/components/common/NoIndex.tsx
 
+
 import Head from 'next/head';
 
 export default function NoIndex() {
