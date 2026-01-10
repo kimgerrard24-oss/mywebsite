@@ -1,15 +1,17 @@
 // frontend/pages/admin/appeals/appeals/[id].tsx
 
-import type { GetServerSideProps } from 'next';
-import Head from 'next/head';
-import Link from 'next/link';
-import { sessionCheckServerSide } from '@/lib/api/api';
-import { getAdminAppealById } from '@/lib/api/admin-appeals';
-import type { AdminAppealDetail } from '@/types/admin-appeal';
-import AdminAppealDetailView from '@/components/admin/appeals/AdminAppealDetailView';
+import type { GetServerSideProps } from "next";
+import Head from "next/head";
+import Link from "next/link";
+
+import { sessionCheckServerSide } from "@/lib/api/api";
+import { getAdminAppealById } from "@/lib/api/admin-appeals";
+
+import type { AdminAppealDetail } from "@/types/admin-appeal";
+import AdminAppealDetailView from "@/components/admin/appeals/AdminAppealDetailView";
 
 type Props = {
-  appeal: AdminAppealDetail | null;
+  appeal: AdminAppealDetail;
 };
 
 export default function AdminAppealDetailPage({
@@ -18,33 +20,26 @@ export default function AdminAppealDetailPage({
   return (
     <>
       <Head>
-        {/* ✅ aligned with reference file */}
         <title>Admin Appeal | PhlyPhant</title>
         <meta name="robots" content="noindex,nofollow" />
       </Head>
 
-      <main className="mx-auto max-w-3xl p-6 space-y-4">
-        <div className="flex items-center justify-between">
-          {/* ✅ aligned with reference file */}
+      <main className="mx-auto max-w-4xl p-6">
+        <div className="mb-4 flex items-center justify-between">
           <h1 className="text-xl font-semibold">
             Appeal Review
           </h1>
 
           <Link
-            href="/admin/appeals"
+            href="/admin/appeals/appeals"
             className="text-sm text-blue-600 hover:underline"
           >
             Back
           </Link>
         </div>
 
-        {!appeal ? (
-          <p className="text-sm text-gray-600">
-            Appeal not found or unavailable.
-          </p>
-        ) : (
-          <AdminAppealDetailView appeal={appeal} />
-        )}
+        {/* authority = backend, ถ้ามาได้แปลว่าผ่าน guard แล้ว */}
+        <AdminAppealDetailView appeal={appeal} />
       </main>
     </>
   );
@@ -55,10 +50,9 @@ export default function AdminAppealDetailPage({
 export const getServerSideProps: GetServerSideProps<
   Props
 > = async (ctx) => {
-  const cookieHeader =
-    ctx.req.headers.cookie ?? '';
+  const cookieHeader = ctx.req.headers.cookie ?? "";
 
-  // 🔐 AuthN only — backend is authority
+  // 🔐 AuthN only — backend decides ADMIN permission
   const session = await sessionCheckServerSide(
     cookieHeader,
   );
@@ -66,23 +60,22 @@ export const getServerSideProps: GetServerSideProps<
   if (!session.valid) {
     return {
       redirect: {
-        destination: '/',
+        destination: "/",
         permanent: false,
       },
     };
   }
 
-  const appealId = String(
-    ctx.params?.id ?? '',
-  );
+  const id = ctx.params?.id as string | undefined;
 
-  if (!appealId) {
-    return { props: { appeal: null } };
+  if (!id) {
+    return { notFound: true };
   }
 
   try {
+    // 🔐 SSR must forward cookie to backend
     const appeal = await getAdminAppealById({
-      appealId,
+      appealId: id,
       cookie: cookieHeader,
     });
 
@@ -90,18 +83,27 @@ export const getServerSideProps: GetServerSideProps<
       props: { appeal },
     };
   } catch (err: any) {
+    // ❌ backend denies admin
     if (err?.status === 403) {
       return {
         redirect: {
-          destination: '/',
+          destination: "/",
           permanent: false,
         },
       };
     }
 
+    // ❌ appeal not found
+    if (err?.status === 404) {
+      return { notFound: true };
+    }
+
+    // production-safe fallback
     return {
-      props: { appeal: null },
+      redirect: {
+        destination: "/",
+        permanent: false,
+      },
     };
   }
 };
-

@@ -14,7 +14,9 @@ import {
 } from "@/lib/api/moderation";
 import { requireSessionSSR } from "@/lib/auth/require-session-ssr";
 
-import type { ModeratedMessageDetail } from "@/types/moderation";
+import type {
+  ModeratedMessageDetail,
+} from "@/types/moderation";
 
 type Props = {
   message: ModeratedMessageDetail;
@@ -32,17 +34,22 @@ export default function ModeratedMessagePage({
   canAppeal,
 }: Props) {
   if (!message || !moderation) {
-  return (
-    <ProfileLayout>
-      <main className="mx-auto max-w-3xl p-6">
-        <p className="text-sm text-gray-600">
-          Content not found or unavailable.
-        </p>
-      </main>
-    </ProfileLayout>
-  );
-}
-
+    return (
+      <ProfileLayout>
+        <main className="mx-auto max-w-3xl p-6">
+          <p className="text-sm text-gray-600">
+            Content not found or unavailable.
+          </p>
+          <Link
+            href="/feed"
+            className="text-sm text-blue-600 hover:underline"
+          >
+            ← Back to feed
+          </Link>
+        </main>
+      </ProfileLayout>
+    );
+  }
 
   return (
     <>
@@ -103,12 +110,12 @@ export const getServerSideProps: GetServerSideProps<Props> =
     // 🔐 backend authority — redirect if invalid
     await requireSessionSSR(ctx);
 
-    const id = String(ctx.params?.id ?? "");
-    if (!id) return { notFound: true };
+    const messageId = String(ctx.params?.id ?? "");
+    if (!messageId) return { notFound: true };
 
     try {
       const data = await getMyModeratedMessageSSR(
-        id,
+        messageId,
         ctx,
       );
 
@@ -117,3 +124,4 @@ export const getServerSideProps: GetServerSideProps<Props> =
       return { notFound: true };
     }
   };
+

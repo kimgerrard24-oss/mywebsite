@@ -1,7 +1,9 @@
 // frontend/src/components/admin/appeals/AdminAppealDetailView.tsx
 
-import type { AdminAppealDetail } from '@/types/admin-appeal';
-import AdminAppealTargetPreview from './AdminAppealTargetPreview';
+import type { AdminAppealDetail } from "@/types/admin-appeal";
+
+import AdminAppealTargetPreview from "./AdminAppealTargetPreview";
+import AdminResolveAppealForm from "./AdminResolveAppealForm";
 
 type Props = {
   appeal: AdminAppealDetail;
@@ -10,8 +12,11 @@ type Props = {
 export default function AdminAppealDetailView({
   appeal,
 }: Props) {
+  const isPending = appeal.status === "PENDING";
+
   return (
     <section className="space-y-4 rounded-md border p-4">
+      {/* ===== Header ===== */}
       <header className="flex justify-between gap-4">
         <div>
           <p className="text-sm font-medium">
@@ -27,8 +32,10 @@ export default function AdminAppealDetailView({
         </span>
       </header>
 
+      {/* ===== Target Preview ===== */}
       <AdminAppealTargetPreview appeal={appeal} />
 
+      {/* ===== Appeal Content ===== */}
       <div className="space-y-2 text-sm">
         <div>
           <p className="font-medium">Reason</p>
@@ -47,6 +54,7 @@ export default function AdminAppealDetailView({
         )}
       </div>
 
+      {/* ===== Moderation Action ===== */}
       {appeal.moderationAction && (
         <div className="rounded bg-gray-50 p-3 text-sm">
           <p className="font-medium">
@@ -63,6 +71,7 @@ export default function AdminAppealDetailView({
         </div>
       )}
 
+      {/* ===== Admin Resolution Note ===== */}
       {appeal.resolutionNote && (
         <div className="rounded bg-gray-50 p-3 text-sm">
           <p className="font-medium">Admin Note</p>
@@ -72,9 +81,17 @@ export default function AdminAppealDetailView({
         </div>
       )}
 
+      {/* ===== Resolve Form (ADMIN ACTION) ===== */}
+      {isPending && (
+        <AdminResolveAppealForm
+          appealId={appeal.id}
+        />
+      )}
+
+      {/* ===== Meta ===== */}
       <footer className="text-xs text-gray-500">
         <p>
-          Submitted:{' '}
+          Submitted:{" "}
           {new Date(
             appeal.createdAt,
           ).toLocaleString()}
@@ -82,7 +99,7 @@ export default function AdminAppealDetailView({
 
         {appeal.resolvedAt && (
           <p>
-            Resolved:{' '}
+            Resolved:{" "}
             {new Date(
               appeal.resolvedAt,
             ).toLocaleString()}
