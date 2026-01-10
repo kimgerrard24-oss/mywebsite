@@ -18,22 +18,18 @@ import type {
   ModeratedMessageDetail,
 } from "@/types/moderation";
 
-type Props = {
-  message: ModeratedMessageDetail;
-  moderation: {
-    actionType: string;
-    reason?: string | null;
-    createdAt: string;
-  };
-  canAppeal: boolean;
-};
+type Props = ModeratedMessageDetail;
 
-export default function ModeratedMessagePage({
-  message,
-  moderation,
-  canAppeal,
-}: Props) {
-  if (!message || !moderation) {
+export default function ModeratedMessagePage(
+  props: Props,
+) {
+  const {
+    moderation,
+    canAppeal,
+    ...message
+  } = props;
+
+  if (!message.id || !moderation) {
     return (
       <ProfileLayout>
         <main className="mx-auto max-w-3xl p-6">
@@ -54,8 +50,13 @@ export default function ModeratedMessagePage({
   return (
     <>
       <Head>
-        <title>Message under moderation | PhlyPhant</title>
-        <meta name="robots" content="noindex,nofollow" />
+        <title>
+          Message under moderation | PhlyPhant
+        </title>
+        <meta
+          name="robots"
+          content="noindex,nofollow"
+        />
       </Head>
 
       <ProfileLayout>
@@ -95,7 +96,8 @@ export default function ModeratedMessagePage({
             aria-label="Message preview"
             className="mx-auto max-w-5xl px-4 pt-6 pb-10"
           >
-            <ModeratedMessagePreview message={message} />
+            <ModeratedMessagePreview message={props} />
+
           </section>
         </main>
       </ProfileLayout>
@@ -105,23 +107,24 @@ export default function ModeratedMessagePage({
 
 /* ================= SSR ================= */
 
-export const getServerSideProps: GetServerSideProps<Props> =
-  async (ctx) => {
-    // 🔐 backend authority — redirect if invalid
-    await requireSessionSSR(ctx);
+export const getServerSideProps: GetServerSideProps<
+  Props
+> = async (ctx) => {
+  // 🔐 backend authority
+  await requireSessionSSR(ctx);
 
-    const messageId = String(ctx.params?.id ?? "");
-    if (!messageId) return { notFound: true };
+  const messageId = String(ctx.params?.id ?? "");
+  if (!messageId) return { notFound: true };
 
-    try {
-      const data = await getMyModeratedMessageSSR(
-        messageId,
-        ctx,
-      );
+  try {
+    const data = await getMyModeratedMessageSSR(
+      messageId,
+      ctx,
+    );
 
-      return { props: data };
-    } catch {
-      return { notFound: true };
-    }
-  };
+    return { props: data };
+  } catch {
+    return { notFound: true };
+  }
+};
 

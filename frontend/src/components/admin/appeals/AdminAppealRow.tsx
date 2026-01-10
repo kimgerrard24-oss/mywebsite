@@ -36,7 +36,7 @@ export default function AdminAppealRow({
           />
 
           <Link
-            href={`/admin/appeals/${item.id}`}
+            href={`/admin/appeals/appeals/${item.id}`}
             className="text-xs text-blue-600 hover:underline"
           >
             View
