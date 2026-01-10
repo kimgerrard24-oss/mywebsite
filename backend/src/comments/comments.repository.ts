@@ -43,6 +43,9 @@ export class CommentsRepository {
     select: {
       id: true,
       authorId: true,
+      isHidden: true,
+      isDeleted: true,
+      isPublished: true,
     },
   });
 }
@@ -76,36 +79,21 @@ export class CommentsRepository {
   }
 
   async findReadablePost(postId: string) {
-    return this.prisma.post.findFirst({
-      where: {
-        id: postId,
-        isDeleted: false,
-        isHidden: false,
-        isPublished: true,
-      },
-      select: { id: true },
-    });
-  }
+  return this.prisma.post.findFirst({
+    where: {
+      id: postId,
+      isPublished: true,
+    },
+    select: {
+      id: true,
+      isHidden: true,
+      isDeleted: true,
+      visibility: true,
+      authorId: true,
+    },
+  });
+}
 
-  async findComments(params: {
-    postId: string;
-    limit: number;
-    cursor?: string;
-  }) {
-    const { postId, limit, cursor } = params;
-
-    return this.prisma.comment.findMany({
-      where: { postId },
-      orderBy: { createdAt: 'desc' },
-      take: limit,
-      ...(cursor
-        ? {
-            skip: 1,
-            cursor: { id: cursor },
-          }
-        : {}),
-    });
-  }
 
   async findById(commentId: string) {
     return this.prisma.comment.findUnique({

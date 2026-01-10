@@ -3,8 +3,8 @@
 import { apiPath } from "@/lib/api/api";
 import type { AdminAppealStats } from "@/types/admin-appeal-stats";
 
-type SSRContext = {
-  cookieHeader?: string;
+type GetAdminAppealStatsParams = {
+  cookieHeader?: string; // SSR only
 };
 
 /**
@@ -12,56 +12,38 @@ type SSRContext = {
  * GET /admin/appeals/stats
  * ==============================
  *
- * - SSR: fetch + manual Cookie forward
- * - CSR: fetch with credentials
+ * - SSR: forward Cookie manually
+ * - CSR: use browser cookie (credentials)
  *
- * Backend is authority
+ * Backend is authority for admin permission
  */
 export async function getAdminAppealStats(
-  ctx?: SSRContext,
+  params?: GetAdminAppealStatsParams,
 ): Promise<AdminAppealStats> {
-  // 🔒 SSR path
-  if (ctx?.cookieHeader) {
-    const res = await fetch(
-      apiPath("/admin/appeals/stats"),
-      {
-        method: "GET",
-        headers: {
-          Accept: "application/json",
-          Cookie: ctx.cookieHeader,
-        },
-        credentials: "include",
-        cache: "no-store",
-      },
-    );
+  const headers: HeadersInit = {
+    Accept: "application/json",
+  };
 
-    if (!res.ok) {
-      const err: any = new Error(
-        `HTTP ${res.status}`,
-      );
-      err.status = res.status;
-      throw err;
-    }
-
-    return res.json();
+  if (params?.cookieHeader) {
+    headers["Cookie"] = params.cookieHeader;
   }
 
-  // ✅ CSR path
   const res = await fetch(
     apiPath("/admin/appeals/stats"),
     {
+      method: "GET",
+      headers,
       credentials: "include",
       cache: "no-store",
     },
   );
 
   if (!res.ok) {
-    const err: any = new Error(
-      `HTTP ${res.status}`,
-    );
+    const err: any = new Error(`HTTP ${res.status}`);
     err.status = res.status;
     throw err;
   }
 
   return res.json();
 }
+

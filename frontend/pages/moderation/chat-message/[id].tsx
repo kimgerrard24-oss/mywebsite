@@ -2,7 +2,9 @@
 
 import Head from "next/head";
 import type { GetServerSideProps } from "next";
+import Link from "next/link";
 
+import ProfileLayout from "@/components/layout/ProfileLayout";
 import ModeratedMessagePreview from "@/components/moderation/ModeratedMessagePreview";
 import AppealActionPanel from "@/components/moderation/AppealActionPanel";
 
@@ -13,59 +15,102 @@ import type { ModeratedMessageDetail } from "@/types/moderation";
 
 type Props = {
   message: ModeratedMessageDetail;
+  moderation: {
+    actionType: string;
+    reason?: string | null;
+    createdAt: string;
+  };
+  canAppeal: boolean;
 };
 
 export default function ModeratedMessagePage({
   message,
+  canAppeal,
+  moderation,
 }: Props) {
+  if (!message || !moderation) {
+    return (
+      <ProfileLayout>
+        <main className="mx-auto max-w-3xl p-6">
+          <p className="text-sm text-gray-600">
+            Content not found or unavailable.
+          </p>
+          <Link
+            href="/feed"
+            className="text-sm text-blue-600 hover:underline"
+          >
+            ← Back to feed
+          </Link>
+        </main>
+      </ProfileLayout>
+    );
+  }
+
   return (
     <>
       <Head>
-        <title>Moderation Notice | PhlyPhant</title>
-        <meta
-          name="robots"
-          content="noindex,nofollow"
-        />
+        <title>Message under moderation | PhlyPhant</title>
+        <meta name="robots" content="noindex,nofollow" />
       </Head>
 
-      <main className="mx-auto max-w-md px-4 py-6 space-y-4">
-        <ModeratedMessagePreview
-          message={message}
-        />
+      <ProfileLayout>
+        <main className="min-h-screen bg-gray-50">
+          <nav
+            aria-label="Navigation"
+            className="mx-auto max-w-5xl px-4 pt-4"
+          >
+            <Link
+              href="/feed"
+              className="text-sm text-blue-600 hover:underline"
+            >
+              ← Back to feed
+            </Link>
+          </nav>
 
-        <AppealActionPanel message={message} />
-      </main>
+          <section className="mx-auto max-w-5xl px-4 pt-4 space-y-3">
+  <AppealActionPanel
+    messageId={message.id}
+    canAppeal={canAppeal}
+    moderation={moderation}
+  />
+</section>
+
+
+          <section
+            aria-label="Message preview"
+            className="mx-auto max-w-5xl px-4 pt-6 pb-10"
+          >
+            <ModeratedMessagePreview message={message} />
+          </section>
+        </main>
+      </ProfileLayout>
     </>
   );
 }
 
 /* ================= SSR ================= */
 
-export const getServerSideProps: GetServerSideProps<
-  Props
-> = async (ctx) => {
-  const id = ctx.params?.id;
+export const getServerSideProps: GetServerSideProps<Props> =
+  async (ctx) => {
+    await requireSessionSSR(ctx);
 
-  if (typeof id !== "string") {
-    return { notFound: true };
-  }
+    const id = String(ctx.params?.id ?? "");
+    if (!id) return { notFound: true };
 
-  // 🔐 backend authority — will redirect if invalid
-  await requireSessionSSR(ctx);
+   try {
+  const data = await getModeratedMessage(id, ctx);
 
-  try {
-    const message = await getModeratedMessage(
-      id,
-      ctx,
-    );
+  if (!data) return { notFound: true };
 
-    if (!message) {
-      return { notFound: true };
-    }
+  // backend returns wrapper: { message, moderation, canAppeal }
+  return {
+    props: data as unknown as Props,
+  };
+} catch {
+  return { notFound: true };
+}
 
-    return { props: { message } };
-  } catch {
-    return { notFound: true };
-  }
-};
+  };
+
+
 

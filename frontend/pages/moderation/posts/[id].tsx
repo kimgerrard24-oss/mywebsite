@@ -85,8 +85,7 @@ export default function ModeratedPostPage({
             aria-label="Post preview"
             className="mx-auto max-w-5xl px-4 pt-6 pb-10"
           >
-            {/* PostDetail expects normal PostDetail type,
-                but this is moderation preview — cast is acceptable */}
+            {/* moderation preview — acceptable cast */}
             <PostDetail post={post as any} />
           </section>
         </main>
@@ -99,24 +98,11 @@ export default function ModeratedPostPage({
 
 export const getServerSideProps: GetServerSideProps<Props> =
   async (ctx) => {
-    const postId = ctx.params?.id;
+    // 🔐 backend authority — redirect if invalid
+    await requireSessionSSR(ctx);
 
-    if (typeof postId !== "string") {
-      return { notFound: true };
-    }
-
-    // 🔐 UX guard only — backend is still authority
-    const session = await requireSessionSSR(ctx);
-
-if (!session) {
-  return {
-    redirect: {
-      destination: "/login",
-      permanent: false,
-    },
-  };
-}
-
+    const postId = String(ctx.params?.id ?? "");
+    if (!postId) return { notFound: true };
 
     try {
       const data = await getMyModeratedPostSSR(
@@ -124,11 +110,10 @@ if (!session) {
         ctx, // ✅ pass ctx, not cookie string
       );
 
-      if (!data) return { notFound: true };
-
       return { props: data };
     } catch {
       return { notFound: true };
     }
   };
+
 

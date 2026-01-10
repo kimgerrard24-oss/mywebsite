@@ -8,8 +8,6 @@ import ProfileLayout from '@/components/layout/ProfileLayout';
 import ModerationBanner from '@/components/moderation/ModerationBanner';
 import ModeratedCommentPreview from '@/components/comments/ModeratedCommentPreview';
 import AppealButton from '@/components/appeals/AppealButton';
-
-import { sessionCheckServerSide } from '@/lib/api/api';
 import {
   getMyModeratedCommentSSR,
 } from '@/lib/api/moderation';

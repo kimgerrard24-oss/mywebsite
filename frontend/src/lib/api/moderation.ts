@@ -139,6 +139,7 @@ export async function getModeratedMessage(
           ? { Cookie: cookie }
           : undefined,
         credentials: "include",
+        cache: "no-store",
       },
     );
 
@@ -147,7 +148,10 @@ export async function getModeratedMessage(
   }
 
   // CSR
-  return client.get<ModeratedMessageDetail>(
-    `/moderation/me/messages/${id}`,
-  );
+  const res = await client.get<ModeratedMessageDetail>(
+  `/moderation/me/messages/${id}`,
+);
+
+return res;
+
 }

@@ -39,18 +39,26 @@ async createComment(params: {
   } = params;
 
   // ==================================================
-  // 🔒 LOAD POST + BLOCK ENFORCEMENT (2-way)
-  // ==================================================
-  const post = await this.repo.findPostForComment({
-    postId,
-    viewerUserId: authorId,
-  });
+// 🔒 LOAD POST + BLOCK ENFORCEMENT (2-way)
+// ==================================================
+const post = await this.repo.findPostForComment({
+  postId,
+  viewerUserId: authorId,
+});
 
-  if (!post) {
-    throw new NotFoundException('Post not found');
-  }
+if (!post) {
+  throw new NotFoundException('Post not found');
+}
 
-  this.commentpolicy.assertCanComment(post);
+// 🔒 HARD VISIBILITY GUARD (AUTHORITY)
+if (post.isHidden === true || post.isDeleted === true) {
+  // production behavior: do not reveal existence
+  throw new NotFoundException('Post not found');
+}
+
+this.commentpolicy.assertCanComment(post);
+
+
 
   // ==================================================
   // 1️⃣ CREATE COMMENT (เดิม)
@@ -227,6 +235,13 @@ async getPostComments(params: {
     throw new NotFoundException('Post not found');
   }
 
+  // 🔒 HARD VISIBILITY GUARD (AUTHORITY)
+  // ถ้า post ถูก hide หรือ deleted → ห้ามอ่าน comment เด็ดขาด
+  // production behavior: do not reveal existence
+  if (post.isHidden === true || post.isDeleted === true) {
+    throw new NotFoundException('Post not found');
+  }
+
   this.readpolicy.assertCanRead(post);
 
   const rows = await this.repo.findByPostId({
@@ -273,6 +288,7 @@ async getPostComments(params: {
     nextCursor,
   };
 }
+
 
 
 

@@ -50,5 +50,5 @@ export type ModeratedMessageDetail = {
     createdAt: string;
   } | null;
 
-  hasPendingAppeal: boolean;
+  canAppeal: boolean;
 };

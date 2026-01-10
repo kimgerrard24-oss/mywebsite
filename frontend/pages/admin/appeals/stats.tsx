@@ -9,14 +9,17 @@ import {
 import { sessionCheckServerSide } from "@/lib/api/api";
 
 import AdminAppealStatsView from "@/components/admin/appeals/AdminAppealStats";
+import AdminPageGuard from "@/components/admin/AdminPageGuard";
 import type { AdminAppealStats } from "@/types/admin-appeal-stats";
 
 type Props = {
-  stats: AdminAppealStats;
+  stats: AdminAppealStats | null;
+  allowed: boolean;
 };
 
 export default function AdminAppealStatsPage({
   stats,
+  allowed,
 }: Props) {
   return (
     <>
@@ -30,8 +33,11 @@ export default function AdminAppealStatsPage({
           Appeal Statistics
         </h1>
 
-        {/* Backend already authorized */}
-        <AdminAppealStatsView stats={stats} />
+        <AdminPageGuard allowed={allowed}>
+          {stats && (
+            <AdminAppealStatsView stats={stats} />
+          )}
+        </AdminPageGuard>
       </main>
     </>
   );
@@ -45,7 +51,7 @@ export const getServerSideProps: GetServerSideProps<
   const cookie =
     ctx.req.headers.cookie ?? "";
 
-  // 🔐 AuthN only — backend is authority for ADMIN
+  // 🔐 AuthN only — backend authority
   const session =
     await sessionCheckServerSide(cookie);
 
@@ -60,32 +66,34 @@ export const getServerSideProps: GetServerSideProps<
 
   try {
     // 🔒 AuthZ — backend decides admin permission
-    const stats =
-      await getAdminAppealStats({
-        cookieHeader: cookie,
-      });
+    const stats = await getAdminAppealStats({
+      cookieHeader: cookie,
+    });
 
     return {
-      props: { stats },
+      props: {
+        stats,
+        allowed: true,
+      },
     };
   } catch (err: any) {
-    // ❌ Not admin or forbidden
     if (err?.status === 403) {
       return {
-        redirect: {
-          destination: "/",
-          permanent: false,
+        props: {
+          stats: null,
+          allowed: false,
         },
       };
     }
 
-    // production-safe fallback
     return {
-      redirect: {
-        destination: "/",
-        permanent: false,
+      props: {
+        stats: null,
+        allowed: false,
       },
     };
   }
 };
+
+
 
