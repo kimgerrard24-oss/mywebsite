@@ -2,7 +2,9 @@
 
 import { useEffect, useState } from "react";
 import type { ModeratedMessageDetail } from "@/types/moderation";
-import { getModeratedMessage } from "@/lib/api/moderation";
+import {
+  getMyModeratedMessageClient,
+} from "@/lib/api/moderation";
 
 export function useModeratedMessage(id?: string) {
   const [data, setData] =
@@ -17,11 +19,11 @@ export function useModeratedMessage(id?: string) {
 
     setLoading(true);
 
-    getModeratedMessage(id)
+    getMyModeratedMessageClient(id)
       .then((res) => {
         if (!mounted) return;
 
-        if (res && res.message) {
+        if (res?.message) {
           setData(res.message);
         } else {
           setData(null);
@@ -41,5 +43,6 @@ export function useModeratedMessage(id?: string) {
 
   return { data, loading };
 }
+
 
 

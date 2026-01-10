@@ -9,7 +9,9 @@ import ModerationBanner from "@/components/moderation/ModerationBanner";
 import ModeratedMessagePreview from "@/components/moderation/ModeratedMessagePreview";
 import AppealButton from "@/components/appeals/AppealButton";
 
-import { getModeratedMessage } from "@/lib/api/moderation";
+import {
+  getMyModeratedMessageSSR,
+} from "@/lib/api/moderation";
 import { requireSessionSSR } from "@/lib/auth/require-session-ssr";
 
 import type { ModeratedMessageDetail } from "@/types/moderation";
@@ -30,22 +32,17 @@ export default function ModeratedMessagePage({
   canAppeal,
 }: Props) {
   if (!message || !moderation) {
-    return (
-      <ProfileLayout>
-        <main className="mx-auto max-w-3xl p-6">
-          <p className="text-sm text-gray-600">
-            Content not found or unavailable.
-          </p>
-          <Link
-            href="/feed"
-            className="text-sm text-blue-600 hover:underline"
-          >
-            ← Back to feed
-          </Link>
-        </main>
-      </ProfileLayout>
-    );
-  }
+  return (
+    <ProfileLayout>
+      <main className="mx-auto max-w-3xl p-6">
+        <p className="text-sm text-gray-600">
+          Content not found or unavailable.
+        </p>
+      </main>
+    </ProfileLayout>
+  );
+}
+
 
   return (
     <>
@@ -110,19 +107,13 @@ export const getServerSideProps: GetServerSideProps<Props> =
     if (!id) return { notFound: true };
 
     try {
-      const data = await getModeratedMessage(id, ctx);
+      const data = await getMyModeratedMessageSSR(
+        id,
+        ctx,
+      );
 
-      if (!data) return { notFound: true };
-
-      // backend returns: { message, moderation, canAppeal }
-      return {
-        props: data as Props,
-      };
+      return { props: data };
     } catch {
       return { notFound: true };
     }
   };
-
-
-
-

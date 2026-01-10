@@ -129,38 +129,53 @@ export async function getMyModeratedCommentClient(
   return res.json();
 }
 
-export async function getModeratedMessage(
-  id: string,
-  ctx?: GetServerSidePropsContext,
-): Promise<ModeratedMessageResponse | null> {
-  // ===== SSR =====
-  if (ctx?.req) {
-    const base =
-      process.env.INTERNAL_BACKEND_URL ??
-      process.env.NEXT_PUBLIC_BACKEND_URL ??
-      "https://api.phlyphant.com";
+export async function getMyModeratedMessageSSR(
+  messageId: string,
+  ctx: GetServerSidePropsContext,
+) {
+  const cookie =
+    ctx.req.headers.cookie ?? "";
 
-    const cookie = ctx.req.headers.cookie ?? "";
+  const base =
+    process.env.INTERNAL_BACKEND_URL ??
+    process.env.NEXT_PUBLIC_BACKEND_URL ??
+    "https://api.phlyphant.com";
 
-    const res = await fetch(
-      `${base}/moderation/me/messages/${id}`,
-      {
-        method: "GET",
-        headers: cookie ? { Cookie: cookie } : undefined,
-        credentials: "include",
-        cache: "no-store",
+  const res = await fetch(
+    `${base}/moderation/me/messages/${messageId}`,
+    {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        ...(cookie ? { Cookie: cookie } : {}),
       },
-    );
+      credentials: "include",
+      cache: "no-store",
+    },
+  );
 
-    if (!res.ok) return null;
-    return res.json();
+  if (!res.ok) {
+    throw new Error(
+      `HTTP ${res.status} fetching moderated message`,
+    );
   }
 
-  // ===== CSR =====
-  const data = await client.get<ModeratedMessageResponse>(
-  `/moderation/me/messages/${id}`,
-);
+  return res.json();
+}
 
-return data;
+export async function getMyModeratedMessageClient(
+  messageId: string,
+): Promise<ModeratedMessageResponse> {
+  const res = await fetch(
+    apiPath(`/moderation/me/messages/${messageId}`),
+    {
+      credentials: "include",
+    },
+  );
 
+  if (!res.ok) {
+    throw new Error(`HTTP ${res.status}`);
+  }
+
+  return res.json();
 }

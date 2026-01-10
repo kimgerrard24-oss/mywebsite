@@ -56,6 +56,19 @@ export class AdminAppealsController {
   }
 
   /**
+   * ✅ MUST BE BEFORE :id
+   * GET /admin/appeals/stats
+   */
+  @Get('stats')
+  async getStats(
+    @Query() query: AdminAppealStatsQueryDto,
+  ) {
+    return this.service.getStats({
+      range: query.range ?? '7d',
+    });
+  }
+
+  /**
    * GET /admin/appeals/:id
    */
   @Get(':id')
@@ -77,7 +90,7 @@ export class AdminAppealsController {
     @Body() dto: AdminResolveAppealDto,
   ) {
     return this.service.resolveAppeal(
-      req.user.userId, // ✅ admin id from session
+      req.user.userId,
       {
         appealId: params.id,
         decision: dto.decision,
@@ -85,17 +98,6 @@ export class AdminAppealsController {
       },
     );
   }
-
-  /**
-   * GET /admin/appeals/stats
-   */
-  @Get('stats')
-  async getStats(
-    @Query() query: AdminAppealStatsQueryDto,
-  ) {
-    return this.service.getStats({
-      range: query.range ?? '7d',
-    });
-  }
 }
+
 
