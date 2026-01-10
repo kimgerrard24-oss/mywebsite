@@ -149,6 +149,7 @@ export class CommentsRepository {
     where: {
       postId,
       isDeleted: false,
+      isHidden: false,
 
       ...(viewerUserId
         ? {
@@ -185,7 +186,6 @@ export class CommentsRepository {
     displayName: true,
     avatarUrl: true,
 
-    // ✅ viewer blocked author?
     blockedBy: viewerUserId
       ? {
           where: { blockerId: viewerUserId },

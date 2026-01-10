@@ -19,7 +19,13 @@ export function useModeratedMessage(id?: string) {
 
     getModeratedMessage(id)
       .then((res) => {
-        if (mounted) setData(res);
+        if (!mounted) return;
+
+        if (res && res.message) {
+          setData(res.message);
+        } else {
+          setData(null);
+        }
       })
       .catch(() => {
         if (mounted) setData(null);
@@ -35,4 +41,5 @@ export function useModeratedMessage(id?: string) {
 
   return { data, loading };
 }
+
 

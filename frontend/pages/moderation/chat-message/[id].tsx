@@ -5,8 +5,9 @@ import type { GetServerSideProps } from "next";
 import Link from "next/link";
 
 import ProfileLayout from "@/components/layout/ProfileLayout";
+import ModerationBanner from "@/components/moderation/ModerationBanner";
 import ModeratedMessagePreview from "@/components/moderation/ModeratedMessagePreview";
-import AppealActionPanel from "@/components/moderation/AppealActionPanel";
+import AppealButton from "@/components/appeals/AppealButton";
 
 import { getModeratedMessage } from "@/lib/api/moderation";
 import { requireSessionSSR } from "@/lib/auth/require-session-ssr";
@@ -25,8 +26,8 @@ type Props = {
 
 export default function ModeratedMessagePage({
   message,
-  canAppeal,
   moderation,
+  canAppeal,
 }: Props) {
   if (!message || !moderation) {
     return (
@@ -55,6 +56,7 @@ export default function ModeratedMessagePage({
 
       <ProfileLayout>
         <main className="min-h-screen bg-gray-50">
+          {/* Back */}
           <nav
             aria-label="Navigation"
             className="mx-auto max-w-5xl px-4 pt-4"
@@ -67,15 +69,24 @@ export default function ModeratedMessagePage({
             </Link>
           </nav>
 
+          {/* Moderation */}
           <section className="mx-auto max-w-5xl px-4 pt-4 space-y-3">
-  <AppealActionPanel
-    messageId={message.id}
-    canAppeal={canAppeal}
-    moderation={moderation}
-  />
-</section>
+            <ModerationBanner
+              actionType={moderation.actionType}
+              reason={moderation.reason}
+              createdAt={moderation.createdAt}
+            />
 
+            {canAppeal && (
+              <AppealButton
+                targetType="CHAT_MESSAGE"
+                targetId={message.id}
+                canAppeal={canAppeal}
+              />
+            )}
+          </section>
 
+          {/* Message preview */}
           <section
             aria-label="Message preview"
             className="mx-auto max-w-5xl px-4 pt-6 pb-10"
@@ -92,25 +103,26 @@ export default function ModeratedMessagePage({
 
 export const getServerSideProps: GetServerSideProps<Props> =
   async (ctx) => {
+    // 🔐 backend authority — redirect if invalid
     await requireSessionSSR(ctx);
 
     const id = String(ctx.params?.id ?? "");
     if (!id) return { notFound: true };
 
-   try {
-  const data = await getModeratedMessage(id, ctx);
+    try {
+      const data = await getModeratedMessage(id, ctx);
 
-  if (!data) return { notFound: true };
+      if (!data) return { notFound: true };
 
-  // backend returns wrapper: { message, moderation, canAppeal }
-  return {
-    props: data as unknown as Props,
+      // backend returns: { message, moderation, canAppeal }
+      return {
+        props: data as Props,
+      };
+    } catch {
+      return { notFound: true };
+    }
   };
-} catch {
-  return { notFound: true };
-}
 
-  };
 
 
 

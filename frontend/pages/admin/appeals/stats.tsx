@@ -3,13 +3,12 @@
 import Head from "next/head";
 import type { GetServerSideProps } from "next";
 
-import {
-  getAdminAppealStats,
-} from "@/lib/api/admin-appeal-stats";
 import { sessionCheckServerSide } from "@/lib/api/api";
+import { getAdminAppealStats } from "@/lib/api/admin-appeal-stats";
 
 import AdminAppealStatsView from "@/components/admin/appeals/AdminAppealStats";
 import AdminPageGuard from "@/components/admin/AdminPageGuard";
+
 import type { AdminAppealStats } from "@/types/admin-appeal-stats";
 
 type Props = {
@@ -45,39 +44,47 @@ export default function AdminAppealStatsPage({
 
 /* ================= SSR ================= */
 
-export const getServerSideProps: GetServerSideProps<
-  Props
-> = async (ctx) => {
-  const cookie =
-    ctx.req.headers.cookie ?? "";
+export const getServerSideProps: GetServerSideProps<Props> =
+  async (ctx) => {
+    const cookie =
+      ctx.req.headers.cookie ?? "";
 
-  // 🔐 AuthN only — backend authority
-  const session =
-    await sessionCheckServerSide(cookie);
+    // 🔐 Session check only (backend authority)
+    const session = await sessionCheckServerSide(
+      cookie,
+    );
 
-  if (!session.valid) {
-    return {
-      redirect: {
-        destination: "/",
-        permanent: false,
-      },
-    };
-  }
+    if (!session.valid) {
+      return {
+        redirect: {
+          destination: "/",
+          permanent: false,
+        },
+      };
+    }
 
-  try {
-    // 🔒 AuthZ — backend decides admin permission
-    const stats = await getAdminAppealStats({
-      cookieHeader: cookie,
-    });
+    try {
+      // 🔒 AuthZ — backend decides admin permission
+      const stats = await getAdminAppealStats(
+        ctx, 
+      );
 
-    return {
-      props: {
-        stats,
-        allowed: true,
-      },
-    };
-  } catch (err: any) {
-    if (err?.status === 403) {
+      return {
+        props: {
+          stats,
+          allowed: true,
+        },
+      };
+    } catch (err: any) {
+      if (err?.status === 403) {
+        return {
+          props: {
+            stats: null,
+            allowed: false,
+          },
+        };
+      }
+
       return {
         props: {
           stats: null,
@@ -85,15 +92,4 @@ export const getServerSideProps: GetServerSideProps<
         },
       };
     }
-
-    return {
-      props: {
-        stats: null,
-        allowed: false,
-      },
-    };
-  }
-};
-
-
-
+  };

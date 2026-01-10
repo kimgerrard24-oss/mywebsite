@@ -8,6 +8,17 @@ import type {
   ModeratedMessageDetail,
  } from '@/types/moderation';
 
+ type ModeratedMessageResponse = {
+  message: ModeratedMessageDetail;
+  moderation: {
+    actionType: string;
+    reason?: string | null;
+    createdAt: string;
+  };
+  canAppeal: boolean;
+};
+
+
 /**
  * SSR-safe fetch (uses Cookie header)
  */
@@ -120,24 +131,22 @@ export async function getMyModeratedCommentClient(
 
 export async function getModeratedMessage(
   id: string,
-  ctx?: any,
-): Promise<ModeratedMessageDetail | null> {
-  // SSR
+  ctx?: GetServerSidePropsContext,
+): Promise<ModeratedMessageResponse | null> {
+  // ===== SSR =====
   if (ctx?.req) {
     const base =
       process.env.INTERNAL_BACKEND_URL ??
       process.env.NEXT_PUBLIC_BACKEND_URL ??
       "https://api.phlyphant.com";
 
-    const cookie = ctx.req.headers.cookie;
+    const cookie = ctx.req.headers.cookie ?? "";
 
     const res = await fetch(
       `${base}/moderation/me/messages/${id}`,
       {
         method: "GET",
-        headers: cookie
-          ? { Cookie: cookie }
-          : undefined,
+        headers: cookie ? { Cookie: cookie } : undefined,
         credentials: "include",
         cache: "no-store",
       },
@@ -147,11 +156,11 @@ export async function getModeratedMessage(
     return res.json();
   }
 
-  // CSR
-  const res = await client.get<ModeratedMessageDetail>(
+  // ===== CSR =====
+  const data = await client.get<ModeratedMessageResponse>(
   `/moderation/me/messages/${id}`,
 );
 
-return res;
+return data;
 
 }

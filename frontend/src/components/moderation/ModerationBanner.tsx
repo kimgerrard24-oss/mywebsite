@@ -23,7 +23,7 @@ export default function ModerationBanner({
       "
     >
       <p className="text-sm font-medium text-red-700">
-        This post has been moderated by admin
+        This content has been moderated by admin
       </p>
 
       <p className="text-xs text-red-700">
