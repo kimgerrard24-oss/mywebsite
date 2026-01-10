@@ -155,42 +155,73 @@ export class AdminModerationRepository {
       }
     }
 
-    /**
-     * ===== COMMENT =====
-     * HIDE / UNHIDE via isHidden
-     */
-    if (
-      targetType ===
-      ModerationTargetType.COMMENT
-    ) {
-      if (
-        actionType ===
-        ModerationActionType.HIDE
-      ) {
-        await this.prisma.comment.update({
-          where: { id: targetId },
-          data: {
-            isHidden: true,
-            hiddenAt: new Date(),
-          },
-        });
-        return;
-      }
+  /**
+ * ===== COMMENT =====
+ * HIDE / UNHIDE via isHidden + sync post.commentCount
+ */
+if (targetType === ModerationTargetType.COMMENT) {
+  const comment =
+    await this.prisma.comment.findUnique({
+      where: { id: targetId },
+      select: {
+        id: true,
+        postId: true,
+        isHidden: true,
+        isDeleted: true,
+      },
+    });
 
-      if (
-        actionType ===
-        ModerationActionType.UNHIDE
-      ) {
-        await this.prisma.comment.update({
-          where: { id: targetId },
-          data: {
-            isHidden: false,
-            hiddenAt: null,
-          },
-        });
-        return;
-      }
-    }
+  if (!comment) return;
+
+  if (
+    actionType === ModerationActionType.HIDE &&
+    comment.isHidden !== true &&
+    comment.isDeleted !== true
+  ) {
+    await this.prisma.$transaction([
+      this.prisma.comment.update({
+        where: { id: targetId },
+        data: {
+          isHidden: true,
+          hiddenAt: new Date(),
+        },
+      }),
+      this.prisma.post.update({
+        where: { id: comment.postId },
+        data: {
+          commentCount: { decrement: 1 },
+        },
+      }),
+    ]);
+    return;
+  }
+
+  if (
+    actionType === ModerationActionType.UNHIDE &&
+    comment.isHidden === true &&
+    comment.isDeleted !== true
+  ) {
+    await this.prisma.$transaction([
+      this.prisma.comment.update({
+        where: { id: targetId },
+        data: {
+          isHidden: false,
+          hiddenAt: null,
+        },
+      }),
+      this.prisma.post.update({
+        where: { id: comment.postId },
+        data: {
+          commentCount: { increment: 1 },
+        },
+      }),
+    ]);
+    return;
+  }
+
+  return;
+}
+
 
     /**
      * ===== CHAT MESSAGE =====
