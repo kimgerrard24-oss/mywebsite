@@ -4,6 +4,9 @@ on:
   push:
     branches: ["main"]
 
+  pull_request:
+    branches: ["main"]
+
 jobs:
   build:
     timeout-minutes: 60
@@ -177,6 +180,7 @@ jobs:
       # 7) Deploy to Linode
       # -----------------------------------------------------------
       - name: Deploy to Linode
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
         uses: appleboy/ssh-action@v1.0.3
 
         env:
