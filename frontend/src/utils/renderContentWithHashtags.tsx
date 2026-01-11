@@ -7,7 +7,7 @@ import { Fragment } from "react";
  *
  * Rules:
  * - Only words starting with #
- * - # must be at word boundary
+ * - # must be at word boundary (not letter/number/_)
  * - Stop at whitespace or punctuation
  * - Safe against XSS (no HTML injection)
  */
@@ -17,10 +17,10 @@ export function renderContentWithHashtags(
   if (!content) return [];
 
   // Regex:
-  // (^|\s)    -> start of line OR whitespace
-  // (#\w+)    -> hashtag (unicode-safe with u flag)
+  // (^|[^\p{L}\p{N}_]) -> start OR non-word char (space, punctuation, emoji, etc.)
+  // (#[\p{L}\p{N}_]+)  -> hashtag (unicode-safe)
   const hashtagRegex =
-    /(^|\s)(#[\p{L}\p{N}_]+)/gu;
+    /(^|[^\p{L}\p{N}_])(#[\p{L}\p{N}_]+)/gu;
 
   const nodes: React.ReactNode[] = [];
   let lastIndex = 0;
@@ -29,7 +29,7 @@ export function renderContentWithHashtags(
     hashtagRegex,
   )) {
     const matchIndex = match.index ?? 0;
-    const prefix = match[1]; // space or ""
+    const prefix = match[1]; // boundary char or ""
     const hashtag = match[2]; // #tag
 
     // Push text before hashtag
@@ -41,7 +41,7 @@ export function renderContentWithHashtags(
       );
     }
 
-    // Push prefix (space/newline)
+    // Push prefix (space / punctuation / emoji boundary)
     if (prefix) {
       nodes.push(
         <Fragment key={`${matchIndex}-p`}>
@@ -78,5 +78,6 @@ export function renderContentWithHashtags(
     );
   }
 
+  
   return nodes;
 }
