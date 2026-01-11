@@ -17,10 +17,10 @@ export function renderContentWithHashtags(
   if (!content) return [];
 
   // Regex:
-  // (^|[^\p{L}\p{N}_]) -> start OR non-word char (space, punctuation, emoji, etc.)
-  // (#[\p{L}\p{N}_]+)  -> hashtag (unicode-safe)
+  // (^|[^\p{L}\p{N}_])      -> start OR non-word char (space, punctuation, emoji, etc.)
+  // (#[\p{L}\p{N}\p{M}_]+) -> hashtag (unicode-safe, incl. Thai combining marks)
   const hashtagRegex =
-    /(^|[^\p{L}\p{N}_])(#[\p{L}\p{N}_]+)/gu;
+    /(^|[^\p{L}\p{N}_])(#[\p{L}\p{N}\p{M}_]+)/gu;
 
   const nodes: React.ReactNode[] = [];
   let lastIndex = 0;
@@ -78,6 +78,5 @@ export function renderContentWithHashtags(
     );
   }
 
-  
   return nodes;
 }
