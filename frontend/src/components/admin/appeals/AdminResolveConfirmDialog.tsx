@@ -18,14 +18,18 @@ export default function AdminResolveConfirmDialog({
       </p>
 
       <div className="flex gap-2">
+        {/* ✅ prevent implicit submit */}
         <button
+          type="button"
           onClick={onConfirm}
           className="rounded bg-red-600 px-3 py-1 text-white"
         >
           Confirm
         </button>
 
+        {/* ✅ prevent implicit submit */}
         <button
+          type="button"
           onClick={onCancel}
           className="rounded border px-3 py-1"
         >
