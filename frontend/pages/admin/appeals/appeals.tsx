@@ -42,6 +42,7 @@ export default function AdminAppealsPage({
           Appeals
         </h1>
 
+
         <AdminPageGuard allowed={allowed}>
           <AdminAppealList items={items} />
         </AdminPageGuard>
