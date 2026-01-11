@@ -17,7 +17,7 @@ jobs:
         uses: actions/checkout@v4
 
       # -----------------------------------------------------------
-      # 0) Load AWS Secrets
+      # 0) Load AWS Secrets (if needed by build)
       # -----------------------------------------------------------
       - name: Load AWS Secrets
         run: |
@@ -26,7 +26,7 @@ jobs:
         shell: bash
 
       # -----------------------------------------------------------
-      # 1) Validate required secrets
+      # 1) Validate required secrets (deploy only)
       # -----------------------------------------------------------
       - name: Validate secrets
         run: |
@@ -47,7 +47,7 @@ jobs:
           INTERNAL_HEALTH_TOKEN: ${{ secrets.INTERNAL_HEALTH_TOKEN }}
 
       # -----------------------------------------------------------
-      # 2) Create Sentry env for frontend
+      # 2) Frontend Sentry env
       # -----------------------------------------------------------
       - name: Create Sentry env for frontend
         working-directory: frontend
@@ -57,9 +57,6 @@ jobs:
           echo "SENTRY_PROJECT=frontend" >> .env.sentry-build-plugin
           echo "SENTRY_RELEASE=frontend-${{ github.sha }}" >> .env.sentry-build-plugin
 
-      # -----------------------------------------------------------
-      # Create sentry.properties
-      # -----------------------------------------------------------
       - name: Create sentry.properties
         working-directory: frontend
         run: |
@@ -67,23 +64,13 @@ jobs:
           echo "defaults.org=phlyphant" >> sentry.properties
           echo "defaults.project=frontend" >> sentry.properties
 
-      # -----------------------------------------------------------
-      # Create frontend .env.production
-      # -----------------------------------------------------------
       - name: Create frontend .env.production
         run: echo "${{ secrets.FRONTEND_ENV_PRODUCTION }}" > frontend/.env.production
 
       # -----------------------------------------------------------
-      # 3) Build frontend
+      # 3) Build Frontend
       # -----------------------------------------------------------
-      - name: Install frontend dependencies
-        working-directory: frontend
-        run: |
-          rm -rf .next
-          npm ci
-          npm run build
-
-      - name: Build frontend with Sentry
+      - name: Build frontend
         working-directory: frontend
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
@@ -92,9 +79,6 @@ jobs:
           npm ci
           npm run build
 
-      # -----------------------------------------------------------
-      # 3.1) Upload Sentry sourcemaps
-      # -----------------------------------------------------------
       - name: Upload Sentry sourcemaps
         working-directory: frontend
         env:
@@ -110,74 +94,54 @@ jobs:
           npx sentry-cli releases finalize "$SENTRY_RELEASE"
 
       # -----------------------------------------------------------
-      # 4) Login to GHCR
+      # 4) Login GHCR
       # -----------------------------------------------------------
       - name: Login to GHCR
         run: echo "${{ secrets.GHCR_TOKEN }}" | docker login ghcr.io -u "${{ secrets.GHCR_USERNAME }}" --password-stdin
 
       # -----------------------------------------------------------
-      # Create backend .env.production
+      # Backend env + build
       # -----------------------------------------------------------
       - name: Create backend .env.production
         run: echo "${{ secrets.BACKEND_ENV_PRODUCTION }}" > backend/.env.production
 
-      # -----------------------------------------------------------
-      # Install + Build Backend
-      # -----------------------------------------------------------
-      - name: Install backend dependencies
+      - name: Build backend
         working-directory: backend
-        run: npm ci
-
-      - name: Build backend (tsc)
-        working-directory: backend
-        run: npm run build
+        run: |
+          npm ci
+          npm run build
 
       # -----------------------------------------------------------
-      # 5) Build + Push Frontend Docker image
+      # 5) Build + Push Docker Images (versioned + latest)
       # -----------------------------------------------------------
       - name: Build frontend Docker image
         run: |
           docker build \
             --no-cache \
+            -t ghcr.io/${{ secrets.GHCR_USERNAME }}/mywebsite-frontend:${{ github.sha }} \
             -t ghcr.io/${{ secrets.GHCR_USERNAME }}/mywebsite-frontend:latest \
             frontend
 
-      - name: Push frontend Docker image
-        run: docker push ghcr.io/${{ secrets.GHCR_USERNAME }}/mywebsite-frontend:latest
+      - name: Push frontend Docker images
+        run: |
+          docker push ghcr.io/${{ secrets.GHCR_USERNAME }}/mywebsite-frontend:${{ github.sha }}
+          docker push ghcr.io/${{ secrets.GHCR_USERNAME }}/mywebsite-frontend:latest
 
-      # -----------------------------------------------------------
-      # 6) Build + Push Backend Docker image
-      # -----------------------------------------------------------
       - name: Build backend Docker image
         run: |
           docker build \
             --no-cache \
+            -t ghcr.io/${{ secrets.GHCR_USERNAME }}/mywebsite-backend:${{ github.sha }} \
             -t ghcr.io/${{ secrets.GHCR_USERNAME }}/mywebsite-backend:latest \
             backend
 
-      - name: Push backend image to GHCR
-        run: docker push ghcr.io/${{ secrets.GHCR_USERNAME }}/mywebsite-backend:latest
-
-      # -----------------------------------------------------------
-      # 6.1) Capture pushed image digests
-      # -----------------------------------------------------------
-      - name: Capture image digests
+      - name: Push backend Docker images
         run: |
-          FRONT_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' ghcr.io/${{ secrets.GHCR_USERNAME }}/mywebsite-frontend:latest 2>/dev/null || true)
-          BACK_DIGEST=$(docker inspect --format='{{index .RepoDigests 0}}' ghcr.io/${{ secrets.GHCR_USERNAME }}/mywebsite-backend:latest 2>/dev/null || true)
-
-          if [ -z "$FRONT_DIGEST" ]; then
-            FRONT_DIGEST="ghcr.io/${{ secrets.GHCR_USERNAME }}/mywebsite-frontend:latest"
-          fi
-          if [ -z "$BACK_DIGEST" ]; then
-            BACK_DIGEST="ghcr.io/${{ secrets.GHCR_USERNAME }}/mywebsite-backend:latest"
-          fi
-
-          echo "FRONTEND_DIGEST=$FRONT_DIGEST" >> $GITHUB_ENV
-          echo "BACKEND_DIGEST=$BACK_DIGEST" >> $GITHUB_ENV
+          docker push ghcr.io/${{ secrets.GHCR_USERNAME }}/mywebsite-backend:${{ github.sha }}
+          docker push ghcr.io/${{ secrets.GHCR_USERNAME }}/mywebsite-backend:latest
 
       # -----------------------------------------------------------
-      # 7) Deploy to Linode
+      # 6) Deploy to Linode (only on main push)
       # -----------------------------------------------------------
       - name: Deploy to Linode
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -187,8 +151,7 @@ jobs:
           GHCR_USERNAME: ${{ secrets.GHCR_USERNAME }}
           GHCR_TOKEN: ${{ secrets.GHCR_TOKEN }}
           INTERNAL_HEALTH_TOKEN: ${{ secrets.INTERNAL_HEALTH_TOKEN }}
-          FRONTEND_DIGEST: ${{ env.FRONTEND_DIGEST }}
-          BACKEND_DIGEST: ${{ env.BACKEND_DIGEST }}
+          DEPLOY_SHA: ${{ github.sha }}
           FRONTEND_ENV_PRODUCTION: ${{ secrets.FRONTEND_ENV_PRODUCTION }}
           BACKEND_ENV_PRODUCTION: ${{ secrets.BACKEND_ENV_PRODUCTION }}
 
@@ -200,13 +163,10 @@ jobs:
           script_stop: false
           use_insecure_cipher: true
           allenvs: true
-          envs: GHCR_USERNAME,GHCR_TOKEN,INTERNAL_HEALTH_TOKEN,FRONTEND_DIGEST,BACKEND_DIGEST,FRONTEND_ENV_PRODUCTION,BACKEND_ENV_PRODUCTION
+          envs: GHCR_USERNAME,GHCR_TOKEN,INTERNAL_HEALTH_TOKEN,DEPLOY_SHA,FRONTEND_ENV_PRODUCTION,BACKEND_ENV_PRODUCTION
 
           script: |
             set -euo pipefail
-
-            : "${GHCR_USERNAME:?GHCR_USERNAME is not set}"
-            : "${GHCR_TOKEN:?GHCR_TOKEN is not set}"
 
             cd /var/www/phlyphant/mywebsite
 
@@ -220,19 +180,12 @@ jobs:
             printf '%s' "$FRONTEND_ENV_PRODUCTION" > frontend/.env.production
             printf '%s' "$BACKEND_ENV_PRODUCTION" > backend/.env.production
 
-            if [[ "${BACKEND_DIGEST:-}" == *"@"* ]]; then
-              docker pull "$BACKEND_DIGEST"
-              docker tag "$BACKEND_DIGEST" "ghcr.io/$GHCR_USERNAME/mywebsite-backend:latest" || true
-            else
-              docker pull "ghcr.io/$GHCR_USERNAME/mywebsite-backend:latest" || true
-            fi
+            # ---- Pull versioned images and retag to latest ----
+            docker pull ghcr.io/$GHCR_USERNAME/mywebsite-backend:$DEPLOY_SHA
+            docker tag  ghcr.io/$GHCR_USERNAME/mywebsite-backend:$DEPLOY_SHA ghcr.io/$GHCR_USERNAME/mywebsite-backend:latest
 
-            if [[ "${FRONTEND_DIGEST:-}" == *"@"* ]]; then
-              docker pull "$FRONTEND_DIGEST"
-              docker tag "$FRONTEND_DIGEST" "ghcr.io/$GHCR_USERNAME/mywebsite-frontend:latest" || true
-            else
-              docker pull "ghcr.io/$GHCR_USERNAME/mywebsite-frontend:latest" || true
-            fi
+            docker pull ghcr.io/$GHCR_USERNAME/mywebsite-frontend:$DEPLOY_SHA
+            docker tag  ghcr.io/$GHCR_USERNAME/mywebsite-frontend:$DEPLOY_SHA ghcr.io/$GHCR_USERNAME/mywebsite-frontend:latest
 
             docker compose up -d --remove-orphans --force-recreate
 
@@ -243,12 +196,10 @@ jobs:
                 echo "Health check OK"
                 break
               fi
-
               echo "Health check not ready yet ($i/10), waiting..."
               sleep 3
-
               if [ "$i" -eq 10 ]; then
-                echo "Health check FAILED after retries"
+                echo "Health check FAILED"
                 exit 1
               fi
             done
