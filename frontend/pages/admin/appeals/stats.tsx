@@ -64,7 +64,6 @@ export const getServerSideProps: GetServerSideProps<Props> =
     }
 
     try {
-      // 🔒 AuthZ — backend decides admin permission
       const stats = await getAdminAppealStats(
         ctx, 
       );
