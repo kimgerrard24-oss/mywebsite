@@ -4,6 +4,9 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import type { User } from '@prisma/client';
 import { UpdateUserDto } from './dto/update-user.dto';
+import { VerificationType,SecurityEventType } from '@prisma/client';
+import { createHash } from 'crypto';
+import * as crypto from 'node:crypto';
 
 @Injectable()
 export class UsersRepository {
@@ -87,6 +90,7 @@ async findPublicUserById(
     select: {
       // ===== ของเดิม (ไม่แก้) =====
       id: true,
+      username: true,
       displayName: true,
       avatarUrl: true,
       coverUrl: true,
@@ -277,7 +281,7 @@ async findPublicUserById(
   active: boolean;
   isDisabled: boolean;
   coverUrl: string | null;
-} | null> {
+ } | null> {
   return this.prisma.user.findUnique({
     where: { id: userId },
     select: {
@@ -287,9 +291,312 @@ async findPublicUserById(
       coverUrl: true,
     },
   });
+ }
+ 
+
+ // ADD ONLY — do not rewrite file
+
+async findUserForCredentialVerify(userId: string) {
+  return this.prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      hashedPassword: true,
+      isDisabled: true,
+      isBanned: true,
+      isAccountLocked: true,
+    },
+  });
+}
+
+ // =============================
+  // Security Events
+  // =============================
+
+  async findUserSecurityEvents(params: {
+    userId: string;
+    limit: number;
+    cursor?: Date;
+  }) {
+    const { userId, limit, cursor } = params;
+
+    return this.prisma.securityEvent.findMany({
+      where: {
+        userId,
+        ...(cursor
+          ? { createdAt: { lt: cursor } }
+          : {}),
+      },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+    });
+  }
+
+  async findUserSecurityState(userId: string) {
+    return this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        isDisabled: true,
+        isBanned: true,
+        isAccountLocked: true,
+      },
+    });
+  }
+
+  async isUsernameTaken(usernameLower: string): Promise<boolean> {
+    const count = await this.prisma.user.count({
+      where: {
+        username: {
+          equals: usernameLower,
+          mode: 'insensitive', // 🔒 case-insensitive
+        },
+      },
+    });
+
+    return count > 0;
+  }
+
+  
+async findUserForUsernameChange(userId: string) {
+  return this.prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      username: true,
+      isDisabled: true,
+      isBanned: true,
+      isAccountLocked: true,
+    },
+  });
+}
+
+async updateUsernameWithHistory(params: {
+  userId: string;
+  newUsername: string;
+  oldUsername: string;
+}) {
+  const { userId, newUsername, oldUsername } = params;
+
+  return this.prisma.$transaction(async (tx) => {
+    await tx.user.update({
+      where: { id: userId },
+      data: { username: newUsername },
+    });
+
+    await tx.userIdentityHistory.create({
+      data: {
+        userId,
+        field: 'username',
+        oldValue: oldUsername,
+        newValue: newUsername,
+        changedBy: 'USER',
+      },
+    });
+  });
+}
+
+async createSecurityEvent(params: {
+  userId: string;
+  type: SecurityEventType;
+  ip?: string;
+  userAgent?: string;
+}) {
+  const { userId, type, ip, userAgent } = params;
+
+  await this.prisma.securityEvent.create({
+    data: {
+      userId,
+      type,
+      ip,
+      userAgent,
+    },
+  });
+}
+
+async findUserForEmailChange(userId: string) {
+  return this.prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      email: true,
+      isDisabled: true,
+      isBanned: true,
+      isAccountLocked: true,
+    },
+  });
+}
+
+async isEmailTaken(email: string): Promise<boolean> {
+  const found = await this.prisma.user.findUnique({
+    where: { email },
+    select: { id: true },
+  });
+
+  return Boolean(found);
+}
+
+async createIdentityVerificationToken(params: {
+  userId: string;
+  type: VerificationType;
+  tokenHash: string;
+  target?: string;
+  expiresAt: Date;
+}) {
+  return this.prisma.identityVerificationToken.create({
+    data: {
+      userId: params.userId,
+      type: params.type,
+      tokenHash: params.tokenHash,
+      target: params.target,
+      expiresAt: params.expiresAt,
+    },
+  });
+ }
+
+ async updateUserEmail(params: {
+  userId: string;
+  newEmail: string;
+}) {
+  await this.prisma.user.update({
+    where: { id: params.userId },
+    data: {
+      email: params.newEmail,
+      isEmailVerified: true,
+      updatedAt: new Date(),
+    },
+  });
+}
+
+async consumeEmailChangeToken(params: {
+  userId: string;
+  token: string;
+}) {
+  const hash = createHash('sha256')
+    .update(params.token)
+    .digest('hex');
+
+  const record =
+    await this.prisma.identityVerificationToken.findFirst({
+      where: {
+        userId: params.userId,
+        type: VerificationType.EMAIL_CHANGE,
+        tokenHash: hash,
+        expiresAt: { gt: new Date() },
+        usedAt: null,
+      },
+    });
+
+  if (!record) return null;
+
+  await this.prisma.identityVerificationToken.update({
+    where: { id: record.id },
+    data: { usedAt: new Date() },
+  });
+
+  return record;
+}
+
+async findUserForPhoneChange(userId: string) {
+  return this.prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      phoneNumber: true,
+      isDisabled: true,
+      isBanned: true,
+      isAccountLocked: true,
+    },
+  });
+}
+
+async isPhoneTaken(phone: string): Promise<boolean> {
+  const found = await this.prisma.user.findUnique({
+    where: { phoneNumber: phone },
+    select: { id: true },
+  });
+
+  return Boolean(found);
+}
+
+
+async updatePhoneWithHistory(params: {
+  userId: string;
+  newPhone: string;
+}) {
+  return this.prisma.$transaction(async (tx) => {
+    const user = await tx.user.findUnique({
+      where: { id: params.userId },
+      select: { phoneNumber: true },
+    });
+
+    await tx.user.update({
+      where: { id: params.userId },
+      data: {
+        phoneNumber: params.newPhone,
+        isPhoneVerified: true,
+      },
+    });
+
+    await tx.userIdentityHistory.create({
+      data: {
+        userId: params.userId,
+        field: 'phone',
+        oldValue: user?.phoneNumber ?? null,
+        newValue: params.newPhone,
+        changedBy: 'USER',
+      },
+    });
+  });
+}
+
+
+async consumePhoneChangeToken(params: {
+  userId: string;
+  token: string;
+}) {
+  const tokenHash = crypto
+    .createHash('sha256')
+    .update(params.token)
+    .digest('hex');
+
+  return this.prisma.identityVerificationToken.updateMany({
+    where: {
+      userId: params.userId,
+      type: VerificationType.PHONE_CHANGE,
+      tokenHash,
+      usedAt: null,
+      expiresAt: { gt: new Date() },
+    },
+    data: {
+      usedAt: new Date(),
+    },
+  });
+}
+
+async findPhoneChangeToken(params: {
+  userId: string;
+  token: string;
+}) {
+  const tokenHash = crypto
+    .createHash('sha256')
+    .update(params.token)
+    .digest('hex');
+
+  return this.prisma.identityVerificationToken.findFirst({
+    where: {
+      userId: params.userId,
+      type: VerificationType.PHONE_CHANGE,
+      tokenHash,
+      usedAt: null,
+      expiresAt: { gt: new Date() },
+    },
+  });
 }
 
 
 }
+
+
 
 

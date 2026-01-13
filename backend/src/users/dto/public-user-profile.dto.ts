@@ -2,6 +2,7 @@
 
 export class PublicUserProfileDto {
   id!: string;
+  username!: string;
   displayName!: string | null;
   avatarUrl!: string | null;
   coverUrl!: string | null;
@@ -40,4 +41,32 @@ export class PublicUserProfileDto {
   };
   canAppeal?: boolean;
 }
+
+export class MeUserProfileDto {
+  id!: string;
+
+  email!: string;
+  username!: string;
+
+  displayName!: string | null;
+  avatarUrl!: string | null;
+  coverUrl!: string | null;
+  bio!: string | null;
+  createdAt!: string;
+  updatedAt?: string;
+
+  isSelf!: true;
+
+  hasBlockedViewer!: false;
+  isBlocked!: false;
+  isFollowing!: false;
+
+  stats!: {
+    followers: number;
+    following: number;
+  };
+
+  canAppeal?: boolean;
+}
+
 

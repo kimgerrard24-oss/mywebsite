@@ -2,6 +2,8 @@
 import { useState } from "react";
 import type { UserProfile, UpdateUserPayload } from "@/types/user-profile";
 import { updateUserProfile } from "@/lib/api/user";
+import UsernameEditor from "./UsernameEditor";
+import EmailChangeForm from "./EmailChangeForm";
 
 type Props = {
   user: UserProfile | null;
@@ -105,6 +107,18 @@ export default function ProfileForm({ user }: Props) {
         "
       />
     </div>
+    {/* ================================
+    Username Section
+   ================================ */}
+<section className="mt-8 space-y-2">
+  <h2 className="text-lg font-medium">Username</h2>
+  <UsernameEditor currentUsername={user.username} />
+</section>
+
+<section className="mt-8 space-y-2">
+  <h2 className="text-lg font-medium">Email</h2>
+  <EmailChangeForm />
+</section>
 
     {/* ===== Bio ===== */}
     <div>

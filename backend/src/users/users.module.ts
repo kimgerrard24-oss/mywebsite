@@ -1,12 +1,10 @@
 // src/users/users.module.ts
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { UsersController } from './users.controller';
 import { UsersService } from './users.service';
 import { UsersRepository } from './users.repository';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AuthModule } from '../auth/auth.module';
-import { UserProfileAudit } from './audit/user-profile.audit';
-import { AuditLogService } from './audit/audit-log.service';
 import { AvatarService } from './avatar/avatar.service';
 import { R2Module } from '../r2/r2.module';
 import { CoverService } from './cover/cover.service';
@@ -18,28 +16,34 @@ import { UserBlockService } from './user-block/user-block.service';
 import { UserBlockRepository } from './user-block/user-block.repository';
 import { UserBlockPolicy } from './user-block/policy/user-block.policy';
 import { UserBlockController } from './user-block/user-block.controller';
+import { CredentialVerificationService } from '../auth/credential-verification.service';
+import { PhoneModule } from '../identities/phone/phone.module';
+import { ProfileExportModule } from './export/profile-export.module';
+import { AuditModule } from './audit/audit.module';
 
 @Module({
   imports: [
     PrismaModule, 
     AuthModule, 
     R2Module, 
-    NotificationsModule, 
+    NotificationsModule,
+    forwardRef(() => ProfileExportModule),
+    AuditModule,
+    PhoneModule,
   ],
   controllers: [ UsersController, UserBlockController, MentionController,],
   providers: [
     UsersService,  
     UsersRepository,
-    UserProfileAudit,
     AvatarService,
     CoverService,
-    AuditLogService,
     MentionService,
     UserSearchPolicy,
     UserBlockService,
     UserBlockRepository,
     UserBlockPolicy,
+    CredentialVerificationService,
   ],
-  exports: [UsersService, AuditLogService,],
+  exports: [UsersService, UsersRepository,],
 })
 export class UsersModule {}

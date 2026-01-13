@@ -156,4 +156,88 @@ export class UserModerationRepository {
     });
   }
 
+  async updateIdentityWithHistory(params: {
+  targetUserId: string;
+  updates: {
+    username?: string;
+    email?: string;
+    phoneNumber?: string;
+  };
+  adminId: string;
+}) {
+  const { targetUserId, updates, adminId } = params;
+
+  // ----------------------------------------
+  // ✅ Whitelist fields (anti mass-assignment)
+  // ----------------------------------------
+  const allowedFields: Array<
+    keyof typeof updates
+  > = ['username', 'email', 'phoneNumber'];
+
+  const sanitizedUpdates: Record<string, string> = {};
+
+  for (const key of allowedFields) {
+    const val = updates[key];
+    if (typeof val === 'string') {
+      sanitizedUpdates[key] = val;
+    }
+  }
+
+  if (Object.keys(sanitizedUpdates).length === 0) {
+    return; // nothing to update (no-op)
+  }
+
+  return this.prisma.$transaction(async (tx) => {
+    // ----------------------------------------
+    // 1) Load current user (authority = DB)
+    // ----------------------------------------
+    const user = await tx.user.findUnique({
+      where: { id: targetUserId },
+    });
+
+    if (!user) {
+      throw new Error('User not found');
+      // (ถ้ามี custom domain error ใช้ NotFoundException ก็ได้)
+    }
+
+    // ----------------------------------------
+    // 2) Apply update
+    // ----------------------------------------
+    await tx.user.update({
+      where: { id: targetUserId },
+      data: sanitizedUpdates,
+    });
+
+    // ----------------------------------------
+    // 3) Write history per changed field
+    // ----------------------------------------
+    for (const [field, newValue] of Object.entries(
+      sanitizedUpdates,
+    )) {
+      const oldValue = (user as any)[field];
+
+      // skip if value not changed
+      if (String(oldValue ?? '') === String(newValue ?? '')) {
+        continue;
+      }
+
+      await tx.userIdentityHistory.create({
+        data: {
+          userId: targetUserId,
+          field,
+          oldValue:
+            oldValue != null ? String(oldValue) : null,
+          newValue:
+            newValue != null ? String(newValue) : null,
+          changedBy: 'ADMIN',
+
+          // ✅ FK only (Prisma-safe, build-safe)
+          adminId,
+        },
+      });
+    }
+  });
 }
+
+}
+

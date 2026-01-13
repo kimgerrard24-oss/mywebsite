@@ -19,6 +19,17 @@ model User {
   isEmailVerified           Boolean  @default(false)
   emailVerifyTokenHash      String?
   emailVerifyTokenExpires   DateTime?
+    // ===== Identity / Compliance =====
+  countryCode               String?  @db.Char(2) // "TH", "US", "JP"
+  dateOfBirth               DateTime?
+
+  phoneNumber               String?  @unique
+  isPhoneVerified           Boolean  @default(false)
+
+  // ===== Account Security =====
+  isAccountLocked           Boolean  @default(false)
+  accountLockedAt           DateTime?
+  accountLockReason         String?
   isDisabled                Boolean  @default(false)
   active                    Boolean  @default(true)
   lastLoginAt               DateTime?
@@ -51,6 +62,10 @@ model User {
   moderationActions ModerationAction[] @relation("AdminModerationActions")
   // ใน User model (admin side)
   bannedUsers User[] @relation("UserBannedByAdmin")
+
+  identityVerificationTokens IdentityVerificationToken[]
+  securityEvents             SecurityEvent[]
+  identityHistory            UserIdentityHistory[]
 
   // ===== Audit =====
   auditLogs AuditLog[]
@@ -100,6 +115,8 @@ model User {
 
   @@unique([provider, providerId])
   @@index([isBanned, bannedAt])
+  @@index([phoneNumber])
+  @@index([isAccountLocked, accountLockedAt])
 }
 
 enum UserRole {
@@ -822,8 +839,88 @@ enum AppealTargetType {
   CHAT_MESSAGE
 }
 
+enum VerificationType {
+  EMAIL_CHANGE
+  PHONE_CHANGE
+  ACCOUNT_LOCK
+  SENSITIVE_ACTION   // เช่น profile export, username change (ถ้าอยากใช้ token-based)
+}
 
+enum SecurityEventType {
+  LOGIN_SUCCESS
+  LOGIN_FAILED
+  PASSWORD_CHANGED
+  EMAIL_CHANGE_REQUEST
+  EMAIL_CHANGED
+  PHONE_CHANGE_REQUEST
+  PHONE_CHANGED
+  USERNAME_CHANGED
+  ACCOUNT_LOCKED
+  ACCOUNT_UNLOCKED
+  SESSION_REVOKED
+  SUSPICIOUS_ACTIVITY
+  CREDENTIAL_VERIFIED
+}
 
+model IdentityVerificationToken {
+  id        String           @id @default(uuid())
 
+  userId    String
+  type      VerificationType
+
+  /// hash ของ token เท่านั้น (เช่น sha256)
+  tokenHash String
+
+  /// email หรือ phone ใหม่ (กรณี change identity)
+  target    String?
+
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime         @default(now())
+
+  /// relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// indexes (สำคัญต่อ cleanup + lookup)
+  @@index([userId, type])
+  @@index([expiresAt])
+  @@index([tokenHash])
+}
+
+model SecurityEvent {
+  id        String            @id @default(uuid())
+
+  userId    String
+  type      SecurityEventType
+
+  ip        String?
+  userAgent String?
+  metadata  Json?
+
+  createdAt DateTime          @default(now())
+
+  /// relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  /// indexes (critical)
+  @@index([userId, createdAt])
+  @@index([type])
+}
+
+model UserIdentityHistory {
+  id        String   @id @default(uuid())
+  userId    String
+  field     String   // email, phone, username
+  oldValue  String?
+  newValue  String?
+  changedBy String   // USER | ADMIN | SYSTEM
+  createdAt DateTime @default(now())
+  adminId   String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([field])
+}
 
 

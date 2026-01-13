@@ -108,3 +108,14 @@ export function resetSocket(): void {
   socketInstance.disconnect();
   socketInstance = null;
 }
+
+export function resetAfterAccountLock() {
+  try {
+    resetSocket();
+  } catch {}
+
+  // If you have auth store / notification store, reset here
+  // e.g. useAuthStore.getState().reset()
+
+  // Clear client-only caches if any
+}

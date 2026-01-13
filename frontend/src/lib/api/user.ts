@@ -5,7 +5,7 @@
 
 import axios, { AxiosInstance, AxiosError } from "axios";
 import type { UpdateUserPayload } from "@/types/user-profile";
-import { api,apiPost } from "./api";
+import { api, apiPost, apiPatch } from "./api";
 import type { PublicUserSearch } from "@/types/user-search";
 import { UserProfile,PublicUserProfile } from "@/types/user-profile";
 
@@ -375,3 +375,48 @@ export async function getMyBlockedUsersServer(
   return json;
 }
 
+export async function verifyCredential(password: string): Promise<{
+  success: true;
+}> {
+  return apiPost("/users/me/verify-credential", {
+    password,
+  });
+}
+
+export async function updateMyUsername(username: string): Promise<{
+  success: true;
+  username: string;
+}> {
+  return apiPatch("/users/me/username", { username });
+}
+
+export async function requestEmailChange(
+  newEmail: string,
+): Promise<{ success: true }> {
+  return apiPost("/users/me/email/change-request", {
+    newEmail,
+  });
+}
+
+export async function confirmEmailChange(
+  token: string,
+): Promise<{ success: true }> {
+  return apiPost("/users/me/email/confirm", {
+    token,
+  });
+}
+
+export async function requestPhoneChange(params: {
+  phone: string;
+  countryCode: string;
+}): Promise<{ success: true }> {
+  return apiPost("/users/me/phone/change-request", params);
+}
+
+export async function confirmPhoneChange(
+  token: string,
+): Promise<{ success: true }> {
+  return apiPost("/users/me/phone/confirm", {
+    token,
+  });
+}
