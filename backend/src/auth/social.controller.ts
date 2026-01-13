@@ -16,29 +16,14 @@ import {
 import { Request, Response } from 'express';
 import axios from 'axios';
 import crypto from 'crypto';
-import IORedis from 'ioredis';
 import { AuthService } from './auth.service';
 import { AuthRateLimitGuard } from '../common/rate-limit/auth-rate-limit.guard';
 import { RateLimit } from '../common/rate-limit/rate-limit.decorator';
 import { RateLimitContext } from '../common/rate-limit/rate-limit.decorator';
 import { AccessTokenCookieAuthGuard } from '../auth/guards/access-token-cookie.guard';
 import { RedisService } from '../redis/redis.service';
+import { Public } from './decorators/public.decorator';
 
-const redis = process.env.REDIS_URL
-  ? new IORedis(process.env.REDIS_URL, {
-      maxRetriesPerRequest: 3,
-      enableReadyCheck: true,
-      lazyConnect: true,
-    })
-  : new IORedis({
-      host: process.env.REDIS_HOST,
-      port: Number(process.env.REDIS_PORT),
-      password: process.env.REDIS_PASSWORD || undefined,
-      tls: process.env.REDIS_USE_TLS === 'true' ? {} : undefined,
-      maxRetriesPerRequest: 3,
-      enableReadyCheck: true,
-      lazyConnect: true,
-    });
 
 /* ------------------------------------------------------------------ */
 /* helpers */
@@ -100,7 +85,8 @@ export class SocialAuthController {
   /* ================================================================
    * GOOGLE
    * ================================================================ */
-@RateLimit('oauth')
+@Public()
+  @RateLimit('oauth')
 @RateLimitContext('oauth')
 @UseGuards(AuthRateLimitGuard)
 @Get('google')
@@ -135,7 +121,7 @@ async googleAuth(@Req() _req: Request, @Res() res: Response) {
     `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`,
   );
 }
-
+@Public()
 @Get('google/callback')
 async googleCallback(@Req() req: Request, @Res() res: Response) {
   try {
@@ -149,9 +135,12 @@ async googleCallback(@Req() req: Request, @Res() res: Response) {
     const redisKey = `oauth_state_${state}`;
     const exists = await this.redisService.get(redisKey);
 
-    if (!exists || req.cookies?.oauth_state !== state) {
-      return res.status(400).send('Invalid or expired state');
-    }
+    const cookieState = normalizeOAuthState(req.cookies?.oauth_state);
+
+if (exists !== '1' || cookieState !== state) {
+  return res.status(400).send('Invalid or expired state');
+}
+
 
     await this.redisService.del(redisKey);
     res.clearCookie('oauth_state', {
@@ -227,99 +216,115 @@ async googleCallback(@Req() req: Request, @Res() res: Response) {
   /* ================================================================
    * FACEBOOK
    * ================================================================ */
-  @RateLimit('oauth')
-  @RateLimitContext('oauth')
-  @UseGuards(AuthRateLimitGuard)
-  @Get('facebook')
-  async facebookAuth(@Req() _req: Request, @Res() res: Response) {
-    const isProd = process.env.NODE_ENV === 'production';
-    const cookieDomain = process.env.COOKIE_DOMAIN || '.phlyphant.com';
+   @Public()
+@RateLimit('oauth')
+@RateLimitContext('oauth')
+@UseGuards(AuthRateLimitGuard)
+@Get('facebook')
+async facebookAuth(@Req() _req: Request, @Res() res: Response) {
+  const isProd = process.env.NODE_ENV === 'production';
+  const cookieDomain = process.env.COOKIE_DOMAIN || '.phlyphant.com';
 
-    const state = crypto.randomBytes(16).toString('hex');
-    await redis.setex(`oauth_state_${state}`, 300, '1').catch(() => {});
+  const state = crypto.randomBytes(16).toString('hex');
 
-    res.cookie('oauth_state', state, {
-      httpOnly: true,
-      secure: isProd,
-      sameSite: 'none',
-      domain: cookieDomain,
+  // ✅ use RedisService (singleton, shared, production-safe)
+  await this.redisService
+    .set(`oauth_state_${state}`, '1', 300)
+    .catch(() => {});
+
+  res.cookie('oauth_state', state, {
+    httpOnly: true,
+    secure: isProd,
+    sameSite: 'none',
+    domain: cookieDomain,
+    path: '/',
+    maxAge: 5 * 60 * 1000,
+  });
+
+  const redirectUri = normalizeRedirectUri(
+    process.env.FACEBOOK_CALLBACK_URL ||
+      'https://api.phlyphant.com/auth/facebook/callback',
+  );
+
+  const params = new URLSearchParams({
+    client_id: process.env.FACEBOOK_CLIENT_ID || '',
+    redirect_uri: redirectUri,
+    response_type: 'code',
+    scope: 'email,public_profile',
+    state,
+  });
+
+  return res.redirect(
+    `https://www.facebook.com/v12.0/dialog/oauth?${params.toString()}`,
+  );
+}
+
+  
+  @Public()
+@Get('facebook/callback')
+async facebookCallback(@Req() req: Request, @Res() res: Response) {
+  try {
+    const code = req.query.code as string;
+    const rawState = req.query.state as string;
+
+    if (!code || !rawState) {
+      return res.status(400).send('Missing code or state');
+    }
+
+    const state = normalizeOAuthState(rawState);
+    const redisKey = `oauth_state_${state}`;
+
+    // ✅ USE RedisService (singleton)
+    const redisState = await this.redisService.get(redisKey);
+    const cookieState = normalizeOAuthState(req.cookies?.oauth_state);
+
+    // both Redis + Cookie must match
+    if (redisState !== '1' || cookieState !== state) {
+      return res.status(400).send('Invalid or expired state');
+    }
+
+    // cleanup state
+    await this.redisService.del(redisKey).catch(() => {});
+    res.clearCookie('oauth_state', {
+      domain: process.env.COOKIE_DOMAIN || '.phlyphant.com',
       path: '/',
-      maxAge: 5 * 60 * 1000,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'none',
     });
 
-    const redirectUri = normalizeRedirectUri(
-      process.env.FACEBOOK_CALLBACK_URL ||
-        'https://api.phlyphant.com/auth/facebook/callback',
+    const tokenRes = await axios.get(
+      'https://graph.facebook.com/v12.0/oauth/access_token',
+      {
+        params: {
+          client_id: process.env.FACEBOOK_CLIENT_ID || '',
+          client_secret:
+            process.env.FACEBOOK_CLIENT_SECRET || '',
+          redirect_uri: normalizeRedirectUri(
+            process.env.FACEBOOK_CALLBACK_URL ||
+              'https://api.phlyphant.com/auth/facebook/callback',
+          ),
+          code,
+        },
+        timeout: 5000,
+      },
     );
 
-    const params = new URLSearchParams({
-      client_id: process.env.FACEBOOK_CLIENT_ID || '',
-      redirect_uri: redirectUri,
-      response_type: 'code',
-      scope: 'email,public_profile',
-      state,
-    });
-
-    return res.redirect(
-      `https://www.facebook.com/v12.0/dialog/oauth?${params.toString()}`,
+    const profileRes = await axios.get(
+      'https://graph.facebook.com/me',
+      {
+        params: {
+          access_token: tokenRes.data.access_token,
+          fields: 'id,name,email,picture',
+        },
+        timeout: 5000,
+      },
     );
-  }
 
-  @Get('facebook/callback')
-  async facebookCallback(@Req() req: Request, @Res() res: Response) {
-    try {
-      const code = req.query.code as string;
-      const rawState = req.query.state as string;
-      if (!code || !rawState) {
-        return res.status(400).send('Missing code or state');
-      }
+    const profile = profileRes.data;
 
-      const state = normalizeOAuthState(rawState);
-      const redisKey = `oauth_state_${state}`;
-      const redisState = await redis.get(redisKey);
-      const cookieState = normalizeOAuthState(req.cookies?.oauth_state);
-
-      if (redisState !== '1' && cookieState !== state) {
-        return res.status(400).send('Invalid or expired state');
-      }
-
-      await redis.del(redisKey).catch(() => {});
-      res.clearCookie('oauth_state', {
-        domain: process.env.COOKIE_DOMAIN || '.phlyphant.com',
-        path: '/',
-        httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'none',
-      });
-
-      const tokenRes = await axios.get(
-        'https://graph.facebook.com/v12.0/oauth/access_token',
-        {
-          params: {
-            client_id: process.env.FACEBOOK_CLIENT_ID || '',
-            client_secret: process.env.FACEBOOK_CLIENT_SECRET || '',
-            redirect_uri: normalizeRedirectUri(
-              process.env.FACEBOOK_CALLBACK_URL ||
-                'https://api.phlyphant.com/auth/facebook/callback',
-            ),
-            code,
-          },
-        },
-      );
-
-      const profileRes = await axios.get(
-        'https://graph.facebook.com/me',
-        {
-          params: {
-            access_token: tokenRes.data.access_token,
-            fields: 'id,name,email,picture',
-          },
-        },
-      );
-
-      const profile = profileRes.data;
-
-      const firebaseUid = await this.auth.getOrCreateOAuthUser(
+    const firebaseUid =
+      await this.auth.getOrCreateOAuthUser(
         'facebook',
         profile.id,
         profile.email,
@@ -327,29 +332,36 @@ async googleCallback(@Req() req: Request, @Res() res: Response) {
         profile.picture?.data?.url,
       );
 
-      const customToken = await this.auth.createFirebaseCustomToken(
+    const customToken =
+      await this.auth.createFirebaseCustomToken(
         firebaseUid,
         profile,
       );
 
-      const finalUrl = buildFinalUrl(
-        process.env.FACEBOOK_PROVIDER_REDIRECT_AFTER_LOGIN ||
-          'https://www.phlyphant.com',
-        customToken,
-      );
+    const finalUrl = buildFinalUrl(
+      process.env
+        .FACEBOOK_PROVIDER_REDIRECT_AFTER_LOGIN ||
+        'https://www.phlyphant.com',
+      customToken,
+    );
 
-      return res.redirect(finalUrl);
-    } catch (e: any) {
-      this.logger.error('[facebookCallback] ' + String(e));
-      return res.status(500).send('Facebook callback error');
-    }
+    return res.redirect(finalUrl);
+  } catch (e: any) {
+    this.logger.error(
+      '[facebookCallback] ' +
+        (e?.stack || e?.message || e),
+    );
+    return res.status(500).send('Facebook callback error');
   }
+}
+
 
 /* ================================================================
  * COMPLETE → HYBRID SESSION (JWT + REDIS)
  * Social Login Final Step
  * ================================================================ */
- @Post('complete')
+ @Public() 
+@Post('complete')
   async complete(
     @Body() body: any,
     @Req() req: Request,
@@ -404,6 +416,8 @@ async googleCallback(@Req() req: Request, @Res() res: Response) {
             1000,
         },
       );
+res.setHeader('Cache-Control', 'no-store');
+res.setHeader('Pragma', 'no-cache');
 
       return { ok: true };
     } catch (err: any) {

@@ -18,6 +18,15 @@ export function apiPath(path: string): string {
   return `${API_BASE}${path}`;
 }
 
+export async function apiPatch<T = any>(
+  path: string,
+  body?: any,
+  config: any = {},
+): Promise<T> {
+  const res = await api.patch(path, body, config);
+  return res.data;
+}
+
 // Generic JSON Fetch (SSR/CSR Safe)
 async function jsonFetch<T>(
   input: string,

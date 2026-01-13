@@ -34,6 +34,12 @@ CREATE TYPE "AppealStatus" AS ENUM ('PENDING', 'APPROVED', 'REJECTED', 'WITHDRAW
 -- CreateEnum
 CREATE TYPE "AppealTargetType" AS ENUM ('POST', 'COMMENT', 'USER', 'CHAT_MESSAGE');
 
+-- CreateEnum
+CREATE TYPE "VerificationType" AS ENUM ('EMAIL_CHANGE', 'PHONE_CHANGE', 'ACCOUNT_LOCK', 'SENSITIVE_ACTION');
+
+-- CreateEnum
+CREATE TYPE "SecurityEventType" AS ENUM ('LOGIN_SUCCESS', 'LOGIN_FAILED', 'PASSWORD_CHANGED', 'EMAIL_CHANGE_REQUEST', 'EMAIL_CHANGED', 'PHONE_CHANGE_REQUEST', 'PHONE_CHANGED', 'USERNAME_CHANGED', 'ACCOUNT_LOCKED', 'ACCOUNT_UNLOCKED', 'SESSION_REVOKED', 'SUSPICIOUS_ACTIVITY', 'CREDENTIAL_VERIFIED');
+
 -- CreateTable
 CREATE TABLE "User" (
     "id" TEXT NOT NULL,
@@ -45,6 +51,13 @@ CREATE TABLE "User" (
     "isEmailVerified" BOOLEAN NOT NULL DEFAULT false,
     "emailVerifyTokenHash" TEXT,
     "emailVerifyTokenExpires" TIMESTAMP(3),
+    "countryCode" CHAR(2),
+    "dateOfBirth" TIMESTAMP(3),
+    "phoneNumber" TEXT,
+    "isPhoneVerified" BOOLEAN NOT NULL DEFAULT false,
+    "isAccountLocked" BOOLEAN NOT NULL DEFAULT false,
+    "accountLockedAt" TIMESTAMP(3),
+    "accountLockReason" TEXT,
     "isDisabled" BOOLEAN NOT NULL DEFAULT false,
     "active" BOOLEAN NOT NULL DEFAULT true,
     "lastLoginAt" TIMESTAMP(3),
@@ -518,6 +531,47 @@ CREATE TABLE "Appeal" (
     CONSTRAINT "Appeal_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "IdentityVerificationToken" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "type" "VerificationType" NOT NULL,
+    "tokenHash" TEXT NOT NULL,
+    "target" TEXT,
+    "expiresAt" TIMESTAMP(3) NOT NULL,
+    "usedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "IdentityVerificationToken_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "SecurityEvent" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "type" "SecurityEventType" NOT NULL,
+    "ip" TEXT,
+    "userAgent" TEXT,
+    "metadata" JSONB,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "SecurityEvent_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "UserIdentityHistory" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "field" TEXT NOT NULL,
+    "oldValue" TEXT,
+    "newValue" TEXT,
+    "changedBy" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "adminId" TEXT,
+
+    CONSTRAINT "UserIdentityHistory_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 
@@ -525,10 +579,19 @@ CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 CREATE UNIQUE INDEX "User_username_key" ON "User"("username");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "User_phoneNumber_key" ON "User"("phoneNumber");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "User_firebaseUid_key" ON "User"("firebaseUid");
 
 -- CreateIndex
 CREATE INDEX "User_isBanned_bannedAt_idx" ON "User"("isBanned", "bannedAt");
+
+-- CreateIndex
+CREATE INDEX "User_phoneNumber_idx" ON "User"("phoneNumber");
+
+-- CreateIndex
+CREATE INDEX "User_isAccountLocked_accountLockedAt_idx" ON "User"("isAccountLocked", "accountLockedAt");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "User_provider_providerId_key" ON "User"("provider", "providerId");
@@ -764,6 +827,27 @@ CREATE INDEX "Appeal_resolvedByAdminId_resolvedAt_idx" ON "Appeal"("resolvedByAd
 -- CreateIndex
 CREATE UNIQUE INDEX "Appeal_userId_moderationActionId_key" ON "Appeal"("userId", "moderationActionId");
 
+-- CreateIndex
+CREATE INDEX "IdentityVerificationToken_userId_type_idx" ON "IdentityVerificationToken"("userId", "type");
+
+-- CreateIndex
+CREATE INDEX "IdentityVerificationToken_expiresAt_idx" ON "IdentityVerificationToken"("expiresAt");
+
+-- CreateIndex
+CREATE INDEX "IdentityVerificationToken_tokenHash_idx" ON "IdentityVerificationToken"("tokenHash");
+
+-- CreateIndex
+CREATE INDEX "SecurityEvent_userId_createdAt_idx" ON "SecurityEvent"("userId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "SecurityEvent_type_idx" ON "SecurityEvent"("type");
+
+-- CreateIndex
+CREATE INDEX "UserIdentityHistory_userId_createdAt_idx" ON "UserIdentityHistory"("userId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "UserIdentityHistory_field_idx" ON "UserIdentityHistory"("field");
+
 -- AddForeignKey
 ALTER TABLE "User" ADD CONSTRAINT "User_bannedByAdminId_fkey" FOREIGN KEY ("bannedByAdminId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
@@ -931,3 +1015,12 @@ ALTER TABLE "Appeal" ADD CONSTRAINT "Appeal_moderationActionId_fkey" FOREIGN KEY
 
 -- AddForeignKey
 ALTER TABLE "Appeal" ADD CONSTRAINT "Appeal_reportId_fkey" FOREIGN KEY ("reportId") REFERENCES "Report"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "IdentityVerificationToken" ADD CONSTRAINT "IdentityVerificationToken_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "SecurityEvent" ADD CONSTRAINT "SecurityEvent_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "UserIdentityHistory" ADD CONSTRAINT "UserIdentityHistory_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;

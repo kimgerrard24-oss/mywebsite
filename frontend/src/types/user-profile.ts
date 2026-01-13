@@ -20,6 +20,7 @@ export interface PublicUserProfile {
 export interface UserProfile {
   id: string;
   email: string;
+  username: string;
   displayName: string | null;
   avatarUrl: string | null;
   coverUrl?: string | null;

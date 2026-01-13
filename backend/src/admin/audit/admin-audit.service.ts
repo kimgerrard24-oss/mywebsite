@@ -15,7 +15,7 @@ export class AdminAuditService {
     action: string;
     targetId?: string;
     detail?: any;
-    adminId?: string; // optional override
+    adminId?: string;
   }) {
     try {
       const adminFromCtx = this.ctx.getUser();

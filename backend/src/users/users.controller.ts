@@ -8,6 +8,7 @@ import {
   Body,
   Param,
   Put,
+  Patch,
   Query,
   Req,
   UnauthorizedException,
@@ -38,6 +39,14 @@ import { coverMulterConfig } from './upload/multer-cover.config';
 import { SearchUsersQueryDto } from './dto/search-users.query.dto';
 import { PublicUserSearchDto } from './dto/public-user-search.dto';
 import { RateLimit } from '../common/rate-limit/rate-limit.decorator';
+import { VerifyCredentialDto } from './dto/verify-credential.dto';
+import { SecurityEventsQueryDto } from './dto/security-events.query.dto';
+import { UsernameAvailableQueryDto } from './dto/username-available.query.dto';
+import { UpdateUsernameDto } from './dto/update-username.dto';
+import { EmailChangeRequestDto } from './dto/email-change-request.dto';
+import { ConfirmEmailChangeDto } from './dto/confirm-email-change.dto';
+import { RequestPhoneChangeDto } from './dto/request-phone-change.dto';
+import { ConfirmPhoneChangeDto } from './dto/confirm-phone-change.dto';
 
 @Controller('users')
 export class UsersController {
@@ -225,5 +234,144 @@ async updateAvatar(
     coverUrl: result.coverUrl,
   };
  }
+
+ @Post('me/verify-credential')
+@UseGuards(AccessTokenCookieAuthGuard)
+@HttpCode(200)
+@RateLimit('verifyCredential')
+async verifyCredential(
+  @CurrentUser() user: SessionUser,
+  @Body() dto: VerifyCredentialDto,
+  @Req() req: Request,
+) {
+  if (!user?.userId) {
+    throw new UnauthorizedException();
+  }
+
+  return this.usersService.verifyCredential(user.userId, dto, {
+    ip: req.ip,
+    userAgent: req.headers['user-agent'],
+  });
+ }
  
+
+ @Get('me/security-events')
+@UseGuards(AccessTokenCookieAuthGuard)
+@Header('Cache-Control', 'no-store')
+async getMySecurityEvents(
+  @CurrentUser() user: SessionUser,
+  @Query() query: SecurityEventsQueryDto,
+) {
+  if (!user?.userId) {
+    throw new UnauthorizedException();
+  }
+
+  return this.usersService.getMySecurityEvents({
+    userId: user.userId,
+    limit: query.limit,
+    cursor: query.cursor,
+  });
+ }
+
+  /**
+   * Public: realtime username availability check
+   * Rate-limited (anti scraping)
+   */
+  @Get('username-available')
+  @RateLimit('usernameCheck')
+  async usernameAvailable(
+    @Query() query: UsernameAvailableQueryDto,
+  ) {
+    return this.usersService.checkUsernameAvailability(
+      query.u,
+    );
+  }
+
+  @Patch('me/username')
+@UseGuards(AccessTokenCookieAuthGuard)
+@RateLimit('updateUsername')
+async updateUsername(
+  @CurrentUser() sessionUser: SessionUser,
+  @Body() dto: UpdateUsernameDto,
+  @Req() req: Request,
+) {
+  if (!sessionUser?.userId) {
+    throw new UnauthorizedException('Authentication required');
+  }
+
+  return this.usersService.updateUsername(
+    sessionUser.userId,
+    dto,
+    {
+      ip: req.ip,
+      userAgent: req.headers['user-agent'],
+    },
+  );
+ }
+
+  // =============================
+  // POST /api/users/me/email/change-request
+  // =============================
+  @UseGuards(AccessTokenCookieAuthGuard)
+  @Post('/me/email/change-request')
+  async requestEmailChange(
+    @Req() req: Request & { user: { userId: string } },
+    @Body() dto: EmailChangeRequestDto,
+  ) {
+    return this.usersService.requestEmailChange(
+      req.user.userId,
+      dto,
+      {
+        ip: req.ip,
+        userAgent: req.headers['user-agent'],
+      },
+    );
+  }
+
+   @UseGuards(AccessTokenCookieAuthGuard)
+  @Post('/me/email/confirm')
+  async confirmEmailChange(
+    @Req() req: Request & { user: { userId: string } },
+    @Body() dto: ConfirmEmailChangeDto,
+  ) {
+    return this.usersService.confirmEmailChange(
+      req.user.userId,
+      dto,
+      {
+        ip: req.ip,
+        userAgent: req.headers['user-agent'],
+      },
+    );
+  }
+
+   // ================================
+  // POST /api/users/me/phone/change-request
+  // ================================
+  @UseGuards(AccessTokenCookieAuthGuard)
+  @Post('me/phone/change-request')
+  async requestPhoneChange(
+    @Req() req: any,
+    @Body() dto: RequestPhoneChangeDto,
+  ) {
+    const userId = req.user.userId;
+
+    return this.usersService.requestPhoneChange(userId, dto, {
+      ip: req.ip,
+      userAgent: req.headers['user-agent'],
+    });
+  }
+
+  @Post('/me/phone/confirm')
+@UseGuards(AccessTokenCookieAuthGuard)
+async confirmPhoneChange(
+  @Req() req: any,
+  @Body() dto: ConfirmPhoneChangeDto,
+) {
+  const userId = req.user.userId;
+
+  return this.usersService.confirmPhoneChange(userId, dto, {
+    ip: req.ip,
+    userAgent: req.headers['user-agent'],
+  });
+}
 }

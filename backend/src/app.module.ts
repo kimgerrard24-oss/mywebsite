@@ -38,6 +38,7 @@ import { SecurityModule } from './common/security/security.module';
 import { AuditModule } from './users/audit/audit.module';
 import { AppealsModule } from './appeals/appeals.module';
 import { UserModerationModule } from './moderation/user/user-moderation.module';
+import { SecuritiesModule } from './securities/securities.module';
 
 @Module({
   imports: [
@@ -54,6 +55,7 @@ import { UserModerationModule } from './moderation/user/user-moderation.module';
     UserModerationModule,
     ChatModule,
     AppealsModule,
+    SecuritiesModule,
     AuditModule,
     SecurityModule,
     ReportsModule,

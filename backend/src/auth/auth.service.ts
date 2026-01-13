@@ -20,10 +20,10 @@ import { sign, verify } from 'jsonwebtoken';
 import { AuthLoggerService } from '../common/logging/auth-logger.service';
 import { AuthRepository } from './auth.repository';
 import { RegisterDto } from './dto/register.dto';
-import { hashPassword } from './untils/password.util';
+import { hashPassword } from './utils/password.util';
 import { randomUUID } from 'crypto';
 import { MailService } from '../mail/mail.service';
-import { comparePassword } from './untils/password.util';
+import { comparePassword } from './utils/password.util';
 import { AuditService } from './audit.service';
 import { Redis } from 'ioredis';
 import { RedisService } from '../redis/redis.service';
@@ -76,8 +76,6 @@ constructor(
   private readonly redisService: RedisService,
   private readonly sessionService: SessionService,
   private readonly securityEvent: SecurityEventService,
-    @Inject('REDIS_CLIENT')
-    private readonly redis: Redis,
 ) {}
 
 
@@ -384,68 +382,55 @@ async logout(req: any, res: any) {
   let jwtVerifyFailed = false;
 
   // ============================================
-  // Revoke access session (by jti)
-  // ============================================
-  if (accessToken) {
-    try {
-      const secret = process.env.JWT_ACCESS_SECRET as string;
+// Revoke access session (by jti)
+// ============================================
+if (accessToken) {
+  try {
+    const secret = process.env.JWT_ACCESS_SECRET as string;
 
-      const payload = jwt.verify(
-        accessToken,
-        secret,
-      ) as AccessTokenPayload;
+    const payload = jwt.verify(accessToken, secret) as AccessTokenPayload;
 
-      if (payload?.jti) {
-        await this.redis.del(
-          `session:access:${payload.jti}`,
-        );
-        accessSessionRevoked = true;
-      }
-    } catch (err: any) {
-      // token invalid / expired / forged
-      // must not block logout
-      jwtVerifyFailed = true;
-
-      // ---- Security Event: JWT invalid during logout ----
-      try {
-        this.securityEvent.log({
-          type: 'auth.jwt.invalid',
-          severity: 'warning',
-          meta: {
-            phase: 'logout_access_revoke',
-            reason: err?.name || 'verify_failed',
-          },
-        });
-      } catch {
-        // must never affect logout flow
-      }
+    if (payload?.jti) {
+      await this.sessionService.revokeByJTI(payload.jti);
+      accessSessionRevoked = true;
     }
+  } catch (err: any) {
+    jwtVerifyFailed = true;
+
+    try {
+      this.securityEvent.log({
+        type: 'auth.jwt.invalid',
+        severity: 'warning',
+        meta: {
+          phase: 'logout_access_revoke',
+          reason: err?.name || 'verify_failed',
+        },
+      });
+    } catch {}
   }
+}
+
 
   // ============================================
   // Revoke refresh session
   // ============================================
   if (refreshToken) {
-    try {
-      await this.redis.del(
-        `session:refresh:${refreshToken}`,
-      );
-      refreshSessionRevoked = true;
+  try {
+    await this.sessionService.revokeByRefreshToken(refreshToken);
+    refreshSessionRevoked = true;
 
-      // ---- Security Event: refresh session revoked ----
-      try {
-        this.securityEvent.log({
-          type: 'auth.session.revoked',
-          severity: 'info',
-          meta: {
-            phase: 'logout_refresh_revoke',
-          },
-        });
-      } catch {}
-    } catch {
-      // Redis failure must not block logout
-    }
-  }
+    try {
+      this.securityEvent.log({
+        type: 'auth.session.revoked',
+        severity: 'info',
+        meta: {
+          phase: 'logout_refresh_revoke',
+        },
+      });
+    } catch {}
+  } catch {}
+}
+
 
   // ============================================
   // Security Event: logout summary

@@ -26,8 +26,11 @@ export type RateLimitAction =
   | 'reportRead'
   | 'reportReadDetail'
   | 'reportWithdraw'
-  | 'mentionSearch';
-  
+  | 'mentionSearch'
+  | 'verifyCredential'
+  | 'usernameCheck'
+  | 'updateUsername';
+
 export type RateLimitEscalationConfig = {
   maxViolations: number;
   windowSec: number;     // seconds
@@ -479,6 +482,57 @@ mentionSearch: {
   },
 },
 
+verifyCredential: {
+  /**
+   * Verify password before sensitive actions
+   * Protect against brute-force on password
+   */
+  points: 5,
+  duration: 600,        // 10 minutes
+  blockDuration: 900,   // 15 minutes
+
+  windowSec: 600,       // 10 นาที
+  max: 5,               // ได้ 5 ครั้ง
+  blockDurationSec: 900, // block 15 นาที
+
+  escalation: {
+    maxViolations: 3,   // ถ้าโดน block 3 รอบ
+    windowSec: 86400,   // ภายใน 24 ชม.
+    longBlockSec: 21600, // block 6 ชม.
+  },
+ },
+
+ usernameCheck: {
+  points: 120,
+  duration: 60,
+  blockDuration: 300,
+
+  windowSec: 60,
+  max: 120,              // typing autocomplete
+  blockDurationSec: 300,
+
+  escalation: {
+    maxViolations: 3,
+    windowSec: 86400,
+    longBlockSec: 21600, // 6h
+  },
+ },
+
+ updateUsername: {
+  points: 5,
+  duration: 300,
+  blockDuration: 600,
+
+  windowSec: 300,
+  max: 3,
+  blockDurationSec: 600,
+
+  escalation: {
+    maxViolations: 3,
+    windowSec: 86400,
+    longBlockSec: 21600,
+  },
+},
 
 };
 

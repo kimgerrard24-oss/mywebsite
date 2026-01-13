@@ -4,11 +4,12 @@ import {
   NotFoundException,
   BadRequestException,
   InternalServerErrorException,
+  ConflictException,
 } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { UserProfileDto } from "./dto/user-profile.dto";
 import { UsersRepository } from './users.repository';
-import { PublicUserProfileDto } from './dto/public-user-profile.dto';
+import { MeUserProfileDto, PublicUserProfileDto } from './dto/public-user-profile.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { UserProfileAudit } from './audit/user-profile.audit';
 import { AuditLogService } from './audit/audit-log.service';
@@ -18,6 +19,27 @@ import { CoverService } from './cover/cover.service';
 import { UserCoverPolicy } from './cover/user-cover.policy';
 import { PublicUserSearchDto } from './dto/public-user-search.dto';
 import { UserSearchPolicy } from './policies/user-search.policy';
+import { verifyPassword } from '../auth/utils/password.util';
+import { VerifyCredentialDto } from './dto/verify-credential.dto';
+import { VerifyCredentialPolicy } from './policies/verify-credential.policy';
+import { CredentialVerificationService } from '../auth/credential-verification.service';
+import { SecurityEventsPolicy } from './policies/security-events.policy';
+import { SecurityEventResponseDto } from './dto/security-event.response.dto';
+import { SecurityEventsAudit } from './audit/security-events.audit';
+import { UsernameAvailabilityPolicy } from './policies/username-availability.policy';
+import { UpdateUsernamePolicy } from './policies/update-username.policy';
+import { UpdateUsernameDto } from './dto/update-username.dto';
+import { VerificationType,SecurityEventType } from '@prisma/client';
+import { EmailChangeRequestDto } from './dto/email-change-request.dto';
+import { EmailChangePolicy } from './policies/email-change.policy';
+import { ConfirmEmailChangePolicy } from './policies/confirm-email-change.policy';
+import { ConfirmEmailChangeDto } from './dto/confirm-email-change.dto'
+import { RequestPhoneChangeDto } from './dto/request-phone-change.dto';
+import { RequestPhoneChangePolicy } from './policies/request-phone-change.policy';
+import { UserIdentityAudit } from './audit/user-identity.audit';
+import { PhoneVerificationService } from '../identities/phone/phone-verification.service';
+import { ConfirmPhoneChangeDto } from './dto/confirm-phone-change.dto';
+import { ConfirmPhoneChangePolicy } from './policies/confirm-phone-change.policy';
 
 @Injectable()
 export class UsersService {
@@ -27,6 +49,10 @@ export class UsersService {
               private readonly avatarService: AvatarService,
               private readonly auditLogService: AuditLogService,
               private readonly coverService: CoverService,
+              private readonly credentialVerify: CredentialVerificationService,
+              private readonly securityAudit: SecurityEventsAudit,
+              private readonly identityAudit: UserIdentityAudit,
+              private readonly phoneVerify: PhoneVerificationService,
   ) {}
 
   async findByEmail(email: string) {
@@ -245,7 +271,7 @@ export class UsersService {
    * - Auth is already validated by guard (JWT + Redis)
    * - This method should NOT be used to decide auth state
    */
-async getMe(userId: string): Promise<PublicUserProfileDto> {
+async getMe(userId: string): Promise<MeUserProfileDto> {
   const user = await this.prisma.user.findUnique({
     where: { id: userId },
     select: {
@@ -282,6 +308,8 @@ async getMe(userId: string): Promise<PublicUserProfileDto> {
 
 return {
   id: user.id,
+  email: user.email,
+  username: user.username, 
   displayName: user.displayName,
   avatarUrl: user.avatarUrl,
   coverUrl: user.coverUrl ?? null,
@@ -342,6 +370,7 @@ async getPublicProfile(params: {
 
   return {
     id: user.id,
+    username: user.username,
     displayName: user.displayName,
     avatarUrl: user.avatarUrl,
     coverUrl: user.coverUrl ?? null,
@@ -495,8 +524,417 @@ async updateAvatar(params: {
   );
 
   return visibleUsers.map(PublicUserSearchDto.fromEntity);
+ }
+
+ async verifyCredential(
+  userId: string,
+  dto: VerifyCredentialDto,
+  meta?: { ip?: string; userAgent?: string },
+) {
+  const user = await this.repo.findUserForCredentialVerify(userId);
+  if (!user) {
+    throw new BadRequestException('User not found');
+  }
+
+  VerifyCredentialPolicy.assertCanVerify({
+    isDisabled: user.isDisabled,
+    isBanned: user.isBanned,
+    isAccountLocked: user.isAccountLocked,
+  });
+
+  const isValid = await verifyPassword(
+  user.hashedPassword,
+  dto.password,
+);
+
+
+  if (!isValid) {
+    await this.repo.createSecurityEvent({
+      userId,
+      type: 'LOGIN_FAILED',
+      ip: meta?.ip,
+      userAgent: meta?.userAgent,
+    });
+
+    throw new BadRequestException('Invalid credential');
+  }
+
+  const token = this.credentialVerify.generateToken();
+  const expiresAt = this.credentialVerify.getExpiry(10);
+
+  await this.repo.createIdentityVerificationToken({
+    userId,
+    type: 'SENSITIVE_ACTION',
+    tokenHash: token.hash,
+    expiresAt,
+  });
+
+  await this.repo.createSecurityEvent({
+    userId,
+    type: SecurityEventType.CREDENTIAL_VERIFIED,
+    ip: meta?.ip,
+    userAgent: meta?.userAgent,
+  });
+
+  return { success: true };
+ }
+
+ // =============================
+  // GET /users/me/security-events
+  // =============================
+  async getMySecurityEvents(params: {
+    userId: string;
+    limit?: number;
+    cursor?: string;
+  }): Promise<{
+    items: SecurityEventResponseDto[];
+    nextCursor: string | null;
+  }> {
+    const { userId, cursor } = params;
+
+    const user = await this.repo.findUserSecurityState(userId);
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    SecurityEventsPolicy.assertCanRead({
+      isDisabled: user.isDisabled,
+      isBanned: user.isBanned,
+    });
+
+    const limit = SecurityEventsPolicy.normalizeLimit(
+      params.limit,
+    );
+
+    const events = await this.repo.findUserSecurityEvents({
+      userId,
+      limit: limit + 1,
+      cursor: cursor ? new Date(cursor) : undefined,
+    });
+
+    const hasNext = events.length > limit;
+    const sliced = hasNext
+      ? events.slice(0, limit)
+      : events;
+
+    const nextCursor = hasNext
+      ? sliced[sliced.length - 1].createdAt.toISOString()
+      : null;
+
+    // fire-and-forget audit
+    this.securityAudit.logViewed(userId);
+
+    return {
+      items: sliced.map(SecurityEventResponseDto.fromEntity),
+      nextCursor,
+    };
+  }
+
+  async checkUsernameAvailability(raw: string) {
+    const normalized =
+      UsernameAvailabilityPolicy.normalize(raw);
+
+    const policy =
+      UsernameAvailabilityPolicy.assertAllowed(normalized);
+
+    if (!policy.allowed) {
+      return {
+        available: false,
+        reason: policy.reason,
+      };
+    }
+
+    const taken =
+      await this.repo.isUsernameTaken(normalized);
+
+    return {
+      available: !taken,
+    };
+  }
+
+  async updateUsername(
+  userId: string,
+  dto: UpdateUsernameDto,
+  meta?: { ip?: string; userAgent?: string },
+) {
+  const user = await this.repo.findUserForUsernameChange(userId);
+
+  if (!user) {
+    throw new BadRequestException('User not found');
+  }
+
+  UpdateUsernamePolicy.assertCanChange({
+    isDisabled: user.isDisabled,
+    isBanned: user.isBanned,
+    isAccountLocked: user.isAccountLocked,
+  });
+
+  UpdateUsernamePolicy.assertValidUsername(dto.username);
+
+  if (dto.username === user.username) {
+    throw new BadRequestException('Username is unchanged');
+  }
+
+  const taken = await this.repo.isUsernameTaken(dto.username);
+  if (taken) {
+    throw new ConflictException('Username already taken');
+  }
+
+  await this.repo.updateUsernameWithHistory({
+    userId,
+    newUsername: dto.username,
+    oldUsername: user.username,
+  });
+
+  await this.repo.createSecurityEvent({
+    userId,
+    type: 'USERNAME_CHANGED',
+    ip: meta?.ip,
+    userAgent: meta?.userAgent,
+  });
+
+  return { success: true, username: dto.username };
+ }
+
+ async requestEmailChange(
+  userId: string,
+  dto: EmailChangeRequestDto,
+  meta?: { ip?: string; userAgent?: string },
+) {
+  const user =
+    await this.repo.findUserForEmailChange(userId);
+
+  if (!user) {
+    throw new BadRequestException('User not found');
+  }
+
+  EmailChangePolicy.assertCanRequest({
+    isDisabled: user.isDisabled,
+    isBanned: user.isBanned,
+    isAccountLocked: user.isAccountLocked,
+  });
+
+  if (dto.newEmail === user.email) {
+    throw new BadRequestException(
+      'Email is unchanged',
+    );
+  }
+
+  const emailTaken =
+    await this.repo.isEmailTaken(dto.newEmail);
+
+  if (emailTaken) {
+    throw new ConflictException(
+      'Email already in use',
+    );
+  }
+
+  const token =
+    this.credentialVerify.generateToken();
+  const expiresAt =
+    this.credentialVerify.getExpiry(15);
+
+  await this.repo.createIdentityVerificationToken({
+    userId,
+    type: VerificationType.EMAIL_CHANGE,
+    tokenHash: token.hash,
+    target: dto.newEmail,
+    expiresAt,
+  });
+
+  await this.repo.createSecurityEvent({
+    userId,
+    type: SecurityEventType.EMAIL_CHANGE_REQUEST,
+    ip: meta?.ip,
+    userAgent: meta?.userAgent,
+  });
+
+  return { success: true };
 }
 
+async confirmEmailChange(
+  userId: string,
+  dto: ConfirmEmailChangeDto,
+  meta?: { ip?: string; userAgent?: string },
+) {
+  const user =
+    await this.repo.findUserForEmailChange(userId);
+
+  if (!user) {
+    throw new BadRequestException('User not found');
+  }
+
+  ConfirmEmailChangePolicy.assertCanConfirm({
+    isDisabled: user.isDisabled,
+    isBanned: user.isBanned,
+    isAccountLocked: user.isAccountLocked,
+  });
+
+  const token =
+    await this.repo.consumeEmailChangeToken({
+      userId,
+      token: dto.token,
+    });
+
+  if (!token) {
+    throw new BadRequestException(
+      'Invalid or expired token',
+    );
+  }
+
+  await this.repo.updateUserEmail({
+    userId,
+    newEmail: token.target!,
+  });
+
+  await this.repo.createSecurityEvent({
+    userId,
+    type: SecurityEventType.EMAIL_CHANGED,
+    ip: meta?.ip,
+    userAgent: meta?.userAgent,
+  });
+
+  this.identityAudit.logEmailChanged(userId);
+
+  return { success: true };
+}
+
+async requestPhoneChange(
+  userId: string,
+  dto: RequestPhoneChangeDto,
+  meta?: { ip?: string; userAgent?: string },
+) {
+  const user =
+    await this.repo.findUserForPhoneChange(userId);
+
+  if (!user) {
+    throw new BadRequestException('User not found');
+  }
+
+  RequestPhoneChangePolicy.assertCanRequest({
+    isDisabled: user.isDisabled,
+    isBanned: user.isBanned,
+    isAccountLocked: user.isAccountLocked,
+  });
+
+  const normalizedPhone =
+    RequestPhoneChangePolicy.normalizePhone(
+      dto.phone,
+      dto.countryCode,
+    );
+
+  const taken =
+    await this.repo.isPhoneTaken(normalizedPhone);
+
+  if (taken) {
+    throw new BadRequestException(
+      'Phone number already in use',
+    );
+  }
+
+  const token =
+    this.credentialVerify.generateToken();
+  const expiresAt =
+    this.credentialVerify.getExpiry(10); // minutes
+
+  await this.repo.createIdentityVerificationToken({
+    userId,
+    type: VerificationType.PHONE_CHANGE,
+    tokenHash: token.hash,
+    target: normalizedPhone,
+    expiresAt,
+  });
+
+  // ===== SEND SMS (infra) =====
+  await this.phoneVerify.sendChangePhoneSMS({
+    phone: normalizedPhone,
+    token: token.raw,
+  });
+
+  // ===== SECURITY EVENT =====
+  await this.repo.createSecurityEvent({
+    userId,
+    type: SecurityEventType.PHONE_CHANGE_REQUEST,
+    ip: meta?.ip,
+    userAgent: meta?.userAgent,
+  });
+
+  // ===== AUDIT LOG =====
+  try {
+    await this.auditLogService.log({
+      userId,
+      action: 'USER_PHONE_CHANGE_REQUEST',
+      success: true,
+    });
+  } catch {}
+
+  return { success: true };
+}
+
+async confirmPhoneChange(
+  userId: string,
+  dto: ConfirmPhoneChangeDto,
+  meta?: { ip?: string; userAgent?: string },
+) {
+  const user = await this.repo.findUserForPhoneChange(userId);
+  if (!user) {
+    throw new BadRequestException('User not found');
+  }
+
+  try {
+    ConfirmPhoneChangePolicy.assertCanConfirm({
+      isDisabled: user.isDisabled,
+      isBanned: user.isBanned,
+      isAccountLocked: user.isAccountLocked,
+    });
+  } catch (err: any) {
+    throw new BadRequestException(err.message);
+  }
+
+  const token =
+    await this.repo.findPhoneChangeToken({
+      userId,
+      token: dto.token,
+    });
+
+  if (!token || !token.target) {
+    throw new BadRequestException(
+      'Invalid or expired token',
+    );
+  }
+
+  await this.repo.consumePhoneChangeToken({
+    userId,
+    token: dto.token,
+  });
+
+  await this.repo.updatePhoneWithHistory({
+    userId,
+    newPhone: token.target,
+  });
+
+  await this.repo.createSecurityEvent({
+    userId,
+    type: SecurityEventType.PHONE_CHANGED,
+    ip: meta?.ip,
+    userAgent: meta?.userAgent,
+  });
+
+  // fire-and-forget audit
+  try {
+    this.identityAudit.logPhoneChanged(userId);
+  } catch {}
+
+  try {
+    await this.auditLogService.log({
+      userId,
+      action: 'USER_PHONE_CHANGED',
+      success: true,
+    });
+  } catch {}
+
+  return { success: true };
+}
 }
 
 

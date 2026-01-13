@@ -33,16 +33,6 @@ import { RateLimitGuard } from '../common/rate-limit/rate-limit.guard';
 import { RateLimitService } from '../common/rate-limit/rate-limit.service';
 import { AccessTokenCookieAuthGuard } from './guards/access-token-cookie.guard';
 
-interface JwtUserPayload {
-  sub?: string;      
-  userId?: string;  
-  email?: string;
- 
-}
-
-interface AuthenticatedRequest extends Request {
-  user?: JwtUserPayload;
-}
 
 function normalizeRedirectUri(raw: string): string {
   if (!raw) return raw;
@@ -119,6 +109,8 @@ export class AuthController {
       },
     }),
   )
+
+  @Public()
   async register(
   @Body() dto: RegisterDto & { turnstileToken?: string },
   @Req() req: Request,
@@ -344,6 +336,8 @@ async login(
       },
     );
   }
+  res.setHeader('Cache-Control', 'no-store');
+  res.setHeader('Pragma', 'no-cache');
 
   // -------------------------------------------------------
   // 8) Return safe response
@@ -375,7 +369,9 @@ async login(
 @HttpCode(200)
 async logout(@Req() req: Request, @Res() res: Response) {
   await this.authService.logout(req, res);
-  const user = (req as any).user;
+
+  const user = req.user as Express.User | undefined;
+
 
 try {
   await this.audit.createLog({
@@ -385,12 +381,16 @@ try {
   });
 } catch {}
 
+res.setHeader('Cache-Control', 'no-store');
+res.setHeader('Pragma', 'no-cache');
+
   return res.json({ message: 'Logged out successfully' });
   
 }
 
 
   // verify-email
+  @Public()
  @Get('verify-email')
 async verifyEmail(@Query('uid') uid: string, @Query('token') token: string) {
   if (!uid || !token) {
