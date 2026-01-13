@@ -23,6 +23,7 @@ import { RateLimitContext } from '../common/rate-limit/rate-limit.decorator';
 import { AccessTokenCookieAuthGuard } from '../auth/guards/access-token-cookie.guard';
 import { RedisService } from '../redis/redis.service';
 import { Public } from './decorators/public.decorator';
+import { FirebaseAuthGuard } from './firebase-auth.guard';
 
 
 /* ------------------------------------------------------------------ */
@@ -121,28 +122,41 @@ async googleAuth(@Req() _req: Request, @Res() res: Response) {
     `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`,
   );
 }
+
 @Public()
 @Get('google/callback')
 async googleCallback(@Req() req: Request, @Res() res: Response) {
   try {
-    const code = req.query.code as string;
-    const state = req.query.state as string;
+    const code = req.query.code as string | undefined;
+    const rawState = req.query.state as string | undefined;
 
-    if (!code || !state) {
+    if (!code || !rawState) {
       return res.status(400).send('Missing code or state');
     }
 
+    // ✅ normalize state from query (CRITICAL)
+    const state = normalizeOAuthState(rawState);
+
     const redisKey = `oauth_state_${state}`;
-    const exists = await this.redisService.get(redisKey);
 
-    const cookieState = normalizeOAuthState(req.cookies?.oauth_state);
+    // read redis + cookie in parallel
+    const [redisState, cookieState] = await Promise.all([
+      this.redisService.get(redisKey),
+      Promise.resolve(normalizeOAuthState(req.cookies?.oauth_state)),
+    ]);
 
-if (exists !== '1' || cookieState !== state) {
-  return res.status(400).send('Invalid or expired state');
-}
+    // both Redis + Cookie must match
+    if (redisState !== '1' || cookieState !== state) {
+      this.logger.warn('[googleCallback] state mismatch', {
+        hasRedis: redisState === '1',
+        cookieMatch: cookieState === state,
+      });
+      return res.status(400).send('Invalid or expired state');
+    }
 
-
+    // cleanup state (after validation only)
     await this.redisService.del(redisKey);
+
     res.clearCookie('oauth_state', {
       domain: process.env.COOKIE_DOMAIN || '.phlyphant.com',
       path: '/',
@@ -151,6 +165,7 @@ if (exists !== '1' || cookieState !== state) {
       sameSite: 'none',
     });
 
+    // exchange code for access token
     const tokenRes = await axios.post(
       'https://oauth2.googleapis.com/token',
       new URLSearchParams({
@@ -166,6 +181,7 @@ if (exists !== '1' || cookieState !== state) {
       },
     );
 
+    // fetch profile
     const infoRes = await axios.get(
       'https://www.googleapis.com/oauth2/v3/userinfo',
       {
@@ -178,7 +194,7 @@ if (exists !== '1' || cookieState !== state) {
 
     const profile = infoRes.data;
 
-    // 1) หา / สร้าง user ในระบบ
+    // 1) map / create OAuth user
     const firebaseUid = await this.auth.getOrCreateOAuthUser(
       'google',
       profile.sub,
@@ -187,19 +203,19 @@ if (exists !== '1' || cookieState !== state) {
       profile.picture,
     );
 
-    // 2) ดึง user จริงจาก DB
+    // 2) load local user
     const user = await this.auth.getUserByFirebaseUid(firebaseUid);
     if (!user) {
       throw new UnauthorizedException('User not found');
     }
 
-    // 3) สร้าง Firebase Custom Token
+    // 3) create Firebase custom token (for hybrid auth)
     const customToken = await this.auth.createFirebaseCustomToken(
       firebaseUid,
       user,
     );
 
-    // 4) Redirect กลับ frontend (ใช้ helper ป้องกัน path ซ้ำ)
+    // 4) redirect to frontend complete step
     const finalUrl = buildFinalUrl(
       process.env.GOOGLE_PROVIDER_REDIRECT_AFTER_LOGIN ||
         'https://www.phlyphant.com',
@@ -361,6 +377,7 @@ async facebookCallback(@Req() req: Request, @Res() res: Response) {
  * Social Login Final Step
  * ================================================================ */
  @Public() 
+ @UseGuards(FirebaseAuthGuard)
 @Post('complete')
   async complete(
     @Body() body: any,
