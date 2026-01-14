@@ -281,52 +281,13 @@ export default function FeedPage({
       <ul className="py-1 text-sm text-gray-700">
         <li>
           <Link
-            href="/account"
+            href="/account/"
             role="menuitem"
             className="block px-4 py-2 hover:bg-gray-100"
           >
             Account
           </Link>
         </li>
-
-        <li>
-          <Link
-            href="/safety"
-            role="menuitem"
-            className="block px-4 py-2 hover:bg-gray-100"
-          >
-            Safety
-          </Link>
-        </li>
-
-        <li>
-          <Link
-            href="/reports/me"
-            role="menuitem"
-            className="block px-4 py-2 hover:bg-gray-100"
-          >
-            Reports
-          </Link>
-        </li>
-         <li>
-  <Link
-    href="/appeals/me"
-    role="menuitem"
-    className="block px-4 py-2 hover:bg-gray-100"
-  >
-    Appeals
-  </Link>
-</li>
-
-          <li>
-        <Link
-          href="/users/blocks"
-          role="menuitem"
-          className="block px-4 py-2 hover:bg-gray-100"
-        >
-          Blocked Users
-        </Link>
-      </li>
 
         {/* 🌐 Language */}
         <li className="px-4 py-2 hover:bg-gray-100">

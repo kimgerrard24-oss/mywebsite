@@ -552,48 +552,44 @@ async updatePhoneWithHistory(params: {
 
 
 async consumePhoneChangeToken(params: {
-  userId: string;
-  token: string;
-}) {
-  const tokenHash = crypto
-    .createHash('sha256')
-    .update(params.token)
-    .digest('hex');
+  tokenId: string;
+}): Promise<boolean> {
+  const res =
+    await this.prisma.identityVerificationToken.updateMany({
+      where: {
+        id: params.tokenId,
+        usedAt: null, // ✅ atomic guard
+      },
+      data: {
+        usedAt: new Date(),
+      },
+    });
 
-  return this.prisma.identityVerificationToken.updateMany({
-    where: {
-      userId: params.userId,
-      type: VerificationType.PHONE_CHANGE,
-      tokenHash,
-      usedAt: null,
-      expiresAt: { gt: new Date() },
-    },
-    data: {
-      usedAt: new Date(),
-    },
-  });
+  return res.count === 1;
 }
 
-async findPhoneChangeToken(params: {
+async findPhoneChangeTokenByHash(params: {
   userId: string;
-  token: string;
+  tokenHash: string;
 }) {
-  const tokenHash = crypto
-    .createHash('sha256')
-    .update(params.token)
-    .digest('hex');
-
   return this.prisma.identityVerificationToken.findFirst({
     where: {
       userId: params.userId,
       type: VerificationType.PHONE_CHANGE,
-      tokenHash,
+      tokenHash: params.tokenHash,
       usedAt: null,
-      expiresAt: { gt: new Date() },
     },
   });
 }
 
+async incrementPhoneChangeAttempt(id: string) {
+  await this.prisma.identityVerificationToken.update({
+    where: { id },
+    data: {
+      attemptCount: { increment: 1 },
+    },
+  });
+}
 
 }
 

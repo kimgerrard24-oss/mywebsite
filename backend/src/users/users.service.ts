@@ -5,6 +5,7 @@ import {
   BadRequestException,
   InternalServerErrorException,
   ConflictException,
+  Logger,
 } from "@nestjs/common";
 import { PrismaService } from "../prisma/prisma.service";
 import { UserProfileDto } from "./dto/user-profile.dto";
@@ -40,9 +41,11 @@ import { UserIdentityAudit } from './audit/user-identity.audit';
 import { PhoneVerificationService } from '../identities/phone/phone-verification.service';
 import { ConfirmPhoneChangeDto } from './dto/confirm-phone-change.dto';
 import { ConfirmPhoneChangePolicy } from './policies/confirm-phone-change.policy';
+import { createHash } from 'node:crypto';
 
 @Injectable()
 export class UsersService {
+  private readonly logger = new Logger(UsersService.name);
   constructor(private readonly prisma: PrismaService,
               private readonly repo: UsersRepository,
               private readonly audit: UserProfileAudit,
@@ -804,6 +807,9 @@ async requestPhoneChange(
   dto: RequestPhoneChangeDto,
   meta?: { ip?: string; userAgent?: string },
 ) {
+  // =================================================
+  // 1) Load user (authoritative)
+  // =================================================
   const user =
     await this.repo.findUserForPhoneChange(userId);
 
@@ -811,18 +817,27 @@ async requestPhoneChange(
     throw new BadRequestException('User not found');
   }
 
+  // =================================================
+  // 2) Business policy
+  // =================================================
   RequestPhoneChangePolicy.assertCanRequest({
     isDisabled: user.isDisabled,
     isBanned: user.isBanned,
     isAccountLocked: user.isAccountLocked,
   });
 
+  // =================================================
+  // 3) Normalize + validate phone (SERVER authority)
+  // =================================================
   const normalizedPhone =
     RequestPhoneChangePolicy.normalizePhone(
       dto.phone,
       dto.countryCode,
     );
 
+  // =================================================
+  // 4) Unique constraint
+  // =================================================
   const taken =
     await this.repo.isPhoneTaken(normalizedPhone);
 
@@ -832,11 +847,18 @@ async requestPhoneChange(
     );
   }
 
+  // =================================================
+  // 5) Generate verification token
+  // =================================================
   const token =
     this.credentialVerify.generateToken();
-  const expiresAt =
-    this.credentialVerify.getExpiry(10); // minutes
 
+  const expiresAt =
+    this.credentialVerify.getExpiry(10);
+
+  // =================================================
+  // 6) Persist verification request
+  // =================================================
   await this.repo.createIdentityVerificationToken({
     userId,
     type: VerificationType.PHONE_CHANGE,
@@ -845,21 +867,51 @@ async requestPhoneChange(
     expiresAt,
   });
 
-  // ===== SEND SMS (infra) =====
+  // =================================================
+  // 7) Send SMS (infra layer)
+  // =================================================
+  // ===== SEND SMS =====
+try {
   await this.phoneVerify.sendChangePhoneSMS({
     phone: normalizedPhone,
     token: token.raw,
   });
+} catch (err) {
+  this.logger.error(
+    '[PHONE_CHANGE_SMS_FAILED]',
+    err,
+  );
 
-  // ===== SECURITY EVENT =====
-  await this.repo.createSecurityEvent({
-    userId,
-    type: SecurityEventType.PHONE_CHANGE_REQUEST,
-    ip: meta?.ip,
-    userAgent: meta?.userAgent,
-  });
+  try {
+    await this.repo.createSecurityEvent({
+      userId,
+      type: SecurityEventType.SUSPICIOUS_ACTIVITY,
+      ip: meta?.ip,
+      userAgent: meta?.userAgent,
+    });
+  } catch {}
 
-  // ===== AUDIT LOG =====
+  throw new BadRequestException(
+    'Unable to send verification code',
+  );
+}
+
+
+  // =================================================
+  // 8) Security Event
+  // =================================================
+  try {
+    await this.repo.createSecurityEvent({
+      userId,
+      type: SecurityEventType.PHONE_CHANGE_REQUEST,
+      ip: meta?.ip,
+      userAgent: meta?.userAgent,
+    });
+  } catch {}
+
+  // =================================================
+  // 9) Audit Log
+  // =================================================
   try {
     await this.auditLogService.log({
       userId,
@@ -871,60 +923,129 @@ async requestPhoneChange(
   return { success: true };
 }
 
+
+
 async confirmPhoneChange(
   userId: string,
   dto: ConfirmPhoneChangeDto,
   meta?: { ip?: string; userAgent?: string },
 ) {
+  // =================================================
+  // 1) Load user (authority)
+  // =================================================
   const user = await this.repo.findUserForPhoneChange(userId);
+
   if (!user) {
     throw new BadRequestException('User not found');
   }
 
-  try {
-    ConfirmPhoneChangePolicy.assertCanConfirm({
-      isDisabled: user.isDisabled,
-      isBanned: user.isBanned,
-      isAccountLocked: user.isAccountLocked,
+  // =================================================
+  // 2) Policy check
+  // =================================================
+  ConfirmPhoneChangePolicy.assertCanConfirm({
+    isDisabled: user.isDisabled,
+    isBanned: user.isBanned,
+    isAccountLocked: user.isAccountLocked,
+  });
+
+  // =================================================
+  // 3) Hash token (server-side only)
+  // =================================================
+  const tokenHash = createHash('sha256')
+    .update(dto.token)
+    .digest('hex');
+
+  // =================================================
+  // 4) Load verification token
+  // =================================================
+  const tokenRecord =
+    await this.repo.findPhoneChangeTokenByHash({
+      userId,
+      tokenHash,
     });
-  } catch (err: any) {
-    throw new BadRequestException(err.message);
+
+  if (!tokenRecord || !tokenRecord.target) {
+  if (tokenRecord?.id) {
+    try {
+      await this.repo.incrementPhoneChangeAttempt(
+        tokenRecord.id,
+      );
+    } catch {}
   }
 
-  const token =
-    await this.repo.findPhoneChangeToken({
-      userId,
-      token: dto.token,
-    });
+  throw new BadRequestException(
+    'Invalid or expired token',
+  );
+}
 
-  if (!token || !token.target) {
+
+  // =================================================
+  // 5) Expiry check (defensive)
+  // =================================================
+  if (tokenRecord.expiresAt < new Date()) {
+    throw new BadRequestException('Token expired');
+  }
+
+  // =================================================
+  // 6) Attempt limit (anti brute-force)
+  // =================================================
+  if (tokenRecord.attemptCount >= 5) {
     throw new BadRequestException(
-      'Invalid or expired token',
+      'Too many attempts. Please request again.',
     );
   }
 
+  // =================================================
+  // 7) Atomic consume (no reuse)
+  // =================================================
+  const consumed =
   await this.repo.consumePhoneChangeToken({
-    userId,
-    token: dto.token,
+    tokenId: tokenRecord.id,
   });
 
+if (!consumed) {
+  try {
+    await this.repo.incrementPhoneChangeAttempt(
+      tokenRecord.id,
+    );
+  } catch {}
+
+  throw new BadRequestException(
+    'Token already used',
+  );
+}
+
+
+  // =================================================
+  // 8) Update phone + history (transactional)
+  // =================================================
   await this.repo.updatePhoneWithHistory({
     userId,
-    newPhone: token.target,
+    newPhone: tokenRecord.target,
   });
 
-  await this.repo.createSecurityEvent({
-    userId,
-    type: SecurityEventType.PHONE_CHANGED,
-    ip: meta?.ip,
-    userAgent: meta?.userAgent,
-  });
+  // =================================================
+  // 9) Security Event
+  // =================================================
+  try {
+    await this.repo.createSecurityEvent({
+      userId,
+      type: SecurityEventType.PHONE_CHANGED,
+      ip: meta?.ip,
+      userAgent: meta?.userAgent,
+    });
+  } catch {}
 
-  // fire-and-forget audit
+  // =================================================
+  // 10) Identity audit (fire-and-forget)
+  // =================================================
   try {
     this.identityAudit.logPhoneChanged(userId);
   } catch {}
 
+  // =================================================
+  // 11) Compliance audit
+  // =================================================
   try {
     await this.auditLogService.log({
       userId,
@@ -935,6 +1056,9 @@ async confirmPhoneChange(
 
   return { success: true };
 }
+
+
+
 }
 
 

@@ -348,30 +348,60 @@ async updateUsername(
   // POST /api/users/me/phone/change-request
   // ================================
   @UseGuards(AccessTokenCookieAuthGuard)
-  @Post('me/phone/change-request')
-  async requestPhoneChange(
-    @Req() req: any,
-    @Body() dto: RequestPhoneChangeDto,
-  ) {
-    const userId = req.user.userId;
+  @RateLimit('phoneChangeRequest')
+@Post('me/phone/change-request')
+async requestPhoneChange(
+  @Req() req: any,
+  @Body() dto: RequestPhoneChangeDto,
+) {
+  const userId = req.user?.userId;
 
-    return this.usersService.requestPhoneChange(userId, dto, {
-      ip: req.ip,
-      userAgent: req.headers['user-agent'],
-    });
+  if (!userId) {
+    throw new UnauthorizedException();
   }
 
-  @Post('/me/phone/confirm')
+  const forwarded = req.headers['x-forwarded-for'];
+  const ip =
+    typeof forwarded === 'string'
+      ? forwarded.split(',')[0].trim()
+      : req.ip || undefined;
+
+  const userAgent =
+    typeof req.headers['user-agent'] === 'string'
+      ? req.headers['user-agent']
+      : undefined;
+
+  return this.usersService.requestPhoneChange(userId, dto, {
+    ip,
+    userAgent,
+  });
+}
+
 @UseGuards(AccessTokenCookieAuthGuard)
+@RateLimit('phoneChangeConfirm')
+@Post('/me/phone/confirm')
 async confirmPhoneChange(
   @Req() req: any,
   @Body() dto: ConfirmPhoneChangeDto,
 ) {
-  const userId = req.user.userId;
+  const userId = req.user?.userId;
+  if (!userId) throw new UnauthorizedException();
+
+  const forwarded = req.headers['x-forwarded-for'];
+  const ip =
+    typeof forwarded === 'string'
+      ? forwarded.split(',')[0].trim()
+      : req.ip || undefined;
+
+  const userAgent =
+    typeof req.headers['user-agent'] === 'string'
+      ? req.headers['user-agent']
+      : undefined;
 
   return this.usersService.confirmPhoneChange(userId, dto, {
-    ip: req.ip,
-    userAgent: req.headers['user-agent'],
+    ip,
+    userAgent,
   });
 }
+
 }

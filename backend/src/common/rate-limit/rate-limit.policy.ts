@@ -29,6 +29,8 @@ export type RateLimitAction =
   | 'mentionSearch'
   | 'verifyCredential'
   | 'usernameCheck'
+  | 'phoneChangeRequest'
+  | 'phoneChangeConfirm'
   | 'updateUsername';
 
 export type RateLimitEscalationConfig = {
@@ -533,6 +535,39 @@ verifyCredential: {
     longBlockSec: 21600,
   },
 },
+
+phoneChangeRequest: {
+  windowSec: 600,        // 10 นาที
+  max: 3,                // ขอได้ 3 ครั้ง
+  blockDurationSec: 1800, // block 30 นาที
+
+  points: 3,
+  duration: 600,
+  blockDuration: 1800,
+
+  escalation: {
+    maxViolations: 3,     // ถ้าโดน block 3 รอบ
+    windowSec: 86400,     // ภายใน 24 ชม.
+    longBlockSec: 21600,  // block 6 ชม.
+  },
+},
+
+phoneChangeConfirm: {
+  windowSec: 300,        // 5 นาที
+  max: 5,                // เดาได้ 5 ครั้ง
+  blockDurationSec: 900, // block 15 นาที
+
+  points: 5,
+  duration: 300,
+  blockDuration: 900,
+
+  escalation: {
+    maxViolations: 3,
+    windowSec: 86400,
+    longBlockSec: 21600,
+  },
+},
+
 
 };
 
