@@ -9,6 +9,7 @@ import {
   UnauthorizedException,
   ConflictException,
   NotFoundException,
+  forwardRef,
   ForbiddenException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
@@ -31,6 +32,8 @@ import { UserProfileDto } from './dto/user-profile.dto';
 import * as jwt from 'jsonwebtoken';
 import { SessionService } from './session/session.service';
 import { SecurityEventService } from '../common/security/security-event.service';
+import type { User } from '@prisma/client';
+import { UsersService } from '../users/users.service';
 
 interface GoogleOAuthConfig {
   clientId: string;
@@ -65,7 +68,7 @@ const ACCESS_TOKEN_COOKIE_NAME = process.env.ACCESS_TOKEN_COOKIE_NAME || 'phl_ac
 export class AuthService {
   private readonly logger = new Logger(AuthService.name);
 
-constructor(
+ constructor(
   private readonly prisma: PrismaService,
   private readonly firebase: FirebaseAdminService,
   private readonly secretsService: SecretsService,
@@ -76,33 +79,74 @@ constructor(
   private readonly redisService: RedisService,
   private readonly sessionService: SessionService,
   private readonly securityEvent: SecurityEventService,
-) {}
+   @Inject(forwardRef(() => UsersService))
+  private readonly usersService: UsersService,
+ ) {}
 
 
-  // -------------------------------------------------------
-  // Local Register
-  // -------------------------------------------------------
+// -------------------------------------------------------
+// Local Register (with Email Verification via Resend)
+// -------------------------------------------------------
+async register(dto: RegisterDto): Promise<User> {
+  // =====================================================
+  // 1) Normalize inputs
+  // =====================================================
+  const email = dto.email.trim().toLowerCase();
+  const username = dto.username.trim();
 
-   async register(dto: RegisterDto) {
+  // =====================================================
+  // 2) Uniqueness check
+  // =====================================================
   const existing = await this.repo.findByEmailOrUsername(
-    dto.email,
-    dto.username,
+    email,
+    username,
   );
 
   if (existing) {
-    throw new ConflictException('Email or username already exists');
+    throw new ConflictException(
+      'Email or username already exists',
+    );
   }
 
+  // =====================================================
+  // 3) Hash password
+  // =====================================================
   const hashed = await hashPassword(dto.password);
 
-  return this.repo.createUser({
-    email: dto.email,
-    username: dto.username,
+  // =====================================================
+  // 4) Create user
+  // =====================================================
+  const user = await this.repo.createUser({
+    email,
+    username,
     hashedPassword: hashed,
     provider: 'local',
-    providerId: dto.email,  
+    providerId: email,
+    isEmailVerified: false,
   });
+
+  // =====================================================
+  // 5) Trigger email verification via UsersService flow
+  // =====================================================
+  try {
+    // 🔥 ให้ UsersService เป็นคนจัดการ token + resend
+    await this.usersService.requestEmailVerification(
+      user.id,
+      user.email,
+    );
+  } catch (err) {
+    // best-effort only
+    this.securityEvent.log({
+      type: 'system.misconfiguration',
+      severity: 'error',
+      userId: user.id,
+      reason: 'post_register_email_verification_failed',
+    });
+  }
+
+  return user;
 }
+
 
 // -------------------------------------------------------
 // Local Login (Validate Credentials Only)
@@ -477,34 +521,8 @@ if (accessToken) {
  async hashPassword(password: string): Promise<string> {
     return await argon2.hash(password);  
   }
-  // -------------------------------------------------------
-  // Verify Email (Local)
-  // -------------------------------------------------------
-async verifyEmailLocal(uid: string, token: string) {
-  const user = await this.prisma.user.findUnique({ where: { id: uid } });
 
-  if (!user || !user.emailVerifyTokenHash || !user.emailVerifyTokenExpires) {
-    throw new BadRequestException('Invalid token');
-  }
 
-  if (user.emailVerifyTokenExpires < new Date()) {
-    throw new BadRequestException('Token expired');
-  }
-
-  const ok = await comparePassword(token, user.emailVerifyTokenHash);
-  if (!ok) throw new BadRequestException('Invalid token');
-
-  await this.prisma.user.update({
-    where: { id: uid },
-    data: {
-      isEmailVerified: true,
-      emailVerifyTokenHash: null,
-      emailVerifyTokenExpires: null,
-    },
-  });
-
-  return { ok: true };
-}
 
   // ==========================================
   // GOOGLE

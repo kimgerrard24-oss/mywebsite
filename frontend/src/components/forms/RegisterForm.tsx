@@ -1,132 +1,218 @@
 // frontend/src/components/forms/RegisterForm.tsx
 
-import { useState, useEffect, useRef } from 'react';
-import axios from 'axios';
+import { useState, useEffect, useRef } from "react";
+import { registerUser } from "@/lib/api/auth";
 
 declare global {
   interface Window {
     turnstile?: any;
-    turnstileToken?: string | null;
   }
 }
 
 export default function RegisterForm() {
-  const [message, setMessage] = useState('');
-  const turnstileRef = useRef<HTMLDivElement | null>(null);
-  const widgetId = useRef<any>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
 
+  const turnstileRef = useRef<HTMLDivElement | null>(null);
+  const widgetId = useRef<string | null>(null);
+
+  // ==================================================
   // Render Invisible Turnstile widget
+  // ==================================================
   useEffect(() => {
     const interval = setInterval(() => {
-      if (window.turnstile && turnstileRef.current && !widgetId.current) {
-        widgetId.current = window.turnstile.render(turnstileRef.current, {
-          sitekey: process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!,
-          size: 'invisible',
-          callback: (token: string) => {
-            window.turnstileToken = token;
+      if (
+        window.turnstile &&
+        turnstileRef.current &&
+        !widgetId.current
+      ) {
+        widgetId.current = window.turnstile.render(
+          turnstileRef.current,
+          {
+            sitekey:
+              process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY!,
+            size: "invisible",
           },
-          'error-callback': () => {
-            window.turnstileToken = null;
-          },
-          'timeout-callback': () => {
-            window.turnstileToken = null;
-          },
-        });
+        );
       }
     }, 300);
 
     return () => clearInterval(interval);
   }, []);
 
+  // ==================================================
+  // Execute Turnstile and wait for token
+  // ==================================================
+  function getTurnstileToken(): Promise<string> {
+    return new Promise((resolve, reject) => {
+      if (!window.turnstile || !widgetId.current) {
+        reject(new Error("Captcha not ready"));
+        return;
+      }
+
+      window.turnstile.execute(widgetId.current, {
+        callback: (token: string) => {
+          resolve(token);
+        },
+        "error-callback": () => {
+          reject(new Error("Captcha error"));
+        },
+        "timeout-callback": () => {
+          reject(new Error("Captcha timeout"));
+        },
+      });
+    });
+  }
+
+  // ==================================================
   // Handle Register Submission
-  const handleSubmit = async (e: any) => {
+  // ==================================================
+  async function handleSubmit(
+    e: React.FormEvent<HTMLFormElement>,
+  ) {
     e.preventDefault();
+    setMessage(null);
+    setError(null);
 
-    // Execute Turnstile challenge
-    if (window.turnstile && widgetId.current) {
-      window.turnstile.execute(widgetId.current);
-    }
+    const form = new FormData(e.currentTarget);
 
-    // Wait for token generation
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    const email = String(form.get("email") || "").trim();
+    const username = String(form.get("username") || "").trim();
+    const password = String(form.get("password") || "");
 
-    const turnstileToken = window.turnstileToken;
-    if (!turnstileToken) {
-      setMessage('Captcha verification failed. Please try again.');
+    if (!email || !username || !password) {
+      setError("Please fill in all required fields.");
       return;
     }
 
-    // Extract form fields
-    const form = new FormData(e.target);
-    const payload = {
-      email: form.get('email'),
-      username: form.get('username'),
-      password: form.get('password'),
-      turnstileToken, // required for backend verification
-    };
+    setLoading(true);
+
+    let turnstileToken: string;
 
     try {
-      await axios.post(
-        `${process.env.NEXT_PUBLIC_BACKEND_URL}/auth/local/register`,
-        payload
+      turnstileToken = await getTurnstileToken();
+    } catch {
+      setLoading(false);
+      setError(
+        "Captcha verification failed. Please try again.",
       );
-      setMessage('Registration successful. Please check your email to verify.');
-    } catch (err: any) {
+      return;
+    }
+
+    try {
+      await registerUser({
+        email,
+        username,
+        password,
+        turnstileToken,
+      });
+
       setMessage(
-        err?.response?.data?.message || 'Registration failed.'
+        "Registration successful. Please check your email to verify your account.",
+      );
+
+      // optional: reset form
+      e.currentTarget.reset();
+    } catch (err: any) {
+      setError(
+        err?.response?.data?.message ||
+          err?.message ||
+          "Registration failed. Please try again.",
       );
     } finally {
-      // Reset token
-      window.turnstileToken = null;
-      if (window.turnstile && widgetId.current) {
-        window.turnstile.reset(widgetId.current);
-      }
+      setLoading(false);
+
+      // reset captcha for next attempt
+      try {
+        if (window.turnstile && widgetId.current) {
+          window.turnstile.reset(widgetId.current);
+        }
+      } catch {}
     }
-  };
+  }
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      
-      {/* Invisible Turnstile Element */}
+    <form
+      onSubmit={handleSubmit}
+      className="space-y-4"
+      aria-label="Register form"
+    >
+      {/* Invisible Turnstile */}
       <div ref={turnstileRef} />
 
       <label className="block">
-        <span>Email</span>
+        <span className="text-sm text-gray-700">
+          Email
+        </span>
         <input
           required
           name="email"
           type="email"
-          className="w-full p-2 border rounded"
+          autoComplete="email"
+          className="w-full rounded border px-3 py-2 text-sm"
         />
       </label>
 
       <label className="block">
-        <span>Username</span>
+        <span className="text-sm text-gray-700">
+          Username
+        </span>
         <input
           required
           name="username"
-          className="w-full p-2 border rounded"
+          autoComplete="username"
+          className="w-full rounded border px-3 py-2 text-sm"
         />
       </label>
 
       <label className="block">
-        <span>Password</span>
+        <span className="text-sm text-gray-700">
+          Password
+        </span>
         <input
           required
           name="password"
           type="password"
-          className="w-full p-2 border rounded"
+          autoComplete="new-password"
+          className="w-full rounded border px-3 py-2 text-sm"
         />
       </label>
 
+      {error && (
+        <p className="text-sm text-red-600" role="alert">
+          {error}
+        </p>
+      )}
+
+      {message && (
+        <p
+          className="text-sm text-green-600"
+          role="status"
+        >
+          {message}
+        </p>
+      )}
+
       <button
         type="submit"
-        className="w-full p-2 bg-blue-600 text-white rounded"
+        disabled={loading}
+        className="
+          w-full
+          rounded
+          bg-blue-600
+          px-4
+          py-2
+          text-sm
+          font-medium
+          text-white
+          hover:bg-blue-700
+          disabled:opacity-50
+        "
       >
-        Register
+        {loading ? "Creating account..." : "Register"}
       </button>
-
-      {message && <p className="text-green-600">{message}</p>}
     </form>
   );
 }
+

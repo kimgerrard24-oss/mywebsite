@@ -42,6 +42,8 @@ import { PhoneVerificationService } from '../identities/phone/phone-verification
 import { ConfirmPhoneChangeDto } from './dto/confirm-phone-change.dto';
 import { ConfirmPhoneChangePolicy } from './policies/confirm-phone-change.policy';
 import { createHash } from 'node:crypto';
+import { SecurityEventService } from '../common/security/security-event.service';
+import { MailService } from '../mail/mail.service';
 
 @Injectable()
 export class UsersService {
@@ -56,6 +58,8 @@ export class UsersService {
               private readonly securityAudit: SecurityEventsAudit,
               private readonly identityAudit: UserIdentityAudit,
               private readonly phoneVerify: PhoneVerificationService,
+              private readonly securityEvent: SecurityEventService,
+              private readonly mailService: MailService,
   ) {}
 
   async findByEmail(email: string) {
@@ -97,34 +101,7 @@ export class UsersService {
     });
   }
 
-  async setEmailVerifyToken(userId: string, hash: string, expires: Date) {
-  const user = await this.prisma.user.findUnique({ where: { id: userId } });
-  if (!user) throw new NotFoundException("User not found");
-
-  const updated = await this.prisma.user.update({
-    where: { id: userId },
-    data: {
-      emailVerifyTokenHash: hash,
-      emailVerifyTokenExpires: expires,
-    },
-  });
-
-  // ===============================
-  // ✅ AUDIT LOG: REQUEST EMAIL VERIFY
-  // ===============================
-  try {
-    await this.auditLogService.log({
-      userId,
-      action: 'USER_REQUEST_EMAIL_VERIFY',
-      success: true,
-    });
-  } catch {
-    // must not affect main flow
-  }
-
-  return updated;
-}
-
+  
 
  async setPasswordResetToken(
   userId: string,
@@ -161,40 +138,80 @@ export class UsersService {
   return updated;
 }
 
+async requestEmailVerification(userId: string, email: string) {
+  const token = this.credentialVerify.generateToken();
+  const expiresAt = this.credentialVerify.getExpiry(30);
 
-  async verifyEmailByToken(tokenHash: string) {
-  const user = await this.prisma.user.findFirst({
-    where: {
-      emailVerifyTokenHash: tokenHash,
-      emailVerifyTokenExpires: { gt: new Date() },
-    },
+  await this.repo.createIdentityVerificationToken({
+    userId,
+    type: VerificationType.EMAIL_VERIFY,
+    tokenHash: token.hash,
+    expiresAt,
   });
 
-  if (!user) throw new BadRequestException('Invalid or expired token');
+  const baseUrl = process.env.PUBLIC_SITE_URL;
+  if (!baseUrl) return;
 
-  const updated = await this.prisma.user.update({
-    where: { id: user.id },
-    data: {
-      isEmailVerified: true,
-      emailVerifyTokenHash: null,
-      emailVerifyTokenExpires: null,
-    },
+  const verifyUrl =
+    `${baseUrl}/settings/email-confirm` +
+    `?uid=${encodeURIComponent(userId)}` +
+    `&token=${encodeURIComponent(token.raw)}`;
+
+  try {
+    await this.mailService.sendEmailVerification(
+      email,
+      verifyUrl,
+    );
+  } catch {}
+}
+
+async confirmEmailVerification(userId: string, token: string) {
+  const user = await this.repo.findUserForEmailVerify(userId);
+
+  if (
+    !user ||
+    user.isEmailVerified ||
+    user.isDisabled ||
+    user.isBanned ||
+    user.isAccountLocked
+  ) {
+    throw new BadRequestException(
+      'Invalid or expired verification link',
+    );
+  }
+
+  const ok = await this.repo.consumeEmailVerifyToken({
+    userId,
+    token,
   });
 
-  // ===============================
-  // ✅ AUDIT LOG: VERIFY EMAIL
-  // ===============================
+  if (!ok) {
+    throw new BadRequestException(
+      'Invalid or expired verification link',
+    );
+  }
+
+  await this.prisma.user.update({
+    where: { id: userId },
+    data: { isEmailVerified: true },
+  });
+
+  try {
+    await this.repo.createSecurityEvent({
+      userId,
+      type: SecurityEventType.CREDENTIAL_VERIFIED,
+    });
+  } catch {}
+
   try {
     await this.auditLogService.log({
-      userId: user.id,
+      userId,
       action: 'USER_VERIFY_EMAIL',
       success: true,
     });
-  } catch {
-    // must not affect verify flow
-  }
+  } catch {}
 
-  return updated;
+  return { success: true };
 }
 
 
@@ -704,47 +721,110 @@ async updateAvatar(params: {
   dto: EmailChangeRequestDto,
   meta?: { ip?: string; userAgent?: string },
 ) {
+  // =====================================================
+  // 1) Load user (authority)
+  // =====================================================
   const user =
     await this.repo.findUserForEmailChange(userId);
 
   if (!user) {
+    // should never happen with auth guard, but keep safe
     throw new BadRequestException('User not found');
   }
 
+  // =====================================================
+  // 2) Policy check (account state)
+  // =====================================================
   EmailChangePolicy.assertCanRequest({
     isDisabled: user.isDisabled,
     isBanned: user.isBanned,
     isAccountLocked: user.isAccountLocked,
   });
 
-  if (dto.newEmail === user.email) {
-    throw new BadRequestException(
-      'Email is unchanged',
-    );
+  // =====================================================
+  // 3) Normalize + compare email
+  // =====================================================
+  const newEmail = dto.newEmail.trim().toLowerCase();
+  const currentEmail = user.email.trim().toLowerCase();
+
+  if (newEmail === currentEmail) {
+    throw new BadRequestException('Email is unchanged');
   }
 
+  // =====================================================
+  // 4) Uniqueness check
+  // =====================================================
   const emailTaken =
-    await this.repo.isEmailTaken(dto.newEmail);
+    await this.repo.isEmailTaken(newEmail);
 
   if (emailTaken) {
+    // do not reveal whose email it is
     throw new ConflictException(
       'Email already in use',
     );
   }
 
+  // =====================================================
+  // 5) Generate verification token (one-time)
+  // =====================================================
   const token =
-    this.credentialVerify.generateToken();
+    this.credentialVerify.generateToken(); // { raw, hash }
   const expiresAt =
-    this.credentialVerify.getExpiry(15);
+    this.credentialVerify.getExpiry(15); // minutes
 
+  // =====================================================
+  // 6) Persist token (invalidate previous)
+  // =====================================================
   await this.repo.createIdentityVerificationToken({
     userId,
     type: VerificationType.EMAIL_CHANGE,
     tokenHash: token.hash,
-    target: dto.newEmail,
+    target: newEmail,
     expiresAt,
   });
 
+  // =====================================================
+  // 7) Send confirmation email to NEW address (Resend)
+  // =====================================================
+  const baseUrl = process.env.PUBLIC_SITE_URL;
+
+  if (!baseUrl) {
+    // system misconfiguration must be visible to ops
+    this.securityEvent.log({
+      type: 'system.misconfiguration',
+      severity: 'error',
+      userId,
+      reason: 'PUBLIC_SITE_URL missing for email change',
+    });
+  } else {
+    const confirmUrl =
+      `${baseUrl}/settings/email-change-confirm` +
+      `?token=${encodeURIComponent(token.raw)}`;
+
+    try {
+      await this.mailService.sendEmailChangeConfirmation(
+        newEmail,
+        confirmUrl,
+      );
+    } catch (err) {
+      /**
+       * IMPORTANT (production):
+       * - Do NOT block user flow
+       * - Do NOT reveal email send failure
+       * - Log technical event only
+       */
+      this.securityEvent.log({
+        type: 'system.misconfiguration',
+        severity: 'error',
+        userId,
+        reason: 'email_change_send_failed',
+      });
+    }
+  }
+
+  // =====================================================
+  // 8) Security event (business event)
+  // =====================================================
   await this.repo.createSecurityEvent({
     userId,
     type: SecurityEventType.EMAIL_CHANGE_REQUEST,
@@ -752,55 +832,112 @@ async updateAvatar(params: {
     userAgent: meta?.userAgent,
   });
 
+  // =====================================================
+  // 9) Generic success response
+  // =====================================================
   return { success: true };
 }
+
 
 async confirmEmailChange(
   userId: string,
   dto: ConfirmEmailChangeDto,
   meta?: { ip?: string; userAgent?: string },
 ) {
+  /**
+   * SECURITY PRINCIPLES:
+   * - Do not reveal whether user or token is invalid
+   * - Token must be single-use
+   * - Prevent race / replay
+   */
+
+  // =====================================================
+  // 1) Load user (authority)
+  // =====================================================
   const user =
     await this.repo.findUserForEmailChange(userId);
 
   if (!user) {
-    throw new BadRequestException('User not found');
+    // should not happen with auth guard, but avoid enumeration
+    throw new BadRequestException(
+      'Invalid or expired token',
+    );
   }
 
+  // =====================================================
+  // 2) Policy check (account state)
+  // =====================================================
   ConfirmEmailChangePolicy.assertCanConfirm({
     isDisabled: user.isDisabled,
     isBanned: user.isBanned,
     isAccountLocked: user.isAccountLocked,
   });
 
+  // =====================================================
+  // 3) Consume token (atomic, one-time)
+  // =====================================================
   const token =
     await this.repo.consumeEmailChangeToken({
       userId,
-      token: dto.token,
+      token: dto.token, // raw token, repo hashes & compares
     });
 
-  if (!token) {
+  if (!token || !token.target) {
+    // unified failure path (no detail leak)
     throw new BadRequestException(
       'Invalid or expired token',
     );
   }
 
-  await this.repo.updateUserEmail({
-    userId,
-    newEmail: token.target!,
-  });
+  // =====================================================
+  // 4) Apply email change (authority write)
+  // =====================================================
+  try {
+    await this.repo.updateUserEmail({
+      userId,
+      newEmail: token.target,
+    });
+  } catch (err) {
+    /**
+     * Extremely rare:
+     * - unique constraint race
+     * - DB failure
+     * Token already consumed → do NOT retry automatically
+     */
+    this.securityEvent.log({
+      type: 'system.misconfiguration',
+      severity: 'error',
+      userId,
+      reason: 'email_change_update_failed',
+    });
 
-  await this.repo.createSecurityEvent({
-    userId,
-    type: SecurityEventType.EMAIL_CHANGED,
-    ip: meta?.ip,
-    userAgent: meta?.userAgent,
-  });
+    throw new BadRequestException(
+      'Unable to complete email change',
+    );
+  }
 
-  this.identityAudit.logEmailChanged(userId);
+  // =====================================================
+  // 5) Security + audit logs (best-effort)
+  // =====================================================
+  try {
+    await this.repo.createSecurityEvent({
+      userId,
+      type: SecurityEventType.EMAIL_CHANGED,
+      ip: meta?.ip,
+      userAgent: meta?.userAgent,
+    });
+  } catch {}
 
+  try {
+    this.identityAudit.logEmailChanged(userId);
+  } catch {}
+
+  // =====================================================
+  // 6) Generic success response
+  // =====================================================
   return { success: true };
 }
+
 
 async requestPhoneChange(
   userId: string,

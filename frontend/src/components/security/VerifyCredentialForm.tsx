@@ -16,37 +16,68 @@ export default function VerifyCredentialForm({
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
 
+    if (loading) return; // 🔒 prevent double submit
     if (!password.trim()) return;
 
     const ok = await submit(password);
+
     if (ok) {
       onSuccess();
+      return;
     }
+
+    // 🔐 clear sensitive input on failure
+    setPassword("");
   }
 
   return (
     <form
       onSubmit={handleSubmit}
       className="space-y-4"
+      aria-busy={loading}
     >
       <div>
-        <label className="block text-sm font-medium">
+        <label
+          htmlFor="verify-password"
+          className="block text-sm font-medium"
+        >
           Confirm your password
         </label>
 
         <input
+          id="verify-password"
           type="password"
           value={password}
-          onChange={(e) =>
-            setPassword(e.target.value)
-          }
+          onChange={(e) => setPassword(e.target.value)}
           required
-          className="mt-1 w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          disabled={loading}
+          aria-invalid={Boolean(error)}
+          aria-describedby={
+            error ? "verify-password-error" : undefined
+          }
+          autoComplete="current-password"
+          className="
+            mt-1
+            w-full
+            rounded-lg
+            border
+            px-3
+            py-2
+            text-sm
+            focus:outline-none
+            focus:ring-2
+            focus:ring-blue-500
+            disabled:opacity-60
+          "
         />
       </div>
 
       {error && (
-        <p className="text-sm text-red-600">
+        <p
+          id="verify-password-error"
+          role="alert"
+          className="text-sm text-red-600"
+        >
           {error}
         </p>
       )}
@@ -54,7 +85,18 @@ export default function VerifyCredentialForm({
       <button
         type="submit"
         disabled={loading}
-        className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
+        className="
+          w-full
+          rounded-lg
+          bg-blue-600
+          px-4
+          py-2
+          text-sm
+          font-medium
+          text-white
+          hover:bg-blue-700
+          disabled:opacity-60
+        "
       >
         {loading ? "Verifying..." : "Verify"}
       </button>

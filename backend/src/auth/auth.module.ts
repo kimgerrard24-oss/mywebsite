@@ -30,12 +30,15 @@ import { PasswordResetMailService } from '../mail/password-reset-mail.service';
 import { ValidateSessionService } from './services/validate-session.service';
 import { AccessTokenCookieAuthGuard } from './guards/access-token-cookie.guard';
 import { SessionModule } from './session/session.module';
+import { forwardRef } from '@nestjs/common';
+import { UsersModule } from '../users/users.module';
 
 @Module({
   imports: [
     SecretsModule,
     FirebaseAdminModule,
     PrismaModule,
+    forwardRef(() => UsersModule),
     RedisModule,
     RateLimitModule,
     MailModule,

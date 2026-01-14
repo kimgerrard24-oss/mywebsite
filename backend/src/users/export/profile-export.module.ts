@@ -13,7 +13,7 @@ import { AuthModule } from '../../auth/auth.module';
 @Module({
   imports: [
     PrismaModule,
-    AuthModule,
+    forwardRef(() => AuthModule), 
     AuditModule,
     forwardRef(() => UsersModule),
   ],

@@ -1,7 +1,7 @@
-// file: src/mail/password-reset-mail.service.ts
+// backend/src/mail/password-reset-mail.service.ts
 
 import { Injectable, Logger } from '@nestjs/common';
-import { SES } from 'aws-sdk';
+import { Resend } from 'resend';
 import {
   buildPasswordResetEmailTemplate,
   PasswordResetEmailTemplateParams,
@@ -9,39 +9,28 @@ import {
 
 @Injectable()
 export class PasswordResetMailService {
-  private readonly logger = new Logger(PasswordResetMailService.name);
-  private readonly ses: SES;
+  private readonly logger = new Logger(
+    PasswordResetMailService.name,
+  );
+  private readonly resend: Resend;
   private readonly fromAddress: string;
 
   constructor() {
-    /**
-     * IMPORTANT:
-     * SES region must match verified identity region
-     */
-    const region =
-      process.env.AWS_REGION || 'ap-southeast-1';
+    const apiKey = process.env.RESEND_API_KEY;
+    const from =
+      process.env.MAIL_FROM ||
+      process.env.NEXT_PUBLIC_EMAIL_FROM;
 
-    this.fromAddress =
-      process.env.SES_FROM_ADDRESS ||
-      process.env.NEXT_PUBLIC_EMAIL_FROM ||
-      'support@phlyphant.com';
-
-    if (!this.fromAddress) {
-      this.logger.error(
-        'SES_FROM_ADDRESS is not configured',
-      );
+    if (!apiKey) {
+      throw new Error('RESEND_API_KEY is not configured');
     }
 
-    if (!region) {
-      this.logger.error(
-        'AWS_REGION is not configured for SES',
-      );
+    if (!from) {
+      throw new Error('MAIL_FROM is not configured');
     }
 
-    this.ses = new SES({
-      region,
-      maxRetries: 3, // production-safe retry
-    });
+    this.resend = new Resend(apiKey);
+    this.fromAddress = from;
   }
 
   async sendPasswordResetEmail(
@@ -63,22 +52,14 @@ export class PasswordResetMailService {
         expiresInMinutes: params.expiresInMinutes,
       });
 
-    const emailParams: SES.SendEmailRequest = {
-      Source: this.fromAddress,
-      Destination: {
-        ToAddresses: [to],
-      },
-      Message: {
-        Subject: { Data: subject },
-        Body: {
-          Text: { Data: text },
-          Html: { Data: html },
-        },
-      },
-    };
-
     try {
-      await this.ses.sendEmail(emailParams).promise();
+      await this.resend.emails.send({
+        from: this.fromAddress,
+        to,
+        subject,
+        html,
+        text,
+      });
     } catch (error: any) {
       /**
        * ❗ SECURITY & PRIVACY
@@ -87,8 +68,10 @@ export class PasswordResetMailService {
        * - Log only technical failure
        */
       this.logger.error(
-        'Failed to send password reset email via SES',
-        error?.stack || String(error),
+        'Failed to send password reset email via Resend',
+        error instanceof Error
+          ? error.stack
+          : String(error),
       );
 
       /**

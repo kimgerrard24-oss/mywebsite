@@ -27,11 +27,12 @@ import axios from 'axios';
 import { Public } from './decorators/public.decorator';
 import { RegisterDto } from './dto/register.dto';
 import { RateLimit } from '../common/rate-limit/rate-limit.decorator';
-import { AuthRepository } from './auth.repository';
 import { AuditService } from './audit.service';
 import { RateLimitGuard } from '../common/rate-limit/rate-limit.guard';
 import { RateLimitService } from '../common/rate-limit/rate-limit.service';
 import { AccessTokenCookieAuthGuard } from './guards/access-token-cookie.guard';
+import { SecurityEventService } from '../common/security/security-event.service';
+import { UsersService } from '../users/users.service';
 
 
 function normalizeRedirectUri(raw: string): string {
@@ -87,9 +88,10 @@ export class AuthController {
 
   constructor(
     private readonly authService: AuthService,
-    private readonly authRepo: AuthRepository,
     private readonly audit: AuditService,
     private readonly rateLimitService: RateLimitService,
+    private readonly securityEvent: SecurityEventService,
+    private readonly usersService: UsersService,
   ) {}
 
   // Local register
@@ -110,12 +112,12 @@ export class AuthController {
     }),
   )
 
-  @Public()
-  async register(
+
+ @Public()
+async register(
   @Body() dto: RegisterDto & { turnstileToken?: string },
   @Req() req: Request,
 ) {
-  const secret = process.env.TURNSTILE_SECRET_KEY;
   const token = dto.turnstileToken;
 
   const forwarded = req.headers['x-forwarded-for'];
@@ -125,28 +127,82 @@ export class AuthController {
       : req.ip || req.socket?.remoteAddress || 'unknown';
 
   const ip =
-    rawIp.replace(/^::ffff:/, '').replace(/:\d+$/, '').trim() || 'unknown';
+    rawIp.replace(/^::ffff:/, '').replace(/:\d+$/, '').trim() ||
+    'unknown';
 
   const userAgent =
     (req.headers['user-agent'] as string) || 'unknown';
 
+  // ---------------------------------------------
+  // 1) Validate Turnstile token existence
+  // ---------------------------------------------
   if (!token) {
-    throw new BadRequestException('Missing Turnstile token');
+    throw new BadRequestException(
+      'Invalid registration request',
+    );
   }
+
+  // ---------------------------------------------
+  // 2) Verify Turnstile with Cloudflare
+  // ---------------------------------------------
+  const secret = process.env.TURNSTILE_SECRET_KEY;
 
   if (!secret) {
-    throw new BadRequestException('Server missing Turnstile secret key');
+    /**
+     * SYSTEM MISCONFIGURATION
+     * - must not leak infra detail to client
+     */
+    this.securityEvent.log({
+      type: 'system.misconfiguration',
+      severity: 'error',
+      reason: 'TURNSTILE_SECRET_KEY missing',
+    });
+
+    throw new BadRequestException(
+      'Invalid registration request',
+    );
   }
 
-  const verify = await axios.post(
-    'https://challenges.cloudflare.com/turnstile/v0/siteverify',
-    `secret=${encodeURIComponent(secret)}&response=${encodeURIComponent(token)}`,
-    {
-      headers: { 'content-type': 'application/x-www-form-urlencoded' },
-    },
-  );
+  let verifyResult: any;
 
-  if (!verify.data.success) {
+  try {
+    const verify = await axios.post(
+      'https://challenges.cloudflare.com/turnstile/v0/siteverify',
+      `secret=${encodeURIComponent(
+        secret,
+      )}&response=${encodeURIComponent(token)}`,
+      {
+        headers: {
+          'content-type':
+            'application/x-www-form-urlencoded',
+        },
+        timeout: 5000, // avoid hanging request
+      },
+    );
+
+    verifyResult = verify.data;
+  } catch (err) {
+    /**
+     * Network / provider error
+     * Treat as verification failure
+     */
+    try {
+      await this.audit.createLog({
+        userId: null,
+        action: 'auth.register',
+        success: false,
+        reason: 'turnstile_verify_error',
+        ip,
+        userAgent,
+      });
+    } catch {}
+
+    throw new BadRequestException(
+      'Invalid registration request',
+    );
+  }
+
+  if (!verifyResult?.success) {
     try {
       await this.audit.createLog({
         userId: null,
@@ -158,9 +214,14 @@ export class AuthController {
       });
     } catch {}
 
-    throw new BadRequestException('Turnstile verification failed');
+    throw new BadRequestException(
+      'Invalid registration request',
+    );
   }
 
+  // ---------------------------------------------
+  // 3) Register user (AuthService handles email + resend)
+  // ---------------------------------------------
   try {
     const user = await this.authService.register(dto);
 
@@ -180,7 +241,8 @@ export class AuthController {
 
     return {
       success: true,
-      message: 'User registered successfully',
+      message:
+        'User registered successfully. Please check your email to verify your account.',
       data: {
         id: user.id,
         email: user.email,
@@ -189,7 +251,7 @@ export class AuthController {
       },
     };
   } catch (err) {
-    // register service error เช่น email ซ้ำ
+    // register service error เช่น email/username ซ้ำ
     try {
       await this.audit.createLog({
         userId: null,
@@ -204,7 +266,6 @@ export class AuthController {
     throw err;
   }
 }
-
 
 // =========================================================
 // local login (CORRECT & SAFE)
@@ -389,16 +450,22 @@ res.setHeader('Pragma', 'no-cache');
 }
 
 
-  // verify-email
-  @Public()
- @Get('verify-email')
-async verifyEmail(@Query('uid') uid: string, @Query('token') token: string) {
+ // verify-email
+@Public()
+@Get('verify-email')
+async verifyEmail(
+  @Query('uid') uid?: string,
+  @Query('token') token?: string,
+) {
   if (!uid || !token) {
-    throw new BadRequestException('Missing verification token or uid');
+    throw new BadRequestException(
+      'Invalid verification request',
+    );
   }
 
   try {
-    const result = await this.authService.verifyEmailLocal(uid, token);
+    await this.usersService.confirmEmailVerification(uid, token);
+
 
     try {
       await this.audit.createLog({
@@ -410,11 +477,8 @@ async verifyEmail(@Query('uid') uid: string, @Query('token') token: string) {
 
     return {
       message: 'Email verified successfully',
-      result,
     };
-
-  } catch (err) {
-
+  } catch {
     try {
       await this.audit.createLog({
         userId: uid,
@@ -424,7 +488,9 @@ async verifyEmail(@Query('uid') uid: string, @Query('token') token: string) {
       });
     } catch {}
 
-    throw err;
+    throw new BadRequestException(
+      'Invalid or expired verification link',
+    );
   }
 }
 

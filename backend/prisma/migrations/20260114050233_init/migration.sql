@@ -35,7 +35,7 @@ CREATE TYPE "AppealStatus" AS ENUM ('PENDING', 'APPROVED', 'REJECTED', 'WITHDRAW
 CREATE TYPE "AppealTargetType" AS ENUM ('POST', 'COMMENT', 'USER', 'CHAT_MESSAGE');
 
 -- CreateEnum
-CREATE TYPE "VerificationType" AS ENUM ('EMAIL_CHANGE', 'PHONE_CHANGE', 'ACCOUNT_LOCK', 'SENSITIVE_ACTION');
+CREATE TYPE "VerificationType" AS ENUM ('EMAIL_VERIFY', 'EMAIL_CHANGE', 'PHONE_CHANGE', 'ACCOUNT_LOCK', 'SENSITIVE_ACTION');
 
 -- CreateEnum
 CREATE TYPE "SecurityEventType" AS ENUM ('LOGIN_SUCCESS', 'LOGIN_FAILED', 'PASSWORD_CHANGED', 'EMAIL_CHANGE_REQUEST', 'EMAIL_CHANGED', 'PHONE_CHANGE_REQUEST', 'PHONE_CHANGED', 'USERNAME_CHANGED', 'ACCOUNT_LOCKED', 'ACCOUNT_UNLOCKED', 'SESSION_REVOKED', 'SUSPICIOUS_ACTIVITY', 'CREDENTIAL_VERIFIED');
@@ -81,6 +81,7 @@ CREATE TABLE "User" (
     "bannedAt" TIMESTAMP(3),
     "banReason" TEXT,
     "bannedByAdminId" TEXT,
+    "emailVerifyAttemptCount" INTEGER NOT NULL DEFAULT 0,
 
     CONSTRAINT "User_pkey" PRIMARY KEY ("id")
 );
@@ -572,6 +573,10 @@ CREATE TABLE "UserIdentityHistory" (
 
     CONSTRAINT "UserIdentityHistory_pkey" PRIMARY KEY ("id")
 );
+
+CREATE UNIQUE INDEX uniq_active_identity_token
+ON "IdentityVerificationToken"("userId", "type")
+WHERE "usedAt" IS NULL;
 
 -- CreateIndex
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
