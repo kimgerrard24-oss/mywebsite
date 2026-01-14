@@ -73,6 +73,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
         cache: "no-store",
       });
 
+      
       if (res.ok) {
         const json = await res.json().catch(() => null);
 
