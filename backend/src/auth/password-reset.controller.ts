@@ -33,12 +33,20 @@ export class PasswordResetController {
     @Body() body: RequestPasswordResetDto,
     @Req() req: Request,
   ): Promise<{ message: string }> {
-    const ip =
-      (req.headers['x-forwarded-for'] as string) ||
-      req.socket.remoteAddress ||
-      undefined;
+    const forwarded = req.headers['x-forwarded-for'];
+    const rawIp =
+      typeof forwarded === 'string'
+        ? forwarded.split(',')[0].trim()
+        : req.ip || req.socket?.remoteAddress || undefined;
 
-    const userAgent = req.headers['user-agent'] as string | undefined;
+    const ip =
+      rawIp
+        ?.replace(/^::ffff:/, '')
+        .replace(/:\d+$/, '')
+        .trim() || undefined;
+
+    const userAgent =
+      (req.headers['user-agent'] as string) || undefined;
 
     await this.passwordResetService.requestPasswordReset(
       body.email,
@@ -63,14 +71,26 @@ export class PasswordResetController {
     @Body() dto: ResetPasswordDto,
     @Req() req: Request,
   ): Promise<{ message: string }> {
+    const forwarded = req.headers['x-forwarded-for'];
+    const rawIp =
+      typeof forwarded === 'string'
+        ? forwarded.split(',')[0].trim()
+        : req.ip || req.socket?.remoteAddress || undefined;
+
     const ip =
-      (req.headers['x-forwarded-for'] as string) ||
-      req.socket.remoteAddress ||
-      undefined;
+      rawIp
+        ?.replace(/^::ffff:/, '')
+        .replace(/:\d+$/, '')
+        .trim() || undefined;
 
-    const userAgent = req.headers['user-agent'] as string | undefined;
+    const userAgent =
+      (req.headers['user-agent'] as string) || undefined;
 
-    await this.passwordResetService.resetPassword(dto, ip, userAgent);
+    await this.passwordResetService.resetPassword(
+      dto,
+      ip,
+      userAgent,
+    );
 
     return {
       message:
@@ -78,3 +98,4 @@ export class PasswordResetController {
     };
   }
 }
+

@@ -35,7 +35,7 @@ CREATE TYPE "AppealStatus" AS ENUM ('PENDING', 'APPROVED', 'REJECTED', 'WITHDRAW
 CREATE TYPE "AppealTargetType" AS ENUM ('POST', 'COMMENT', 'USER', 'CHAT_MESSAGE');
 
 -- CreateEnum
-CREATE TYPE "VerificationType" AS ENUM ('EMAIL_CHANGE', 'PHONE_CHANGE', 'ACCOUNT_LOCK', 'SENSITIVE_ACTION');
+CREATE TYPE "VerificationType" AS ENUM ('EMAIL_VERIFY', 'EMAIL_CHANGE', 'PHONE_CHANGE', 'ACCOUNT_LOCK', 'PASSWORD_RESET', 'SENSITIVE_ACTION');
 
 -- CreateEnum
 CREATE TYPE "SecurityEventType" AS ENUM ('LOGIN_SUCCESS', 'LOGIN_FAILED', 'PASSWORD_CHANGED', 'EMAIL_CHANGE_REQUEST', 'EMAIL_CHANGED', 'PHONE_CHANGE_REQUEST', 'PHONE_CHANGED', 'USERNAME_CHANGED', 'ACCOUNT_LOCKED', 'ACCOUNT_UNLOCKED', 'SESSION_REVOKED', 'SUSPICIOUS_ACTIVITY', 'CREDENTIAL_VERIFIED');
@@ -49,8 +49,6 @@ CREATE TABLE "User" (
     "username" TEXT NOT NULL,
     "hashedPassword" TEXT NOT NULL,
     "isEmailVerified" BOOLEAN NOT NULL DEFAULT false,
-    "emailVerifyTokenHash" TEXT,
-    "emailVerifyTokenExpires" TIMESTAMP(3),
     "countryCode" CHAR(2),
     "dateOfBirth" TIMESTAMP(3),
     "phoneNumber" TEXT,
@@ -61,8 +59,6 @@ CREATE TABLE "User" (
     "isDisabled" BOOLEAN NOT NULL DEFAULT false,
     "active" BOOLEAN NOT NULL DEFAULT true,
     "lastLoginAt" TIMESTAMP(3),
-    "passwordResetTokenHash" TEXT,
-    "passwordResetTokenExpires" TIMESTAMP(3),
     "provider" TEXT NOT NULL,
     "providerId" TEXT NOT NULL,
     "disabledReason" TEXT,
@@ -153,18 +149,6 @@ CREATE TABLE "AuditLog" (
     "occurredAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "AuditLog_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "PasswordResetToken" (
-    "id" TEXT NOT NULL,
-    "userId" TEXT NOT NULL,
-    "tokenHash" TEXT NOT NULL,
-    "expiresAt" TIMESTAMP(3) NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    "usedAt" TIMESTAMP(3),
-
-    CONSTRAINT "PasswordResetToken_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -546,6 +530,10 @@ CREATE TABLE "IdentityVerificationToken" (
     CONSTRAINT "IdentityVerificationToken_pkey" PRIMARY KEY ("id")
 );
 
+CREATE UNIQUE INDEX uniq_active_identity_token
+ON "IdentityVerificationToken"("userId", "type")
+WHERE "usedAt" IS NULL;
+
 -- CreateTable
 CREATE TABLE "SecurityEvent" (
     "id" TEXT NOT NULL,
@@ -605,12 +593,6 @@ CREATE INDEX "OAuthAccount_provider_providerId_idx" ON "OAuthAccount"("provider"
 
 -- CreateIndex
 CREATE UNIQUE INDEX "RefreshToken_token_key" ON "RefreshToken"("token");
-
--- CreateIndex
-CREATE INDEX "PasswordResetToken_userId_idx" ON "PasswordResetToken"("userId");
-
--- CreateIndex
-CREATE INDEX "PasswordResetToken_expiresAt_idx" ON "PasswordResetToken"("expiresAt");
 
 -- CreateIndex
 CREATE INDEX "Post_authorId_publishedAt_idx" ON "Post"("authorId", "publishedAt");
@@ -838,6 +820,15 @@ CREATE INDEX "IdentityVerificationToken_expiresAt_idx" ON "IdentityVerificationT
 CREATE INDEX "IdentityVerificationToken_tokenHash_idx" ON "IdentityVerificationToken"("tokenHash");
 
 -- CreateIndex
+CREATE INDEX "IdentityVerificationToken_type_expiresAt_idx" ON "IdentityVerificationToken"("type", "expiresAt");
+
+-- CreateIndex
+CREATE INDEX "IdentityVerificationToken_usedAt_idx" ON "IdentityVerificationToken"("usedAt");
+
+-- CreateIndex
+CREATE INDEX "IdentityVerificationToken_userId_type_usedAt_idx" ON "IdentityVerificationToken"("userId", "type", "usedAt");
+
+-- CreateIndex
 CREATE INDEX "SecurityEvent_userId_createdAt_idx" ON "SecurityEvent"("userId", "createdAt");
 
 -- CreateIndex
@@ -866,9 +857,6 @@ ALTER TABLE "RefreshToken" ADD CONSTRAINT "RefreshToken_userId_fkey" FOREIGN KEY
 
 -- AddForeignKey
 ALTER TABLE "AuditLog" ADD CONSTRAINT "AuditLog_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "PasswordResetToken" ADD CONSTRAINT "PasswordResetToken_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Post" ADD CONSTRAINT "Post_authorId_fkey" FOREIGN KEY ("authorId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

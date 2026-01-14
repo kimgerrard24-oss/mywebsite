@@ -31,6 +31,9 @@ import { UserProfileDto } from './dto/user-profile.dto';
 import * as jwt from 'jsonwebtoken';
 import { SessionService } from './session/session.service';
 import { SecurityEventService } from '../common/security/security-event.service';
+import { createHash } from 'crypto';
+import { VerificationType } from '@prisma/client';
+
 
 interface GoogleOAuthConfig {
   clientId: string;
@@ -95,14 +98,86 @@ constructor(
 
   const hashed = await hashPassword(dto.password);
 
-  return this.repo.createUser({
+  // ===============================
+  // 1) Create user (unchanged)
+  // ===============================
+  const user = await this.repo.createUser({
     email: dto.email,
     username: dto.username,
     hashedPassword: hashed,
     provider: 'local',
-    providerId: dto.email,  
+    providerId: dto.email,
   });
+
+  // ===============================
+  // 2) Generate verification token
+  // ===============================
+  const token = randomBytes(32).toString('hex');
+  const tokenHash = createHash('sha256')
+    .update(token)
+    .digest('hex');
+
+  const expiresAt = new Date(
+    Date.now() + 1000 * 60 * 30, // 30 minutes
+  );
+
+  // ===============================
+// 3) Revoke previous active tokens (same type)
+// ===============================
+await this.prisma.$transaction([
+  this.prisma.identityVerificationToken.updateMany({
+    where: {
+      userId: user.id,
+      type: VerificationType.EMAIL_VERIFY,
+      usedAt: null,
+    },
+    data: {
+      usedAt: new Date(),
+    },
+  }),
+
+  this.prisma.identityVerificationToken.create({
+    data: {
+      userId: user.id,
+      type: VerificationType.EMAIL_VERIFY,
+      tokenHash,
+      expiresAt,
+    },
+  }),
+]);
+
+
+  const publicSiteUrl = process.env.PUBLIC_SITE_URL;
+
+  if (!publicSiteUrl) {
+    this.logger.error(
+      '[REGISTER] PUBLIC_SITE_URL not configured',
+    );
+    // user already created → do not fail register
+    return user;
+  }
+
+  const verifyUrl =
+    `${publicSiteUrl}/auth/verify-email?uid=${encodeURIComponent(
+      user.id,
+    )}&token=${encodeURIComponent(token)}`;
+
+  try {
+    await this._mailService.sendEmailVerification(
+      user.email,
+      verifyUrl,
+    );
+  } catch (err) {
+    // IMPORTANT: do NOT fail register because of email infra
+    this.logger.error(
+      '[REGISTER_EMAIL_SEND_FAILED]',
+      err,
+    );
+  }
+
+  return user;
 }
+
 
 // -------------------------------------------------------
 // Local Login (Validate Credentials Only)
@@ -477,31 +552,94 @@ if (accessToken) {
  async hashPassword(password: string): Promise<string> {
     return await argon2.hash(password);  
   }
-  // -------------------------------------------------------
-  // Verify Email (Local)
-  // -------------------------------------------------------
+
+// -------------------------------------------------------
+// Verify Email (Local) — IdentityVerificationToken
+// -------------------------------------------------------
 async verifyEmailLocal(uid: string, token: string) {
-  const user = await this.prisma.user.findUnique({ where: { id: uid } });
-
-  if (!user || !user.emailVerifyTokenHash || !user.emailVerifyTokenExpires) {
-    throw new BadRequestException('Invalid token');
+  if (!uid || !token) {
+    throw new BadRequestException('Invalid verification token');
   }
 
-  if (user.emailVerifyTokenExpires < new Date()) {
-    throw new BadRequestException('Token expired');
+  // ===============================
+  // 1) Hash incoming token
+  // ===============================
+  const tokenHash = createHash('sha256')
+    .update(token)
+    .digest('hex');
+
+  const now = new Date();
+
+  // ===============================
+  // 2) Find verification record
+  // ===============================
+  const record =
+    await this.prisma.identityVerificationToken.findFirst({
+      where: {
+        userId: uid,
+        type: VerificationType.EMAIL_VERIFY,
+        tokenHash,
+      },
+    });
+
+  if (
+    !record ||
+    record.usedAt !== null ||
+    record.expiresAt < now
+  ) {
+    // ---- Security Event (reuse existing types) ----
+    try {
+      this.securityEvent.log({
+        type: 'security.abuse.detected',
+        severity: 'warning',
+        userId: uid,
+        reason: 'email_verify_invalid_or_expired',
+      });
+    } catch {}
+
+    throw new BadRequestException(
+      'Invalid or expired verification token',
+    );
   }
 
-  const ok = await comparePassword(token, user.emailVerifyTokenHash);
-  if (!ok) throw new BadRequestException('Invalid token');
-
-  await this.prisma.user.update({
-    where: { id: uid },
+  // ===============================
+  // 3) Transaction: mark verified + consume token
+  // ===============================
+  const consumed =
+  await this.prisma.identityVerificationToken.updateMany({
+    where: {
+      id: record.id,
+      usedAt: null, // 🔒 atomic guard
+    },
     data: {
-      isEmailVerified: true,
-      emailVerifyTokenHash: null,
-      emailVerifyTokenExpires: null,
+      usedAt: now,
     },
   });
+
+if (consumed.count !== 1) {
+  throw new BadRequestException(
+    'Verification token already used',
+  );
+}
+
+await this.prisma.user.update({
+  where: { id: uid },
+  data: { isEmailVerified: true },
+});
+
+  // ===============================
+  // 4) Security Event (success)
+  // ===============================
+  try {
+    this.securityEvent.log({
+      type: 'auth.login.success', // closest semantic success event
+      severity: 'info',
+      userId: uid,
+      meta: {
+        flow: 'email_verify',
+      },
+    });
+  } catch {}
 
   return { ok: true };
 }
