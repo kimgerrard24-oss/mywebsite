@@ -33,6 +33,7 @@ import { SessionService } from './session/session.service';
 import { SecurityEventService } from '../common/security/security-event.service';
 import { createHash } from 'crypto';
 import { VerificationType } from '@prisma/client';
+import { CredentialVerificationService } from '../auth/credential-verification.service';
 
 
 interface GoogleOAuthConfig {
@@ -79,6 +80,7 @@ constructor(
   private readonly redisService: RedisService,
   private readonly sessionService: SessionService,
   private readonly securityEvent: SecurityEventService,
+  private readonly credentialVerify: CredentialVerificationService,
 ) {}
 
 
@@ -86,7 +88,7 @@ constructor(
   // Local Register
   // -------------------------------------------------------
 
-   async register(dto: RegisterDto) {
+ async register(dto: RegisterDto) {
   const existing = await this.repo.findByEmailOrUsername(
     dto.email,
     dto.username,
@@ -110,43 +112,49 @@ constructor(
   });
 
   // ===============================
-  // 2) Generate verification token
+  // 2) Generate verification token (UNIFIED SYSTEM)
   // ===============================
-  const token = randomBytes(32).toString('hex');
-  const tokenHash = createHash('sha256')
-    .update(token)
-    .digest('hex');
-
-  const expiresAt = new Date(
-    Date.now() + 1000 * 60 * 30, // 30 minutes
-  );
+  const token = this.credentialVerify.generateToken();
+  const expiresAt = this.credentialVerify.getExpiry(30); // minutes
 
   // ===============================
-// 3) Revoke previous active tokens (same type)
-// ===============================
-await this.prisma.$transaction([
-  this.prisma.identityVerificationToken.updateMany({
-    where: {
-      userId: user.id,
-      type: VerificationType.EMAIL_VERIFY,
-      usedAt: null,
-    },
-    data: {
-      usedAt: new Date(),
-    },
-  }),
+  // 3) Revoke previous + create new EMAIL_VERIFY token (atomic)
+  // ===============================
+  try {
+    await this.prisma.$transaction(async (tx) => {
+      await tx.identityVerificationToken.updateMany({
+        where: {
+          userId: user.id,
+          type: VerificationType.EMAIL_VERIFY,
+          usedAt: null,
+          expiresAt: { gt: new Date() },
+        },
+        data: {
+          usedAt: new Date(),
+        },
+      });
 
-  this.prisma.identityVerificationToken.create({
-    data: {
-      userId: user.id,
-      type: VerificationType.EMAIL_VERIFY,
-      tokenHash,
-      expiresAt,
-    },
-  }),
-]);
+      await tx.identityVerificationToken.create({
+        data: {
+          userId: user.id,
+          type: VerificationType.EMAIL_VERIFY,
+          tokenHash: token.hash, // 🔒 store hash only
+          expiresAt,
+        },
+      });
+    });
+  } catch (err) {
+    // token infra failure must not break register
+    this.logger.error(
+      '[REGISTER_EMAIL_VERIFY_TOKEN_TX_FAILED]',
+      err,
+    );
+    return user;
+  }
 
-
+  // ===============================
+  // 4) Send verification email
+  // ===============================
   const publicSiteUrl = process.env.PUBLIC_SITE_URL;
 
   if (!publicSiteUrl) {
@@ -158,9 +166,8 @@ await this.prisma.$transaction([
   }
 
   const verifyUrl =
-    `${publicSiteUrl}/auth/verify-email?uid=${encodeURIComponent(
-      user.id,
-    )}&token=${encodeURIComponent(token)}`;
+  `${publicSiteUrl}/auth/verify-email?token=${encodeURIComponent(token.raw)}`;
+
 
   try {
     await this._mailService.sendEmailVerification(
@@ -177,6 +184,7 @@ await this.prisma.$transaction([
 
   return user;
 }
+
 
 
 // -------------------------------------------------------
@@ -556,43 +564,44 @@ if (accessToken) {
 // -------------------------------------------------------
 // Verify Email (Local) — IdentityVerificationToken
 // -------------------------------------------------------
-async verifyEmailLocal(uid: string, token: string) {
-  if (!uid || !token) {
+async verifyEmailLocal(token: string) {
+  if (!token || typeof token !== 'string') {
     throw new BadRequestException('Invalid verification token');
   }
 
   // ===============================
-  // 1) Hash incoming token
+  // 1) Hash incoming token (server authority)
   // ===============================
   const tokenHash = createHash('sha256')
     .update(token)
     .digest('hex');
 
-  const now = new Date();
+  // ===============================
+  // 2) Atomic confirm (token + user verified)
+  // ===============================
+  let confirmed: boolean | null = null;
 
-  // ===============================
-  // 2) Find verification record
-  // ===============================
-  const record =
-    await this.prisma.identityVerificationToken.findFirst({
-      where: {
-        userId: uid,
-        type: VerificationType.EMAIL_VERIFY,
-        tokenHash,
-      },
+  try {
+    confirmed = await this.repo.confirmEmailVerifyAtomic({
+      tokenHash,
     });
+  } catch (err) {
+    this.logger.error(
+      '[EMAIL_VERIFY_TX_FAILED]',
+      err,
+    );
 
-  if (
-    !record ||
-    record.usedAt !== null ||
-    record.expiresAt < now
-  ) {
-    // ---- Security Event (reuse existing types) ----
+    throw new BadRequestException(
+      'Unable to verify email',
+    );
+  }
+
+  if (!confirmed) {
+    // ---- Security Event: invalid / reused / expired token ----
     try {
       this.securityEvent.log({
         type: 'security.abuse.detected',
         severity: 'warning',
-        userId: uid,
         reason: 'email_verify_invalid_or_expired',
       });
     } catch {}
@@ -603,46 +612,22 @@ async verifyEmailLocal(uid: string, token: string) {
   }
 
   // ===============================
-  // 3) Transaction: mark verified + consume token
-  // ===============================
-  const consumed =
-  await this.prisma.identityVerificationToken.updateMany({
-    where: {
-      id: record.id,
-      usedAt: null, // 🔒 atomic guard
-    },
-    data: {
-      usedAt: now,
-    },
-  });
-
-if (consumed.count !== 1) {
-  throw new BadRequestException(
-    'Verification token already used',
-  );
-}
-
-await this.prisma.user.update({
-  where: { id: uid },
-  data: { isEmailVerified: true },
-});
-
-  // ===============================
-  // 4) Security Event (success)
+  // 3) Security Event (success)
   // ===============================
   try {
     this.securityEvent.log({
-      type: 'auth.login.success', // closest semantic success event
-      severity: 'info',
-      userId: uid,
-      meta: {
-        flow: 'email_verify',
-      },
-    });
+  type: 'auth.login.success',
+  severity: 'info',
+  meta: {
+    flow: 'email_verify',
+  },
+});
+
   } catch {}
 
-  return { ok: true };
+  return { success: true };
 }
+
 
   // ==========================================
   // GOOGLE

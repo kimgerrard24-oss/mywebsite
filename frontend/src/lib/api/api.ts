@@ -265,11 +265,6 @@ export async function sessionCheckClient() {
   return { valid: data.valid === true, ...data };
 }
 
-// VERIFY EMAIL
-export async function verifyEmail(token: string, uid: string) {
-  return client.get(`/auth/verify-email?token=${token}&uid=${uid}`);
-}
-
 // REFRESH TOKEN
 export async function refreshAccessToken(): Promise<boolean> {
   try {

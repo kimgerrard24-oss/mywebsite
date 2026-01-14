@@ -389,20 +389,22 @@ res.setHeader('Pragma', 'no-cache');
 }
 
 
-  // verify-email
-  @Public()
- @Get('verify-email')
-async verifyEmail(@Query('uid') uid: string, @Query('token') token: string) {
-  if (!uid || !token) {
-    throw new BadRequestException('Missing verification token or uid');
+  // =========================================================
+// Verify Email (Local) — Unified Token Flow
+// =========================================================
+@Public()
+@Get('verify-email')
+async verifyEmail(@Query('token') token: string) {
+  if (!token) {
+    throw new BadRequestException('Missing verification token');
   }
 
   try {
-    const result = await this.authService.verifyEmailLocal(uid, token);
+    const result = await this.authService.verifyEmailLocal(token);
 
     try {
       await this.audit.createLog({
-        userId: uid,
+        userId: null, // userId resolved inside service
         action: 'auth.verify_email',
         success: true,
       });
@@ -417,7 +419,7 @@ async verifyEmail(@Query('uid') uid: string, @Query('token') token: string) {
 
     try {
       await this.audit.createLog({
-        userId: uid,
+        userId: null,
         action: 'auth.verify_email',
         success: false,
         reason: 'invalid_or_expired_token',
@@ -427,6 +429,7 @@ async verifyEmail(@Query('uid') uid: string, @Query('token') token: string) {
     throw err;
   }
 }
+
 
 
 }
