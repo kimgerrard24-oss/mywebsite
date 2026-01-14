@@ -10,8 +10,7 @@ export default function EmailChangeForm() {
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
-  async function onSubmit(e: React.FormEvent) {
-    e.preventDefault();
+  async function onSubmit() {
     setError(null);
 
     if (!email || !email.includes("@")) {
@@ -21,7 +20,7 @@ export default function EmailChangeForm() {
 
     try {
       setLoading(true);
-      await requestEmailChange(email);
+      await requestEmailChange(email.trim());
       setDone(true);
     } catch (err: any) {
       setError(
@@ -39,8 +38,7 @@ export default function EmailChangeForm() {
   }
 
   return (
-    <form
-      onSubmit={onSubmit}
+    <div
       className="space-y-4"
       aria-label="Change email form"
     >
@@ -82,7 +80,8 @@ export default function EmailChangeForm() {
       )}
 
       <button
-        type="submit"
+        type="button"   // ✅ สำคัญมาก
+        onClick={onSubmit}
         disabled={loading}
         className="
           inline-flex
@@ -101,6 +100,6 @@ export default function EmailChangeForm() {
       >
         {loading ? "Sending..." : "Send verification email"}
       </button>
-    </form>
+    </div>
   );
 }
