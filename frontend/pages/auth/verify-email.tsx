@@ -41,7 +41,7 @@ export default function VerifyEmailPage() {
 
         // UX: auto redirect to login / profile
         setTimeout(() => {
-          router.replace('/login');
+          router.replace('/');
         }, 2000);
       })
       .catch(() => {
