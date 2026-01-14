@@ -2,22 +2,54 @@
 
 import { BadRequestException } from '@nestjs/common';
 
-export function validatePasswordStrength(password: string): void {
-  // กติกาง่าย ๆ ระดับ production baseline:
-  // - อย่างน้อย 8 ตัว (ตรวจซ้ำจาก DTO แล้ว)
-  // - ต้องมีตัวเลขอย่างน้อย 1 ตัว
-  // - ต้องมีตัวอักษรตัวเล็กอย่างน้อย 1 ตัว
-  // - ต้องมีตัวอักษรตัวใหญ่อย่างน้อย 1 ตัว
-  // - ต้องมีอักขระพิเศษอย่างน้อย 1 ตัว
-
-  const hasNumber = /[0-9]/.test(password);
-  const hasLower = /[a-z]/.test(password);
-  const hasUpper = /[A-Z]/.test(password);
-  const hasSymbol = /[^A-Za-z0-9]/.test(password);
-
-  if (!hasNumber || !hasLower || !hasUpper || !hasSymbol) {
+/**
+ * Production baseline password policy
+ *
+ * Rules:
+ * - minimum length 8
+ * - at least 1 lowercase
+ * - at least 1 uppercase
+ * - at least 1 digit
+ * - at least 1 symbol
+ *
+ * IMPORTANT:
+ * - Do NOT reveal which rule failed (anti brute-force enumeration)
+ * - DTO validation alone is NOT sufficient
+ */
+export function validatePasswordStrength(
+  rawPassword: string,
+): void {
+  if (typeof rawPassword !== 'string') {
     throw new BadRequestException(
-      'Password must contain at least one uppercase letter, one lowercase letter, one number, and one symbol.',
+      'Invalid password format.',
+    );
+  }
+
+  const password = rawPassword.normalize('NFKC');
+
+  // length
+  if (password.length < 8) {
+    throw new BadRequestException(
+      'Password does not meet security requirements.',
+    );
+  }
+
+  let hasLower = false;
+  let hasUpper = false;
+  let hasDigit = false;
+  let hasSymbol = false;
+
+  for (const ch of password) {
+    if (ch >= 'a' && ch <= 'z') hasLower = true;
+    else if (ch >= 'A' && ch <= 'Z') hasUpper = true;
+    else if (ch >= '0' && ch <= '9') hasDigit = true;
+    else hasSymbol = true;
+  }
+
+  if (!(hasLower && hasUpper && hasDigit && hasSymbol)) {
+    throw new BadRequestException(
+      'Password does not meet security requirements.',
     );
   }
 }
+
