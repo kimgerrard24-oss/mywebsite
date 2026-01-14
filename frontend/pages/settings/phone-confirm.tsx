@@ -18,6 +18,7 @@ export default function ConfirmPhonePage({}: Props) {
         />
       </Head>
 
+
       <main className="mx-auto max-w-md px-4 py-10">
         <div className="mb-6">
           <Link
