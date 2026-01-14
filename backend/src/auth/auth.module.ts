@@ -29,12 +29,14 @@ import { PasswordResetTokenRepository } from './password-reset-token.repository'
 import { ValidateSessionService } from './services/validate-session.service';
 import { AccessTokenCookieAuthGuard } from './guards/access-token-cookie.guard';
 import { SessionModule } from './session/session.module';
+import { CredentialVerificationModule } from './credential-verification.module';
 
 @Module({
   imports: [
     SecretsModule,
     FirebaseAdminModule,
     PrismaModule,
+    CredentialVerificationModule,
     RedisModule,
     RateLimitModule,
     MailModule,
