@@ -15,36 +15,66 @@ export default function PhoneSettingsPage({ user }: Props) {
 
   return (
     <>
+      {/* ================= SEO ================= */}
       <Head>
-        <title>Change Phone | PhlyPhant</title>
+        <title>Change phone number | PhlyPhant</title>
         <meta
           name="description"
-          content="Change your phone number on PhlyPhant"
+          content="Change and verify your phone number on PhlyPhant"
         />
+        <meta name="robots" content="noindex,nofollow" />
       </Head>
 
-      <main className="mx-auto max-w-2xl px-4 py-8">
-        <div className="mb-6">
+      {/* ================= Page Layout ================= */}
+      <main
+        className="
+          mx-auto
+          max-w-2xl
+          px-4
+          py-8
+        "
+      >
+        {/* ===== Back Navigation ===== */}
+        <nav aria-label="Settings navigation" className="mb-6">
           <Link
             href="/settings/profile"
             prefetch={false}
-            className="text-sm text-blue-600 hover:underline"
+            className="
+              inline-flex
+              items-center
+              gap-1
+              text-sm
+              text-blue-600
+              hover:underline
+              focus:outline-none
+              focus-visible:ring-2
+              focus-visible:ring-blue-500
+              rounded
+            "
           >
             ← Back to settings
           </Link>
-        </div>
+        </nav>
 
-        <section>
+        {/* ===== Page Header ===== */}
+        <header>
           <h1 className="text-2xl font-semibold">
             Change phone number
           </h1>
           <p className="mt-1 text-sm text-gray-600">
-            We will send a verification code to your new
-            phone number.
+            We will send a verification code to your new phone number.
           </p>
-        </section>
+        </header>
 
-        <section className="mt-8">
+        {/* ===== Main Content ===== */}
+        <section
+          className="mt-8"
+          aria-labelledby="change-phone-form"
+        >
+          <h2 id="change-phone-form" className="sr-only">
+            Phone number verification form
+          </h2>
+
           <PhoneChangeForm />
         </section>
       </main>
@@ -69,6 +99,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
     process.env.NEXT_PUBLIC_BACKEND_URL ??
     "https://api.phlyphant.com";
 
+  // 1) Session check (AUTHORITY = BACKEND)
   const sessionRes = await fetch(`${base}/auth/session-check`, {
     method: "GET",
     headers: {
@@ -93,6 +124,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
     };
   }
 
+  // 2) Load user profile (FAIL-SOFT)
   let user: UserProfile | null = null;
 
   try {

@@ -541,6 +541,7 @@ CREATE TABLE "IdentityVerificationToken" (
     "expiresAt" TIMESTAMP(3) NOT NULL,
     "usedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "attemptCount" INTEGER NOT NULL DEFAULT 0,
 
     CONSTRAINT "IdentityVerificationToken_pkey" PRIMARY KEY ("id")
 );

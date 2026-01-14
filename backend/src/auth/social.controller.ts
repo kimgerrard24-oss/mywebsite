@@ -140,19 +140,19 @@ async googleCallback(@Req() req: Request, @Res() res: Response) {
     const redisKey = `oauth_state_${state}`;
 
     // read redis + cookie in parallel
-    const [redisState, cookieState] = await Promise.all([
-      this.redisService.get(redisKey),
-      Promise.resolve(normalizeOAuthState(req.cookies?.oauth_state)),
-    ]);
+   const [exists, cookieState] = await Promise.all([
+  this.redisService.exists(redisKey),
+  Promise.resolve(normalizeOAuthState(req.cookies?.oauth_state)),
+]);
 
-    // both Redis + Cookie must match
-    if (redisState !== '1' || cookieState !== state) {
-      this.logger.warn('[googleCallback] state mismatch', {
-        hasRedis: redisState === '1',
-        cookieMatch: cookieState === state,
-      });
-      return res.status(400).send('Invalid or expired state');
-    }
+if (!exists || cookieState !== state) {
+  this.logger.warn('[googleCallback] state mismatch', {
+    hasRedis: exists,
+    cookieMatch: cookieState === state,
+  });
+  return res.status(400).send('Invalid or expired state');
+}
+
 
     // cleanup state (after validation only)
     await this.redisService.del(redisKey);
@@ -291,13 +291,13 @@ async facebookCallback(@Req() req: Request, @Res() res: Response) {
     const redisKey = `oauth_state_${state}`;
 
     // ✅ USE RedisService (singleton)
-    const redisState = await this.redisService.get(redisKey);
-    const cookieState = normalizeOAuthState(req.cookies?.oauth_state);
+    const exists = await this.redisService.exists(redisKey);
+const cookieState = normalizeOAuthState(req.cookies?.oauth_state);
 
-    // both Redis + Cookie must match
-    if (redisState !== '1' || cookieState !== state) {
-      return res.status(400).send('Invalid or expired state');
-    }
+if (!exists || cookieState !== state) {
+  return res.status(400).send('Invalid or expired state');
+}
+
 
     // cleanup state
     await this.redisService.del(redisKey).catch(() => {});
@@ -388,7 +388,23 @@ async facebookCallback(@Req() req: Request, @Res() res: Response) {
     if (!idToken) throw new BadRequestException('Missing idToken');
 
     try {
-      const decoded = await this.auth.verifyIdToken(idToken);
+      const decoded = (req as any).firebaseUser;
+      /**
+ * 🔒 Prevent Firebase ID Token replay
+ * one token = one session creation
+ */
+const jti =
+  (decoded as any).jti ||
+  `${decoded.uid}:${decoded.iat}`;
+
+const used = await this.redisService.acquireLock(
+  `firebase:idtoken:${jti}`,
+  60, // seconds — enough for one request window
+);
+
+if (!used) {
+  throw new UnauthorizedException('token_reused');
+}
       const user = await this.auth.getUserByFirebaseUid(decoded.uid);
       if (!user) throw new UnauthorizedException('User not found');
 

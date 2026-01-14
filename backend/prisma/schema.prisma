@@ -877,7 +877,7 @@ model IdentityVerificationToken {
   expiresAt DateTime
   usedAt    DateTime?
   createdAt DateTime         @default(now())
-
+  attemptCount Int      @default(0)
   /// relations
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
