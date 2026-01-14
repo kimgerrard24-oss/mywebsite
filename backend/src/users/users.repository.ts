@@ -443,16 +443,32 @@ async createIdentityVerificationToken(params: {
   target?: string;
   expiresAt: Date;
 }) {
-  return this.prisma.identityVerificationToken.create({
-    data: {
-      userId: params.userId,
-      type: params.type,
-      tokenHash: params.tokenHash,
-      target: params.target,
-      expiresAt: params.expiresAt,
-    },
+  return this.prisma.$transaction(async (tx) => {
+    // ✅ invalidate previous tokens of same type
+    await tx.identityVerificationToken.updateMany({
+      where: {
+        userId: params.userId,
+        type: params.type,
+        usedAt: null,
+      },
+      data: {
+        usedAt: new Date(),
+      },
+    });
+
+    // ✅ create new token
+    return tx.identityVerificationToken.create({
+      data: {
+        userId: params.userId,
+        type: params.type,
+        tokenHash: params.tokenHash,
+        target: params.target,
+        expiresAt: params.expiresAt,
+      },
+    });
   });
- }
+}
+
 
  async updateUserEmail(params: {
   userId: string;
@@ -476,8 +492,9 @@ async consumeEmailChangeToken(params: {
     .update(params.token)
     .digest('hex');
 
-  const record =
-    await this.prisma.identityVerificationToken.findFirst({
+  // ✅ atomic consume
+  const res =
+    await this.prisma.identityVerificationToken.updateMany({
       where: {
         userId: params.userId,
         type: VerificationType.EMAIL_CHANGE,
@@ -485,17 +502,23 @@ async consumeEmailChangeToken(params: {
         expiresAt: { gt: new Date() },
         usedAt: null,
       },
+      data: {
+        usedAt: new Date(),
+      },
     });
 
-  if (!record) return null;
+  if (res.count !== 1) return null;
 
-  await this.prisma.identityVerificationToken.update({
-    where: { id: record.id },
-    data: { usedAt: new Date() },
+  // fetch consumed record (for target email)
+  return this.prisma.identityVerificationToken.findFirst({
+    where: {
+      userId: params.userId,
+      type: VerificationType.EMAIL_CHANGE,
+      tokenHash: hash,
+    },
   });
-
-  return record;
 }
+
 
 async findUserForPhoneChange(userId: string) {
   return this.prisma.user.findUnique({
@@ -590,6 +613,66 @@ async incrementPhoneChangeAttempt(id: string) {
     },
   });
 }
+
+
+async revokeActiveVerificationTokens(params: {
+  userId: string;
+  type: VerificationType;
+}) {
+  await this.prisma.identityVerificationToken.updateMany({
+    where: {
+      userId: params.userId,
+      type: params.type,
+      usedAt: null,
+    },
+    data: {
+      usedAt: new Date(),
+    },
+  });
+}
+
+
+async consumeEmailVerifyToken(params: {
+  userId: string;
+  token: string;
+}) {
+  const hash = createHash('sha256')
+    .update(params.token)
+    .digest('hex');
+
+  // ✅ atomic consume
+  const res =
+    await this.prisma.identityVerificationToken.updateMany({
+      where: {
+        userId: params.userId,
+        type: VerificationType.EMAIL_VERIFY,
+        tokenHash: hash,
+        expiresAt: { gt: new Date() },
+        usedAt: null,
+      },
+      data: {
+        usedAt: new Date(),
+      },
+    });
+
+  if (res.count !== 1) return null;
+
+  return true;
+}
+
+async findUserForEmailVerify(userId: string) {
+  return this.prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      isEmailVerified: true,
+      isDisabled: true,
+      isBanned: true,
+      isAccountLocked: true,
+    },
+  });
+}
+
 
 }
 

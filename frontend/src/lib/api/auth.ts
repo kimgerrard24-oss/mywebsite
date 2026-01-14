@@ -46,11 +46,13 @@ export async function registerUser(body: {
 // ==================================================
 // EMAIL VERIFY
 // ==================================================
-export async function verifyEmail(token: string) {
-  const encodedToken = encodeURIComponent(token);
-  const res = await client.get(`/auth/local/verify-email?token=${encodedToken}`);
+export async function verifyEmail(uid: string, token: string) {
+  const res = await client.get(
+    `/auth/local/verify-email?uid=${encodeURIComponent(uid)}&token=${encodeURIComponent(token)}`
+  );
   return res.data;
 }
+
 
 export interface ApiSuccessResponse {
   message?: string;

@@ -1,6 +1,5 @@
 // backend/src/notifications/notifications.module.ts
-import { Module } from '@nestjs/common';
-import { NotificationsController } from './notifications.controller';
+import { Module, forwardRef } from '@nestjs/common';import { NotificationsController } from './notifications.controller';
 import { NotificationsService } from './notifications.service';
 import { NotificationsRepository } from './notifications.repository';
 import { NotificationCacheService } from './cache/notification-cache.service';
@@ -9,7 +8,10 @@ import { NotificationRealtimeModule } from './realtime/notification-realtime.mod
 import { AuditService } from '../auth/audit.service';
 
 @Module({
-  imports: [ AuthModule, NotificationRealtimeModule, ],
+  imports: [
+    forwardRef(() => AuthModule),
+    NotificationRealtimeModule,
+ ],
   controllers: [NotificationsController],
   providers: [
     NotificationsService,

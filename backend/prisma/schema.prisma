@@ -66,6 +66,7 @@ model User {
   identityVerificationTokens IdentityVerificationToken[]
   securityEvents             SecurityEvent[]
   identityHistory            UserIdentityHistory[]
+  emailVerifyAttemptCount Int @default(0)
 
   // ===== Audit =====
   auditLogs AuditLog[]
@@ -96,7 +97,7 @@ model User {
   activities          UserActivity[]
   notifications       Notification[]
   actedNotifications  Notification[] @relation("NotificationActor")
-
+  
   // ===== Social =====
   following Follow[] @relation("UserFollowing")
   followers Follow[] @relation("UserFollowers")
@@ -840,6 +841,7 @@ enum AppealTargetType {
 }
 
 enum VerificationType {
+  EMAIL_VERIFY 
   EMAIL_CHANGE
   PHONE_CHANGE
   ACCOUNT_LOCK
