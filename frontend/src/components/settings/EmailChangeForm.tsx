@@ -1,15 +1,45 @@
 // frontend/src/components/settings/EmailChangeForm.tsx
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { requestEmailChange } from "@/lib/api/user";
+import { getProfile } from "@/lib/api/auth";
 import EmailChangeSuccess from "./EmailChangeSuccess";
 
 export default function EmailChangeForm() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
+  const [loadingProfile, setLoadingProfile] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
+  // ==========================================
+  // Load current email from backend (authority)
+  // ==========================================
+  useEffect(() => {
+    let mounted = true;
+
+    getProfile()
+      .then((user) => {
+        if (!mounted) return;
+        if (user?.email) {
+          setEmail(user.email);
+        }
+      })
+      .catch(() => {
+        // silent fail → user can still type manually
+      })
+      .finally(() => {
+        if (mounted) setLoadingProfile(false);
+      });
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  // ==========================================
+  // Submit change request
+  // ==========================================
   async function onSubmit() {
     setError(null);
 
@@ -56,6 +86,7 @@ export default function EmailChangeForm() {
           autoComplete="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
+          disabled={loadingProfile || loading}
           className="
             mt-1
             w-full
@@ -68,6 +99,7 @@ export default function EmailChangeForm() {
             focus:outline-none
             focus:ring-2
             focus:ring-blue-500
+            disabled:bg-gray-100
           "
           required
         />
@@ -80,9 +112,9 @@ export default function EmailChangeForm() {
       )}
 
       <button
-        type="button"   // ✅ สำคัญมาก
+        type="button"
         onClick={onSubmit}
-        disabled={loading}
+        disabled={loading || loadingProfile}
         className="
           inline-flex
           items-center
@@ -98,7 +130,11 @@ export default function EmailChangeForm() {
           disabled:opacity-50
         "
       >
-        {loading ? "Sending..." : "Send verification email"}
+        {loading
+          ? "Sending..."
+          : loadingProfile
+          ? "Loading..."
+          : "Send verification email"}
       </button>
     </div>
   );

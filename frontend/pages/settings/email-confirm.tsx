@@ -11,25 +11,28 @@ type Props = {
   token: string | null;
 };
 
+type Status = "idle" | "loading" | "success" | "error";
+
 export default function EmailConfirmPage({ token }: Props) {
   const router = useRouter();
-  const [status, setStatus] = useState<
-    "idle" | "loading" | "success" | "error"
-  >("idle");
+  const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
   if (!token) return;
 
-  const confirmedToken = token; // 👈 now typed as string
+  const confirmedToken = token; // ✅ narrow type to string
 
   let cancelled = false;
 
   async function run() {
     try {
       setStatus("loading");
+
       await confirmEmailChange(confirmedToken);
+
       if (cancelled) return;
+
       setStatus("success");
 
       setTimeout(() => {
@@ -37,6 +40,7 @@ export default function EmailConfirmPage({ token }: Props) {
       }, 1500);
     } catch (err: any) {
       if (cancelled) return;
+
       setStatus("error");
       setError(
         err?.response?.data?.message ??
@@ -57,6 +61,7 @@ export default function EmailConfirmPage({ token }: Props) {
     <>
       <Head>
         <title>Confirm Email | PhlyPhant</title>
+        <meta name="robots" content="noindex" />
       </Head>
 
       <main className="mx-auto max-w-md px-4 py-16 text-center">
@@ -106,13 +111,16 @@ export default function EmailConfirmPage({ token }: Props) {
   );
 }
 
+// ======================================================
+// SSR Guard — user must be authenticated
+// ======================================================
 export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
   const cookieHeader = ctx.req.headers.cookie;
 
   if (!cookieHeader) {
     return {
       redirect: {
-        destination: "/feed",
+        destination: "/",
         permanent: false,
       },
     };
@@ -123,7 +131,6 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
     process.env.NEXT_PUBLIC_BACKEND_URL ??
     "https://api.phlyphant.com";
 
-  // 1) session check
   const sessionRes = await fetch(`${base}/auth/session-check`, {
     method: "GET",
     headers: {
@@ -137,7 +144,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
   if (!sessionRes.ok) {
     return {
       redirect: {
-        destination: "/feed",
+        destination: "/",
         permanent: false,
       },
     };
@@ -148,19 +155,19 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
   if (!session || session.valid !== true) {
     return {
       redirect: {
-        destination: "/feed",
+        destination: "/",
         permanent: false,
       },
     };
   }
 
-  // 2) token from query
   const token =
     typeof ctx.query.token === "string"
       ? ctx.query.token
       : null;
 
-  if (!token) {
+  // basic sanity check
+  if (!token || token.length < 20) {
     return {
       redirect: {
         destination: "/settings/profile",
@@ -170,8 +177,6 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
   }
 
   return {
-    props: {
-      token,
-    },
+    props: { token },
   };
 };
