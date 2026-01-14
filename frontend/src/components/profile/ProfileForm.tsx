@@ -3,7 +3,8 @@ import { useState } from "react";
 import type { UserProfile, UpdateUserPayload } from "@/types/user-profile";
 import { updateUserProfile } from "@/lib/api/user";
 import UsernameEditor from "./UsernameEditor";
-import EmailChangeForm from "./EmailChangeForm";
+import EmailChangeForm from "../settings/EmailChangeForm";
+import PhoneChangeForm from "@/components/settings/PhoneChangeForm";
 
 type Props = {
   user: UserProfile | null;
@@ -119,6 +120,17 @@ export default function ProfileForm({ user }: Props) {
   <h2 className="text-lg font-medium">Email</h2>
   <EmailChangeForm />
 </section>
+
+       <section
+          className="mt-8"
+          aria-labelledby="change-phone-form"
+        >
+          <h2 id="change-phone-form" className="sr-only">
+            Phone number verification form
+          </h2>
+
+          <PhoneChangeForm />
+        </section>
 
     {/* ===== Bio ===== */}
     <div>
