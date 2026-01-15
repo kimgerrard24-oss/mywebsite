@@ -2,8 +2,7 @@
 
 import { Injectable, Logger } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { PasswordResetTokenRepository } from './password-reset-token.repository';
-import { PasswordResetMailService } from '../mail/password-reset-mail.service';
+import { MailService } from '../mail/mail.service';
 import { generateSecureToken, hashToken } from '../common/security/secure-token.util';
 import {
   PasswordResetPasswordMismatchException,
@@ -12,7 +11,7 @@ import {
 } from './password-reset.exceptions';
 import { validatePasswordStrength } from './password-reset.policy';
 import { ResetPasswordDto } from './dto/reset-password.dto';
-import type { User } from '@prisma/client';
+import { VerificationType } from '@prisma/client';
 import * as argon2 from 'argon2';
 
 @Injectable()
@@ -22,8 +21,7 @@ export class PasswordResetService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly passwordResetTokenRepo: PasswordResetTokenRepository,
-    private readonly passwordResetMailService: PasswordResetMailService,
+    private readonly mailService: MailService,
   ) {}
 
   // ==================================================
@@ -36,27 +34,49 @@ export class PasswordResetService {
   ): Promise<void> {
     const normalizedEmail = email.trim().toLowerCase();
 
-    let user: User | null = null;
+    let user = null;
 
     try {
       user = await this.prisma.user.findUnique({
         where: { email: normalizedEmail },
       });
-    } catch (error) {
-      this.logger.error(`Error fetching user for password reset: ${error}`);
-      return;
-    }
-
-    if (!user) {
-      this.logger.debug(
-        `Password reset requested for non-existing email: ${normalizedEmail}`,
+    } catch (err) {
+      this.logger.error(
+        '[PASSWORD_RESET_FIND_USER_FAILED]',
+        err,
       );
-      return;
+      return; // anti enumeration
     }
 
-    // invalidate previous tokens
-    await this.passwordResetTokenRepo.invalidateTokensForUser(user.id);
+    // ❗ do not reveal whether user exists
+    if (!user) return;
 
+    // ==================================================
+    // Revoke previous PASSWORD_RESET tokens
+    // ==================================================
+    try {
+      await this.prisma.identityVerificationToken.updateMany({
+        where: {
+          userId: user.id,
+          type: VerificationType.PASSWORD_RESET,
+          usedAt: null,
+          expiresAt: { gt: new Date() },
+        },
+        data: {
+          usedAt: new Date(),
+        },
+      });
+    } catch (err) {
+      this.logger.error(
+        '[PASSWORD_RESET_REVOKE_OLD_TOKEN_FAILED]',
+        err,
+      );
+      return; // do not continue issuing token
+    }
+
+    // ==================================================
+    // Generate token
+    // ==================================================
     const rawToken = generateSecureToken(32);
     const tokenHash = await hashToken(rawToken);
 
@@ -64,33 +84,43 @@ export class PasswordResetService {
       Date.now() + this.tokenExpiresMinutes * 60 * 1000,
     );
 
-    await this.passwordResetTokenRepo.createToken({
-      userId: user.id,
-      tokenHash,
-      expiresAt,
+    await this.prisma.identityVerificationToken.create({
+      data: {
+        userId: user.id,
+        type: VerificationType.PASSWORD_RESET,
+        tokenHash,
+        expiresAt,
+      },
     });
 
-    const frontendBaseUrl =
-      process.env.FRONTEND_URL ||
-      process.env.PUBLIC_FRONTEND_URL ||
-      'https://www.phlyphant.com';
+    // ==================================================
+    // Send email (Resend)
+    // ==================================================
+    const publicSiteUrl = process.env.PUBLIC_SITE_URL;
 
-    const resetUrl = `${frontendBaseUrl.replace(
-      /\/$/,
-      '',
-    )}/auth/reset-password?token=${encodeURIComponent(
-      rawToken,
-    )}&email=${encodeURIComponent(normalizedEmail)}`;
+    if (!publicSiteUrl) {
+      this.logger.error(
+        '[PASSWORD_RESET] PUBLIC_SITE_URL not configured',
+      );
+      return;
+    }
 
-    await this.passwordResetMailService.sendPasswordResetEmail(user.email, {
-      resetUrl,
-      expiresInMinutes: this.tokenExpiresMinutes,
-      usernameOrEmail: user['name'] || user.email,
-    });
+    const resetUrl =
+      `${publicSiteUrl.replace(/\/$/, '')}/auth/reset-password` +
+      `?token=${encodeURIComponent(rawToken)}` +
+      `&email=${encodeURIComponent(normalizedEmail)}`;
 
-    this.logger.log(
-      `Password reset requested for userId=${user.id}, email=${user.email}, ip=${ipAddress}, userAgent=${userAgent}`,
-    );
+    try {
+      await this.mailService.sendPasswordResetEmail({
+        to: user.email,
+        resetUrl,
+        expiresInMinutes: this.tokenExpiresMinutes,
+        usernameOrEmail: user.name || user.email,
+      });
+    } catch (err) {
+      // MailService already logs technical error
+      return; // never throw
+    }
   }
 
   // ==================================================
@@ -104,58 +134,52 @@ export class PasswordResetService {
     const normalizedEmail = dto.email.trim().toLowerCase();
     const { token, newPassword, confirmPassword } = dto;
 
-    // 1. check password confirm
     if (newPassword !== confirmPassword) {
       throw new PasswordResetPasswordMismatchException();
     }
 
-    // 2. password strength
     validatePasswordStrength(newPassword);
 
-    // 3. find user
     const user = await this.prisma.user.findUnique({
       where: { email: normalizedEmail },
     });
 
-    // do not reveal whether user exists
-    if (!user) {
-      return;
-    }
+    // ❗ do not reveal user existence
+    if (!user) return;
 
-    // 4. find token
+    const tokenHash = await hashToken(token);
+
     const tokenRecord =
-      await this.passwordResetTokenRepo.findLatestActiveTokenForUser(user.id);
+      await this.prisma.identityVerificationToken.findFirst({
+        where: {
+          userId: user.id,
+          type: VerificationType.PASSWORD_RESET,
+          tokenHash,
+          usedAt: null,
+        },
+        orderBy: { createdAt: 'desc' },
+      });
 
     if (!tokenRecord) {
       throw new PasswordResetTokenInvalidException();
     }
 
-    // 5. check expiry
     if (tokenRecord.expiresAt <= new Date()) {
       throw new PasswordResetTokenExpiredException();
     }
 
-    // 6. verify token hash
-    const tokenMatches = await argon2.verify(tokenRecord.tokenHash, token);
-
-    if (!tokenMatches) {
-      throw new PasswordResetTokenInvalidException();
-    }
-
-    // 7. hash new password
     const newHashedPassword = await argon2.hash(newPassword, {
       type: argon2.argon2id,
     });
 
     // ==================================================
-    // 8) TRANSACTION:
-    // - update user password
+    // TRANSACTION:
+    // - update password
     // - revoke refresh tokens
     // - delete sessions
     // - mark token used
     // ==================================================
     await this.prisma.$transaction(async (tx) => {
-      // update password
       await tx.user.update({
         where: { id: user.id },
         data: {
@@ -165,7 +189,6 @@ export class PasswordResetService {
         },
       });
 
-      // revoke refresh tokens
       await tx.refreshToken.updateMany({
         where: {
           userId: user.id,
@@ -176,25 +199,19 @@ export class PasswordResetService {
         },
       });
 
-      // delete sessions
       await tx.session.deleteMany({
         where: { userId: user.id },
       });
 
-      // mark token used
-      await tx.passwordResetToken.update({
+      await tx.identityVerificationToken.update({
         where: { id: tokenRecord.id },
-        data: {
-          usedAt: new Date(),
-        },
+        data: { usedAt: new Date() },
       });
     });
 
-    // ==================================================
-    // 9) log for security
-    // ==================================================
     this.logger.log(
-      `Password reset completed for userId=${user.id}, email=${user.email}, ip=${ipAddress}, userAgent=${userAgent}`,
+      `[PASSWORD_RESET_SUCCESS] userId=${user.id} ip=${ipAddress} ua=${userAgent}`,
     );
   }
 }
+

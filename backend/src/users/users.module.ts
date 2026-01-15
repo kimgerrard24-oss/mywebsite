@@ -20,12 +20,14 @@ import { CredentialVerificationService } from '../auth/credential-verification.s
 import { PhoneModule } from '../identities/phone/phone.module';
 import { ProfileExportModule } from './export/profile-export.module';
 import { AuditModule } from './audit/audit.module';
+import { MailModule } from '../mail/mail.module';
 
 @Module({
   imports: [
     PrismaModule, 
     AuthModule, 
     R2Module, 
+    MailModule,
     NotificationsModule,
     forwardRef(() => ProfileExportModule),
     AuditModule,

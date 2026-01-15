@@ -592,6 +592,70 @@ async incrementPhoneChangeAttempt(id: string) {
   });
 }
 
+
+async confirmEmailChangeAtomic(params: {
+  userId: string;
+  tokenHash: string;
+}): Promise<{ newEmail: string } | null> {
+  const now = new Date();
+
+  return this.prisma.$transaction(async (tx) => {
+    // 1) Find active token
+    const token =
+      await tx.identityVerificationToken.findFirst({
+        where: {
+          userId: params.userId,
+          type: VerificationType.EMAIL_CHANGE,
+          tokenHash: params.tokenHash,
+          usedAt: null,
+          expiresAt: { gt: now },
+        },
+      });
+
+    if (!token || !token.target) {
+      return null;
+    }
+
+    // 2) Consume token (atomic guard)
+    const consumed =
+      await tx.identityVerificationToken.updateMany({
+        where: {
+          id: token.id,
+          usedAt: null,
+        },
+        data: {
+          usedAt: now,
+        },
+      });
+
+    if (consumed.count !== 1) {
+      return null;
+    }
+
+    // 3) Update user email
+    await tx.user.update({
+      where: { id: params.userId },
+      data: {
+        email: token.target,
+        isEmailVerified: true,
+      },
+    });
+
+    // 4) Identity history
+    await tx.userIdentityHistory.create({
+      data: {
+        userId: params.userId,
+        field: 'email',
+        oldValue: null, // ถ้ามี email เดิมก็ใส่เพิ่มได้
+        newValue: token.target,
+        changedBy: 'USER',
+      },
+    });
+
+    return { newEmail: token.target };
+  });
+}
+
 }
 
 

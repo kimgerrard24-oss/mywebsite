@@ -2,68 +2,67 @@
 
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import type { PasswordResetToken } from '@prisma/client';
+import { VerificationType } from '@prisma/client';
 
 @Injectable()
 export class PasswordResetTokenRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async invalidateTokensForUser(userId: string): Promise<void> {
-    await this.prisma.passwordResetToken.deleteMany({
+  // =================================================
+  // Revoke previous active PASSWORD_RESET tokens
+  // =================================================
+  async revokeActiveTokensForUser(
+    userId: string,
+  ): Promise<void> {
+    const now = new Date();
+
+    await this.prisma.identityVerificationToken.updateMany({
       where: {
         userId,
+        type: VerificationType.PASSWORD_RESET,
+        usedAt: null,
+        expiresAt: { gt: now },
+      },
+      data: {
+        usedAt: now,
       },
     });
   }
 
+  // =================================================
+  // Create new PASSWORD_RESET token
+  // =================================================
   async createToken(params: {
     userId: string;
     tokenHash: string;
     expiresAt: Date;
-  }): Promise<PasswordResetToken> {
+  }) {
     const { userId, tokenHash, expiresAt } = params;
 
-    return this.prisma.passwordResetToken.create({
+    return this.prisma.identityVerificationToken.create({
       data: {
         userId,
+        type: VerificationType.PASSWORD_RESET,
         tokenHash,
         expiresAt,
       },
     });
   }
 
-  // ใช้ตอนตรวจ token ก่อน reset password
-  async findValidTokenByUserId(
-    userId: string,
-  ): Promise<PasswordResetToken | null> {
-    const now = new Date();
-    return this.prisma.passwordResetToken.findFirst({
-      where: {
-        userId,
-        usedAt: null,
-        expiresAt: {
-          gt: now,
-        },
-      },
-      orderBy: {
-        createdAt: 'desc',
-      },
-    });
-  }
-
-  // เพิ่มให้ใช้ตาม production code ที่คุณขอ
+  // =================================================
+  // Find latest active token
+  // =================================================
   async findLatestActiveTokenForUser(
     userId: string,
-  ): Promise<PasswordResetToken | null> {
+  ) {
     const now = new Date();
 
-    return this.prisma.passwordResetToken.findFirst({
+    return this.prisma.identityVerificationToken.findFirst({
       where: {
         userId,
+        type: VerificationType.PASSWORD_RESET,
         usedAt: null,
-        expiresAt: {
-          gt: now,
-        },
+        expiresAt: { gt: now },
       },
       orderBy: {
         createdAt: 'desc',
@@ -71,27 +70,39 @@ export class PasswordResetTokenRepository {
     });
   }
 
-  // mark token ว่าใช้แล้ว
-  async markTokenUsed(id: string): Promise<void> {
-    await this.prisma.passwordResetToken.update({
-      where: { id },
-      data: {
-        usedAt: new Date(),
-      },
-    });
+  // =================================================
+  // Atomic consume token (prevent reuse)
+  // =================================================
+  async consumeToken(tokenId: string): Promise<boolean> {
+    const result =
+      await this.prisma.identityVerificationToken.updateMany({
+        where: {
+          id: tokenId,
+          usedAt: null,
+        },
+        data: {
+          usedAt: new Date(),
+        },
+      });
+
+    return result.count === 1;
   }
 
-  // ลบ token ที่หมดอายุ
-  async deleteExpiredTokensForUser(userId: string): Promise<void> {
+  // =================================================
+  // Cleanup expired tokens (optional cron usage)
+  // =================================================
+  async deleteExpiredTokensForUser(
+    userId: string,
+  ): Promise<void> {
     const now = new Date();
 
-    await this.prisma.passwordResetToken.deleteMany({
+    await this.prisma.identityVerificationToken.deleteMany({
       where: {
         userId,
-        expiresAt: {
-          lt: now,
-        },
+        type: VerificationType.PASSWORD_RESET,
+        expiresAt: { lt: now },
       },
     });
   }
 }
+

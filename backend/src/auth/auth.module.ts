@@ -26,17 +26,17 @@ import { RedisService } from '../redis/redis.service';
 import { PasswordResetController } from './password-reset.controller';
 import { PasswordResetService } from './password-reset.service';
 import { PasswordResetTokenRepository } from './password-reset-token.repository';
-import { PasswordResetMailService } from '../mail/password-reset-mail.service';
 import { ValidateSessionService } from './services/validate-session.service';
 import { AccessTokenCookieAuthGuard } from './guards/access-token-cookie.guard';
 import { SessionModule } from './session/session.module';
-import { CredentialVerificationService } from './credential-verification.service';
+import { CredentialVerificationModule } from './credential-verification.module';
 
 @Module({
   imports: [
     SecretsModule,
     FirebaseAdminModule,
     PrismaModule,
+    CredentialVerificationModule,
     RedisModule,
     RateLimitModule,
     MailModule,
@@ -54,7 +54,6 @@ import { CredentialVerificationService } from './credential-verification.service
     RedisService,
     PasswordResetService,
     PasswordResetTokenRepository,
-    PasswordResetMailService,
     ValidateSessionService,
     AccessTokenCookieAuthGuard,
     CredentialVerificationService,
