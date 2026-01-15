@@ -9,6 +9,7 @@ import { RedisModule } from '../redis/redis.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AuditModule } from '../users/audit/audit.module';
 import { AuthModule } from '../auth/auth.module';
+import { CredentialVerificationModule } from '../auth/credential-verification.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { AuthModule } from '../auth/auth.module';
     RedisModule,
     AuthModule,
     AuditModule,
+    CredentialVerificationModule,
   ],
   controllers: [SecurityController],
   providers: [
