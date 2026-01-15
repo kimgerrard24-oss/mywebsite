@@ -35,10 +35,6 @@ export async function fetchMySecurityEvents(params?: FetchSecurityEventsParams) 
  * POST /api/security/account-lock
  * Backend = authority
  */
-export async function lockMyAccount(
-  credentialToken: string,
-): Promise<{ success: true }> {
-  return apiPost("/security/account-lock", {
-    credentialToken,
-  });
+export async function lockMyAccount(): Promise<{ success: true }> {
+  return apiPost("/security/account-lock", {});
 }

@@ -195,13 +195,19 @@ if (!exists || cookieState !== state) {
     const profile = infoRes.data;
 
     // 1) map / create OAuth user
-    const firebaseUid = await this.auth.getOrCreateOAuthUser(
-      'google',
-      profile.sub,
-      profile.email,
-      profile.name,
-      profile.picture,
-    );
+    const email =
+  typeof profile.email === 'string'
+    ? profile.email.trim().toLowerCase()
+    : undefined;
+
+const firebaseUid = await this.auth.getOrCreateOAuthUser(
+  'google',
+  profile.sub,
+  email,
+  profile.name,
+  profile.picture,
+);
+
 
     // 2) load local user
     const user = await this.auth.getUserByFirebaseUid(firebaseUid);
@@ -339,14 +345,20 @@ if (!exists || cookieState !== state) {
 
     const profile = profileRes.data;
 
-    const firebaseUid =
-      await this.auth.getOrCreateOAuthUser(
-        'facebook',
-        profile.id,
-        profile.email,
-        profile.name,
-        profile.picture?.data?.url,
-      );
+    const email =
+  typeof profile.email === 'string'
+    ? profile.email.trim().toLowerCase()
+    : undefined;
+
+const firebaseUid =
+  await this.auth.getOrCreateOAuthUser(
+    'facebook',
+    profile.id,
+    email,
+    profile.name,
+    profile.picture?.data?.url,
+  );
+
 
     const customToken =
       await this.auth.createFirebaseCustomToken(

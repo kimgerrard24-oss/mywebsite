@@ -99,6 +99,7 @@ async findPublicUserById(
       
       isBanned: true,
       isDisabled: true,
+      isAccountLocked: true,
       // ===== counts =====
       _count: {
         select: {

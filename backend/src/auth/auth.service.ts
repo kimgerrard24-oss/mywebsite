@@ -88,103 +88,75 @@ constructor(
   // Local Register
   // -------------------------------------------------------
 
- async register(dto: RegisterDto) {
-  const existing = await this.repo.findByEmailOrUsername(
-    dto.email,
-    dto.username,
-  );
+   async register(dto: RegisterDto) {
+  // =================================================
+  // 1) Normalize email (GLOBAL IDENTITY KEY)
+  // =================================================
+  const normalizedEmail = dto.email.trim().toLowerCase();
 
-  if (existing) {
-    throw new ConflictException('Email or username already exists');
+  // =================================================
+  // 2) Check existing account by EMAIL ONLY
+  //    (provider does NOT matter)
+  // =================================================
+  const existingByEmail =
+    await this.repo.findUserByEmail(normalizedEmail);
+
+  if (existingByEmail) {
+    // ---- Security Event: duplicate register attempt ----
+    this.securityEvent.log({
+      type: 'auth.register.conflict',
+      severity: 'warning',
+      emailHash: this.securityEvent.hash(normalizedEmail),
+      reason: 'email_already_registered',
+    });
+
+    throw new ConflictException(
+      'This email is already registered. Please login or use social login.',
+    );
   }
 
+  // =================================================
+  // 3) Optional: check username separately (UX only)
+  // =================================================
+  if (dto.username) {
+    const existingByUsername =
+      await this.repo.findByEmailOrUsername(
+        '__ignore_email__',
+        dto.username,
+      );
+
+    if (existingByUsername) {
+      throw new ConflictException('Username already exists');
+    }
+  }
+
+  // =================================================
+  // 4) Hash password (argon2)
+  // =================================================
   const hashed = await hashPassword(dto.password);
 
-  // ===============================
-  // 1) Create user (unchanged)
-  // ===============================
+  // =================================================
+  // 5) Create local account (EMAIL = AUTHORITY)
+  // =================================================
   const user = await this.repo.createUser({
-    email: dto.email,
+    email: normalizedEmail,
     username: dto.username,
     hashedPassword: hashed,
     provider: 'local',
-    providerId: dto.email,
+    providerId: normalizedEmail,
   });
 
-  // ===============================
-  // 2) Generate verification token (UNIFIED SYSTEM)
-  // ===============================
-  const token = this.credentialVerify.generateToken();
-  const expiresAt = this.credentialVerify.getExpiry(30); // minutes
-
-  // ===============================
-  // 3) Revoke previous + create new EMAIL_VERIFY token (atomic)
-  // ===============================
-  try {
-    await this.prisma.$transaction(async (tx) => {
-      await tx.identityVerificationToken.updateMany({
-        where: {
-          userId: user.id,
-          type: VerificationType.EMAIL_VERIFY,
-          usedAt: null,
-          expiresAt: { gt: new Date() },
-        },
-        data: {
-          usedAt: new Date(),
-        },
-      });
-
-      await tx.identityVerificationToken.create({
-        data: {
-          userId: user.id,
-          type: VerificationType.EMAIL_VERIFY,
-          tokenHash: token.hash, // 🔒 store hash only
-          expiresAt,
-        },
-      });
-    });
-  } catch (err) {
-    // token infra failure must not break register
-    this.logger.error(
-      '[REGISTER_EMAIL_VERIFY_TOKEN_TX_FAILED]',
-      err,
-    );
-    return user;
-  }
-
-  // ===============================
-  // 4) Send verification email
-  // ===============================
-  const publicSiteUrl = process.env.PUBLIC_SITE_URL;
-
-  if (!publicSiteUrl) {
-    this.logger.error(
-      '[REGISTER] PUBLIC_SITE_URL not configured',
-    );
-    // user already created → do not fail register
-    return user;
-  }
-
-  const verifyUrl =
-  `${publicSiteUrl}/auth/verify-email?token=${encodeURIComponent(token.raw)}`;
-
-
-  try {
-    await this._mailService.sendEmailVerification(
-      user.email,
-      verifyUrl,
-    );
-  } catch (err) {
-    // IMPORTANT: do NOT fail register because of email infra
-    this.logger.error(
-      '[REGISTER_EMAIL_SEND_FAILED]',
-      err,
-    );
-  }
+  // =================================================
+  // 6) Security Event: register success
+  // =================================================
+  this.securityEvent.log({
+    type: 'auth.register.success',
+    severity: 'info',
+    userId: user.id,
+  });
 
   return user;
 }
-
 
 
 // -------------------------------------------------------
@@ -809,22 +781,23 @@ async getOrCreateOAuthUser(
     }
   }
 
-  // 3️⃣ Create user ใหม่
-  if (!user) {
-    let baseUsername = `${provider}_${providerId}`.toLowerCase();
-    let username = baseUsername;
-    let counter = 1;
+  // 3️⃣ Create user ใหม่ (race-safe)
+if (!user) {
+  let baseUsername = `${provider}_${providerId}`.toLowerCase();
+  let username = baseUsername;
+  let counter = 1;
 
-    while (
-      await this.prisma.user.findUnique({
-        where: { username },
-      })
-    ) {
-      username = `${baseUsername}_${counter++}`;
-    }
+  while (
+    await this.prisma.user.findUnique({
+      where: { username },
+    })
+  ) {
+    username = `${baseUsername}_${counter++}`;
+  }
 
-    const placeholderPassword = await hashPassword(randomUUID());
+  const placeholderPassword = await hashPassword(randomUUID());
 
+  try {
     user = await this.prisma.user.create({
       data: {
         email:
@@ -839,7 +812,20 @@ async getOrCreateOAuthUser(
         firebaseUid: null,
       },
     });
+  } catch (e: any) {
+    // ✅ unique constraint → someone created it first
+    if (e?.code === 'P2002' && normalizedEmail) {
+      user = await this.prisma.user.findUnique({
+        where: { email: normalizedEmail },
+      });
+
+      if (!user) throw e; // should never happen
+    } else {
+      throw e;
+    }
   }
+}
+
 
   // 4️⃣ Ensure firebaseUid (ครั้งเดียว)
   if (!user.firebaseUid) {
@@ -931,4 +917,16 @@ async getUserByFirebaseUid(firebaseUid: string) {
 
     return user?.isBanned === true;
   }
+
+  async isUserAccountLocked(
+  userId: string,
+): Promise<boolean> {
+  const user = await this.prisma.user.findUnique({
+    where: { id: userId },
+    select: { isAccountLocked: true },
+  });
+
+  return user?.isAccountLocked === true;
+}
+
 }

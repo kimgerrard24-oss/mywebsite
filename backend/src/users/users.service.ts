@@ -64,30 +64,78 @@ export class UsersService {
     return this.prisma.user.findUnique({ where: { email } });
   }
 
-  async createUser(email: string, passwordHash: string, displayName?: string) {
-    const baseUsername = email.split("@")[0].toLowerCase();
-    let username = baseUsername;
-    let counter = 1;
+ async createUser(
+  email: string,
+  passwordHash: string,
+  displayName?: string,
+) {
+  // =================================================
+  // 1) Normalize email (GLOBAL IDENTITY KEY)
+  // =================================================
+  const normalizedEmail = email.trim().toLowerCase();
 
-    while (
-      await this.prisma.user.findUnique({
-        where: { username },
-      })
-    ) {
-      username = `${baseUsername}_${counter++}`;
-    }
+  // =================================================
+  // 2) Check duplicate email (explicit, fast-fail)
+  // =================================================
+  const existingByEmail =
+    await this.prisma.user.findUnique({
+      where: { email: normalizedEmail },
+      select: { id: true },
+    });
 
-    return this.prisma.user.create({
+  if (existingByEmail) {
+    throw new ConflictException(
+      'Email already registered',
+    );
+  }
+
+  // =================================================
+  // 3) Generate unique username
+  // =================================================
+  const baseUsername =
+    normalizedEmail.split('@')[0].toLowerCase();
+
+  let username = baseUsername;
+  let counter = 1;
+
+  while (
+    await this.prisma.user.findUnique({
+      where: { username },
+      select: { id: true },
+    })
+  ) {
+    username = `${baseUsername}_${counter++}`;
+  }
+
+  // =================================================
+  // 4) Create user (race-safe)
+  // =================================================
+  try {
+    return await this.prisma.user.create({
       data: {
-        email,
+        email: normalizedEmail,
         username,
         hashedPassword: passwordHash,
-        provider: "local",
-        providerId: email,
+        provider: 'local',
+        providerId: normalizedEmail,
         name: displayName ?? null,
       },
     });
+  } catch (e: any) {
+    // ---------------------------------------------
+    // Unique constraint (race condition)
+    // ---------------------------------------------
+    if (e?.code === 'P2002') {
+      // email or username collided concurrently
+      throw new ConflictException(
+        'Email or username already exists',
+      );
+    }
+
+    throw e;
   }
+}
+
 
   async setRefreshTokenHash(userId: string, hash: string | null) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
@@ -226,7 +274,8 @@ async getPublicProfile(params: {
   /** ===== Appeal UX Guard (backend still authority) ===== */
   const hasActiveModeration =
     user.isBanned === true ||
-    user.isDisabled === true;
+    user.isDisabled === true ||
+    user.isAccountLocked === true;
 
   const canAppeal =
     Boolean(isSelf && hasActiveModeration);
@@ -392,7 +441,7 @@ async updateAvatar(params: {
  async verifyCredential(
   userId: string,
   dto: VerifyCredentialDto,
-  meta?: { ip?: string; userAgent?: string },
+  meta?: { ip?: string; userAgent?: string; jti?: string },
 ) {
   const user = await this.repo.findUserForCredentialVerify(userId);
   if (!user) {
@@ -404,6 +453,13 @@ async updateAvatar(params: {
     isBanned: user.isBanned,
     isAccountLocked: user.isAccountLocked,
   });
+
+  // ✅ ADD: OAuth / no-password account guard
+if (!user.hashedPassword) {
+  throw new BadRequestException(
+    'Password authentication not available for this account',
+  );
+}
 
   const isValid = await verifyPassword(
     user.hashedPassword,
@@ -458,6 +514,23 @@ async updateAvatar(params: {
     tokenHash: token.hash,
     expiresAt,
   });
+
+  // ===============================
+// ✅ NEW: mark session as sensitive-verified (Option A)
+// ===============================
+if (meta?.jti) {
+  try {
+    await this.credentialVerify.markSessionVerified({
+      userId,
+      jti: meta.jti,
+      scope: 'ACCOUNT_LOCK',
+      ttlSeconds: 300, // 5 นาที
+    });
+  } catch {
+    // fail-soft: do not block sensitive action flow
+  }
+}
+
 
   await this.repo.createSecurityEvent({
     userId,

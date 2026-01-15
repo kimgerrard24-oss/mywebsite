@@ -21,6 +21,10 @@ export type SecurityEventType =
   | 'auth.login.password_mismatch'
   | 'auth.logout'
 
+   // ✅ REGISTER
+  | 'auth.register.success'
+  | 'auth.register.conflict'
+
   // ===== JWT / SESSION =====
   | 'auth.jwt.missing_token'
   | 'auth.jwt.secret_missing'

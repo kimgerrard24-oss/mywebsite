@@ -15,7 +15,7 @@ model User {
   name                      String?
   displayName               String?
   username                  String   @unique
-  hashedPassword            String
+  hashedPassword            String?
   isEmailVerified           Boolean  @default(false)
     // ===== Identity / Compliance =====
   countryCode               String?  @db.Char(2) // "TH", "US", "JP"
@@ -31,8 +31,8 @@ model User {
   isDisabled                Boolean  @default(false)
   active                    Boolean  @default(true)
   lastLoginAt               DateTime?
-  provider                  String
-  providerId                String
+  provider                  String?
+  providerId                String?
   disabledReason            String?
   disabledAt                DateTime?
   bio                       String?
@@ -160,6 +160,7 @@ model OAuthAccount {
   user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([provider, providerId])
+  @@unique([provider, providerId])
 }
 
 model RefreshToken {
@@ -844,6 +845,7 @@ enum SecurityEventType {
   SESSION_REVOKED
   SUSPICIOUS_ACTIVITY
   CREDENTIAL_VERIFIED
+  PROFILE_EXPORTED
 }
 
 model IdentityVerificationToken {

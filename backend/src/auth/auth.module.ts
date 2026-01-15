@@ -41,6 +41,7 @@ import { CredentialVerificationModule } from './credential-verification.module';
     RateLimitModule,
     MailModule,
     SessionModule,
+    CredentialVerificationModule,
   ],
 
   providers: [
