@@ -30,7 +30,7 @@ import { PasswordResetMailService } from '../mail/password-reset-mail.service';
 import { ValidateSessionService } from './services/validate-session.service';
 import { AccessTokenCookieAuthGuard } from './guards/access-token-cookie.guard';
 import { SessionModule } from './session/session.module';
-import { CredentialVerificationService } from './credential-verification.service';
+import { CredentialVerificationModule } from './credential-verification.module';
 
 @Module({
   imports: [
@@ -41,6 +41,7 @@ import { CredentialVerificationService } from './credential-verification.service
     RateLimitModule,
     MailModule,
     SessionModule,
+    CredentialVerificationModule,
   ],
 
   providers: [
@@ -57,7 +58,6 @@ import { CredentialVerificationService } from './credential-verification.service
     PasswordResetMailService,
     ValidateSessionService,
     AccessTokenCookieAuthGuard,
-    CredentialVerificationService,
   ],
 
   controllers: [
@@ -73,7 +73,6 @@ import { CredentialVerificationService } from './credential-verification.service
     AuditService,
     ValidateSessionService,
     AccessTokenCookieAuthGuard,
-    CredentialVerificationService,
   ],
 })
 export class AuthModule {}
