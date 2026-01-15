@@ -19,7 +19,7 @@ export default function AccountLockForm() {
 
     try {
       // 1) verify credential (backend marks session verified)
-      await verifyCredential(password);
+      await verifyCredential(password.trim());
 
       // 2) lock account (no token from client)
       await lockMyAccount();
@@ -31,13 +31,14 @@ export default function AccountLockForm() {
 
       // redirect to login
       setTimeout(() => {
-        window.location.href = "/login";
+        window.location.href = "/";
       }, 800);
     } catch (err: any) {
       setError(
         err?.response?.data?.message ??
           "Failed to lock account",
       );
+      setPassword(""); // clear sensitive input
       setStep("verify");
     }
   }
@@ -65,6 +66,7 @@ export default function AccountLockForm() {
               setPassword(e.target.value)
             }
             placeholder="Enter your password"
+            autoComplete="current-password"
           />
           <button
             onClick={handleVerifyAndLock}
