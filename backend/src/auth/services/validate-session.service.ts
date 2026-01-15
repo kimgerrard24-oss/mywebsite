@@ -226,6 +226,30 @@ export class ValidateSessionService {
       }
 
       // =====================================================
+// 🔒 ACCOUNT LOCK POLICY (DB authority)  ✅ ADD HERE
+// =====================================================
+const isLocked =
+  await this.authService.isUserAccountLocked(userId);
+
+if (isLocked) {
+  this.logger.warn(
+    `Blocked locked account: userId=${userId}`,
+  );
+
+  this.securityEvent.log({
+    type: 'security.abuse.detected',
+    severity: 'warning',
+    userId,
+    path: req.originalUrl || req.url,
+    meta: {
+      reason: 'account_locked_access_attempt',
+    },
+  });
+
+  throw new ForbiddenException('Account is locked');
+}
+
+      // =====================================================
       // 6) Best-effort touch (NO Redis write, NO TTL)
       // =====================================================
       this.touchSession(jti, session).catch(

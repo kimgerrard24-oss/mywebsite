@@ -1,10 +1,19 @@
 // backend/src/auth/credential-verification.service.ts
 
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { randomBytes, createHash } from 'crypto';
+import { RedisService } from '../redis/redis.service';
 
 @Injectable()
 export class CredentialVerificationService {
+  private readonly logger = new Logger(
+    CredentialVerificationService.name,
+  );
+
+  constructor(
+    private readonly redis: RedisService,
+  ) {}
+
   generateToken(): { raw: string; hash: string } {
     const raw = randomBytes(32).toString('hex');
 
@@ -18,4 +27,70 @@ export class CredentialVerificationService {
   getExpiry(minutes = 10): Date {
     return new Date(Date.now() + minutes * 60_000);
   }
+
+  // ====================================================
+  // ✅ mark session as verified for sensitive action
+  // ====================================================
+  async markSessionVerified(params: {
+    userId: string;
+    jti: string;
+    scope: 'ACCOUNT_LOCK' | 'EMAIL_CHANGE' | 'PHONE_CHANGE';
+    ttlSeconds: number;
+  }): Promise<void> {
+    const { userId, jti, scope, ttlSeconds } = params;
+
+    const key = `session:verified:${scope}:${jti}`;
+
+    try {
+      await this.redis.set(
+        key,
+        {
+          userId,
+          scope,
+          verifiedAt: new Date().toISOString(),
+        },
+        ttlSeconds, // ✅ TTL here
+      );
+    } catch (err) {
+      this.logger.warn(
+        `[MARK_SESSION_VERIFIED_FAILED] user=${userId} scope=${scope}`,
+      );
+      // fail-soft
+    }
+  }
+
+  // ====================================================
+  // ✅ check verified session (used by account-lock)
+  // ====================================================
+  async isSessionVerified(params: {
+    jti: string;
+    scope: 'ACCOUNT_LOCK';
+  }): Promise<boolean> {
+    const key = `session:verified:${params.scope}:${params.jti}`;
+
+    try {
+      const val = await this.redis.get(key);
+      return Boolean(val);
+    } catch {
+      return false;
+    }
+  }
+
+  async consumeVerifiedSession(params: {
+  jti: string;
+  scope: 'ACCOUNT_LOCK';
+}): Promise<boolean> {
+  const key = `session:verified:${params.scope}:${params.jti}`;
+
+  try {
+    const val = await this.redis.get(key);
+    if (!val) return false;
+
+    await this.redis.del(key); // 🔥 consume once
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 }

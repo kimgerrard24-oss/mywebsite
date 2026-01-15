@@ -38,7 +38,7 @@ CREATE TYPE "AppealTargetType" AS ENUM ('POST', 'COMMENT', 'USER', 'CHAT_MESSAGE
 CREATE TYPE "VerificationType" AS ENUM ('EMAIL_CHANGE', 'PHONE_CHANGE', 'ACCOUNT_LOCK', 'SENSITIVE_ACTION');
 
 -- CreateEnum
-CREATE TYPE "SecurityEventType" AS ENUM ('LOGIN_SUCCESS', 'LOGIN_FAILED', 'PASSWORD_CHANGED', 'EMAIL_CHANGE_REQUEST', 'EMAIL_CHANGED', 'PHONE_CHANGE_REQUEST', 'PHONE_CHANGED', 'USERNAME_CHANGED', 'ACCOUNT_LOCKED', 'ACCOUNT_UNLOCKED', 'SESSION_REVOKED', 'SUSPICIOUS_ACTIVITY', 'CREDENTIAL_VERIFIED');
+CREATE TYPE "SecurityEventType" AS ENUM ('LOGIN_SUCCESS', 'LOGIN_FAILED', 'PASSWORD_CHANGED', 'EMAIL_CHANGE_REQUEST', 'EMAIL_CHANGED', 'PHONE_CHANGE_REQUEST', 'PHONE_CHANGED', 'USERNAME_CHANGED', 'ACCOUNT_LOCKED', 'ACCOUNT_UNLOCKED', 'SESSION_REVOKED', 'SUSPICIOUS_ACTIVITY', 'CREDENTIAL_VERIFIED', 'PROFILE_EXPORTED');
 
 -- CreateTable
 CREATE TABLE "User" (
@@ -47,7 +47,7 @@ CREATE TABLE "User" (
     "name" TEXT,
     "displayName" TEXT,
     "username" TEXT NOT NULL,
-    "hashedPassword" TEXT NOT NULL,
+    "hashedPassword" TEXT,
     "isEmailVerified" BOOLEAN NOT NULL DEFAULT false,
     "emailVerifyTokenHash" TEXT,
     "emailVerifyTokenExpires" TIMESTAMP(3),
@@ -63,8 +63,8 @@ CREATE TABLE "User" (
     "lastLoginAt" TIMESTAMP(3),
     "passwordResetTokenHash" TEXT,
     "passwordResetTokenExpires" TIMESTAMP(3),
-    "provider" TEXT NOT NULL,
-    "providerId" TEXT NOT NULL,
+    "provider" TEXT,
+    "providerId" TEXT,
     "disabledReason" TEXT,
     "disabledAt" TIMESTAMP(3),
     "bio" TEXT,
@@ -294,6 +294,7 @@ CREATE TRIGGER trg_comment_one_level_reply
 BEFORE INSERT ON "Comment"
 FOR EACH ROW
 EXECUTE FUNCTION enforce_one_level_reply();
+
 
 -- CreateTable
 CREATE TABLE "CommentLike" (
@@ -546,6 +547,10 @@ CREATE TABLE "IdentityVerificationToken" (
     CONSTRAINT "IdentityVerificationToken_pkey" PRIMARY KEY ("id")
 );
 
+CREATE UNIQUE INDEX uniq_active_identity_token
+ON "IdentityVerificationToken"("userId", "type")
+WHERE "usedAt" IS NULL;
+
 -- CreateTable
 CREATE TABLE "SecurityEvent" (
     "id" TEXT NOT NULL,
@@ -602,6 +607,9 @@ CREATE UNIQUE INDEX "Session_sessionToken_key" ON "Session"("sessionToken");
 
 -- CreateIndex
 CREATE INDEX "OAuthAccount_provider_providerId_idx" ON "OAuthAccount"("provider", "providerId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "OAuthAccount_provider_providerId_key" ON "OAuthAccount"("provider", "providerId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "RefreshToken_token_key" ON "RefreshToken"("token");

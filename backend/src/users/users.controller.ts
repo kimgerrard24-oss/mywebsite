@@ -251,6 +251,7 @@ async verifyCredential(
   return this.usersService.verifyCredential(user.userId, dto, {
     ip: req.ip,
     userAgent: req.headers['user-agent'],
+    jti: user.jti,
   });
  }
  

@@ -84,25 +84,75 @@ constructor(
   // -------------------------------------------------------
 
    async register(dto: RegisterDto) {
-  const existing = await this.repo.findByEmailOrUsername(
-    dto.email,
-    dto.username,
-  );
+  // =================================================
+  // 1) Normalize email (GLOBAL IDENTITY KEY)
+  // =================================================
+  const normalizedEmail = dto.email.trim().toLowerCase();
 
-  if (existing) {
-    throw new ConflictException('Email or username already exists');
+  // =================================================
+  // 2) Check existing account by EMAIL ONLY
+  //    (provider does NOT matter)
+  // =================================================
+  const existingByEmail =
+    await this.repo.findUserByEmail(normalizedEmail);
+
+  if (existingByEmail) {
+    // ---- Security Event: duplicate register attempt ----
+    this.securityEvent.log({
+      type: 'auth.register.conflict',
+      severity: 'warning',
+      emailHash: this.securityEvent.hash(normalizedEmail),
+      reason: 'email_already_registered',
+    });
+
+    throw new ConflictException(
+      'This email is already registered. Please login or use social login.',
+    );
   }
 
+  // =================================================
+  // 3) Optional: check username separately (UX only)
+  // =================================================
+  if (dto.username) {
+    const existingByUsername =
+      await this.repo.findByEmailOrUsername(
+        '__ignore_email__',
+        dto.username,
+      );
+
+    if (existingByUsername) {
+      throw new ConflictException('Username already exists');
+    }
+  }
+
+  // =================================================
+  // 4) Hash password (argon2)
+  // =================================================
   const hashed = await hashPassword(dto.password);
 
-  return this.repo.createUser({
-    email: dto.email,
+  // =================================================
+  // 5) Create local account (EMAIL = AUTHORITY)
+  // =================================================
+  const user = await this.repo.createUser({
+    email: normalizedEmail,
     username: dto.username,
     hashedPassword: hashed,
     provider: 'local',
-    providerId: dto.email,  
+    providerId: normalizedEmail,
   });
+
+  // =================================================
+  // 6) Security Event: register success
+  // =================================================
+  this.securityEvent.log({
+    type: 'auth.register.success',
+    severity: 'info',
+    userId: user.id,
+  });
+
+  return user;
 }
+
 
 // -------------------------------------------------------
 // Local Login (Validate Credentials Only)
@@ -686,22 +736,23 @@ async getOrCreateOAuthUser(
     }
   }
 
-  // 3️⃣ Create user ใหม่
-  if (!user) {
-    let baseUsername = `${provider}_${providerId}`.toLowerCase();
-    let username = baseUsername;
-    let counter = 1;
+  // 3️⃣ Create user ใหม่ (race-safe)
+if (!user) {
+  let baseUsername = `${provider}_${providerId}`.toLowerCase();
+  let username = baseUsername;
+  let counter = 1;
 
-    while (
-      await this.prisma.user.findUnique({
-        where: { username },
-      })
-    ) {
-      username = `${baseUsername}_${counter++}`;
-    }
+  while (
+    await this.prisma.user.findUnique({
+      where: { username },
+    })
+  ) {
+    username = `${baseUsername}_${counter++}`;
+  }
 
-    const placeholderPassword = await hashPassword(randomUUID());
+  const placeholderPassword = await hashPassword(randomUUID());
 
+  try {
     user = await this.prisma.user.create({
       data: {
         email:
@@ -716,7 +767,20 @@ async getOrCreateOAuthUser(
         firebaseUid: null,
       },
     });
+  } catch (e: any) {
+    // ✅ unique constraint → someone created it first
+    if (e?.code === 'P2002' && normalizedEmail) {
+      user = await this.prisma.user.findUnique({
+        where: { email: normalizedEmail },
+      });
+
+      if (!user) throw e; // should never happen
+    } else {
+      throw e;
+    }
   }
+}
+
 
   // 4️⃣ Ensure firebaseUid (ครั้งเดียว)
   if (!user.firebaseUid) {
@@ -808,4 +872,16 @@ async getUserByFirebaseUid(firebaseUid: string) {
 
     return user?.isBanned === true;
   }
+
+  async isUserAccountLocked(
+  userId: string,
+): Promise<boolean> {
+  const user = await this.prisma.user.findUnique({
+    where: { id: userId },
+    select: { isAccountLocked: true },
+  });
+
+  return user?.isAccountLocked === true;
+}
+
 }

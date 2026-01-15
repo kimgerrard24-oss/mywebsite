@@ -20,7 +20,15 @@ export class ProfileExportService {
     private readonly auditLog: AuditLogService,
   ) {}
 
+  /**
+   * Export full user profile & activity data
+   * Security level: authenticated + policy guarded
+   * Backend = authority
+   */
   async exportProfile(userId: string) {
+    // =================================================
+    // 1) Load user security state (DB authority)
+    // =================================================
     const user =
       await this.usersRepo.findUserSecurityState(userId);
 
@@ -28,38 +36,56 @@ export class ProfileExportService {
       throw new BadRequestException('User not found');
     }
 
+    // =================================================
+    // 2) Business policy
+    // =================================================
     ProfileExportPolicy.assertCanExport({
       isDisabled: user.isDisabled,
       isBanned: user.isBanned,
       isAccountLocked: user.isAccountLocked,
     });
 
-    const data = await this.repo.aggregateUserData(
-      userId,
-    );
+    // =================================================
+    // 3) Aggregate export data
+    // =================================================
+    const data = await this.repo.aggregateUserData(userId);
 
-    const payload = ProfileExportDto.fromEntity(
-      data,
-    );
+    if (!data) {
+      throw new BadRequestException(
+        'Export data not found',
+      );
+    }
 
-    // ===============================
-    // ✅ AUDIT + SECURITY EVENT
-    // ===============================
+    const payload = ProfileExportDto.fromEntity(data);
+
+    // =================================================
+    // 4) Compliance audit (fail-soft)
+    // =================================================
     try {
       await this.auditLog.log({
         userId,
         action: 'USER_PROFILE_EXPORT',
         success: true,
       });
-    } catch {}
+    } catch {
+      // must not affect export flow
+    }
 
+    // =================================================
+    // 5) Security event (fail-soft)
+    // =================================================
     try {
       await this.usersRepo.createSecurityEvent({
         userId,
-        type: SecurityEventType.CREDENTIAL_VERIFIED, // reuse sensitive action
+        type: SecurityEventType.PROFILE_EXPORTED, 
       });
-    } catch {}
+    } catch {
+      // must not affect export flow
+    }
 
+    // =================================================
+    // 6) Response
+    // =================================================
     return {
       exportedAt: new Date().toISOString(),
       data: payload,
