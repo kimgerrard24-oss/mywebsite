@@ -846,6 +846,7 @@ enum SecurityEventType {
   SUSPICIOUS_ACTIVITY
   CREDENTIAL_VERIFIED
   PROFILE_EXPORTED
+  EMAIL_VERIFIED
 }
 
 model IdentityVerificationToken {

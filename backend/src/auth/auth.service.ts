@@ -27,6 +27,8 @@ import { SessionService } from './session/session.service';
 import { SecurityEventService } from '../common/security/security-event.service';
 import { createHash } from 'crypto';
 import { CredentialVerificationService } from '../auth/credential-verification.service';
+import { VerificationType, SecurityEventType } from '@prisma/client';
+import { ResendVerificationDto } from './dto/resend-verification.dto';
 
 
 interface GoogleOAuthConfig {
@@ -81,7 +83,7 @@ constructor(
   // Local Register
   // -------------------------------------------------------
 
-   async register(dto: RegisterDto) {
+async register(dto: RegisterDto) {
   // =================================================
   // 1) Normalize email (GLOBAL IDENTITY KEY)
   // =================================================
@@ -89,19 +91,20 @@ constructor(
 
   // =================================================
   // 2) Check existing account by EMAIL ONLY
-  //    (provider does NOT matter)
   // =================================================
   const existingByEmail =
     await this.repo.findUserByEmail(normalizedEmail);
 
   if (existingByEmail) {
     // ---- Security Event: duplicate register attempt ----
-    this.securityEvent.log({
-      type: 'auth.register.conflict',
-      severity: 'warning',
-      emailHash: this.securityEvent.hash(normalizedEmail),
-      reason: 'email_already_registered',
-    });
+    try {
+      this.securityEvent.log({
+        type: 'auth.register.conflict',
+        severity: 'warning',
+        emailHash: this.securityEvent.hash(normalizedEmail),
+        reason: 'email_already_registered',
+      });
+    } catch {}
 
     throw new ConflictException(
       'This email is already registered. Please login or use social login.',
@@ -140,16 +143,85 @@ constructor(
   });
 
   // =================================================
-  // 6) Security Event: register success
+  // 6) Issue EMAIL_VERIFY token (IdentityVerificationToken)
+  //    ❗ must NOT block successful registration
   // =================================================
-  this.securityEvent.log({
-    type: 'auth.register.success',
-    severity: 'info',
-    userId: user.id,
-  });
+  try {
+    const token = this.credentialVerify.generateToken();
+    const expiresAt = this.credentialVerify.getExpiry(30); // minutes
+
+    // atomic revoke old + create new (defensive)
+    await this.prisma.$transaction(async (tx) => {
+      await tx.identityVerificationToken.updateMany({
+        where: {
+          userId: user.id,
+          type: VerificationType.EMAIL_VERIFY,
+          usedAt: null,
+          expiresAt: { gt: new Date() },
+        },
+        data: {
+          usedAt: new Date(),
+        },
+      });
+
+      await tx.identityVerificationToken.create({
+        data: {
+          userId: user.id,
+          type: VerificationType.EMAIL_VERIFY,
+          tokenHash: token.hash,
+          expiresAt,
+        },
+      });
+    });
+
+    const publicSiteUrl = process.env.PUBLIC_SITE_URL;
+
+    if (!publicSiteUrl || typeof publicSiteUrl !== 'string') {
+      this.logger.error(
+        '[REGISTER_EMAIL_VERIFY] PUBLIC_SITE_URL not configured',
+      );
+      throw new Error('PUBLIC_SITE_URL missing');
+    }
+
+    const verifyUrl =
+      `${publicSiteUrl}/settings/email-confirm?token=${encodeURIComponent(
+        token.raw,
+      )}`;
+
+    try {
+      await this._mailService.sendEmailVerification(
+        normalizedEmail,
+        verifyUrl,
+      );
+    } catch (mailErr) {
+      // email failed → user still registered, token still valid for resend
+      this.logger.error(
+        '[REGISTER_EMAIL_VERIFY_SEND_FAILED]',
+        mailErr,
+      );
+    }
+  } catch (err) {
+    // token or mail infra failure must NOT block registration
+    this.logger.error(
+      '[REGISTER_EMAIL_VERIFY_FLOW_FAILED]',
+      err,
+    );
+  }
+
+  // =================================================
+  // 7) Security Event: register success
+  // =================================================
+  try {
+    this.securityEvent.log({
+      type: 'auth.register.success',
+      severity: 'info',
+      userId: user.id,
+    });
+  } catch {}
 
   return user;
 }
+
 
 
 // -------------------------------------------------------
@@ -529,45 +601,55 @@ if (accessToken) {
 // -------------------------------------------------------
 // Verify Email (Local) — IdentityVerificationToken
 // -------------------------------------------------------
-async verifyEmailLocal(token: string) {
+async verifyEmailLocal(
+  token: string,
+): Promise<{ success: true }> {
+  // =================================================
+  // 0) Validate input (defensive)
+  // =================================================
   if (!token || typeof token !== 'string') {
     throw new BadRequestException('Invalid verification token');
   }
 
-  // ===============================
+  const rawToken = token.trim();
+
+  if (!rawToken || rawToken.length < 16 || rawToken.length > 256) {
+    throw new BadRequestException('Invalid verification token');
+  }
+
+  // =================================================
   // 1) Hash incoming token (server authority)
-  // ===============================
+  // =================================================
   const tokenHash = createHash('sha256')
-    .update(token)
+    .update(rawToken)
     .digest('hex');
 
-  // ===============================
+  // =================================================
   // 2) Atomic confirm (token + user verified)
-  // ===============================
-  let confirmed: boolean | null = null;
+  // =================================================
+  let userId: string | null = null;
 
   try {
-    confirmed = await this.repo.confirmEmailVerifyAtomic({
+    userId = await this.repo.confirmEmailVerifyAtomic({
       tokenHash,
     });
   } catch (err) {
-    this.logger.error(
-      '[EMAIL_VERIFY_TX_FAILED]',
-      err,
-    );
+    this.logger.error('[EMAIL_VERIFY_TX_FAILED]', err);
 
-    throw new BadRequestException(
-      'Unable to verify email',
-    );
+    // infra failure → do not reveal internal state
+    throw new BadRequestException('Unable to verify email');
   }
 
-  if (!confirmed) {
+  if (!userId) {
     // ---- Security Event: invalid / reused / expired token ----
     try {
       this.securityEvent.log({
         type: 'security.abuse.detected',
         severity: 'warning',
-        reason: 'email_verify_invalid_or_expired',
+        meta: {
+          action: 'email_verify',
+          reason: 'invalid_or_expired_token',
+        },
       });
     } catch {}
 
@@ -576,20 +658,20 @@ async verifyEmailLocal(token: string) {
     );
   }
 
-  // ===============================
+  // =================================================
   // 3) Security Event (success)
-  // ===============================
+  // =================================================
   try {
     this.securityEvent.log({
-  type: 'auth.login.success',
-  severity: 'info',
-  meta: {
-    flow: 'email_verify',
-  },
-});
-
+      type: 'auth.email.verify.success',
+      severity: 'info',
+      userId,
+    });
   } catch {}
 
+  // =================================================
+  // 4) Return safe response (no user info leak)
+  // =================================================
   return { success: true };
 }
 
@@ -920,6 +1002,142 @@ async getUserByFirebaseUid(firebaseUid: string) {
   });
 
   return user?.isAccountLocked === true;
+}
+
+async resendEmailVerification(
+  userId: string,
+  meta?: { ip?: string; userAgent?: string },
+): Promise<void> {
+  const now = new Date();
+
+  // =================================================
+  // 1) Load user (authority)
+  // =================================================
+  const user = await this.repo.findUserForEmailVerification(userId);
+
+  if (!user) {
+    // should not happen, but never leak state
+    try {
+      this.securityEvent.log({
+        type: 'security.abuse.detected',
+        severity: 'warning',
+        reason: 'resend_email_verify_user_not_found',
+        meta: { userId },
+      });
+    } catch {}
+
+    return; // pretend success
+  }
+
+  // =================================================
+  // 2) Already verified → no action
+  // =================================================
+  if (user.isEmailVerified === true) {
+    return;
+  }
+
+  // =================================================
+  // 3) Generate verification token
+  // =================================================
+  const token = this.credentialVerify.generateToken();
+  const expiresAt = this.credentialVerify.getExpiry(30); // minutes
+
+  // =================================================
+  // 4) Atomic revoke old + create new EMAIL_VERIFY token
+  // =================================================
+  try {
+    await this.prisma.$transaction(async (tx) => {
+      await tx.identityVerificationToken.updateMany({
+        where: {
+          userId,
+          type: VerificationType.EMAIL_VERIFY,
+          usedAt: null,
+          expiresAt: { gt: now },
+        },
+        data: { usedAt: now },
+      });
+
+      await tx.identityVerificationToken.create({
+        data: {
+          userId,
+          type: VerificationType.EMAIL_VERIFY,
+          tokenHash: token.hash,
+          expiresAt,
+        },
+      });
+    });
+  } catch (err) {
+    this.logger.error(
+      '[RESEND_EMAIL_VERIFY_TOKEN_TX_FAILED]',
+      err,
+    );
+    return; // infra failure must not leak
+  }
+
+  // =================================================
+  // 5) Build verification URL
+  // =================================================
+  const publicSiteUrl = process.env.PUBLIC_SITE_URL;
+
+  if (!publicSiteUrl) {
+    try {
+      this.securityEvent.log({
+        type: 'system.misconfiguration',
+        severity: 'error',
+        reason: 'PUBLIC_SITE_URL missing',
+      });
+    } catch {}
+    return;
+  }
+
+  const verifyUrl =
+    `${publicSiteUrl}/settings/email-confirm?token=${encodeURIComponent(
+      token.raw,
+    )}`;
+
+  // =================================================
+  // 6) Send verification email
+  // =================================================
+  try {
+    await this._mailService.sendEmailVerification(
+      user.email,
+      verifyUrl,
+    );
+  } catch (err) {
+    this.logger.error(
+      '[RESEND_EMAIL_VERIFY_SEND_FAILED]',
+      err,
+    );
+    // token still valid → user can retry
+  }
+
+  // =================================================
+  // 7) Security Event
+  // =================================================
+  try {
+    this.securityEvent.log({
+      type: 'auth.email.verify.resend',
+      severity: 'info',
+      userId,
+      ip: meta?.ip,
+      meta: {
+        hasUserAgent: Boolean(meta?.userAgent),
+      },
+    });
+  } catch {}
+
+  // =================================================
+  // 8) Compliance Audit (best-effort)
+  // =================================================
+  try {
+    await this.audit.createLog({
+      userId,
+      action: 'auth.resend_email_verification',
+      success: true,
+      ip: meta?.ip ?? null,
+      userAgent: meta?.userAgent ?? null,
+    });
+  } catch {}
 }
 
 }
