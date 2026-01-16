@@ -4,9 +4,17 @@ import { useEffect, useState } from "react";
 import { requestEmailChange } from "@/lib/api/user";
 import { getProfile } from "@/lib/api/auth";
 import EmailChangeSuccess from "./EmailChangeSuccess";
+import EmailVerificationStatus from "./EmailVerificationStatus";
 
 export default function EmailChangeForm() {
-  const [email, setEmail] = useState("");
+  // =========================
+  // State
+  // =========================
+  const [currentEmail, setCurrentEmail] = useState("");
+  const [newEmail, setNewEmail] = useState("");
+  const [isEmailVerified, setIsEmailVerified] =
+    useState<boolean | null>(null);
+
   const [loading, setLoading] = useState(false);
   const [loadingProfile, setLoadingProfile] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -21,8 +29,13 @@ export default function EmailChangeForm() {
     getProfile()
       .then((user) => {
         if (!mounted) return;
+
         if (user?.email) {
-          setEmail(user.email);
+          setCurrentEmail(user.email);
+        }
+
+        if (typeof user?.isEmailVerified === "boolean") {
+          setIsEmailVerified(user.isEmailVerified);
         }
       })
       .catch(() => {
@@ -43,14 +56,14 @@ export default function EmailChangeForm() {
   async function onSubmit() {
     setError(null);
 
-    if (!email || !email.includes("@")) {
+    if (!newEmail || !newEmail.includes("@")) {
       setError("Please enter a valid email");
       return;
     }
 
     try {
       setLoading(true);
-      await requestEmailChange(email.trim());
+      await requestEmailChange(newEmail.trim());
       setDone(true);
     } catch (err: any) {
       setError(
@@ -64,14 +77,25 @@ export default function EmailChangeForm() {
   }
 
   if (done) {
-    return <EmailChangeSuccess email={email} />;
+    return <EmailChangeSuccess email={newEmail} />;
   }
 
   return (
-    <div
-      className="space-y-4"
-      aria-label="Change email form"
-    >
+    <div className="space-y-4" aria-label="Change email form">
+      {/* =============================
+          Current email + verified UI
+         ============================= */}
+      {!loadingProfile && isEmailVerified !== null && (
+        <div className="text-sm text-gray-700 flex items-center gap-2">
+          <span>Current email:</span>
+          <span className="font-medium">{currentEmail}</span>
+          <EmailVerificationStatus isVerified={isEmailVerified} />
+        </div>
+      )}
+
+      {/* =============================
+          New email input
+         ============================= */}
       <div>
         <label
           htmlFor="email"
@@ -84,8 +108,8 @@ export default function EmailChangeForm() {
           id="email"
           type="email"
           autoComplete="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          value={newEmail}
+          onChange={(e) => setNewEmail(e.target.value)}
           disabled={loadingProfile || loading}
           className="
             mt-1
@@ -101,6 +125,7 @@ export default function EmailChangeForm() {
             focus:ring-blue-500
             disabled:bg-gray-100
           "
+          placeholder="Enter new email"
           required
         />
       </div>

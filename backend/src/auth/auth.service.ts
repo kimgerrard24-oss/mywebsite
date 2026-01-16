@@ -653,6 +653,16 @@ async verifyEmailLocal(
       });
     } catch {}
 
+    // ---- Compliance / Audit (fail) ----
+    try {
+      await this.audit.createLog({
+        userId: null,
+        action: 'auth.verify_email',
+        success: false,
+        reason: 'invalid_or_expired_token',
+      });
+    } catch {}
+
     throw new BadRequestException(
       'Invalid or expired verification token',
     );
@@ -670,10 +680,22 @@ async verifyEmailLocal(
   } catch {}
 
   // =================================================
+  // 3.1) Compliance / Audit (success)
+  // =================================================
+  try {
+    await this.audit.createLog({
+      userId,
+      action: 'auth.verify_email',
+      success: true,
+    });
+  } catch {}
+
+  // =================================================
   // 4) Return safe response (no user info leak)
   // =================================================
   return { success: true };
 }
+
 
 
   // ==========================================

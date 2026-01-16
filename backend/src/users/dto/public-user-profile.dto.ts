@@ -46,6 +46,7 @@ export class MeUserProfileDto {
   id!: string;
 
   email!: string;
+  isEmailVerified!: boolean;
   username!: string;
 
   displayName!: string | null;

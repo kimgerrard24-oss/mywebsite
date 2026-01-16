@@ -188,6 +188,7 @@ async getMe(userId: string): Promise<MeUserProfileDto> {
     select: {
       id: true,
       email: true,
+      isEmailVerified: true,
       displayName: true,
       username: true,
       name: true,
@@ -220,6 +221,7 @@ async getMe(userId: string): Promise<MeUserProfileDto> {
 return {
   id: user.id,
   email: user.email,
+  isEmailVerified: user.isEmailVerified,
   username: user.username, 
   displayName: user.displayName,
   avatarUrl: user.avatarUrl,
