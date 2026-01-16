@@ -407,4 +407,27 @@ async confirmPhoneChange(
   });
 }
 
+@Post('/email/confirm')
+@RateLimit('emailChangeConfirm')
+async confirmEmailChangePublic(
+  @Body() dto: ConfirmEmailChangeDto,
+  @Req() req: Request,
+) {
+  const forwarded = req.headers['x-forwarded-for'];
+  const ip =
+    typeof forwarded === 'string'
+      ? forwarded.split(',')[0].trim()
+      : req.ip || undefined;
+
+  const userAgent =
+    typeof req.headers['user-agent'] === 'string'
+      ? req.headers['user-agent']
+      : undefined;
+
+  return this.usersService.confirmEmailChangeByToken(dto, {
+    ip,
+    userAgent,
+  });
+}
+
 }

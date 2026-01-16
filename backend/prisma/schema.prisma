@@ -874,7 +874,8 @@ model IdentityVerificationToken {
   @@index([tokenHash])
   @@index([type, expiresAt])       
   @@index([usedAt])               
-  @@index([userId, type, usedAt])  
+  @@index([userId, type, usedAt])
+  @@index([tokenHash, type])  
 }
 
 model SecurityEvent {
