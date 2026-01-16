@@ -1192,6 +1192,55 @@ if (!consumed) {
 }
 
 
+async confirmEmailChangeByToken(
+  dto: ConfirmEmailChangeDto,
+  meta?: { ip?: string; userAgent?: string },
+) {
+  if (!dto.token || typeof dto.token !== 'string') {
+    throw new BadRequestException('Invalid verification token');
+  }
+
+  const tokenHash = createHash('sha256')
+    .update(dto.token)
+    .digest('hex');
+
+  let result: { userId: string; newEmail: string } | null = null;
+
+  try {
+    result = await this.repo.confirmEmailChangeByTokenAtomic({
+      tokenHash,
+    });
+  } catch (err: any) {
+    this.logger.error('[EMAIL_CHANGE_CONFIRM_PUBLIC_TX_FAILED]', err);
+
+    if (err?.code === 'P2002') {
+      throw new ConflictException('Email already in use');
+    }
+
+    throw new BadRequestException('Unable to confirm email change');
+  }
+
+  if (!result) {
+    throw new BadRequestException('Invalid or expired token');
+  }
+
+  // security event
+  try {
+    await this.repo.createSecurityEvent({
+      userId: result.userId,
+      type: SecurityEventType.EMAIL_CHANGED,
+      ip: meta?.ip,
+      userAgent: meta?.userAgent,
+    });
+  } catch {}
+
+  // identity audit
+  try {
+    this.identityAudit.logEmailChanged(result.userId);
+  } catch {}
+
+  return { success: true };
+}
 
 }
 

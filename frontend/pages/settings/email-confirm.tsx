@@ -4,7 +4,7 @@ import Head from "next/head";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { verifyEmail } from "@/lib/api/auth";
+import { confirmEmailChange } from "@/lib/api/user";
 
 type Status = "idle" | "loading" | "success" | "error";
 
@@ -32,7 +32,7 @@ export default function EmailConfirmPage() {
       try {
         setStatus("loading");
 
-        await verifyEmail(verifiedToken);
+    await confirmEmailChange(verifiedToken);
 
         if (cancelled) return;
 
@@ -85,7 +85,7 @@ export default function EmailConfirmPage() {
 
             <div className="mt-6">
               <Link
-                href="/login"
+                href="/"
                 className="inline-block rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
               >
                 Go to login

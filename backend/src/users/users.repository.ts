@@ -681,6 +681,62 @@ async confirmEmailChangeAtomic(params: {
   });
 }
 
+async confirmEmailChangeByTokenAtomic(params: {
+  tokenHash: string;
+}): Promise<{ userId: string; newEmail: string } | null> {
+  const now = new Date();
+
+  return this.prisma.$transaction(async (tx) => {
+    const token =
+      await tx.identityVerificationToken.findFirst({
+        where: {
+          tokenHash: params.tokenHash,
+          type: VerificationType.EMAIL_CHANGE,
+          usedAt: null,
+          expiresAt: { gt: now },
+        },
+      });
+
+    if (!token || !token.target) return null;
+
+    const user =
+      await tx.user.findUnique({
+        where: { id: token.userId },
+        select: { email: true },
+      });
+
+    if (!user) return null;
+
+    // 1) update email
+    await tx.user.update({
+      where: { id: token.userId },
+      data: {
+        email: token.target,
+        isEmailVerified: true,
+      },
+    });
+
+    // 2) consume token (no reuse)
+    await tx.identityVerificationToken.update({
+      where: { id: token.id },
+      data: { usedAt: now },
+    });
+
+    // 3) identity history (forensic-grade)
+    await tx.userIdentityHistory.create({
+      data: {
+        userId: token.userId,
+        field: 'email',
+        oldValue: user.email,
+        newValue: token.target,
+        changedBy: 'USER',
+      },
+    });
+
+    return { userId: token.userId, newEmail: token.target };
+  });
+}
+
 
 }
 

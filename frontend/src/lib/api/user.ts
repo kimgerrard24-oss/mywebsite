@@ -401,10 +401,9 @@ export async function requestEmailChange(
 export async function confirmEmailChange(
   token: string,
 ): Promise<{ success: true }> {
-  return apiPost("/users/me/email/confirm", {
-    token,
-  });
+  return apiPost("/users/email/confirm", { token });
 }
+
 
 export async function requestPhoneChange(params: {
   phone: string;

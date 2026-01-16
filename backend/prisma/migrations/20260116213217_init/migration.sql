@@ -832,6 +832,9 @@ CREATE INDEX "IdentityVerificationToken_usedAt_idx" ON "IdentityVerificationToke
 CREATE INDEX "IdentityVerificationToken_userId_type_usedAt_idx" ON "IdentityVerificationToken"("userId", "type", "usedAt");
 
 -- CreateIndex
+CREATE INDEX "IdentityVerificationToken_tokenHash_type_idx" ON "IdentityVerificationToken"("tokenHash", "type");
+
+-- CreateIndex
 CREATE INDEX "SecurityEvent_userId_createdAt_idx" ON "SecurityEvent"("userId", "createdAt");
 
 -- CreateIndex
