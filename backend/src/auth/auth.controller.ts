@@ -32,6 +32,9 @@ import { AuditService } from './audit.service';
 import { RateLimitGuard } from '../common/rate-limit/rate-limit.guard';
 import { RateLimitService } from '../common/rate-limit/rate-limit.service';
 import { AccessTokenCookieAuthGuard } from './guards/access-token-cookie.guard';
+import { ResendVerificationDto } from './dto/resend-verification.dto';
+import type { SessionUser } from '../auth/services/validate-session.service';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
 
 
 function normalizeRedirectUri(raw: string): string {
@@ -393,6 +396,7 @@ res.setHeader('Pragma', 'no-cache');
 // Verify Email (Local) — Unified Token Flow
 // =========================================================
 @Public()
+@RateLimit('emailVerify')
 @Get('verify-email')
 async verifyEmail(@Query('token') token: string) {
   if (!token) {
@@ -404,7 +408,7 @@ async verifyEmail(@Query('token') token: string) {
 
     try {
       await this.audit.createLog({
-        userId: null, // userId resolved inside service
+        userId: null, 
         action: 'auth.verify_email',
         success: true,
       });
@@ -430,6 +434,41 @@ async verifyEmail(@Query('token') token: string) {
   }
 }
 
+@Post('local/resend-verification')
+@UseGuards(AccessTokenCookieAuthGuard) // ✅ ต้อง login ก่อน
+@RateLimit('resendEmailVerify')        // ✅ ต้องมีใน RateLimitPolicy
+@HttpCode(200)
+async resendVerification(
+  @CurrentUser() user: SessionUser,
+  @Body() _: ResendVerificationDto, // ✅ empty DTO (no client control)
+  @Req() req: Request,
+) {
+  if (!user?.userId) {
+    throw new UnauthorizedException('Authentication required');
+  }
+
+  await this.authService.resendEmailVerification(
+    user.userId, // ✅ backend authority
+    {
+      ip: req.ip,
+      userAgent:
+        typeof req.headers['user-agent'] === 'string'
+          ? req.headers['user-agent']
+          : undefined,
+    },
+  );
+
+  /**
+   * Anti-enumeration response:
+   * - ไม่บอกว่ามี user จริงไหม
+   * - ไม่บอกว่าส่งสำเร็จหรือไม่
+   */
+  return {
+    success: true,
+    message:
+      'If your email is not yet verified, a verification email has been sent.',
+  };
+}
 
 
 }

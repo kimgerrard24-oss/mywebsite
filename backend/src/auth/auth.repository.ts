@@ -97,31 +97,112 @@ export class AuthRepository {
     });
   }
 
-  async confirmEmailVerifyAtomic(params: { tokenHash: string }) {
+  async confirmEmailVerifyAtomic(
+  params: { tokenHash: string },
+): Promise<string | null> {
+  const now = new Date();
+
   return this.prisma.$transaction(async (tx) => {
-    const record = await tx.identityVerificationToken.findFirst({
+    // =================================================
+    // 1) Find active EMAIL_VERIFY token
+    // =================================================
+    const token =
+      await tx.identityVerificationToken.findFirst({
+        where: {
+          type: VerificationType.EMAIL_VERIFY,
+          tokenHash: params.tokenHash,
+          usedAt: null,
+          expiresAt: { gt: now },
+        },
+        select: {
+          id: true,
+          userId: true,
+        },
+      });
+
+    if (!token) return null;
+
+    // =================================================
+    // 2) Consume token (atomic guard)
+    //    Prevent race / double click / replay
+    // =================================================
+    const consumed =
+      await tx.identityVerificationToken.updateMany({
+        where: {
+          id: token.id,
+          usedAt: null,
+        },
+        data: {
+          usedAt: now,
+        },
+      });
+
+    if (consumed.count !== 1) {
+      return null; // already used concurrently
+    }
+
+    // =================================================
+    // 3) Mark user email verified (idempotent-safe)
+    // =================================================
+    await tx.user.updateMany({
       where: {
-        type: VerificationType.EMAIL_VERIFY,
-        tokenHash: params.tokenHash,
-        usedAt: null,
-        expiresAt: { gt: new Date() },
+        id: token.userId,
+        isEmailVerified: false, // defensive
+      },
+      data: {
+        isEmailVerified: true,
       },
     });
 
-    if (!record) return null;
-
-    await tx.identityVerificationToken.update({
-      where: { id: record.id },
-      data: { usedAt: new Date() },
+    // =================================================
+    // 4) Hygiene: revoke other active EMAIL_VERIFY tokens
+    //    (defense-in-depth, optional but recommended)
+    // =================================================
+    await tx.identityVerificationToken.updateMany({
+      where: {
+        userId: token.userId,
+        type: VerificationType.EMAIL_VERIFY,
+        usedAt: null,
+        expiresAt: { gt: now },
+      },
+      data: {
+        usedAt: now,
+      },
     });
 
-    await tx.user.update({
-      where: { id: record.userId },
-      data: { isEmailVerified: true },
-    });
-
-    return true;
+    return token.userId;
   });
 }
+
+async findUserEmailVerifyStateById(userId: string): Promise<{
+  id: string;
+  isEmailVerified: boolean;
+  email: string;
+} | null> {
+  return this.prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      email: true,
+      isEmailVerified: true,
+    },
+  });
+}
+
+async findUserForEmailVerification(userId: string): Promise<{
+  id: string;
+  email: string;
+  isEmailVerified: boolean;
+} | null> {
+  return this.prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      email: true,
+      isEmailVerified: true,
+    },
+  });
+}
+
 
 }

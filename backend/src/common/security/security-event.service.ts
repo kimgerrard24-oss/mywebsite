@@ -24,7 +24,9 @@ export type SecurityEventType =
    // ✅ REGISTER
   | 'auth.register.success'
   | 'auth.register.conflict'
-
+  | 'auth.email.verify.resend'
+  | 'auth.email.verify.success'
+  
   // ===== JWT / SESSION =====
   | 'auth.jwt.missing_token'
   | 'auth.jwt.secret_missing'

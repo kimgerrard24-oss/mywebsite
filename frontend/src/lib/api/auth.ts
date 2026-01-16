@@ -2,7 +2,7 @@
 // frontend/lib/api/auth.ts
 // FIXED — Hardened for production auth flow
 // ==============================
-
+import { apiPost } from "./api";
 import axios, { AxiosError } from "axios";
 
 // Normalize Base URL from ANY of the allowed env vars
@@ -170,4 +170,15 @@ export async function getProfile() {
 
     return undefined;
   }
+}
+
+/**
+ * POST /auth/local/resend-verification
+ * Cookie-based auth
+ * Backend authority
+ */
+export async function resendEmailVerification(): Promise<{
+  success: true;
+}> {
+  return apiPost("/auth/local/resend-verification", {});
 }

@@ -600,7 +600,9 @@ async confirmEmailChangeAtomic(params: {
   const now = new Date();
 
   return this.prisma.$transaction(async (tx) => {
-    // 1) Find active token
+    // =================================================
+    // 1) Find active EMAIL_CHANGE token
+    // =================================================
     const token =
       await tx.identityVerificationToken.findFirst({
         where: {
@@ -610,18 +612,36 @@ async confirmEmailChangeAtomic(params: {
           usedAt: null,
           expiresAt: { gt: now },
         },
+        select: {
+          id: true,
+          target: true,
+        },
       });
 
     if (!token || !token.target) {
       return null;
     }
 
-    // 2) Consume token (atomic guard)
+    // =================================================
+    // 2) Load current email (for identity history)
+    // =================================================
+    const user = await tx.user.findUnique({
+      where: { id: params.userId },
+      select: { email: true },
+    });
+
+    if (!user) {
+      return null;
+    }
+
+    // =================================================
+    // 3) Consume token (atomic guard, no reuse)
+    // =================================================
     const consumed =
       await tx.identityVerificationToken.updateMany({
         where: {
           id: token.id,
-          usedAt: null,
+          usedAt: null, // race-safe guard
         },
         data: {
           usedAt: now,
@@ -632,7 +652,10 @@ async confirmEmailChangeAtomic(params: {
       return null;
     }
 
-    // 3) Update user email
+    // =================================================
+    // 4) Update user email
+    //     - rely on DB unique constraint for conflicts
+    // =================================================
     await tx.user.update({
       where: { id: params.userId },
       data: {
@@ -641,12 +664,14 @@ async confirmEmailChangeAtomic(params: {
       },
     });
 
-    // 4) Identity history
+    // =================================================
+    // 5) Identity history (forensic-grade)
+    // =================================================
     await tx.userIdentityHistory.create({
       data: {
         userId: params.userId,
         field: 'email',
-        oldValue: null, // ถ้ามี email เดิมก็ใส่เพิ่มได้
+        oldValue: user.email,
         newValue: token.target,
         changedBy: 'USER',
       },
@@ -655,6 +680,7 @@ async confirmEmailChangeAtomic(params: {
     return { newEmail: token.target };
   });
 }
+
 
 }
 

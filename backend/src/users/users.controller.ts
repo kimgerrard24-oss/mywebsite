@@ -314,6 +314,7 @@ async updateUsername(
   // POST /api/users/me/email/change-request
   // =============================
   @UseGuards(AccessTokenCookieAuthGuard)
+  @RateLimit('emailChangeRequest')
   @Post('/me/email/change-request')
   async requestEmailChange(
     @Req() req: Request & { user: { userId: string } },
@@ -330,6 +331,7 @@ async updateUsername(
   }
 
    @UseGuards(AccessTokenCookieAuthGuard)
+   @RateLimit('emailChangeConfirm')
   @Post('/me/email/confirm')
   async confirmEmailChange(
     @Req() req: Request & { user: { userId: string } },

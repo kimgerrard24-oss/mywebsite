@@ -7,6 +7,8 @@ import {
   buildPasswordResetEmailTemplate,
 } from './templates/password-reset-email.template';
 
+const RESEND_RETRY_ATTEMPTS = 2; // soft retry for transient network / provider hiccup
+
 @Injectable()
 export class MailService {
   private readonly logger = new Logger(MailService.name);
@@ -17,16 +19,22 @@ export class MailService {
     const apiKey = process.env.RESEND_API_KEY;
     const from = process.env.MAIL_FROM;
 
-    if (!apiKey) {
+    // =====================================================
+    // ✅ Fail-fast on infra misconfiguration
+    //    (prevent half-working instances in production)
+    // =====================================================
+    if (!apiKey || typeof apiKey !== 'string' || apiKey.trim() === '') {
       this.logger.error('RESEND_API_KEY is not configured');
+      throw new Error('MailService misconfigured: RESEND_API_KEY missing');
     }
 
-    if (!from) {
+    if (!from || typeof from !== 'string' || from.trim() === '') {
       this.logger.error('MAIL_FROM is not configured');
+      throw new Error('MailService misconfigured: MAIL_FROM missing');
     }
 
     this.resend = new Resend(apiKey);
-    this.from = from || 'no-reply@localhost';
+    this.from = from;
   }
 
   // =====================================================
@@ -47,28 +55,49 @@ export class MailService {
   ): Promise<void> {
     const html = emailVerificationTemplate(verifyUrl);
 
-    try {
-      const result = await this.resend.emails.send({
-        from: this.from,
-        to,
-        subject: 'Verify your email',
-        html,
-      });
+    let lastError: unknown;
 
-      if (result.error) {
+    for (let attempt = 1; attempt <= RESEND_RETRY_ATTEMPTS; attempt++) {
+      try {
+        const result = await this.resend.emails.send({
+          from: this.from,
+          to,
+          subject: 'Verify your email',
+          html,
+        });
+
+        if (result && (result as any).error) {
+          // provider responded but with error
+          this.logger.error(
+            'Resend returned error while sending verification email',
+            (result as any).error,
+          );
+          throw (result as any).error;
+        }
+
+        // ✅ success
+        return;
+      } catch (err: any) {
+        lastError = err;
+
         this.logger.error(
-          'Resend returned error while sending verification email',
-          result.error,
+          `Failed to send verification email via Resend (attempt ${attempt}/${RESEND_RETRY_ATTEMPTS})`,
+          err?.stack || String(err),
         );
-        throw result.error;
+
+        // retry only if not last attempt
+        if (attempt < RESEND_RETRY_ATTEMPTS) {
+          await this.delay(300 * attempt); // small backoff
+          continue;
+        }
+
+        // final failure → propagate to caller
+        throw err;
       }
-    } catch (err: any) {
-      this.logger.error(
-        'Failed to send verification email via Resend',
-        err?.stack || String(err),
-      );
-      throw err;
     }
+
+    // defensive (should never reach here)
+    throw lastError;
   }
 
   // =====================================================
@@ -104,30 +133,48 @@ export class MailService {
         expiresInMinutes,
       });
 
-    try {
-      const result = await this.resend.emails.send({
-        from: this.from,
-        to,
-        subject,
-        html,
-        text,
-      });
+    for (let attempt = 1; attempt <= RESEND_RETRY_ATTEMPTS; attempt++) {
+      try {
+        const result = await this.resend.emails.send({
+          from: this.from,
+          to,
+          subject,
+          html,
+          text,
+        });
 
-      if (result.error) {
+        if (result && (result as any).error) {
+          this.logger.error(
+            'Resend returned error while sending password reset email',
+            (result as any).error,
+          );
+          return; // ❗ do NOT throw (anti enumeration)
+        }
+
+        return; // success
+      } catch (err: any) {
         this.logger.error(
-          'Resend returned error while sending password reset email',
-          result.error,
+          `Failed to send password reset email via Resend (attempt ${attempt}/${RESEND_RETRY_ATTEMPTS})`,
+          err?.stack || String(err),
         );
-        // ❗ do NOT throw (anti account enumeration)
+
+        if (attempt < RESEND_RETRY_ATTEMPTS) {
+          await this.delay(300 * attempt);
+          continue;
+        }
+
+        // ❗ must not throw
         return;
       }
-    } catch (err: any) {
-      this.logger.error(
-        'Failed to send password reset email via Resend',
-        err?.stack || String(err),
-      );
-      // ❗ must not throw
     }
   }
+
+  // =====================================================
+  // Utils
+  // =====================================================
+  private async delay(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
+  }
 }
+
 

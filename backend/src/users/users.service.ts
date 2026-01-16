@@ -665,11 +665,12 @@ async requestEmailChange(
   dto: EmailChangeRequestDto,
   meta?: { ip?: string; userAgent?: string },
 ) {
+  const now = new Date();
+
   // =================================================
   // 1) Load user (authority)
   // =================================================
-  const user =
-    await this.repo.findUserForEmailChange(userId);
+  const user = await this.repo.findUserForEmailChange(userId);
 
   if (!user) {
     throw new BadRequestException('User not found');
@@ -685,14 +686,17 @@ async requestEmailChange(
   });
 
   // =================================================
-  // 3) Validate new email
+  // 3) Normalize + validate new email
   // =================================================
-  if (dto.newEmail === user.email) {
+  const normalizedNewEmail =
+    dto.newEmail.trim().toLowerCase();
+
+  if (normalizedNewEmail === user.email) {
     throw new BadRequestException('Email is unchanged');
   }
 
   const emailTaken =
-    await this.repo.isEmailTaken(dto.newEmail);
+    await this.repo.isEmailTaken(normalizedNewEmail);
 
   if (emailTaken) {
     throw new ConflictException('Email already in use');
@@ -701,51 +705,49 @@ async requestEmailChange(
   // =================================================
   // 4) Generate verification token
   // =================================================
-  const token =
-    this.credentialVerify.generateToken();
-
-  const expiresAt =
-    this.credentialVerify.getExpiry(15);
+  const token = this.credentialVerify.generateToken();
+  const expiresAt = this.credentialVerify.getExpiry(15);
 
   // =================================================
-  // 5) Revoke previous active EMAIL_CHANGE tokens
+  // 5) Atomic revoke old + create new EMAIL_CHANGE token
   // =================================================
   try {
-    await this.prisma.identityVerificationToken.updateMany({
-      where: {
-        userId,
-        type: VerificationType.EMAIL_CHANGE,
-        usedAt: null,
-        expiresAt: { gt: new Date() },
-      },
-      data: {
-        usedAt: new Date(),
-      },
+    await this.prisma.$transaction(async (tx) => {
+      await tx.identityVerificationToken.updateMany({
+        where: {
+          userId,
+          type: VerificationType.EMAIL_CHANGE,
+          usedAt: null,
+          expiresAt: { gt: now },
+        },
+        data: {
+          usedAt: now,
+        },
+      });
+
+      await tx.identityVerificationToken.create({
+        data: {
+          userId,
+          type: VerificationType.EMAIL_CHANGE,
+          tokenHash: token.hash,
+          target: normalizedNewEmail,
+          expiresAt,
+        },
+      });
     });
   } catch (err) {
-    // infra failure → do not continue issuing new token
     this.logger.error(
-      '[EMAIL_CHANGE_REVOKE_OLD_TOKEN_FAILED]',
+      '[EMAIL_CHANGE_TOKEN_TX_FAILED]',
       err,
     );
+
     throw new BadRequestException(
       'Unable to process email change request',
     );
   }
 
   // =================================================
-  // 6) Persist verification request (hash only)
-  // =================================================
-  await this.repo.createIdentityVerificationToken({
-    userId,
-    type: VerificationType.EMAIL_CHANGE,
-    tokenHash: token.hash,
-    target: dto.newEmail,
-    expiresAt,
-  });
-
-  // =================================================
-  // 7) Send verification email (Resend)
+  // 6) Build verification URL
   // =================================================
   const publicSiteUrl = process.env.PUBLIC_SITE_URL;
 
@@ -753,6 +755,7 @@ async requestEmailChange(
     this.logger.error(
       '[EMAIL_CHANGE] PUBLIC_SITE_URL not configured',
     );
+
     throw new BadRequestException(
       'Unable to send verification email',
     );
@@ -763,12 +766,16 @@ async requestEmailChange(
       token.raw,
     )}`;
 
+  // =================================================
+  // 7) Send verification email (Resend)
+  // =================================================
   try {
     await this.mailService.sendEmailVerification(
-      dto.newEmail,
+      normalizedNewEmail,
       verifyUrl,
     );
   } catch (err) {
+    // token ยัง valid → user ขอ resend ได้
     this.logger.error(
       '[EMAIL_CHANGE_SEND_FAILED]',
       err,
@@ -780,7 +787,7 @@ async requestEmailChange(
   }
 
   // =================================================
-  // 8) Security event
+  // 8) Security event (non-blocking)
   // =================================================
   try {
     await this.repo.createSecurityEvent({
@@ -798,49 +805,91 @@ async requestEmailChange(
 
 
 
+
 async confirmEmailChange(
   userId: string,
   dto: ConfirmEmailChangeDto,
   meta?: { ip?: string; userAgent?: string },
 ) {
-  const user =
-    await this.repo.findUserForEmailChange(userId);
+  // =================================================
+  // 1) Load user (authority)
+  // =================================================
+  const user = await this.repo.findUserForEmailChange(userId);
 
   if (!user) {
     throw new BadRequestException('User not found');
   }
 
+  // =================================================
+  // 2) Business policy
+  // =================================================
   ConfirmEmailChangePolicy.assertCanConfirm({
     isDisabled: user.isDisabled,
     isBanned: user.isBanned,
     isAccountLocked: user.isAccountLocked,
   });
 
-  // ===============================
-  // 🔒 Hash token (server authority)
-  // ===============================
+  // =================================================
+  // 3) Validate + hash token (server authority)
+  // =================================================
+  if (!dto.token || typeof dto.token !== 'string') {
+    throw new BadRequestException('Invalid verification token');
+  }
+
   const tokenHash = createHash('sha256')
     .update(dto.token)
     .digest('hex');
 
-  // ===============================
-  // ✅ Atomic confirm (token + email + history)
-  // ===============================
-  const result =
-    await this.repo.confirmEmailChangeAtomic({
+  // =================================================
+  // 4) Atomic confirm (token + email + history)
+  // =================================================
+  let result: { newEmail: string } | null = null;
+
+  try {
+    result = await this.repo.confirmEmailChangeAtomic({
       userId,
       tokenHash,
     });
+  } catch (err: any) {
+    /**
+     * Possible cause:
+     * - unique constraint on email (race condition)
+     * - DB failure
+     */
+    this.logger.error(
+      '[EMAIL_CHANGE_CONFIRM_TX_FAILED]',
+      err,
+    );
+
+    // Prisma unique constraint
+    if (err?.code === 'P2002') {
+      throw new ConflictException('Email already in use');
+    }
+
+    throw new BadRequestException(
+      'Unable to confirm email change',
+    );
+  }
 
   if (!result) {
+    // ---- Security Event: invalid / reused / expired token ----
+    try {
+      await this.repo.createSecurityEvent({
+        userId,
+        type: SecurityEventType.SUSPICIOUS_ACTIVITY,
+        ip: meta?.ip,
+        userAgent: meta?.userAgent,
+      });
+    } catch {}
+
     throw new BadRequestException(
       'Invalid or expired token',
     );
   }
 
-  // ===============================
-  // Security Event
-  // ===============================
+  // =================================================
+  // 5) Security Event (success)
+  // =================================================
   try {
     await this.repo.createSecurityEvent({
       userId,
@@ -850,15 +899,16 @@ async confirmEmailChange(
     });
   } catch {}
 
-  // ===============================
-  // Identity Audit (fire-and-forget)
-  // ===============================
+  // =================================================
+  // 6) Identity Audit (fire-and-forget)
+  // =================================================
   try {
     this.identityAudit.logEmailChanged(userId);
   } catch {}
 
   return { success: true };
 }
+
 
 
 async requestPhoneChange(

@@ -31,7 +31,11 @@ export type RateLimitAction =
   | 'usernameCheck'
   | 'phoneChangeRequest'
   | 'phoneChangeConfirm'
-  | 'updateUsername';
+  | 'updateUsername'
+  | 'emailChangeRequest'
+  | 'emailChangeConfirm'
+  | 'resendEmailVerify'
+  | 'emailVerify';
 
 export type RateLimitEscalationConfig = {
   maxViolations: number;
@@ -560,6 +564,71 @@ phoneChangeConfirm: {
   points: 5,
   duration: 300,
   blockDuration: 900,
+
+  escalation: {
+    maxViolations: 3,
+    windowSec: 86400,
+    longBlockSec: 21600,
+  },
+},
+
+emailVerify: {
+  windowSec: 300,        // 5 นาที
+  max: 10,               // เดา token ได้ 10 ครั้ง
+  blockDurationSec: 1800, // block 30 นาที
+
+  points: 10,
+  duration: 300,
+  blockDuration: 1800,
+
+  escalation: {
+    maxViolations: 3,
+    windowSec: 86400,
+    longBlockSec: 21600, // block 6 ชม.
+  },
+},
+
+
+emailChangeRequest: {
+  windowSec: 900,        // 15 นาที
+  max: 3,                // ขอได้ 3 ครั้ง
+  blockDurationSec: 3600, // block 1 ชม.
+
+  points: 3,
+  duration: 900,
+  blockDuration: 3600,
+
+  escalation: {
+    maxViolations: 3,
+    windowSec: 86400,
+    longBlockSec: 21600, // 6 ชม.
+  },
+},
+
+emailChangeConfirm: {
+  windowSec: 300,        // 5 นาที
+  max: 5,                // เดา token ได้ 5 ครั้ง
+  blockDurationSec: 900, // block 15 นาที
+
+  points: 5,
+  duration: 300,
+  blockDuration: 900,
+
+  escalation: {
+    maxViolations: 3,
+    windowSec: 86400,
+    longBlockSec: 21600,
+  },
+},
+
+resendEmailVerify: {
+  windowSec: 600,         // 10 นาที
+  max: 3,
+  blockDurationSec: 1800,
+
+  points: 3,
+  duration: 600,
+  blockDuration: 1800,
 
   escalation: {
     maxViolations: 3,

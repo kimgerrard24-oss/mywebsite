@@ -3,20 +3,27 @@
 import Head from "next/head";
 import type { GetServerSideProps } from "next";
 import Link from "next/link";
+
 import EmailChangeForm from "@/components/settings/EmailChangeForm";
+
+/** ✅ NEW: resend verification */
+import ResendVerificationButton from "@/components/security/ResendVerificationButton";
 
 export default function EmailSettingsPage() {
   return (
     <>
       <Head>
-        <title>Change Email | PhlyPhant</title>
+        <title>Email settings | PhlyPhant</title>
         <meta
           name="description"
-          content="Change your email address"
+          content="Change or verify your email address"
         />
       </Head>
 
       <main className="mx-auto max-w-xl px-4 py-8">
+        {/* ================================
+            Back Link
+           ================================ */}
         <div className="mb-6">
           <Link
             href="/settings/profile"
@@ -26,17 +33,40 @@ export default function EmailSettingsPage() {
           </Link>
         </div>
 
-        <h1 className="text-2xl font-semibold">
-          Change email
-        </h1>
+        {/* ================================
+            Change Email Section (EXISTING)
+           ================================ */}
+        <section>
+          <h1 className="text-2xl font-semibold">
+            Change email
+          </h1>
 
-        <p className="mt-1 text-sm text-gray-600">
-          You must confirm your new email before
-          it becomes active.
-        </p>
+          <p className="mt-1 text-sm text-gray-600">
+            You must confirm your new email before
+            it becomes active.
+          </p>
 
-        <section className="mt-6">
-          <EmailChangeForm />
+          <div className="mt-6">
+            <EmailChangeForm />
+          </div>
+        </section>
+
+        {/* ================================
+            ✅ NEW: Resend Verification Section
+           ================================ */}
+        <section className="mt-12 rounded-xl border p-5">
+          <h2 className="text-lg font-semibold">
+            Email verification
+          </h2>
+
+          <p className="mt-1 text-sm text-gray-600">
+            If you didn’t receive the verification email,
+            you can request a new one.
+          </p>
+
+          <div className="mt-4">
+            <ResendVerificationButton />
+          </div>
         </section>
       </main>
     </>
