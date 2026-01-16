@@ -17,6 +17,8 @@ model User {
   username                  String   @unique
   hashedPassword            String?
   isEmailVerified           Boolean  @default(false)
+  emailVerifyTokenHash      String?
+  emailVerifyTokenExpires   DateTime?
     // ===== Identity / Compliance =====
   countryCode               String?  @db.Char(2) // "TH", "US", "JP"
   dateOfBirth               DateTime?
@@ -31,6 +33,8 @@ model User {
   isDisabled                Boolean  @default(false)
   active                    Boolean  @default(true)
   lastLoginAt               DateTime?
+  passwordResetTokenHash    String?
+  passwordResetTokenExpires DateTime?
   provider                  String?
   providerId                String?
   disabledReason            String?
@@ -82,6 +86,7 @@ model User {
   // ===== Media / OAuth =====
   media               Media[]
   oauthAccounts       OAuthAccount[]
+  passwordResetTokens PasswordResetToken[]
 
   // ===== Auth / Session =====
   refreshTokens RefreshToken[]
@@ -186,6 +191,19 @@ model AuditLog {
   metadata   Json?
   occurredAt DateTime @default(now())
   user       User?    @relation(fields: [userId], references: [id])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  userId    String
+  tokenHash String
+  expiresAt DateTime
+  createdAt DateTime  @default(now())
+  usedAt    DateTime?
+  user      User      @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([expiresAt])
 }
 
 model Post {
@@ -823,11 +841,9 @@ enum AppealTargetType {
 }
 
 enum VerificationType {
-  EMAIL_VERIFY 
   EMAIL_CHANGE
   PHONE_CHANGE
   ACCOUNT_LOCK
-  PASSWORD_RESET
   SENSITIVE_ACTION   // เช่น profile export, username change (ถ้าอยากใช้ token-based)
 }
 
@@ -871,9 +887,6 @@ model IdentityVerificationToken {
   @@index([userId, type])
   @@index([expiresAt])
   @@index([tokenHash])
-  @@index([type, expiresAt])       
-  @@index([usedAt])               
-  @@index([userId, type, usedAt])  
 }
 
 model SecurityEvent {
@@ -911,5 +924,3 @@ model UserIdentityHistory {
   @@index([userId, createdAt])
   @@index([field])
 }
-
-

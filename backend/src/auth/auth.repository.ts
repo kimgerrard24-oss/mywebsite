@@ -3,7 +3,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Prisma } from '@prisma/client';
-import { VerificationType } from '@prisma/client';
 
 @Injectable()
 export class AuthRepository {
@@ -96,32 +95,4 @@ export class AuthRepository {
       data,
     });
   }
-
-  async confirmEmailVerifyAtomic(params: { tokenHash: string }) {
-  return this.prisma.$transaction(async (tx) => {
-    const record = await tx.identityVerificationToken.findFirst({
-      where: {
-        type: VerificationType.EMAIL_VERIFY,
-        tokenHash: params.tokenHash,
-        usedAt: null,
-        expiresAt: { gt: new Date() },
-      },
-    });
-
-    if (!record) return null;
-
-    await tx.identityVerificationToken.update({
-      where: { id: record.id },
-      data: { usedAt: new Date() },
-    });
-
-    await tx.user.update({
-      where: { id: record.userId },
-      data: { isEmailVerified: true },
-    });
-
-    return true;
-  });
-}
-
 }

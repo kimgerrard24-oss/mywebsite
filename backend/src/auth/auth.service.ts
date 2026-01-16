@@ -31,10 +31,6 @@ import { UserProfileDto } from './dto/user-profile.dto';
 import * as jwt from 'jsonwebtoken';
 import { SessionService } from './session/session.service';
 import { SecurityEventService } from '../common/security/security-event.service';
-import { createHash } from 'crypto';
-import { VerificationType } from '@prisma/client';
-import { CredentialVerificationService } from '../auth/credential-verification.service';
-
 
 interface GoogleOAuthConfig {
   clientId: string;
@@ -80,7 +76,6 @@ constructor(
   private readonly redisService: RedisService,
   private readonly sessionService: SessionService,
   private readonly securityEvent: SecurityEventService,
-  private readonly credentialVerify: CredentialVerificationService,
 ) {}
 
 
@@ -532,74 +527,34 @@ if (accessToken) {
  async hashPassword(password: string): Promise<string> {
     return await argon2.hash(password);  
   }
+  // -------------------------------------------------------
+  // Verify Email (Local)
+  // -------------------------------------------------------
+async verifyEmailLocal(uid: string, token: string) {
+  const user = await this.prisma.user.findUnique({ where: { id: uid } });
 
-// -------------------------------------------------------
-// Verify Email (Local) — IdentityVerificationToken
-// -------------------------------------------------------
-async verifyEmailLocal(token: string) {
-  if (!token || typeof token !== 'string') {
-    throw new BadRequestException('Invalid verification token');
+  if (!user || !user.emailVerifyTokenHash || !user.emailVerifyTokenExpires) {
+    throw new BadRequestException('Invalid token');
   }
 
-  // ===============================
-  // 1) Hash incoming token (server authority)
-  // ===============================
-  const tokenHash = createHash('sha256')
-    .update(token)
-    .digest('hex');
-
-  // ===============================
-  // 2) Atomic confirm (token + user verified)
-  // ===============================
-  let confirmed: boolean | null = null;
-
-  try {
-    confirmed = await this.repo.confirmEmailVerifyAtomic({
-      tokenHash,
-    });
-  } catch (err) {
-    this.logger.error(
-      '[EMAIL_VERIFY_TX_FAILED]',
-      err,
-    );
-
-    throw new BadRequestException(
-      'Unable to verify email',
-    );
+  if (user.emailVerifyTokenExpires < new Date()) {
+    throw new BadRequestException('Token expired');
   }
 
-  if (!confirmed) {
-    // ---- Security Event: invalid / reused / expired token ----
-    try {
-      this.securityEvent.log({
-        type: 'security.abuse.detected',
-        severity: 'warning',
-        reason: 'email_verify_invalid_or_expired',
-      });
-    } catch {}
+  const ok = await comparePassword(token, user.emailVerifyTokenHash);
+  if (!ok) throw new BadRequestException('Invalid token');
 
-    throw new BadRequestException(
-      'Invalid or expired verification token',
-    );
-  }
+  await this.prisma.user.update({
+    where: { id: uid },
+    data: {
+      isEmailVerified: true,
+      emailVerifyTokenHash: null,
+      emailVerifyTokenExpires: null,
+    },
+  });
 
-  // ===============================
-  // 3) Security Event (success)
-  // ===============================
-  try {
-    this.securityEvent.log({
-  type: 'auth.login.success',
-  severity: 'info',
-  meta: {
-    flow: 'email_verify',
-  },
-});
-
-  } catch {}
-
-  return { success: true };
+  return { ok: true };
 }
-
 
   // ==========================================
   // GOOGLE
