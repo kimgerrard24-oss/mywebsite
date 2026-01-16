@@ -20,6 +20,7 @@ export type SecurityEventType =
   | 'auth.login.hash_verify_error'
   | 'auth.login.password_mismatch'
   | 'auth.logout'
+  | 'auth.login.blocked'
 
    // ✅ REGISTER
   | 'auth.register.success'

@@ -192,7 +192,7 @@ export default function LoginForm() {
         />
       </label>
 
-      {/* Remember + Forgot */}
+      {/* Remember */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <label className="inline-flex items-center text-xs sm:text-sm text-slate-700">
           <input
@@ -213,21 +213,6 @@ export default function LoginForm() {
           จดจำฉัน
         </label>
 
-        <a
-          href="/auth/forgot"
-          className="
-            text-xs
-            sm:text-sm
-            text-slate-600
-            hover:underline
-            focus:outline-none
-            focus-visible:ring-2
-            focus-visible:ring-slate-300
-            rounded
-          "
-        >
-          ลืมรหัสผ่าน?
-        </a>
       </div>
 
       {/* Error */}
