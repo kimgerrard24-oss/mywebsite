@@ -1,66 +1,64 @@
 // frontend/pages/settings/email-confirm.tsx
 
 import Head from "next/head";
-import type { GetServerSideProps } from "next";
 import { useRouter } from "next/router";
 import { useEffect, useState } from "react";
 import Link from "next/link";
-import { confirmEmailChange } from "@/lib/api/user";
-
-type Props = {
-  token: string | null;
-};
+import { verifyEmail } from "@/lib/api/auth";
 
 type Status = "idle" | "loading" | "success" | "error";
 
-export default function EmailConfirmPage({ token }: Props) {
+export default function EmailConfirmPage() {
   const router = useRouter();
+  const { token } = router.query;
+
   const [status, setStatus] = useState<Status>("idle");
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-  if (!token) return;
+    if (!router.isReady) return;
 
-  const confirmedToken = token; // ✅ narrow type to string
-
-  let cancelled = false;
-
-  async function run() {
-    try {
-      setStatus("loading");
-
-      await confirmEmailChange(confirmedToken);
-
-      if (cancelled) return;
-
-      setStatus("success");
-
-      setTimeout(() => {
-        router.replace("/settings/profile");
-      }, 1500);
-    } catch (err: any) {
-      if (cancelled) return;
-
+    if (typeof token !== "string") {
       setStatus("error");
-      setError(
-        err?.response?.data?.message ??
-          "Failed to confirm email",
-      );
+      setError("Invalid verification link");
+      return;
     }
-  }
 
-  run();
+    const verifiedToken: string = token;
 
-  return () => {
-    cancelled = true;
-  };
-}, [token, router]);
+    let cancelled = false;
 
+    async function run() {
+      try {
+        setStatus("loading");
+
+        await verifyEmail(verifiedToken);
+
+        if (cancelled) return;
+
+        setStatus("success");
+      } catch (err: any) {
+        if (cancelled) return;
+
+        setStatus("error");
+        setError(
+          err?.response?.data?.message ??
+            "Verification link is invalid or expired",
+        );
+      }
+    }
+
+    run();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [router.isReady, token]);
 
   return (
     <>
       <Head>
-        <title>Confirm Email | PhlyPhant</title>
+        <title>Email verification | PhlyPhant</title>
         <meta name="robots" content="noindex" />
       </Head>
 
@@ -68,7 +66,7 @@ export default function EmailConfirmPage({ token }: Props) {
         {status === "loading" && (
           <>
             <h1 className="text-xl font-semibold">
-              Confirming your email…
+              Verifying your email…
             </h1>
             <p className="mt-2 text-sm text-gray-600">
               Please wait a moment
@@ -79,18 +77,27 @@ export default function EmailConfirmPage({ token }: Props) {
         {status === "success" && (
           <>
             <h1 className="text-xl font-semibold text-green-600">
-              Email updated successfully
+              Email verified successfully 🎉
             </h1>
             <p className="mt-2 text-sm text-gray-600">
-              Redirecting to profile…
+              You can now log in to your account.
             </p>
+
+            <div className="mt-6">
+              <Link
+                href="/login"
+                className="inline-block rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
+              >
+                Go to login
+              </Link>
+            </div>
           </>
         )}
 
         {status === "error" && (
           <>
             <h1 className="text-xl font-semibold text-red-600">
-              Email confirmation failed
+              Verification failed
             </h1>
             <p className="mt-2 text-sm text-gray-600">
               {error}
@@ -98,10 +105,10 @@ export default function EmailConfirmPage({ token }: Props) {
 
             <div className="mt-6">
               <Link
-                href="/settings/profile"
+                href="/settings/email"
                 className="text-sm text-blue-600 hover:underline"
               >
-                Back to profile
+                Resend verification email
               </Link>
             </div>
           </>
@@ -110,73 +117,3 @@ export default function EmailConfirmPage({ token }: Props) {
     </>
   );
 }
-
-// ======================================================
-// SSR Guard — user must be authenticated
-// ======================================================
-export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
-  const cookieHeader = ctx.req.headers.cookie;
-
-  if (!cookieHeader) {
-    return {
-      redirect: {
-        destination: "/",
-        permanent: false,
-      },
-    };
-  }
-
-  const base =
-    process.env.INTERNAL_BACKEND_URL ??
-    process.env.NEXT_PUBLIC_BACKEND_URL ??
-    "https://api.phlyphant.com";
-
-  const sessionRes = await fetch(`${base}/auth/session-check`, {
-    method: "GET",
-    headers: {
-      Accept: "application/json",
-      Cookie: cookieHeader,
-    },
-    credentials: "include",
-    cache: "no-store",
-  });
-
-  if (!sessionRes.ok) {
-    return {
-      redirect: {
-        destination: "/",
-        permanent: false,
-      },
-    };
-  }
-
-  const session = await sessionRes.json().catch(() => null);
-
-  if (!session || session.valid !== true) {
-    return {
-      redirect: {
-        destination: "/",
-        permanent: false,
-      },
-    };
-  }
-
-  const token =
-    typeof ctx.query.token === "string"
-      ? ctx.query.token
-      : null;
-
-  // basic sanity check
-  if (!token || token.length < 20) {
-    return {
-      redirect: {
-        destination: "/settings/profile",
-        permanent: false,
-      },
-    };
-  }
-
-  return {
-    props: { token },
-  };
-};

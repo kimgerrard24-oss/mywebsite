@@ -397,9 +397,10 @@ res.setHeader('Pragma', 'no-cache');
 // =========================================================
 @Public()
 @RateLimit('emailVerify')
-@Get('verify-email')
-async verifyEmail(@Query('token') token: string) {
-  if (!token) {
+@Post('verify-email')
+@HttpCode(200)
+async verifyEmail(@Body('token') token: string) {
+  if (!token || typeof token !== 'string') {
     throw new BadRequestException('Missing verification token');
   }
 
@@ -408,19 +409,15 @@ async verifyEmail(@Query('token') token: string) {
 
     try {
       await this.audit.createLog({
-        userId: null, 
+        userId: null,
         action: 'auth.verify_email',
         success: true,
       });
     } catch {}
 
-    return {
-      message: 'Email verified successfully',
-      result,
-    };
+    return { success: true };
 
   } catch (err) {
-
     try {
       await this.audit.createLog({
         userId: null,
@@ -433,6 +430,7 @@ async verifyEmail(@Query('token') token: string) {
     throw err;
   }
 }
+
 
 @Post('local/resend-verification')
 @UseGuards(AccessTokenCookieAuthGuard) // ✅ ต้อง login ก่อน
