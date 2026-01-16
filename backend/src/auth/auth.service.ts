@@ -1,6 +1,4 @@
-// ==============================
-// file: src/auth/auth.service.ts
-// ==============================
+// backend/src/auth/auth.service.ts
 import {
   BadRequestException,
   Injectable,
@@ -16,23 +14,18 @@ import { FirebaseAdminService } from '../firebase/firebase.service';
 import { SecretsService } from '../secrets/secrets.service';
 import { randomBytes } from 'crypto';
 import * as argon2 from 'argon2';
-import { sign, verify } from 'jsonwebtoken';
 import { AuthLoggerService } from '../common/logging/auth-logger.service';
 import { AuthRepository } from './auth.repository';
 import { RegisterDto } from './dto/register.dto';
 import { hashPassword } from './utils/password.util';
 import { randomUUID } from 'crypto';
 import { MailService } from '../mail/mail.service';
-import { comparePassword } from './utils/password.util';
 import { AuditService } from './audit.service';
-import { Redis } from 'ioredis';
 import { RedisService } from '../redis/redis.service';
-import { UserProfileDto } from './dto/user-profile.dto';
 import * as jwt from 'jsonwebtoken';
 import { SessionService } from './session/session.service';
 import { SecurityEventService } from '../common/security/security-event.service';
 import { createHash } from 'crypto';
-import { VerificationType } from '@prisma/client';
 import { CredentialVerificationService } from '../auth/credential-verification.service';
 
 
