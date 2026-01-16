@@ -184,9 +184,10 @@ async register(dto: RegisterDto) {
     }
 
     const verifyUrl =
-      `${publicSiteUrl}/settings/email-confirm?token=${encodeURIComponent(
-        token.raw,
-      )}`;
+  `${publicSiteUrl}/auth/verify-email?token=${encodeURIComponent(
+    token.raw,
+  )}`;
+
 
     try {
       await this._mailService.sendEmailVerification(
@@ -1113,9 +1114,10 @@ async resendEmailVerification(
   }
 
   const verifyUrl =
-    `${publicSiteUrl}/settings/email-confirm?token=${encodeURIComponent(
-      token.raw,
-    )}`;
+  `${publicSiteUrl}/auth/verify-email?token=${encodeURIComponent(
+    token.raw,
+  )}`;
+
 
   // =================================================
   // 6) Send verification email
