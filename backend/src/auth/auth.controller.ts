@@ -35,6 +35,7 @@ import { AccessTokenCookieAuthGuard } from './guards/access-token-cookie.guard';
 import { ResendVerificationDto } from './dto/resend-verification.dto';
 import type { SessionUser } from '../auth/services/validate-session.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import { OAuthProvider } from '@prisma/client';
 
 
 function normalizeRedirectUri(raw: string): string {
@@ -281,17 +282,32 @@ async login(
   }
 
   // -------------------------------------------------------
-  // 5) Login success → reset rate-limit counter
-  // -------------------------------------------------------
-  await this.rateLimitService.reset('login', rateLimitKey);
+// 5) Login success → reset rate-limit counter
+// -------------------------------------------------------
+await this.rateLimitService.reset('login', rateLimitKey);
 
-  await this.audit.logLoginAttempt({
-    userId: user.id,
-    email: user.email,
-    ip: normalizedIp,
-    userAgent,
-    success: true,
-  });
+await this.audit.logLoginAttempt({
+  userId: user.id,
+  email: user.email,
+  ip: normalizedIp,
+  userAgent,
+  success: true,
+});
+
+// ✅ ADD: LoginHistory record (local login)
+try {
+  await this.authService.recordLoginHistory({
+  userId: user.id,
+  provider: OAuthProvider.LOCAL,
+  ip: normalizedIp,
+  userAgent,
+  success: true,
+});
+
+} catch (e) {
+  // ห้ามให้ login ล้มเพราะ logging
+  this.logger.warn('Failed to write LoginHistory (local)', e);
+}
 
   // -------------------------------------------------------
   // 6) Create session (JWT + Redis)

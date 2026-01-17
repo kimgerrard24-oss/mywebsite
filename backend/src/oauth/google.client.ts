@@ -3,6 +3,7 @@
 // ==========================================
 
 import axios from 'axios';
+import { OAuthProvider } from '@prisma/client';
 
 export interface GoogleTokens {
   access_token: string;
@@ -122,10 +123,11 @@ export async function fetchGoogleProfile(
 // ---------------------------------------------------------------------
 function normalizeGoogleProfile(data: GoogleUserInfo) {
   return {
-    provider: 'google',
+    provider: OAuthProvider.GOOGLE,
     providerId: data.sub,
     name: data.name || null,
     email: data.email || null,
     picture: data.picture || null,
   };
 }
+

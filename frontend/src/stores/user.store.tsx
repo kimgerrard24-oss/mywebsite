@@ -44,7 +44,7 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         id: authUser.id,
         email: authUser.email,
         username,
-        avatar: authUser.avatarUrl || "/images/default-avatar.png",
+        avatar: authUser.avatarUrl || null,
       });
 
       setLoading(false);

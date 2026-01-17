@@ -3,6 +3,7 @@
 // ==========================================
 
 import axios from 'axios';
+import { OAuthProvider } from '@prisma/client';
 
 interface FacebookTokenResponse {
   access_token: string;
@@ -99,10 +100,11 @@ export async function fetchFacebookProfile(accessToken: string) {
 // ---------------------------------------------------------------------
 function normalizeFacebookProfile(data: FacebookProfileResponse) {
   return {
-    provider: 'facebook',
+    provider: OAuthProvider.FACEBOOK,
     providerId: data.id,
     name: data.name || null,
     email: data.email || null,
     picture: data.picture?.data?.url || null,
   };
 }
+
