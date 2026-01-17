@@ -1,8 +1,13 @@
+CREATE EXTENSION IF NOT EXISTS citext;
+
 -- CreateEnum
 CREATE TYPE "UserRole" AS ENUM ('USER', 'ADMIN');
 
 -- CreateEnum
 CREATE TYPE "DeleteSource" AS ENUM ('USER', 'ADMIN', 'SYSTEM');
+
+-- CreateEnum
+CREATE TYPE "OAuthProvider" AS ENUM ('LOCAL', 'GOOGLE', 'FACEBOOK');
 
 -- CreateEnum
 CREATE TYPE "MediaType" AS ENUM ('IMAGE', 'VIDEO', 'AUDIO');
@@ -43,7 +48,7 @@ CREATE TYPE "SecurityEventType" AS ENUM ('LOGIN_SUCCESS', 'LOGIN_FAILED', 'PASSW
 -- CreateTable
 CREATE TABLE "User" (
     "id" TEXT NOT NULL,
-    "email" TEXT NOT NULL,
+    "email" CITEXT NOT NULL,
     "name" TEXT,
     "displayName" TEXT,
     "username" TEXT NOT NULL,
@@ -59,8 +64,6 @@ CREATE TABLE "User" (
     "isDisabled" BOOLEAN NOT NULL DEFAULT false,
     "active" BOOLEAN NOT NULL DEFAULT true,
     "lastLoginAt" TIMESTAMP(3),
-    "provider" TEXT,
-    "providerId" TEXT,
     "disabledReason" TEXT,
     "disabledAt" TIMESTAMP(3),
     "bio" TEXT,
@@ -112,14 +115,30 @@ CREATE TABLE "UserActivity" (
 CREATE TABLE "OAuthAccount" (
     "id" TEXT NOT NULL,
     "userId" TEXT NOT NULL,
-    "provider" TEXT NOT NULL,
+    "provider" "OAuthProvider" NOT NULL,
     "providerId" TEXT NOT NULL,
+    "providerEmail" CITEXT,
     "accessToken" TEXT,
     "refreshToken" TEXT,
     "expiresAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "lastLoginAt" TIMESTAMP(3),
 
     CONSTRAINT "OAuthAccount_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "LoginHistory" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "provider" "OAuthProvider" NOT NULL,
+    "ip" TEXT,
+    "userAgent" TEXT,
+    "success" BOOLEAN NOT NULL,
+    "reason" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "LoginHistory_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -240,44 +259,6 @@ CREATE TABLE "Comment" (
 
     CONSTRAINT "Comment_pkey" PRIMARY KEY ("id")
 );
-
--- =====================================================
--- 🔒 Enforce ONE-LEVEL reply only (PRODUCTION SAFE)
--- - Applies ONLY on INSERT
--- - Prevents nested replies (reply of reply)
--- =====================================================
-
-CREATE OR REPLACE FUNCTION enforce_one_level_reply()
-RETURNS trigger AS $$
-BEGIN
-  -- Only validate when this is a reply
-  IF NEW."parentId" IS NOT NULL THEN
-    -- If parent itself is already a reply → reject
-    IF EXISTS (
-      SELECT 1
-      FROM "Comment"
-      WHERE id = NEW."parentId"
-        AND "parentId" IS NOT NULL
-    ) THEN
-      RAISE EXCEPTION
-        'Nested replies are not allowed (only 1-level replies supported)';
-    END IF;
-  END IF;
-
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
--- =====================================================
--- Trigger: INSERT ONLY (⚠️ DO NOT USE UPDATE)
--- =====================================================
-
-DROP TRIGGER IF EXISTS trg_comment_one_level_reply ON "Comment";
-
-CREATE TRIGGER trg_comment_one_level_reply
-BEFORE INSERT ON "Comment"
-FOR EACH ROW
-EXECUTE FUNCTION enforce_one_level_reply();
 
 -- CreateTable
 CREATE TABLE "CommentLike" (
@@ -530,10 +511,6 @@ CREATE TABLE "IdentityVerificationToken" (
     CONSTRAINT "IdentityVerificationToken_pkey" PRIMARY KEY ("id")
 );
 
-CREATE UNIQUE INDEX uniq_active_identity_token
-ON "IdentityVerificationToken"("userId", "type")
-WHERE "usedAt" IS NULL;
-
 -- CreateTable
 CREATE TABLE "SecurityEvent" (
     "id" TEXT NOT NULL,
@@ -583,16 +560,28 @@ CREATE INDEX "User_phoneNumber_idx" ON "User"("phoneNumber");
 CREATE INDEX "User_isAccountLocked_accountLockedAt_idx" ON "User"("isAccountLocked", "accountLockedAt");
 
 -- CreateIndex
-CREATE UNIQUE INDEX "User_provider_providerId_key" ON "User"("provider", "providerId");
-
--- CreateIndex
 CREATE UNIQUE INDEX "Session_sessionToken_key" ON "Session"("sessionToken");
 
 -- CreateIndex
 CREATE INDEX "OAuthAccount_provider_providerId_idx" ON "OAuthAccount"("provider", "providerId");
 
 -- CreateIndex
+CREATE INDEX "OAuthAccount_userId_provider_idx" ON "OAuthAccount"("userId", "provider");
+
+-- CreateIndex
+CREATE INDEX "OAuthAccount_userId_idx" ON "OAuthAccount"("userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "OAuthAccount_userId_provider_key" ON "OAuthAccount"("userId", "provider");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "OAuthAccount_provider_providerId_key" ON "OAuthAccount"("provider", "providerId");
+
+-- CreateIndex
+CREATE INDEX "LoginHistory_userId_createdAt_idx" ON "LoginHistory"("userId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "LoginHistory_provider_createdAt_idx" ON "LoginHistory"("provider", "createdAt");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "RefreshToken_token_key" ON "RefreshToken"("token");
@@ -857,6 +846,9 @@ ALTER TABLE "UserActivity" ADD CONSTRAINT "UserActivity_userId_fkey" FOREIGN KEY
 
 -- AddForeignKey
 ALTER TABLE "OAuthAccount" ADD CONSTRAINT "OAuthAccount_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "LoginHistory" ADD CONSTRAINT "LoginHistory_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "RefreshToken" ADD CONSTRAINT "RefreshToken_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;

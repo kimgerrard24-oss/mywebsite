@@ -29,7 +29,7 @@ import { createHash } from 'crypto';
 import { CredentialVerificationService } from '../auth/credential-verification.service';
 import { VerificationType, SecurityEventType } from '@prisma/client';
 import { ResendVerificationDto } from './dto/resend-verification.dto';
-
+import { OAuthProvider } from '@prisma/client';
 
 interface GoogleOAuthConfig {
   clientId: string;
@@ -135,12 +135,11 @@ async register(dto: RegisterDto) {
   // 5) Create local account (EMAIL = AUTHORITY)
   // =================================================
   const user = await this.repo.createUser({
-    email: normalizedEmail,
-    username: dto.username,
-    hashedPassword: hashed,
-    provider: 'local',
-    providerId: normalizedEmail,
-  });
+  email: normalizedEmail,
+  username: dto.username,
+  hashedPassword: hashed,
+});
+
 
   // =================================================
   // 6) Issue EMAIL_VERIFY token (IdentityVerificationToken)
@@ -698,249 +697,170 @@ async verifyEmailLocal(
 }
 
 
-
-  // ==========================================
-  // GOOGLE
-  // ==========================================
-async findOrCreateUserFromGoogle(profile: any) {
-  const email = profile.emails?.[0]?.value || null;
-  const providerId = profile.sub || profile.id;
-
-  // สร้าง OR เฉพาะ field ที่มีจริง เพื่อกัน undefined
-  const orFilters: any[] = [
-    { provider: 'google', providerId }
-  ];
-
-  if (email) {
-    orFilters.push({ email });
-  }
-
-  let user = await this.prisma.user.findFirst({
-    where: {
-      OR: orFilters,
-    },
-  });
-
-  
-  if (!user) {
-    const baseUsername = `google_${providerId}`.toLowerCase();
-    let username = baseUsername;
-    let counter = 1;
-
-   
-    while (await this.prisma.user.findUnique({ where: { username } })) {
-      username = `${baseUsername}_${counter++}`;
-    }
-
-    
-    const placeholderPassword = await hashPassword(randomUUID());
-
-    user = await this.prisma.user.create({
-      data: {
-        email: email ?? `no-email-google-${providerId}@placeholder.local`,
-        name: profile.displayName ?? null,
-        username,
-        hashedPassword: placeholderPassword,
-        provider: 'google',
-        providerId,
-        avatarUrl: profile.photos?.[0]?.value ?? null,
-        firebaseUid: null,
-      },
-    });
-  }
-
-  
-  if (!user.firebaseUid) {
-    try {
-      const firebaseUid = String(user.id);
-
-      await this.prisma.user.update({
-        where: { id: user.id },
-        data: { firebaseUid },
-      });
-
-      user.firebaseUid = firebaseUid;
-    } catch (err) {
-      this.logger.error('Failed to set firebaseUid for Google user');
-      throw new Error('Failed to set firebaseUid');
-    }
-  }
-
-  return user;
-}
-
-  // ==========================================
-  // FACEBOOK
-  // ==========================================
-async findOrCreateUserFromFacebook(profile: any) {
-  const email =
-    profile.emails?.[0]?.value ||
-    profile._json?.email ||
-    null;
-
-  const providerId = profile.id;
-
-  const orFilters: any[] = [
-    { provider: 'facebook', providerId }
-  ];
-
-  if (email) {
-    orFilters.push({ email });
-  }
-
-  let user = await this.prisma.user.findFirst({
-    where: {
-      OR: orFilters,
-    },
-  });
-
-  if (!user) {
-    const baseUsername = `facebook_${providerId}`.toLowerCase();
-    let username = baseUsername;
-    let counter = 1;
-
-    while (
-      await this.prisma.user.findUnique({
-        where: { username },
-      })
-    ) {
-      username = `${baseUsername}_${counter++}`;
-    }
-
-    const placeholderPassword = await hashPassword(randomUUID());
-
-    user = await this.prisma.user.create({
-      data: {
-        email: email ?? `no-email-facebook-${providerId}@placeholder.local`,
-        name: profile.displayName ?? null,
-        username,
-        hashedPassword: placeholderPassword,
-        provider: 'facebook',
-        providerId,
-        avatarUrl: profile.photos?.[0]?.value ?? null,
-        firebaseUid: null,
-      },
-    });
-  }
-
-  if (!user.firebaseUid) {
-    try {
-      const firebaseUid = String(user.id);
-
-      await this.prisma.user.update({
-        where: { id: user.id },
-        data: { firebaseUid },
-      });
-
-      user.firebaseUid = firebaseUid;
-    } catch (err) {
-      this.logger.error('Failed to set firebaseUid for Facebook user');
-      throw new Error('Failed to set firebaseUid');
-    }
-  }
-
-  return user;
-}
-
 // ==========================================
 // Hybrid OAuth
 // ==========================================
 async getOrCreateOAuthUser(
-  provider: 'facebook' | 'google',
+  provider: OAuthProvider, // ENUM
   providerId: string,
   email?: string,
   name?: string,
   picture?: string,
 ): Promise<string> {
   const normalizedEmail =
-    email && email.trim().length > 0
-      ? email.toLowerCase()
-      : null;
+  email && email.trim().length > 0
+    ? email.trim().toLowerCase()
+    : null;
 
-  // 1️⃣ หา user จาก provider + providerId
-  let user = await this.prisma.user.findFirst({
-    where: { provider, providerId },
-  });
-
-  // 2️⃣ Account linking ด้วย email
-  if (!user && normalizedEmail) {
-    const existingByEmail = await this.prisma.user.findUnique({
-      where: { email: normalizedEmail },
-    });
-
-    if (existingByEmail) {
-      user = await this.prisma.user.update({
-        where: { id: existingByEmail.id },
-        data: {
+  return this.prisma.$transaction(async (tx) => {
+    // =================================================
+    // 1) Find OAuthAccount by (provider, providerId)
+    // =================================================
+    const existingOAuth = await tx.oAuthAccount.findUnique({
+      where: {
+        provider_providerId: {
           provider,
           providerId,
         },
-      });
-    }
-  }
-
-  // 3️⃣ Create user ใหม่ (race-safe)
-if (!user) {
-  let baseUsername = `${provider}_${providerId}`.toLowerCase();
-  let username = baseUsername;
-  let counter = 1;
-
-  while (
-    await this.prisma.user.findUnique({
-      where: { username },
-    })
-  ) {
-    username = `${baseUsername}_${counter++}`;
-  }
-
-  const placeholderPassword = await hashPassword(randomUUID());
-
-  try {
-    user = await this.prisma.user.create({
-      data: {
-        email:
-          normalizedEmail ??
-          `oauth-${provider}-${randomUUID()}@placeholder.local`,
-        name: name || null,
-        username,
-        hashedPassword: placeholderPassword,
-        provider,
-        providerId,
-        avatarUrl: picture || null,
-        firebaseUid: null,
       },
+      include: { user: true },
     });
-  } catch (e: any) {
-    // ✅ unique constraint → someone created it first
-    if (e?.code === 'P2002' && normalizedEmail) {
-      user = await this.prisma.user.findUnique({
+
+    let user = existingOAuth?.user ?? null;
+
+    // =================================================
+    // 2) If no OAuthAccount → try link by EMAIL
+    //    (GLOBAL IDENTITY = email, case-insensitive by citext)
+    // =================================================
+    if (!user && normalizedEmail) {
+      const existingByEmail = await tx.user.findUnique({
         where: { email: normalizedEmail },
       });
 
-      if (!user) throw e; // should never happen
-    } else {
-      throw e;
+      if (existingByEmail) {
+        user = existingByEmail;
+
+        // idempotent-safe link
+        try {
+          await tx.oAuthAccount.create({
+            data: {
+              userId: user.id,
+              provider,
+              providerId,
+              providerEmail: normalizedEmail,
+              lastLoginAt: new Date(),
+            },
+          });
+        } catch (e: any) {
+          if (e?.code !== 'P2002') throw e;
+          // someone else linked first → safe to continue
+        }
+      }
     }
-  }
-}
 
+    // =================================================
+    // 3) Create NEW user + OAuthAccount (atomic)
+    // =================================================
+    if (!user) {
+      let baseUsername = `${provider.toLowerCase()}_${providerId}`;
+      let username = baseUsername;
+      let counter = 1;
 
-  // 4️⃣ Ensure firebaseUid (ครั้งเดียว)
-  if (!user.firebaseUid) {
-    const firebaseUid = `oauth_${provider}_${user.id}_${randomUUID()}`;
+      while (
+        await tx.user.findUnique({
+          where: { username },
+        })
+      ) {
+        username = `${baseUsername}_${counter++}`;
+      }
 
-    user = await this.prisma.user.update({
-      where: { id: user.id },
-      data: { firebaseUid },
+      const placeholderPassword = await hashPassword(randomUUID());
+
+      try {
+        user = await tx.user.create({
+          data: {
+            email:
+              normalizedEmail ??
+              `oauth-${provider.toLowerCase()}-${randomUUID()}@placeholder.local`,
+            name: name || null,
+            username,
+            hashedPassword: placeholderPassword,
+            avatarUrl: picture || null,
+            firebaseUid: null,
+            isEmailVerified: Boolean(normalizedEmail),
+            oauthAccounts: {
+              create: {
+                provider,
+                providerId,
+                providerEmail: normalizedEmail,
+                lastLoginAt: new Date(),
+              },
+            },
+          },
+        });
+      } catch (e: any) {
+        // race: email created by parallel request
+        if (e?.code === 'P2002' && normalizedEmail) {
+          user = await tx.user.findUnique({
+            where: { email: normalizedEmail },
+          });
+
+          if (!user) throw e;
+
+          try {
+            await tx.oAuthAccount.create({
+              data: {
+                userId: user.id,
+                provider,
+                providerId,
+                providerEmail: normalizedEmail,
+                lastLoginAt: new Date(),
+              },
+            });
+          } catch (err: any) {
+            if (err?.code !== 'P2002') throw err;
+          }
+        } else {
+          throw e;
+        }
+      }
+    }
+
+    if (!user) {
+      throw new Error('OAuth user resolution failed');
+    }
+
+    // =================================================
+    // 4) Ensure firebaseUid (once per user)
+    // =================================================
+    if (!user.firebaseUid) {
+      const firebaseUid = `oauth_${provider.toLowerCase()}_${user.id}_${randomUUID()}`;
+
+      user = await tx.user.update({
+        where: { id: user.id },
+        data: { firebaseUid },
+      });
+    }
+
+    // =================================================
+    // 5) Update lastLoginAt on OAuthAccount
+    // =================================================
+    await tx.oAuthAccount.update({
+      where: {
+        provider_providerId: {
+          provider,
+          providerId,
+        },
+      },
+      data: {
+        lastLoginAt: new Date(),
+      },
     });
-  }
 
-  if (!user.firebaseUid) {
-    throw new Error('firebaseUid missing after OAuth linking');
-  }
-
-  return user.firebaseUid;
+    return user.firebaseUid!;
+  });
 }
+
 
 // ==========================================
 // User lookup
@@ -961,9 +881,9 @@ async getUserByFirebaseUid(firebaseUid: string) {
     }
 
     return this.firebase.auth().createCustomToken(uid, {
-      email: user.email,
-      provider: user.provider,
-    });
+  email: user.email,
+});
+
   }
 
   verifyIdToken(idToken: string) {
@@ -1162,6 +1082,16 @@ async resendEmailVerification(
       userAgent: meta?.userAgent ?? null,
     });
   } catch {}
+}
+
+async recordLoginHistory(data: {
+  userId: string;
+  provider: OAuthProvider;
+  ip?: string | null;
+  userAgent?: string | null;
+  success: boolean;
+}) {
+  return this.prisma.loginHistory.create({ data });
 }
 
 }

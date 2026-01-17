@@ -11,7 +11,7 @@ datasource db {
 
 model User {
   id                        String   @id @default(uuid())
-  email                     String   @unique
+  email                     String   @unique @db.Citext
   name                      String?
   displayName               String?
   username                  String   @unique
@@ -31,8 +31,6 @@ model User {
   isDisabled                Boolean  @default(false)
   active                    Boolean  @default(true)
   lastLoginAt               DateTime?
-  provider                  String?
-  providerId                String?
   disabledReason            String?
   disabledAt                DateTime?
   bio                       String?
@@ -103,12 +101,11 @@ model User {
   chatReadStates     ChatReadState[]
   chatMessageReports ChatMessageReport[]
   chatTypingStates   ChatTypingState[]
-
+  loginHistories     LoginHistory[] 
   // ===== Blocking =====
   blockedUsers UserBlock[] @relation("UserBlocker")
   blockedBy    UserBlock[] @relation("UserBlocked")
 
-  @@unique([provider, providerId])
   @@index([isBanned, bannedAt])
   @@index([phoneNumber])
   @@index([isAccountLocked, accountLockedAt])
@@ -151,16 +148,43 @@ model UserActivity {
 model OAuthAccount {
   id           String    @id @default(uuid())
   userId       String
-  provider     String
+  provider     OAuthProvider
   providerId   String
+  providerEmail String?  @db.Citext
   accessToken  String?
   refreshToken String?
   expiresAt    DateTime?
   createdAt    DateTime  @default(now())
   user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lastLoginAt DateTime?
 
   @@index([provider, providerId])
+  @@unique([userId, provider])
   @@unique([provider, providerId])
+  @@index([userId, provider])
+  @@index([userId])
+}
+
+enum OAuthProvider {
+  LOCAL
+  GOOGLE
+  FACEBOOK
+}
+
+model LoginHistory {
+  id        String   @id @default(uuid())
+  userId    String
+  provider  OAuthProvider
+  ip        String?
+  userAgent String?
+  success   Boolean
+  reason    String?
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([provider, createdAt])
 }
 
 model RefreshToken {

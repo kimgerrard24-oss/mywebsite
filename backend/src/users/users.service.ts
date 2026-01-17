@@ -112,15 +112,14 @@ export class UsersService {
   // =================================================
   try {
     return await this.prisma.user.create({
-      data: {
-        email: normalizedEmail,
-        username,
-        hashedPassword: passwordHash,
-        provider: 'local',
-        providerId: normalizedEmail,
-        name: displayName ?? null,
-      },
-    });
+  data: {
+    email: normalizedEmail,
+    username,
+    hashedPassword: passwordHash,
+    name: displayName ?? null,
+  },
+});
+
   } catch (e: any) {
     // ---------------------------------------------
     // Unique constraint (race condition)

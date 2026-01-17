@@ -25,22 +25,19 @@ export class UsersRepository {
     // deterministic username (ไม่สุ่ม เพื่อ debug ง่าย)
     const baseUsername = email.split('@')[0];
 
-    return this.prisma.user.create({
-      data: {
-        email,
-        username: baseUsername,
-        hashedPassword,
-        displayName: displayName ?? null,
+   return this.prisma.user.create({
+  data: {
+    email,
+    username: baseUsername,
+    hashedPassword,
+    displayName: displayName ?? null,
 
-        // Hybrid Auth fields (required by schema)
-        provider: 'local',
-        providerId: email,
+    // local user defaults
+    isEmailVerified: false,
+    active: true,
+  },
+});
 
-        // optional / defaults
-        isEmailVerified: false,
-        active: true,
-      },
-    });
   }
 
   // =====================================================

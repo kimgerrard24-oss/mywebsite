@@ -24,6 +24,7 @@ import { AccessTokenCookieAuthGuard } from '../auth/guards/access-token-cookie.g
 import { RedisService } from '../redis/redis.service';
 import { Public } from './decorators/public.decorator';
 import { FirebaseAuthGuard } from './firebase-auth.guard';
+import { OAuthProvider } from '@prisma/client';
 
 
 /* ------------------------------------------------------------------ */
@@ -201,12 +202,13 @@ if (!exists || cookieState !== state) {
     : undefined;
 
 const firebaseUid = await this.auth.getOrCreateOAuthUser(
-  'google',
+  OAuthProvider.GOOGLE,
   profile.sub,
   email,
   profile.name,
   profile.picture,
 );
+
 
 
     // 2) load local user
@@ -220,6 +222,12 @@ const firebaseUid = await this.auth.getOrCreateOAuthUser(
       firebaseUid,
       user,
     );
+
+    await this.redisService.set(
+  `oauth_provider_${firebaseUid}`,
+  'GOOGLE',
+  300,
+   );
 
     // 4) redirect to frontend complete step
     const finalUrl = buildFinalUrl(
@@ -350,21 +358,34 @@ if (!exists || cookieState !== state) {
     ? profile.email.trim().toLowerCase()
     : undefined;
 
-const firebaseUid =
-  await this.auth.getOrCreateOAuthUser(
-    'facebook',
-    profile.id,
-    email,
-    profile.name,
-    profile.picture?.data?.url,
-  );
+const firebaseUid = await this.auth.getOrCreateOAuthUser(
+  OAuthProvider.FACEBOOK,
+  profile.id,
+  email,
+  profile.name,
+  profile.picture?.data?.url,
+);
+
+  
+// ✅ load local user (authority = DB)
+const user = await this.auth.getUserByFirebaseUid(firebaseUid);
+if (!user) {
+  throw new UnauthorizedException('User not found');
+}
+
+// ✅ create Firebase custom token using DB user
+const customToken = await this.auth.createFirebaseCustomToken(
+  firebaseUid,
+  user,
+);
 
 
-    const customToken =
-      await this.auth.createFirebaseCustomToken(
-        firebaseUid,
-        profile,
-      );
+      await this.redisService.set(
+  `oauth_provider_${firebaseUid}`,
+  'FACEBOOK',
+  300,
+   );
+
 
     const finalUrl = buildFinalUrl(
       process.env
@@ -427,12 +448,38 @@ if (!used) {
           : req.ip || 'unknown';
 
       const userAgent = req.headers['user-agent'] || null;
+      const providerRaw =
+  await this.redisService.get(
+    `oauth_provider_${decoded.uid}`,
+  );
+
+const provider =
+  providerRaw === 'FACEBOOK'
+    ? OAuthProvider.FACEBOOK
+    : OAuthProvider.GOOGLE; // default safe
 
       const session = await this.auth.createSessionToken(user.id, {
         ip,
         userAgent,
         deviceId: body?.deviceId ?? null,
       });
+      
+    await this.redisService.del(
+  `oauth_provider_${decoded.uid}`,
+).catch(() => {});
+
+
+     try {
+  await this.auth.recordLoginHistory({
+    userId: user.id,
+    provider,
+    ip,
+    userAgent: typeof userAgent === 'string' ? userAgent : null,
+    success: true,
+  });
+} catch (e) {
+  this.logger.warn('Failed to write LoginHistory (social)', e);
+}
 
       res.cookie(
         process.env.ACCESS_TOKEN_COOKIE_NAME || 'phl_access',

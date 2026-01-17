@@ -10,6 +10,7 @@ import {
 } from 'passport-google-oauth20';
 import { AuthService } from '../auth.service';
 import { Request } from 'express';
+import { OAuthProvider } from '@prisma/client';
 
 @Injectable()
 export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
@@ -60,12 +61,13 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     // Create/find user and get Firebase UID
     // ===============================================
     const firebaseUid = await this.authService.getOrCreateOAuthUser(
-      'google',
-      providerId,
-      email,
-      name,
-      picture,
-    );
+  OAuthProvider.GOOGLE,
+  providerId,
+  email,
+  name,
+  picture,
+);
+
 
     // ===============================================
     // Download final user from DB via AuthService
@@ -76,7 +78,7 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
     return {
       id: user?.id,
       firebaseUid,
-      provider: 'google',
+      provider: OAuthProvider.GOOGLE,
       providerId,
       email: user?.email,
       name: user?.name,
