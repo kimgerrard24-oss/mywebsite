@@ -260,6 +260,44 @@ CREATE TABLE "Comment" (
     CONSTRAINT "Comment_pkey" PRIMARY KEY ("id")
 );
 
+-- =====================================================
+-- 🔒 Enforce ONE-LEVEL reply only (PRODUCTION SAFE)
+-- - Applies ONLY on INSERT
+-- - Prevents nested replies (reply of reply)
+-- =====================================================
+
+CREATE OR REPLACE FUNCTION enforce_one_level_reply()
+RETURNS trigger AS $$
+BEGIN
+  -- Only validate when this is a reply
+  IF NEW."parentId" IS NOT NULL THEN
+    -- If parent itself is already a reply → reject
+    IF EXISTS (
+      SELECT 1
+      FROM "Comment"
+      WHERE id = NEW."parentId"
+        AND "parentId" IS NOT NULL
+    ) THEN
+      RAISE EXCEPTION
+        'Nested replies are not allowed (only 1-level replies supported)';
+    END IF;
+  END IF;
+
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+-- =====================================================
+-- Trigger: INSERT ONLY (⚠️ DO NOT USE UPDATE)
+-- =====================================================
+
+DROP TRIGGER IF EXISTS trg_comment_one_level_reply ON "Comment";
+
+CREATE TRIGGER trg_comment_one_level_reply
+BEFORE INSERT ON "Comment"
+FOR EACH ROW
+EXECUTE FUNCTION enforce_one_level_reply();
+
 -- CreateTable
 CREATE TABLE "CommentLike" (
     "id" TEXT NOT NULL,
@@ -510,6 +548,10 @@ CREATE TABLE "IdentityVerificationToken" (
 
     CONSTRAINT "IdentityVerificationToken_pkey" PRIMARY KEY ("id")
 );
+
+CREATE UNIQUE INDEX uniq_active_identity_token
+ON "IdentityVerificationToken"("userId", "type")
+WHERE "usedAt" IS NULL;
 
 -- CreateTable
 CREATE TABLE "SecurityEvent" (
