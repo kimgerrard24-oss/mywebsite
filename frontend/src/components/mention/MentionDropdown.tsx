@@ -26,6 +26,19 @@ export default function MentionDropdown({
 
   if (items.length === 0) return null;
 
+  function getInitial(
+  name?: string | null,
+  username?: string | null,
+) {
+  const base =
+    name?.trim() ||
+    username?.trim() ||
+    "U";
+
+  return base.charAt(0).toUpperCase();
+}
+
+
   return (
     <ul
       role="listbox"
@@ -59,15 +72,35 @@ export default function MentionDropdown({
               onSelect(user);
             }}
           >
-            {user.avatarUrl ? (
-              <img
-                src={user.avatarUrl}
-                alt=""
-                className="h-6 w-6 rounded-full"
-              />
-            ) : (
-              <div className="h-6 w-6 rounded-full bg-gray-300" />
-            )}
+            <div
+  className="
+    h-6
+    w-6
+    rounded-full
+    overflow-hidden
+    bg-gray-200
+    flex
+    items-center
+    justify-center
+    flex-shrink-0
+  "
+  aria-hidden
+>
+  {user.avatarUrl ? (
+    <img
+      src={user.avatarUrl}
+      alt=""
+      className="h-full w-full object-cover"
+      loading="lazy"
+      referrerPolicy="no-referrer"
+    />
+  ) : (
+    <span className="text-[10px] font-semibold text-gray-700">
+      {getInitial(user.displayName, user.username)}
+    </span>
+  )}
+</div>
+
 
             <div className="min-w-0">
               <div className="truncate text-sm font-medium">

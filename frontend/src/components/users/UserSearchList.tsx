@@ -1,6 +1,5 @@
 // frontend/components/users/UserSearchList.tsx
 
-import Image from "next/image";
 import Link from "next/link";
 import type { PublicUserSearch } from "@/types/user-search";
 
@@ -85,6 +84,15 @@ export default function UserSearchList({
       </p>
     );
   }
+  
+  function getInitial(name?: string | null, username?: string | null) {
+  const base =
+    name?.trim() ||
+    username?.trim() ||
+    "U";
+
+  return base.charAt(0).toUpperCase();
+}
 
   return (
     <ul
@@ -109,37 +117,37 @@ export default function UserSearchList({
               transition
             "
           >
-            {user.avatarUrl ? (
-              <Image
-                src={user.avatarUrl}
-                alt={user.displayName ?? user.username}
-                width={40}
-                height={40}
-                className="
-                  h-8
-                  w-8
-                  sm:h-10
-                  sm:w-10
-                  rounded-full
-                  object-cover
-                  flex-shrink-0
-                "
-                unoptimized
-              />
-            ) : (
-              <div
-                className="
-                  h-8
-                  w-8
-                  sm:h-10
-                  sm:w-10
-                  rounded-full
-                  bg-gray-300
-                  flex-shrink-0
-                "
-                aria-hidden="true"
-              />
-            )}
+            <div
+  className="
+    h-8
+    w-8
+    sm:h-10
+    sm:w-10
+    rounded-full
+    overflow-hidden
+    bg-gray-200
+    flex
+    items-center
+    justify-center
+    flex-shrink-0
+  "
+  aria-hidden
+>
+  {user.avatarUrl ? (
+    <img
+      src={user.avatarUrl}
+      alt=""
+      className="h-full w-full object-cover"
+      loading="lazy"
+      referrerPolicy="no-referrer"
+    />
+  ) : (
+    <span className="text-xs font-semibold text-gray-700">
+      {getInitial(user.displayName, user.username)}
+    </span>
+  )}
+</div>
+
 
             <div className="min-w-0">
               <p className="text-sm sm:text-base font-medium truncate">

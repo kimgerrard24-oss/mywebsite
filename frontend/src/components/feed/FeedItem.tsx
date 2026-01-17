@@ -45,6 +45,11 @@ export default function FeedItem({ post, onDeleted }: Props) {
   setIsFollowing(post.author.isFollowing);
 }, [post.author.isFollowing]);
    
+function getInitial(name?: string | null) {
+  if (!name) return "U";
+  return name.trim().charAt(0).toUpperCase();
+}
+
   return (
     <article
       className="
@@ -82,35 +87,38 @@ export default function FeedItem({ post, onDeleted }: Props) {
         >
           {/* ===== Avatar (LINK) ===== */}
           <Link href={profileHref} className="flex-shrink-0">
-            {post.author.avatarUrl ? (
-              <img
-                src={post.author.avatarUrl}
-                alt={post.author.displayName ?? "User avatar"}
-                className="
-                  h-8
-                  w-8
-                  sm:h-9
-                  sm:w-9
-                  rounded-full
-                  object-cover
-                  cursor-pointer
-                "
-                loading="lazy"
-              />
-            ) : (
-              <div
-                className="
-                  h-8
-                  w-8
-                  sm:h-9
-                  sm:w-9
-                  rounded-full
-                  bg-gray-300
-                "
-                aria-hidden="true"
-              />
-            )}
-          </Link>
+  <div
+    className="
+      h-8
+      w-8
+      sm:h-9
+      sm:w-9
+      rounded-full
+      overflow-hidden
+      bg-gray-200
+      flex
+      items-center
+      justify-center
+      cursor-pointer
+    "
+    aria-hidden
+  >
+    {post.author.avatarUrl ? (
+      <img
+        src={post.author.avatarUrl}
+        alt={post.author.displayName ?? "User avatar"}
+        className="h-full w-full object-cover"
+        loading="lazy"
+        referrerPolicy="no-referrer"
+      />
+    ) : (
+      <span className="text-xs font-semibold text-gray-700">
+        {getInitial(post.author.displayName)}
+      </span>
+    )}
+  </div>
+</Link>
+
 
           {/* ===== Name + Time ===== */}
           <div className="flex min-w-0 flex-col leading-tight">

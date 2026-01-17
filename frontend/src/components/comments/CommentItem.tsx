@@ -154,6 +154,10 @@ export default function CommentItem({
   }
 }, [comment.id]);
 
+   function getInitial(name?: string | null) {
+  if (!name) return "U";
+  return name.trim().charAt(0).toUpperCase();
+}
 
   return (
     <article
@@ -169,19 +173,35 @@ export default function CommentItem({
   {comment.author && (() => {
   const content = (
     <>
-      {comment.author.avatarUrl ? (
-        <img
-          src={comment.author.avatarUrl}
-          alt={comment.author.displayName ?? "User"}
-          className="h-6 w-6 rounded-full object-cover"
-        />
-      ) : (
-        <div className="h-6 w-6 rounded-full bg-gray-300" />
-      )}
+    <div
+  className="
+    h-6
+    w-6
+    rounded-full
+    overflow-hidden
+    bg-gray-200
+    flex
+    items-center
+    justify-center
+    flex-shrink-0
+  "
+  aria-hidden
+>
+  {comment.author.avatarUrl ? (
+    <img
+      src={comment.author.avatarUrl}
+      alt=""
+      className="h-full w-full object-cover"
+      loading="lazy"
+      referrerPolicy="no-referrer"
+    />
+  ) : (
+    <span className="text-[10px] font-semibold text-gray-700">
+      {getInitial(comment.author.displayName)}
+    </span>
+  )}
+</div>
 
-      <span className="text-xs font-medium text-gray-800 truncate">
-        {comment.author.displayName ?? "Unknown user"}
-      </span>
     </>
   );
 

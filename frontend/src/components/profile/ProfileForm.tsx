@@ -59,177 +59,189 @@ export default function ProfileForm({ user }: Props) {
     }
   }
 
- return (
-  <form
-    onSubmit={onSubmit}
+return (
+  <div
     className="
       w-full
       max-w-2xl
-      space-y-4
-      sm:space-y-6
+      space-y-10
     "
-    aria-label="Edit profile form"
   >
-    {/* ===== Display name ===== */}
-    <div>
-      <label
-        htmlFor="display-name"
-        className="
-          block
-          text-xs
-          sm:text-sm
-          font-medium
-          text-gray-700
-        "
-      >
-        Display name
-      </label>
-      <input
-        id="display-name"
-        type="text"
-        value={displayName}
-        onChange={(e) => setDisplayName(e.target.value)}
-        maxLength={50}
-        className="
-          mt-1
-          w-full
-          rounded-md
-          sm:rounded-lg
-          border
-          border-gray-300
-          px-3
-          sm:px-4
-          py-2
-          text-sm
-          sm:text-base
-          focus:outline-none
-          focus:ring-2
-          focus:ring-blue-500
-        "
-      />
-    </div>
     {/* ================================
-    Username Section
-   ================================ */}
-<section className="mt-8 space-y-2">
-  <h2 className="text-lg font-medium">Username</h2>
-  <UsernameEditor currentUsername={user.username} />
-</section>
-
-<section className="mt-8 space-y-2">
-  <h2 className="text-lg font-medium">Email</h2>
-  <EmailChangeForm />
-</section>
-
-       <section
-          className="mt-8"
-          aria-labelledby="change-phone-form"
+        Profile Update Form (Display name + Bio)
+       ================================ */}
+    <form
+      onSubmit={onSubmit}
+      className="
+        space-y-4
+        sm:space-y-6
+      "
+      aria-label="Edit profile form"
+    >
+      {/* ===== Display name ===== */}
+      <div>
+        <label
+          htmlFor="display-name"
+          className="
+            block
+            text-xs
+            sm:text-sm
+            font-medium
+            text-gray-700
+          "
         >
-          <h2 id="change-phone-form" className="sr-only">
-            Phone number verification form
-          </h2>
+          Display name
+        </label>
+        <input
+          id="display-name"
+          type="text"
+          value={displayName}
+          onChange={(e) => setDisplayName(e.target.value)}
+          maxLength={50}
+          className="
+            mt-1
+            w-full
+            rounded-md
+            sm:rounded-lg
+            border
+            border-gray-300
+            px-3
+            sm:px-4
+            py-2
+            text-sm
+            sm:text-base
+            focus:outline-none
+            focus:ring-2
+            focus:ring-blue-500
+          "
+        />
+      </div>
 
-          <PhoneChangeForm />
-        </section>
+      {/* ================================
+          Username Section (separate action)
+         ================================ */}
+      <section className="mt-8 space-y-2">
+        <h2 className="text-lg font-medium">Username</h2>
+        <UsernameEditor currentUsername={user.username} />
+      </section>
 
-    {/* ===== Bio ===== */}
-    <div>
-      <label
-        htmlFor="bio"
-        className="
-          block
-          text-xs
-          sm:text-sm
-          font-medium
-          text-gray-700
-        "
-      >
-        Bio
-      </label>
-      <textarea
-        id="bio"
-        value={bio}
-        onChange={(e) => setBio(e.target.value)}
-        maxLength={160}
-        rows={4}
-        className="
-          mt-1
-          w-full
-          rounded-md
-          sm:rounded-lg
-          border
-          border-gray-300
-          px-3
-          sm:px-4
-          py-2
-          text-sm
-          sm:text-base
-          leading-relaxed
-          resize-y
-          focus:outline-none
-          focus:ring-2
-          focus:ring-blue-500
-        "
-      />
-    </div>
+      {/* ===== Bio ===== */}
+      <div>
+        <label
+          htmlFor="bio"
+          className="
+            block
+            text-xs
+            sm:text-sm
+            font-medium
+            text-gray-700
+          "
+        >
+          Bio
+        </label>
+        <textarea
+          id="bio"
+          value={bio}
+          onChange={(e) => setBio(e.target.value)}
+          maxLength={160}
+          rows={4}
+          className="
+            mt-1
+            w-full
+            rounded-md
+            sm:rounded-lg
+            border
+            border-gray-300
+            px-3
+            sm:px-4
+            py-2
+            text-sm
+            sm:text-base
+            leading-relaxed
+            resize-y
+            focus:outline-none
+            focus:ring-2
+            focus:ring-blue-500
+          "
+        />
+      </div>
 
-    {/* ===== Feedback ===== */}
-    {error && (
-      <p
-        className="
-          text-xs
-          sm:text-sm
-          text-red-600
-        "
-        role="alert"
-      >
-        {error}
-      </p>
-    )}
-    {success && (
-      <p
-        className="
-          text-xs
-          sm:text-sm
-          text-green-600
-        "
-        role="status"
-        aria-live="polite"
-      >
-        Profile updated
-      </p>
-    )}
+      {/* ===== Feedback ===== */}
+      {error && (
+        <p
+          className="
+            text-xs
+            sm:text-sm
+            text-red-600
+          "
+          role="alert"
+        >
+          {error}
+        </p>
+      )}
+      {success && (
+        <p
+          className="
+            text-xs
+            sm:text-sm
+            text-green-600
+          "
+          role="status"
+          aria-live="polite"
+        >
+          Profile updated
+        </p>
+      )}
 
-    {/* ===== Action ===== */}
-    <div className="pt-1 sm:pt-2">
-      <button
-        type="submit"
-        disabled={loading}
-        className="
-          inline-flex
-          items-center
-          justify-center
-          rounded-md
-          sm:rounded-lg
-          bg-black
-          px-4
-          sm:px-5
-          py-2
-          sm:py-2.5
-          text-sm
-          sm:text-base
-          font-medium
-          text-white
-          hover:bg-gray-800
-          disabled:opacity-50
-          disabled:cursor-not-allowed
-          transition
-        "
-      >
-        {loading ? "Saving..." : "Save changes"}
-      </button>
-    </div>
-  </form>
+      {/* ===== Action ===== */}
+      <div className="pt-1 sm:pt-2">
+        <button
+          type="submit"
+          disabled={loading}
+          className="
+            inline-flex
+            items-center
+            justify-center
+            rounded-md
+            sm:rounded-lg
+            bg-black
+            px-4
+            sm:px-5
+            py-2
+            sm:py-2.5
+            text-sm
+            sm:text-base
+            font-medium
+            text-white
+            hover:bg-gray-800
+            disabled:opacity-50
+            disabled:cursor-not-allowed
+            transition
+          "
+        >
+          {loading ? "Saving..." : "Save changes"}
+        </button>
+      </div>
+    </form>
+
+    {/* ================================
+        Email Change (Verification Flow)
+       ================================ */}
+    <section className="space-y-2">
+      <h2 className="text-lg font-medium">Email</h2>
+      <EmailChangeForm />
+    </section>
+
+    {/* ================================
+        Phone Change (Verification Flow)
+       ================================ */}
+    <section aria-labelledby="change-phone-form">
+      <h2 id="change-phone-form" className="sr-only">
+        Phone number verification form
+      </h2>
+      <PhoneChangeForm />
+    </section>
+  </div>
 );
 
 }

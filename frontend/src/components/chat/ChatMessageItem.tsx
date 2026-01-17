@@ -96,24 +96,74 @@ if (message.isDeleted || message.deletedAt) {
     {!isOwn && (
   isBlocked ? (
     <div className="mr-2 flex-shrink-0 opacity-60 cursor-not-allowed">
-      <img
-        src={message.sender.avatarUrl ?? "/avatar-placeholder.png"}
-        className="h-8 w-8 rounded-full"
-        alt="User avatar"
-        loading="lazy"
-      />
+      <div
+  className="
+    h-8
+    w-8
+    rounded-full
+    overflow-hidden
+    bg-gray-200
+    flex
+    items-center
+    justify-center
+  "
+  aria-hidden
+>
+  {message.sender.avatarUrl ? (
+    <img
+      src={message.sender.avatarUrl}
+      className="h-full w-full object-cover"
+      alt=""
+      loading="lazy"
+      referrerPolicy="no-referrer"
+    />
+  ) : (
+    <span className="text-[10px] font-semibold text-gray-700">
+      {(message.sender.displayName ?? "U")
+        .trim()
+        .charAt(0)
+        .toUpperCase()}
+    </span>
+  )}
+</div>
+
     </div>
   ) : (
     <Link
       href={`/users/${message.sender.id}`}
       className="mr-2 flex-shrink-0"
     >
-      <img
-        src={message.sender.avatarUrl ?? "/avatar-placeholder.png"}
-        className="h-8 w-8 rounded-full cursor-pointer"
-        alt={message.sender.displayName ?? "User avatar"}
-        loading="lazy"
-      />
+      <div
+  className="
+    h-8
+    w-8
+    rounded-full
+    overflow-hidden
+    bg-gray-200
+    flex
+    items-center
+    justify-center
+  "
+  aria-hidden
+>
+  {message.sender.avatarUrl ? (
+    <img
+      src={message.sender.avatarUrl}
+      className="h-full w-full object-cover cursor-pointer"
+      alt=""
+      loading="lazy"
+      referrerPolicy="no-referrer"
+    />
+  ) : (
+    <span className="text-[10px] font-semibold text-gray-700 cursor-pointer">
+      {(message.sender.displayName ?? "U")
+        .trim()
+        .charAt(0)
+        .toUpperCase()}
+    </span>
+  )}
+</div>
+
     </Link>
   )
 )}
