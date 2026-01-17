@@ -68,7 +68,6 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
   picture,
 );
 
-
     // ===============================================
     // Download final user from DB via AuthService
     // (ไม่เรียก prisma โดยตรง)
