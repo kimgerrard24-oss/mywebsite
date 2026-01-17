@@ -8,10 +8,28 @@ import Image from 'next/image';
 export default function Header(){
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const path = usePathname()
-  const [me, setMe] = useState<unknown>(null)
+
+  type Me = {
+  id: string
+  email?: string | null
+  displayName?: string | null
+  avatarUrl?: string | null
+}
+const [me, setMe] = useState<Me | null>(null)
+
   useEffect(()=> {
     apiGet('/auth/me').then(setMe).catch(()=>setMe(null))
   },[])
+
+  function getInitial(me: Me) {
+  const base =
+    me.displayName?.trim() ||
+    me.email?.split("@")[0] ||
+    "U"
+
+  return base.charAt(0).toUpperCase()
+}
+
   return (
   <header
     className="
@@ -97,27 +115,63 @@ export default function Header(){
         </Link>
 
         {me ? (
-          <>
-            <Link
-              href="/home"
-              className="hover:underline"
-            >
-              Home
-            </Link>
-            <Link
-              href="/profile/me"
-              className="hover:underline"
-            >
-              Profile
-            </Link>
-            <Link
-              href="/messages"
-              className="hover:underline"
-            >
-              Messages
-            </Link>
-          </>
+  <>
+    <Link
+      href="/home"
+      className="hover:underline"
+    >
+      Home
+    </Link>
+
+    <Link
+      href="/profile/me"
+      className="hover:underline"
+    >
+      Profile
+    </Link>
+
+    <Link
+      href="/messages"
+      className="hover:underline"
+    >
+      Messages
+    </Link>
+
+    {/* ===== User Avatar ===== */}
+    <Link
+      href="/profile/me"
+      className="ml-2 flex items-center"
+      aria-label="Your profile"
+    >
+      <div
+        className="
+          h-8
+          w-8
+          rounded-full
+          overflow-hidden
+          bg-gray-200
+          flex
+          items-center
+          justify-center
+        "
+      >
+        {me.avatarUrl ? (
+          <img
+            src={me.avatarUrl}
+            alt=""
+            className="h-full w-full object-cover"
+            referrerPolicy="no-referrer"
+          />
         ) : (
+          <span className="text-sm font-semibold text-gray-700">
+            {getInitial(me)}
+          </span>
+        )}
+      </div>
+    </Link>
+  </>
+) : (
+
           <>
             <Link
               href="/auth/login"

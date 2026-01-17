@@ -20,6 +20,12 @@ export default function FollowingItem({ following }: Props) {
     following.isBlocked === true ||
     following.hasBlockedViewer === true;
 
+    function getInitial(name?: string | null) {
+  if (!name) return "U";
+  return name.trim().charAt(0).toUpperCase();
+}
+
+
   return (
     <li
       className="
@@ -43,19 +49,35 @@ export default function FollowingItem({ following }: Props) {
           "
           aria-label="Blocked user"
         >
-          {following.avatarUrl ? (
-            <img
-              src={following.avatarUrl}
-              alt=""
-              className="h-8 w-8 rounded-full object-cover"
-              loading="lazy"
-            />
-          ) : (
-            <div
-              className="h-8 w-8 rounded-full bg-gray-300"
-              aria-hidden="true"
-            />
-          )}
+          <div
+  className="
+    h-8
+    w-8
+    rounded-full
+    overflow-hidden
+    bg-gray-200
+    flex
+    items-center
+    justify-center
+    flex-shrink-0
+  "
+  aria-hidden
+>
+  {following.avatarUrl ? (
+    <img
+      src={following.avatarUrl}
+      alt=""
+      className="h-full w-full object-cover"
+      loading="lazy"
+      referrerPolicy="no-referrer"
+    />
+  ) : (
+    <span className="text-xs font-semibold text-gray-700">
+      {getInitial(following.displayName)}
+    </span>
+  )}
+</div>
+
 
           <span
             className="
@@ -73,19 +95,35 @@ export default function FollowingItem({ following }: Props) {
           href={`/users/${following.userId}`}
           className="flex items-center gap-3 min-w-0 hover:underline"
         >
-          {following.avatarUrl ? (
-            <img
-              src={following.avatarUrl}
-              alt=""
-              className="h-8 w-8 rounded-full object-cover"
-              loading="lazy"
-            />
-          ) : (
-            <div
-              className="h-8 w-8 rounded-full bg-gray-300"
-              aria-hidden="true"
-            />
-          )}
+          <div
+  className="
+    h-8
+    w-8
+    rounded-full
+    overflow-hidden
+    bg-gray-200
+    flex
+    items-center
+    justify-center
+    flex-shrink-0
+  "
+  aria-hidden
+>
+  {following.avatarUrl ? (
+    <img
+      src={following.avatarUrl}
+      alt=""
+      className="h-full w-full object-cover"
+      loading="lazy"
+      referrerPolicy="no-referrer"
+    />
+  ) : (
+    <span className="text-xs font-semibold text-gray-700">
+      {getInitial(following.displayName)}
+    </span>
+  )}
+</div>
+
 
           <span
             className="

@@ -8,6 +8,17 @@ const ProfileCard: React.FC = () => {
 
   if (!user) return null;
 
+  function getInitial(user: any) {
+  const base =
+    user.displayName?.trim() ||
+    user.name?.trim() ||
+    user.email?.split("@")[0] ||
+    "U";
+
+  return base.charAt(0).toUpperCase();
+}
+
+
  return (
   <article
     className="
@@ -35,38 +46,47 @@ const ProfileCard: React.FC = () => {
       "
     >
       {user.avatarUrl ? (
-        <img
-          src={user.avatarUrl}
-          alt={user.displayName || user.name || "User Avatar"}
-          className="
-            w-12
-            h-12
-            sm:w-14
-            sm:h-14
-            md:w-16
-            md:h-16
-            rounded-full
-            object-cover
-            flex-shrink-0
-          "
-          loading="lazy"
-        />
-      ) : (
-        <div
-          className="
-            w-12
-            h-12
-            sm:w-14
-            sm:h-14
-            md:w-16
-            md:h-16
-            rounded-full
-            bg-gray-300
-            flex-shrink-0
-          "
-          aria-hidden="true"
-        />
-      )}
+  <img
+    src={user.avatarUrl}
+    alt={user.displayName || user.name || "User Avatar"}
+    className="
+      w-12
+      h-12
+      sm:w-14
+      sm:h-14
+      md:w-16
+      md:h-16
+      rounded-full
+      object-cover
+      flex-shrink-0
+    "
+    loading="lazy"
+    referrerPolicy="no-referrer"
+  />
+) : (
+  <div
+    className="
+      w-12
+      h-12
+      sm:w-14
+      sm:h-14
+      md:w-16
+      md:h-16
+      rounded-full
+      bg-gray-200
+      flex
+      items-center
+      justify-center
+      flex-shrink-0
+    "
+    aria-hidden="true"
+  >
+    <span className="text-sm sm:text-base font-semibold text-gray-700">
+      {getInitial(user)}
+    </span>
+  </div>
+)}
+
 
       <div className="min-w-0">
         <h1

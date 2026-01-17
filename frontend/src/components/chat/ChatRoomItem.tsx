@@ -16,6 +16,12 @@ export default function ChatRoomItem({ room }: Props) {
   peer?.isBlocked === true ||
   peer?.hasBlockedViewer === true;
 
+  function getInitial(name?: string | null) {
+  if (!name) return "U";
+  return name.trim().charAt(0).toUpperCase();
+}
+
+
 
   /**
    * ==============================
@@ -43,11 +49,34 @@ return (
         "
         aria-disabled="true"
       >
-        <img
-          src={peer?.avatarUrl ?? "/avatar-placeholder.png"}
-          alt=""
-          className="h-10 w-10 rounded-full"
-        />
+        <div
+  className="
+    h-10
+    w-10
+    rounded-full
+    overflow-hidden
+    bg-gray-200
+    flex
+    items-center
+    justify-center
+    flex-shrink-0
+  "
+  aria-hidden
+>
+  {peer?.avatarUrl ? (
+    <img
+      src={peer.avatarUrl}
+      alt=""
+      className="h-full w-full object-cover"
+      referrerPolicy="no-referrer"
+    />
+  ) : (
+    <span className="text-sm font-semibold text-gray-700">
+      {getInitial(peer?.displayName)}
+    </span>
+  )}
+</div>
+
 
         <div className="flex flex-1 flex-col overflow-hidden">
           <span className="truncate text-sm font-semibold">
@@ -66,11 +95,34 @@ return (
         href={`/chat/${room.id}`}
         className="flex items-center gap-3 px-4 py-3 hover:bg-gray-50"
       >
-        <img
-          src={peer?.avatarUrl ?? "/avatar-placeholder.png"}
-          alt=""
-          className="h-10 w-10 rounded-full"
-        />
+        <div
+  className="
+    h-10
+    w-10
+    rounded-full
+    overflow-hidden
+    bg-gray-200
+    flex
+    items-center
+    justify-center
+    flex-shrink-0
+  "
+  aria-hidden
+>
+  {peer?.avatarUrl ? (
+    <img
+      src={peer.avatarUrl}
+      alt=""
+      className="h-full w-full object-cover"
+      referrerPolicy="no-referrer"
+    />
+  ) : (
+    <span className="text-sm font-semibold text-gray-700">
+      {getInitial(peer?.displayName)}
+    </span>
+  )}
+</div>
+
 
         <div className="flex flex-1 flex-col overflow-hidden">
           <span className="truncate text-sm font-semibold">

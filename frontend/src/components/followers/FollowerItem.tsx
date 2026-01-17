@@ -13,6 +13,12 @@ export default function FollowerItem({ follower }: Props) {
     follower.isBlocked === true ||
     follower.hasBlockedViewer === true;
 
+    function getInitial(name?: string | null) {
+  if (!name) return "U";
+  return name.trim().charAt(0).toUpperCase();
+}
+
+
   return (
     <li className="flex items-center gap-3 py-2">
       {isBlocked ? (
@@ -26,19 +32,35 @@ export default function FollowerItem({ follower }: Props) {
           "
           aria-label="Blocked user"
         >
-          {follower.avatarUrl ? (
-            <img
-              src={follower.avatarUrl}
-              alt=""
-              className="h-8 w-8 rounded-full"
-              loading="lazy"
-            />
-          ) : (
-            <div
-              className="h-8 w-8 rounded-full bg-gray-300"
-              aria-hidden="true"
-            />
-          )}
+          <div
+  className="
+    h-8
+    w-8
+    rounded-full
+    overflow-hidden
+    bg-gray-200
+    flex
+    items-center
+    justify-center
+    flex-shrink-0
+  "
+  aria-hidden
+>
+  {follower.avatarUrl ? (
+    <img
+      src={follower.avatarUrl}
+      alt=""
+      className="h-full w-full object-cover"
+      loading="lazy"
+      referrerPolicy="no-referrer"
+    />
+  ) : (
+    <span className="text-xs font-semibold text-gray-700">
+      {getInitial(follower.displayName)}
+    </span>
+  )}
+</div>
+
 
           <span className="text-sm font-medium text-gray-900">
             {follower.displayName ?? 'Unknown user'}
@@ -49,19 +71,35 @@ export default function FollowerItem({ follower }: Props) {
           href={`/users/${follower.userId}`}
           className="flex items-center gap-3 hover:underline"
         >
-          {follower.avatarUrl ? (
-            <img
-              src={follower.avatarUrl}
-              alt=""
-              className="h-8 w-8 rounded-full"
-              loading="lazy"
-            />
-          ) : (
-            <div
-              className="h-8 w-8 rounded-full bg-gray-300"
-              aria-hidden="true"
-            />
-          )}
+          <div
+  className="
+    h-8
+    w-8
+    rounded-full
+    overflow-hidden
+    bg-gray-200
+    flex
+    items-center
+    justify-center
+    flex-shrink-0
+  "
+  aria-hidden
+>
+  {follower.avatarUrl ? (
+    <img
+      src={follower.avatarUrl}
+      alt=""
+      className="h-full w-full object-cover"
+      loading="lazy"
+      referrerPolicy="no-referrer"
+    />
+  ) : (
+    <span className="text-xs font-semibold text-gray-700">
+      {getInitial(follower.displayName)}
+    </span>
+  )}
+</div>
+
 
           <span className="text-sm font-medium text-gray-900">
             {follower.displayName ?? 'Unknown user'}
