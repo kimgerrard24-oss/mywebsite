@@ -9,6 +9,7 @@ import { useEffect,useState } from "react";
 import CommentComposer from "@/components/comments/CommentComposer";
 import CommentList from "@/components/comments/CommentList";
 import FollowControl from "@/components/follows/FollowController";
+import Avatar from "@/components/ui/Avatar";
 
 type Props = {
   post: PostFeedItem;
@@ -44,11 +45,6 @@ export default function FeedItem({ post, onDeleted }: Props) {
   useEffect(() => {
   setIsFollowing(post.author.isFollowing);
 }, [post.author.isFollowing]);
-   
-function getInitial(name?: string | null) {
-  if (!name) return "U";
-  return name.trim().charAt(0).toUpperCase();
-}
 
   return (
     <article
@@ -87,37 +83,14 @@ function getInitial(name?: string | null) {
         >
           {/* ===== Avatar (LINK) ===== */}
           <Link href={profileHref} className="flex-shrink-0">
-  <div
-    className="
-      h-8
-      w-8
-      sm:h-9
-      sm:w-9
-      rounded-full
-      overflow-hidden
-      bg-gray-200
-      flex
-      items-center
-      justify-center
-      cursor-pointer
-    "
-    aria-hidden
-  >
-    {post.author.avatarUrl ? (
-      <img
-        src={post.author.avatarUrl}
-        alt={post.author.displayName ?? "User avatar"}
-        className="h-full w-full object-cover"
-        loading="lazy"
-        referrerPolicy="no-referrer"
-      />
-    ) : (
-      <span className="text-xs font-semibold text-gray-700">
-        {getInitial(post.author.displayName)}
-      </span>
-    )}
-  </div>
+  <Avatar
+    avatarUrl={post.author.avatarUrl}
+    name={post.author.displayName}
+    size={36} // ใกล้ sm:h-9 w-9
+    className="cursor-pointer"
+  />
 </Link>
+
 
 
           {/* ===== Name + Time ===== */}

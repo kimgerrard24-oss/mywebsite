@@ -4,31 +4,36 @@ import { usePathname } from 'next/navigation'
 import { useEffect, useState } from 'react'
 import { apiGet } from '@/lib/api/api'
 import Image from 'next/image';
+import Avatar from "@/components/ui/Avatar";
 
-export default function Header(){
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  const path = usePathname()
-
-  type Me = {
+ type Me = {
   id: string
   email?: string | null
   displayName?: string | null
   avatarUrl?: string | null
 }
+
+export default function Header(){
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  const path = usePathname()
+
 const [me, setMe] = useState<Me | null>(null)
 
   useEffect(()=> {
     apiGet('/auth/me').then(setMe).catch(()=>setMe(null))
   },[])
 
-  function getInitial(me: Me) {
+  function getInitial(me?: Me | null) {
+  if (!me) return "U";
+
   const base =
     me.displayName?.trim() ||
     me.email?.split("@")[0] ||
-    "U"
+    "U";
 
-  return base.charAt(0).toUpperCase()
+  return base.charAt(0).toUpperCase();
 }
+
 
   return (
   <header
@@ -143,31 +148,12 @@ const [me, setMe] = useState<Me | null>(null)
       className="ml-2 flex items-center"
       aria-label="Your profile"
     >
-      <div
-        className="
-          h-8
-          w-8
-          rounded-full
-          overflow-hidden
-          bg-gray-200
-          flex
-          items-center
-          justify-center
-        "
-      >
-        {me.avatarUrl ? (
-          <img
-            src={me.avatarUrl}
-            alt=""
-            className="h-full w-full object-cover"
-            referrerPolicy="no-referrer"
-          />
-        ) : (
-          <span className="text-sm font-semibold text-gray-700">
-            {getInitial(me)}
-          </span>
-        )}
-      </div>
+      <Avatar
+  avatarUrl={me.avatarUrl}
+  name={me.displayName ?? me.email ?? undefined}
+  size={32}
+/>
+
     </Link>
   </>
 ) : (
