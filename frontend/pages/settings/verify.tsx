@@ -12,7 +12,6 @@ import VerifyCredentialForm from "@/components/security/VerifyCredentialForm";
  */
 const ALLOWED_NEXT = [
   "/settings/security?do=export",
-  "/settings/security?do=lock",
   "/settings/confirm-lock",
   "/settings/email",
 ] as const;
@@ -26,7 +25,6 @@ type VerifyScope = "ACCOUNT_LOCK" | "PROFILE_EXPORT";
  */
 const SCOPE_BY_NEXT: Record<string, VerifyScope> = {
   "/settings/security?do=export": "PROFILE_EXPORT",
-  "/settings/security?do=lock": "ACCOUNT_LOCK",
   "/settings/confirm-lock": "ACCOUNT_LOCK",
 };
 
