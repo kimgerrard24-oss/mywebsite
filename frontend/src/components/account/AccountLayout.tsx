@@ -18,13 +18,14 @@ const NAV_ITEMS = [
 const SECURITY_ACTIONS = [
   {
     label: "Download my data",
-    href: "/settings/verify?next=/users/me/profile/export",
+    href: "/settings/verify?next=/settings/security?do=export",
   },
-  {
-    label: "Lock my account",
-    href: "/settings/verify?next=/settings/security?do=lock",
-    danger: true,
-  },
+ {
+  label: "Lock my account",
+  href: "/settings/verify?next=/settings/confirm-lock",
+  danger: true,
+},
+
 ];
 
 export default function AccountLayout({ children }: Props) {

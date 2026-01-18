@@ -48,7 +48,7 @@ export default function SecuritySettingsPage({
       lockMyAccount()
         .then(() => {
           // account is now locked → must leave app
-          window.location.href = "/login";
+          window.location.href = "/";
         })
         .catch(() => {
           router.replace("/settings/security");
