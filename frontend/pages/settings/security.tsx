@@ -3,22 +3,62 @@
 import Head from "next/head";
 import type { GetServerSideProps } from "next";
 import Link from "next/link";
+import { useRouter } from "next/router";
+import { useEffect, useRef } from "react";
 
 import type { SecurityEventPage } from "@/types/security-event";
 import SecurityEventList from "@/components/security/SecurityEventList";
 import { useSecurityEvents } from "@/hooks/useSecurityEvents";
 import AccountLockForm from "@/components/security/AccountLockForm";
 import ProfileExportButton from "@/components/security/ProfileExportButton";
+import { lockMyAccount } from "@/lib/api/api-security";
 
 type Props = {
   initial: SecurityEventPage | null;
 };
+
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_BASE_URL ||
+  "https://api.phlyphant.com";
 
 export default function SecuritySettingsPage({
   initial,
 }: Props) {
   const { items, hasMore, loading, loadMore } =
     useSecurityEvents(initial ?? undefined);
+
+  const router = useRouter();
+  const didRunRef = useRef(false);
+
+  // =================================================
+  // 🔐 Sensitive action orchestrator (post-verify)
+  // =================================================
+  useEffect(() => {
+    if (didRunRef.current) return;
+
+    const action = router.query.do;
+
+    if (action === "lock") {
+      didRunRef.current = true;
+
+      lockMyAccount()
+        .then(() => {
+          // account is now locked → must leave app
+          window.location.href = "/login";
+        })
+        .catch(() => {
+          router.replace("/settings/security");
+        });
+    }
+
+    if (action === "export") {
+      didRunRef.current = true;
+
+      // let browser handle file download with cookies
+      window.location.href =
+        `${API_BASE}/users/me/profile/export`;
+    }
+  }, [router.query.do]);
 
   return (
     <>
@@ -49,7 +89,9 @@ export default function SecuritySettingsPage({
           </p>
         </section>
 
-        {/* Security Events */}
+        {/* ================================
+            Security Events
+           ================================ */}
         <section className="mt-6">
           <SecurityEventList events={items} />
 
@@ -66,7 +108,9 @@ export default function SecuritySettingsPage({
           )}
         </section>
 
-        {/* Profile Export */}
+        {/* ================================
+            Profile Export
+           ================================ */}
         <section className="mt-12 rounded-xl border p-5">
           <h2 className="text-lg font-semibold">
             Download your data
@@ -81,7 +125,9 @@ export default function SecuritySettingsPage({
           </div>
         </section>
 
-        {/* Account Lock */}
+        {/* ================================
+            Account Lock
+           ================================ */}
         <section className="mt-12 rounded-xl border border-red-200 bg-red-50 p-5">
           <h2 className="text-lg font-semibold text-red-700">
             Lock your account
