@@ -34,18 +34,23 @@ export class ProfileExportController {
     'application/json; charset=utf-8',
   )
   async exportMyProfile(
-    @CurrentUser() user: SessionUser,
-  ) {
-    const userId = user?.userId;
+  @CurrentUser() user: SessionUser,
+) {
+  const userId = user?.userId;
+  const jti = user?.jti;
 
-    if (!userId) {
-      throw new UnauthorizedException(
-        'Authentication required',
-      );
-    }
+  if (!userId || !jti) {
+    throw new UnauthorizedException(
+      'Authentication required',
+    );
+  }
 
-    const result =
-      await this.service.exportProfile(userId);
+  const result =
+    await this.service.exportProfile({
+      userId,
+      jti,
+    });
+
 
     const filename =
       `phlyphant-profile-${new Date()

@@ -461,6 +461,13 @@ async updateAvatar(params: {
     isAccountLocked: user.isAccountLocked,
   });
 
+  const allowedScopes = ['ACCOUNT_LOCK', 'PROFILE_EXPORT'] as const;
+
+if (!allowedScopes.includes(dto.scope)) {
+  throw new BadRequestException('Invalid verification scope');
+}
+
+
   // =================================================
   // 3) OAuth / no-password guard
   // =================================================

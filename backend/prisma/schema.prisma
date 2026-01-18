@@ -887,13 +887,13 @@ model IdentityVerificationToken {
 
   userId    String
   type      VerificationType
-  scope     VerificationScope
+
   /// hash ของ token เท่านั้น (เช่น sha256)
   tokenHash String
 
   /// email หรือ phone ใหม่ (กรณี change identity)
   target    String?
-
+  scope     VerificationScope
   expiresAt DateTime
   usedAt    DateTime?
   createdAt DateTime         @default(now())
@@ -908,10 +908,7 @@ model IdentityVerificationToken {
   @@index([type, expiresAt])       
   @@index([usedAt])               
   @@index([userId, type, usedAt])
-  @@index([tokenHash, type])
-  @@index([userId, scope])          
-  @@index([scope, expiresAt])       
-  @@index([tokenHash, scope])   
+  @@index([tokenHash, type])  
 }
 
 model SecurityEvent {

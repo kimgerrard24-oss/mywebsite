@@ -45,12 +45,9 @@ CREATE TYPE "VerificationType" AS ENUM ('EMAIL_VERIFY', 'EMAIL_CHANGE', 'PHONE_C
 -- CreateEnum
 CREATE TYPE "SecurityEventType" AS ENUM ('LOGIN_SUCCESS', 'LOGIN_FAILED', 'PASSWORD_CHANGED', 'EMAIL_CHANGE_REQUEST', 'EMAIL_CHANGED', 'PHONE_CHANGE_REQUEST', 'PHONE_CHANGED', 'USERNAME_CHANGED', 'ACCOUNT_LOCKED', 'ACCOUNT_UNLOCKED', 'SESSION_REVOKED', 'SUSPICIOUS_ACTIVITY', 'CREDENTIAL_VERIFIED', 'PROFILE_EXPORTED', 'EMAIL_VERIFIED');
 
-<<<<<<<< HEAD:backend/prisma/migrations/20260117014710_init/migration.sql
-========
 -- CreateEnum
 CREATE TYPE "VerificationScope" AS ENUM ('ACCOUNT_LOCK', 'PROFILE_EXPORT', 'EMAIL_CHANGE', 'PASSWORD_CHANGE', 'PHONE_CHANGE', 'EMAIL_VERIFY');
 
->>>>>>>> c575141 (scope1):backend/prisma/migrations/20260118052726_init/migration.sql
 -- CreateTable
 CREATE TABLE "User" (
     "id" TEXT NOT NULL,
@@ -547,6 +544,7 @@ CREATE TABLE "IdentityVerificationToken" (
     "type" "VerificationType" NOT NULL,
     "tokenHash" TEXT NOT NULL,
     "target" TEXT,
+    "scope" "VerificationScope" NOT NULL,
     "expiresAt" TIMESTAMP(3) NOT NULL,
     "usedAt" TIMESTAMP(3),
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
