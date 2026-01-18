@@ -9,10 +9,22 @@ type Props = {
 };
 
 const NAV_ITEMS = [
-  { label: "MyProfile", href: "/settings/profile" },
+  { label: "My profile", href: "/settings/profile" },
   { label: "Reports", href: "/reports/me" },
   { label: "Appeals", href: "/appeals/me" },
-  { label: "Blocked", href: "/users/blocks" },
+  { label: "Blocked users", href: "/users/blocks" },
+];
+
+const SECURITY_ACTIONS = [
+  {
+    label: "Download my data",
+    href: "/settings/verify?next=/users/me/profile/export",
+  },
+  {
+    label: "Lock my account",
+    href: "/settings/verify?next=/settings/security?do=lock",
+    danger: true,
+  },
 ];
 
 export default function AccountLayout({ children }: Props) {
@@ -45,6 +57,34 @@ export default function AccountLayout({ children }: Props) {
               );
             })}
           </ul>
+
+          {/* ============================
+              Security Actions Section
+             ============================ */}
+          <div className="border-t">
+            <p className="px-4 py-2 text-xs font-semibold uppercase text-gray-400">
+              Security
+            </p>
+
+            <ul className="divide-y">
+              {SECURITY_ACTIONS.map((item) => (
+                <li key={item.href}>
+                  <Link
+                    href={item.href}
+                    prefetch={false}
+                    className={`block px-4 py-3 text-sm transition
+                      ${
+                        item.danger
+                          ? "text-red-700 hover:bg-red-50"
+                          : "text-gray-700 hover:bg-gray-50"
+                      }`}
+                  >
+                    {item.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </div>
         </nav>
       </aside>
 
@@ -55,3 +95,4 @@ export default function AccountLayout({ children }: Props) {
     </main>
   );
 }
+

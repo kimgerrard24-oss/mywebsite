@@ -7,6 +7,19 @@ import VerifyCredentialForm from "@/components/security/VerifyCredentialForm";
 export default function VerifyCredentialPage() {
   const router = useRouter();
 
+  const allowedNext = [
+  "/settings/security?do=lock",
+  "/users/me/profile/export",
+  "/settings/email",
+];
+
+const next =
+  typeof router.query.next === "string" &&
+  allowedNext.includes(router.query.next)
+    ? router.query.next
+    : "/settings";
+
+
   return (
     <>
       <Head>
@@ -25,8 +38,7 @@ export default function VerifyCredentialPage() {
         <div className="mt-6">
           <VerifyCredentialForm
             onSuccess={() => {
-              // 👉 หลัง verify สำเร็จ ไป step ถัดไป
-              router.replace("/settings/email");
+              router.replace(next);
             }}
           />
         </div>
@@ -34,3 +46,4 @@ export default function VerifyCredentialPage() {
     </>
   );
 }
+

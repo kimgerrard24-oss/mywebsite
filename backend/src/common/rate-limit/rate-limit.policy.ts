@@ -35,6 +35,7 @@ export type RateLimitAction =
   | 'emailChangeRequest'
   | 'emailChangeConfirm'
   | 'resendEmailVerify'
+  | 'profileExport'
   | 'emailVerify';
 
 export type RateLimitEscalationConfig = {
@@ -637,6 +638,25 @@ resendEmailVerify: {
   },
 },
 
+profileExport: {
+  /**
+   * GDPR / Data export
+   * Sensitive but low frequency
+   */
+  windowSec: 3600,        // 1 ชม.
+  max: 3,                // export ได้ 3 ครั้ง / ชม.
+  blockDurationSec: 7200, // block 2 ชม.
+
+  points: 3,
+  duration: 3600,
+  blockDuration: 7200,
+
+  escalation: {
+    maxViolations: 3,
+    windowSec: 86400,     // ภายใน 24 ชม.
+    longBlockSec: 21600,  // block 6 ชม.
+  },
+},
 
 };
 

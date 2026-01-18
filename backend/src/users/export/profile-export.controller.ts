@@ -3,13 +3,15 @@
 import {
   Controller,
   Get,
-  Req,
-  Res,
   UseGuards,
+  Header,
+  UnauthorizedException,
 } from '@nestjs/common';
-import { Request, Response } from 'express';
 import { AccessTokenCookieAuthGuard } from '../../auth/guards/access-token-cookie.guard';
 import { ProfileExportService } from './profile-export.service';
+import { CurrentUser } from '../../auth/decorators/current-user.decorator';
+import type { SessionUser } from '../../auth/services/validate-session.service';
+import { RateLimit } from '../../common/rate-limit/rate-limit.decorator';
 
 @Controller('/users/me/profile')
 export class ProfileExportController {
@@ -17,15 +19,29 @@ export class ProfileExportController {
     private readonly service: ProfileExportService,
   ) {}
 
+  /**
+   * GET /users/me/profile/export
+   *
+   * - Auth: cookie session (backend authority)
+   * - Policy: handled in service (DB authority)
+   * - Response: attachment JSON (GDPR-style export)
+   */
   @UseGuards(AccessTokenCookieAuthGuard)
+  @RateLimit('profileExport')
   @Get('/export')
+  @Header(
+    'Content-Type',
+    'application/json; charset=utf-8',
+  )
   async exportMyProfile(
-    @Req() req: Request & { user?: { userId?: string } },
-    @Res() res: Response,
+    @CurrentUser() user: SessionUser,
   ) {
-    const userId = req.user?.userId;
+    const userId = user?.userId;
+
     if (!userId) {
-      return res.status(401).end();
+      throw new UnauthorizedException(
+        'Authentication required',
+      );
     }
 
     const result =
@@ -36,19 +52,15 @@ export class ProfileExportController {
         .toISOString()
         .slice(0, 19)}.json`;
 
-    res.setHeader(
-      'Content-Type',
-      'application/json; charset=utf-8',
-    );
-
-    res.setHeader(
-      'Content-Disposition',
-      `attachment; filename="${filename}"`,
-    );
-
-    res.status(200).send(
-      JSON.stringify(result, null, 2),
-    );
+    // NestJS จะ set header และ serialize ให้เอง
+    return {
+      __meta: {
+        filename,
+        disposition: 'attachment',
+      },
+      ...result,
+    };
   }
 }
+
 
