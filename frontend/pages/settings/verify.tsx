@@ -4,12 +4,16 @@ import Head from "next/head";
 import { useRouter } from "next/router";
 import VerifyCredentialForm from "@/components/security/VerifyCredentialForm";
 
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_BASE_URL ||
+  "https://api.phlyphant.com";
+
 export default function VerifyCredentialPage() {
   const router = useRouter();
 
-  const allowedNext = [
+ const allowedNext = [
+  `${API_BASE}/users/me/profile/export`,
   "/settings/security?do=lock",
-  "/users/me/profile/export",
   "/settings/email",
 ];
 
@@ -18,6 +22,7 @@ const next =
   allowedNext.includes(router.query.next)
     ? router.query.next
     : "/settings";
+
 
 
   return (

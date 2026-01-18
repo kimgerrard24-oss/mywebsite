@@ -9,9 +9,6 @@ import SecurityEventList from "@/components/security/SecurityEventList";
 import { useSecurityEvents } from "@/hooks/useSecurityEvents";
 import AccountLockForm from "@/components/security/AccountLockForm";
 import ProfileExportButton from "@/components/security/ProfileExportButton";
-import { useRouter } from "next/router";
-import { useEffect, useRef } from "react";
-import { lockMyAccount } from "@/lib/api/api-security";
 
 type Props = {
   initial: SecurityEventPage | null;
@@ -22,23 +19,6 @@ export default function SecuritySettingsPage({
 }: Props) {
   const { items, hasMore, loading, loadMore } =
     useSecurityEvents(initial ?? undefined);
-
-    const router = useRouter();
-    const didRunRef = useRef(false);
-
-useEffect(() => {
-  if (router.query.do === "lock" && !didRunRef.current) {
-    didRunRef.current = true;
-
-    lockMyAccount()
-      .then(() => {
-        window.location.href = "/";
-      })
-      .catch(() => {
-        router.replace("/settings/security");
-      });
-  }
-}, [router.query.do]);
 
   return (
     <>
@@ -69,9 +49,7 @@ useEffect(() => {
           </p>
         </section>
 
-        {/* ================================
-            Security Events Section (EXISTING)
-           ================================ */}
+        {/* Security Events */}
         <section className="mt-6">
           <SecurityEventList events={items} />
 
@@ -88,9 +66,7 @@ useEffect(() => {
           )}
         </section>
 
-        {/* ================================
-            ✅ NEW: Profile Export Section
-           ================================ */}
+        {/* Profile Export */}
         <section className="mt-12 rounded-xl border p-5">
           <h2 className="text-lg font-semibold">
             Download your data
@@ -105,9 +81,7 @@ useEffect(() => {
           </div>
         </section>
 
-        {/* ================================
-            Account Lock Section (EXISTING)
-           ================================ */}
+        {/* Account Lock */}
         <section className="mt-12 rounded-xl border border-red-200 bg-red-50 p-5">
           <h2 className="text-lg font-semibold text-red-700">
             Lock your account

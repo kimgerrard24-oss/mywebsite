@@ -6,8 +6,14 @@ export default function AccountLockForm() {
   const router = useRouter();
 
   function handleStartLockFlow() {
+    /**
+     * 🔐 Sensitive action flow:
+     * 1) Verify password
+     * 2) Confirm destructive action
+     * 3) Lock account (backend authority)
+     */
     router.push(
-      "/settings/verify?next=/settings/security?do=lock",
+      "/settings/verify?next=/settings/confirm-lock",
     );
   }
 
@@ -27,3 +33,4 @@ export default function AccountLockForm() {
     </div>
   );
 }
+
