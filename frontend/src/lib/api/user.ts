@@ -375,13 +375,23 @@ export async function getMyBlockedUsersServer(
   return json;
 }
 
-export async function verifyCredential(password: string): Promise<{
-  success: true;
-}> {
-  return apiPost("/users/me/verify-credential", {
-    password,
-  });
+export type VerifyCredentialScope =
+  | "ACCOUNT_LOCK"
+  | "PROFILE_EXPORT";
+
+export async function verifyCredential(
+  input:
+    | string
+    | { password: string; scope: VerifyCredentialScope },
+): Promise<{ success: true }> {
+  const payload =
+    typeof input === "string"
+      ? { password: input }
+      : input;
+
+  return apiPost("/users/me/verify-credential", payload);
 }
+
 
 export async function updateMyUsername(username: string): Promise<{
   success: true;

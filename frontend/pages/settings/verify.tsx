@@ -13,8 +13,22 @@ import VerifyCredentialForm from "@/components/security/VerifyCredentialForm";
 const ALLOWED_NEXT = [
   "/settings/security?do=export",
   "/settings/security?do=lock",
+  "/settings/confirm-lock",
   "/settings/email",
-];
+] as const;
+
+
+type VerifyScope = "ACCOUNT_LOCK" | "PROFILE_EXPORT";
+
+/**
+ * Map FE intent → backend verification scope
+ * Backend remains authority; FE only declares intent.
+ */
+const SCOPE_BY_NEXT: Record<string, VerifyScope> = {
+  "/settings/security?do=export": "PROFILE_EXPORT",
+  "/settings/security?do=lock": "ACCOUNT_LOCK",
+  "/settings/confirm-lock": "ACCOUNT_LOCK",
+};
 
 export default function VerifyCredentialPage() {
   const router = useRouter();
@@ -27,12 +41,19 @@ export default function VerifyCredentialPage() {
       return "/settings/security";
     }
 
-    if (ALLOWED_NEXT.includes(router.query.next)) {
+    if (ALLOWED_NEXT.includes(router.query.next as any)) {
       return router.query.next;
     }
 
     return "/settings/security";
   }, [router.query.next]);
+
+  // =================================================
+  // 🔐 Verification scope (FE intent only)
+  // =================================================
+  const scope = useMemo<VerifyScope | null>(() => {
+    return SCOPE_BY_NEXT[next] ?? null;
+  }, [next]);
 
   return (
     <>
@@ -55,6 +76,7 @@ export default function VerifyCredentialPage() {
 
         <div className="mt-6">
           <VerifyCredentialForm
+            scope={scope}
             onSuccess={() => {
               // 🔐 redirect only to approved FE routes
               router.replace(next);
@@ -65,3 +87,4 @@ export default function VerifyCredentialPage() {
     </>
   );
 }
+
