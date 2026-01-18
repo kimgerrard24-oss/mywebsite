@@ -461,5 +461,29 @@ async revokeAllSessionsByUser(userId: string): Promise<void> {
   }
 }
 
+async getAndDelete<T = any>(key: string): Promise<T | null> {
+  if (!this.client) {
+    this.logger.warn('Redis client not available - getAndDelete returns null');
+    return null;
+  }
+
+  try {
+    // Redis >= 6.2 supports GETDEL
+    const raw = await this.client.call('GETDEL', key);
+
+    if (!raw) return null;
+
+    try {
+      return JSON.parse(raw as string);
+    } catch {
+      return null;
+    }
+  } catch (err: any) {
+    this.logger.error(
+      `Redis getAndDelete error for key=${key}: ${err?.message ?? String(err)}`,
+    );
+    return null;
+  }
+}
 
 }

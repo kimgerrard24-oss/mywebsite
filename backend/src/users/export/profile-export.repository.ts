@@ -12,7 +12,11 @@ export class ProfileExportRepository {
   /**
    * Aggregate all exportable user data
    * DB = authority
-   * Must NOT expose internal flags or moderation state
+   * Must NOT expose internal flags, moderation state, or auth data
+   *
+   * NOTE:
+   * - Explicit allow-list only
+   * - No tokens, no provider ids, no status flags
    */
   async aggregateUserData(userId: string) {
     return this.prisma.user.findUnique({
@@ -33,8 +37,12 @@ export class ProfileExportRepository {
         // Posts (non-deleted only)
         // =========================
         posts: {
-          where: { isDeleted: false },
-          orderBy: { createdAt: 'asc' },
+          where: {
+            isDeleted: false,
+          },
+          orderBy: {
+            createdAt: 'asc',
+          },
           select: {
             id: true,
             content: true,
@@ -46,8 +54,12 @@ export class ProfileExportRepository {
         // Comments (non-deleted only)
         // =========================
         comments: {
-          where: { isDeleted: false },
-          orderBy: { createdAt: 'asc' },
+          where: {
+            isDeleted: false,
+          },
+          orderBy: {
+            createdAt: 'asc',
+          },
           select: {
             id: true,
             content: true,
@@ -56,7 +68,23 @@ export class ProfileExportRepository {
         },
 
         // =========================
-        // Relations (IDs only)
+        // Security Events (safe subset)
+        // =========================
+        securityEvents: {
+          orderBy: {
+            createdAt: 'asc',
+          },
+          select: {
+            id: true,
+            type: true,
+            ip: true,
+            userAgent: true,
+            createdAt: true,
+          },
+        },
+
+        // =========================
+        // Relations (count only)
         // =========================
         followers: {
           select: { followerId: true },

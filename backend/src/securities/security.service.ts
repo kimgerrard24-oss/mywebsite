@@ -74,6 +74,7 @@ const isVerified =
   await this.credentialVerify.consumeVerifiedSession({
     jti: params.jti,
     scope: 'ACCOUNT_LOCK',
+    userId: params.userId,
   });
 
 if (!isVerified) {
