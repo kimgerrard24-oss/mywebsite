@@ -3,11 +3,15 @@
 import { useState, FormEvent } from "react";
 import { useVerifyCredential } from "@/hooks/useVerifyCredential";
 
+type VerifyScope = "ACCOUNT_LOCK" | "PROFILE_EXPORT";
+
 type Props = {
+  scope: VerifyScope | null;
   onSuccess: () => void;
 };
 
 export default function VerifyCredentialForm({
+  scope,
   onSuccess,
 }: Props) {
   const [password, setPassword] = useState("");
@@ -18,8 +22,12 @@ export default function VerifyCredentialForm({
 
     if (loading) return;
     if (!password.trim()) return;
+    if (!scope) return; // safety: must have intent
 
-    const ok = await submit(password);
+    const ok = await submit({
+      password,
+      scope,
+    });
 
     // 🔐 clear sensitive input immediately
     setPassword("");
@@ -78,3 +86,4 @@ export default function VerifyCredentialForm({
     </form>
   );
 }
+
