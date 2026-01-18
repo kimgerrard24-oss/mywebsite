@@ -4,6 +4,14 @@ import { Injectable, Logger } from '@nestjs/common';
 import { randomBytes, createHash } from 'crypto';
 import { RedisService } from '../redis/redis.service';
 
+export type VerificationScope =
+  | 'ACCOUNT_LOCK'
+  | 'PROFILE_EXPORT'
+  | 'EMAIL_CHANGE'
+  | 'PASSWORD_CHANGE'
+  | 'PHONE_CHANGE';
+
+
 @Injectable()
 export class CredentialVerificationService {
   private readonly logger = new Logger(
@@ -13,15 +21,22 @@ export class CredentialVerificationService {
   constructor(
     private readonly redis: RedisService,
   ) {}
+  
 
-  generateToken(): { raw: string; hash: string } {
+  generateToken(scope?: VerificationScope): {
+  raw: string;
+  hash: string;
+  scope?: VerificationScope;
+} {
+
     const raw = randomBytes(32).toString('hex');
 
     const hash = createHash('sha256')
       .update(raw)
       .digest('hex');
 
-    return { raw, hash };
+    return { raw, hash, scope };
+
   }
 
   getExpiry(minutes = 10): Date {
@@ -34,7 +49,7 @@ export class CredentialVerificationService {
   async markSessionVerified(params: {
     userId: string;
     jti: string;
-    scope: 'ACCOUNT_LOCK' | 'EMAIL_CHANGE' | 'PHONE_CHANGE';
+    scope: VerificationScope;
     ttlSeconds: number;
   }): Promise<void> {
     const { userId, jti, scope, ttlSeconds } = params;
@@ -63,9 +78,10 @@ export class CredentialVerificationService {
   // ✅ check verified session (used by account-lock)
   // ====================================================
   async isSessionVerified(params: {
-    jti: string;
-    scope: 'ACCOUNT_LOCK';
-  }): Promise<boolean> {
+  jti: string;
+  scope: VerificationScope;
+}): Promise<boolean> {
+
     const key = `session:verified:${params.scope}:${params.jti}`;
 
     try {
@@ -78,7 +94,7 @@ export class CredentialVerificationService {
 
   async consumeVerifiedSession(params: {
   jti: string;
-  scope: 'ACCOUNT_LOCK';
+  scope: VerificationScope;
 }): Promise<boolean> {
   const key = `session:verified:${params.scope}:${params.jti}`;
 
@@ -92,5 +108,19 @@ export class CredentialVerificationService {
     return false;
   }
 }
+
+async assertSessionVerified(params: {
+  jti: string;
+  scope: VerificationScope;
+}): Promise<void> {
+  const ok = await this.consumeVerifiedSession(params);
+
+  if (!ok) {
+    throw new Error(
+      `Sensitive action verification required: ${params.scope}`,
+    );
+  }
+}
+
 
 }

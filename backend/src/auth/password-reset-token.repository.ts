@@ -2,7 +2,7 @@
 
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { VerificationType } from '@prisma/client';
+import { VerificationType,VerificationScope } from '@prisma/client';
 
 @Injectable()
 export class PasswordResetTokenRepository {
@@ -43,6 +43,7 @@ export class PasswordResetTokenRepository {
       data: {
         userId,
         type: VerificationType.PASSWORD_RESET,
+        scope: VerificationScope.PASSWORD_CHANGE,
         tokenHash,
         expiresAt,
       },

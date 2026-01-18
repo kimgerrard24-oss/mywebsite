@@ -3,6 +3,7 @@
 import {
   Injectable,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 
 import { ProfileExportRepository } from './profile-export.repository';
@@ -11,6 +12,7 @@ import { ProfileExportDto } from './dto/profile-export.dto';
 import { UsersRepository } from '../users.repository';
 import { AuditLogService } from '../audit/audit-log.service';
 import { SecurityEventType } from '@prisma/client';
+import { CredentialVerificationService } from '../../auth/credential-verification.service';
 
 @Injectable()
 export class ProfileExportService {
@@ -18,6 +20,7 @@ export class ProfileExportService {
     private readonly repo: ProfileExportRepository,
     private readonly usersRepo: UsersRepository,
     private readonly auditLog: AuditLogService,
+    private readonly credentialVerify: CredentialVerificationService,
   ) {}
 
   /**
@@ -25,7 +28,12 @@ export class ProfileExportService {
    * Security level: authenticated + policy guarded
    * Backend = authority
    */
-  async exportProfile(userId: string) {
+  async exportProfile(params: {
+  userId: string;
+  jti: string;
+}) {
+  const { userId, jti } = params;
+
     // =================================================
     // 1) Load user security state (DB authority)
     // =================================================
@@ -44,6 +52,19 @@ export class ProfileExportService {
       isBanned: user.isBanned,
       isAccountLocked: user.isAccountLocked,
     });
+
+    const isVerified =
+  await this.credentialVerify.consumeVerifiedSession({
+    jti,
+    scope: 'PROFILE_EXPORT',
+  });
+
+if (!isVerified) {
+  throw new ForbiddenException(
+    'Sensitive verification required',
+  );
+}
+
 
     // =================================================
     // 3) Aggregate export data

@@ -30,13 +30,17 @@ export default function SecuritySettingsPage({
   const router = useRouter();
   const didRunRef = useRef(false);
 
+  const action =
+  router.query.do === "lock" || router.query.do === "export"
+    ? router.query.do
+    : undefined;
+
+
   // =================================================
   // 🔐 Sensitive action orchestrator (post-verify)
   // =================================================
   useEffect(() => {
     if (didRunRef.current) return;
-
-    const action = router.query.do;
 
     if (action === "lock") {
       didRunRef.current = true;
@@ -51,14 +55,49 @@ export default function SecuritySettingsPage({
         });
     }
 
-    if (action === "export") {
-      didRunRef.current = true;
+   if (action === "export") {
+  didRunRef.current = true;
 
-      // let browser handle file download with cookies
-      window.location.href =
-        `${API_BASE}/users/me/profile/export`;
+  (async () => {
+    try {
+      const res = await fetch(
+        `${API_BASE}/users/me/profile/export`,
+        {
+          method: "GET",
+          credentials: "include", // ✅ ส่ง cookie auth
+        },
+      );
+
+      if (!res.ok) {
+        throw new Error("Export failed");
+      }
+
+      const blob = await res.blob();
+
+      // ✅ ดึงชื่อไฟล์จาก header ถ้ามี
+      const cd = res.headers.get("content-disposition");
+      const filename =
+        cd?.match(/filename="(.+)"/)?.[1] ??
+        "phlyphant-profile.json";
+
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+
+      // ✅ clean URL หลัง download
+      router.replace("/settings/security");
+    } catch (err) {
+      router.replace("/settings/security");
     }
-  }, [router.query.do]);
+  })();
+}
+
+  }, [action, router]);
 
   return (
     <>
@@ -90,6 +129,16 @@ export default function SecuritySettingsPage({
         </section>
 
         {/* ================================
+            🔔 Status banner (export flow)
+           ================================ */}
+        {action === "export" && (
+          <div className="mt-6 rounded-lg border border-blue-200 bg-blue-50 p-4 text-sm text-blue-800">
+            Preparing your download… Your file should start
+            downloading automatically.
+          </div>
+        )}
+
+        {/* ================================
             Security Events
            ================================ */}
         <section className="mt-6">
@@ -111,36 +160,40 @@ export default function SecuritySettingsPage({
         {/* ================================
             Profile Export
            ================================ */}
-        <section className="mt-12 rounded-xl border p-5">
-          <h2 className="text-lg font-semibold">
-            Download your data
-          </h2>
-          <p className="mt-1 text-sm text-gray-600">
-            Get a copy of your profile, posts, and activity
-            stored on PhlyPhant.
-          </p>
+        {action !== "lock" && (
+          <section className="mt-12 rounded-xl border p-5">
+            <h2 className="text-lg font-semibold">
+              Download your data
+            </h2>
+            <p className="mt-1 text-sm text-gray-600">
+              Get a copy of your profile, posts, and activity
+              stored on PhlyPhant.
+            </p>
 
-          <div className="mt-4">
-            <ProfileExportButton />
-          </div>
-        </section>
+            <div className="mt-4">
+              <ProfileExportButton />
+            </div>
+          </section>
+        )}
 
         {/* ================================
             Account Lock
            ================================ */}
-        <section className="mt-12 rounded-xl border border-red-200 bg-red-50 p-5">
-          <h2 className="text-lg font-semibold text-red-700">
-            Lock your account
-          </h2>
-          <p className="mt-1 text-sm text-red-700/80">
-            This will immediately sign you out from all devices
-            and prevent any further access until recovery.
-          </p>
+        {action !== "export" && (
+          <section className="mt-12 rounded-xl border border-red-200 bg-red-50 p-5">
+            <h2 className="text-lg font-semibold text-red-700">
+              Lock your account
+            </h2>
+            <p className="mt-1 text-sm text-red-700/80">
+              This will immediately sign you out from all devices
+              and prevent any further access until recovery.
+            </p>
 
-          <div className="mt-4">
-            <AccountLockForm />
-          </div>
-        </section>
+            <div className="mt-4">
+              <AccountLockForm />
+            </div>
+          </section>
+        )}
       </main>
     </>
   );

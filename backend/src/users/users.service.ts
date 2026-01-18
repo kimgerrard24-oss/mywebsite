@@ -30,7 +30,7 @@ import { SecurityEventsAudit } from './audit/security-events.audit';
 import { UsernameAvailabilityPolicy } from './policies/username-availability.policy';
 import { UpdateUsernamePolicy } from './policies/update-username.policy';
 import { UpdateUsernameDto } from './dto/update-username.dto';
-import { VerificationType,SecurityEventType } from '@prisma/client';
+import { VerificationType,SecurityEventType,VerificationScope } from '@prisma/client';
 import { EmailChangeRequestDto } from './dto/email-change-request.dto';
 import { EmailChangePolicy } from './policies/email-change.policy';
 import { ConfirmEmailChangePolicy } from './policies/confirm-email-change.policy';
@@ -461,6 +461,13 @@ async updateAvatar(params: {
     isAccountLocked: user.isAccountLocked,
   });
 
+  const allowedScopes = ['ACCOUNT_LOCK', 'PROFILE_EXPORT'] as const;
+
+if (!allowedScopes.includes(dto.scope)) {
+  throw new BadRequestException('Invalid verification scope');
+}
+
+
   // =================================================
   // 3) OAuth / no-password guard
   // =================================================
@@ -508,7 +515,7 @@ async updateAvatar(params: {
     await this.credentialVerify.markSessionVerified({
       userId,
       jti: meta.jti,
-      scope: 'ACCOUNT_LOCK',
+      scope: dto.scope,
       ttlSeconds: 300, // 5 minutes
     });
   } catch (err) {
@@ -728,6 +735,7 @@ async requestEmailChange(
         data: {
           userId,
           type: VerificationType.EMAIL_CHANGE,
+          scope: VerificationScope.EMAIL_CHANGE,
           tokenHash: token.hash,
           target: normalizedNewEmail,
           expiresAt,
@@ -971,6 +979,7 @@ async requestPhoneChange(
         where: {
           userId,
           type: VerificationType.PHONE_CHANGE,
+          scope: VerificationScope.PHONE_CHANGE,
           usedAt: null,
           expiresAt: { gt: now },
         },
@@ -983,6 +992,7 @@ async requestPhoneChange(
         data: {
           userId,
           type: VerificationType.PHONE_CHANGE,
+          scope: VerificationScope.PHONE_CHANGE,
           tokenHash: token.hash,
           target: normalizedPhone,
           expiresAt,

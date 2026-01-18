@@ -9,12 +9,14 @@ import { PrismaModule } from '../../prisma/prisma.module';
 import { UsersModule } from '../users.module';
 import { AuditModule } from '../audit/audit.module';
 import { AuthModule } from '../../auth/auth.module';
+import { CredentialVerificationModule } from '../../auth/credential-verification.module';
 
 @Module({
   imports: [
     PrismaModule,
     AuthModule,
     AuditModule,
+    CredentialVerificationModule,
     forwardRef(() => UsersModule),
   ],
   controllers: [ProfileExportController],

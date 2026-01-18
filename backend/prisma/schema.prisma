@@ -873,6 +873,15 @@ enum SecurityEventType {
   EMAIL_VERIFIED
 }
 
+enum VerificationScope {
+  ACCOUNT_LOCK
+  PROFILE_EXPORT
+  EMAIL_CHANGE
+  PASSWORD_CHANGE
+  PHONE_CHANGE
+  EMAIL_VERIFY
+}
+
 model IdentityVerificationToken {
   id        String           @id @default(uuid())
 
@@ -884,7 +893,7 @@ model IdentityVerificationToken {
 
   /// email หรือ phone ใหม่ (กรณี change identity)
   target    String?
-
+  scope     VerificationScope
   expiresAt DateTime
   usedAt    DateTime?
   createdAt DateTime         @default(now())
