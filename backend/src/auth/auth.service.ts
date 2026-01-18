@@ -27,7 +27,7 @@ import { SessionService } from './session/session.service';
 import { SecurityEventService } from '../common/security/security-event.service';
 import { createHash } from 'crypto';
 import { CredentialVerificationService } from '../auth/credential-verification.service';
-import { VerificationType, SecurityEventType } from '@prisma/client';
+import { VerificationType, SecurityEventType,VerificationScope } from '@prisma/client';
 import { ResendVerificationDto } from './dto/resend-verification.dto';
 import { OAuthProvider } from '@prisma/client';
 
@@ -155,6 +155,7 @@ async register(dto: RegisterDto) {
         where: {
           userId: user.id,
           type: VerificationType.EMAIL_VERIFY,
+          scope: VerificationScope.EMAIL_VERIFY,
           usedAt: null,
           expiresAt: { gt: new Date() },
         },
@@ -167,6 +168,7 @@ async register(dto: RegisterDto) {
         data: {
           userId: user.id,
           type: VerificationType.EMAIL_VERIFY,
+          scope: VerificationScope.EMAIL_VERIFY,
           tokenHash: token.hash,
           expiresAt,
         },
@@ -994,6 +996,7 @@ async resendEmailVerification(
         where: {
           userId,
           type: VerificationType.EMAIL_VERIFY,
+          scope: VerificationScope.EMAIL_VERIFY,
           usedAt: null,
           expiresAt: { gt: now },
         },
@@ -1004,6 +1007,7 @@ async resendEmailVerification(
         data: {
           userId,
           type: VerificationType.EMAIL_VERIFY,
+          scope: VerificationScope.EMAIL_VERIFY,
           tokenHash: token.hash,
           expiresAt,
         },

@@ -11,7 +11,7 @@ import {
 } from './password-reset.exceptions';
 import { validatePasswordStrength } from './password-reset.policy';
 import { ResetPasswordDto } from './dto/reset-password.dto';
-import { VerificationType } from '@prisma/client';
+import { VerificationType,VerificationScope } from '@prisma/client';
 import * as argon2 from 'argon2';
 
 @Injectable()
@@ -88,6 +88,7 @@ export class PasswordResetService {
       data: {
         userId: user.id,
         type: VerificationType.PASSWORD_RESET,
+        scope: VerificationScope.PASSWORD_CHANGE,
         tokenHash,
         expiresAt,
       },

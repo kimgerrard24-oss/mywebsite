@@ -4,13 +4,28 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import type { User } from '@prisma/client';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { VerificationType,SecurityEventType } from '@prisma/client';
+import { VerificationType,SecurityEventType,VerificationScope } from '@prisma/client';
 import { createHash } from 'crypto';
 import * as crypto from 'node:crypto';
 
 @Injectable()
 export class UsersRepository {
   constructor(private readonly prisma: PrismaService) {}
+  
+  private mapScopeByType(type: VerificationType): VerificationScope {
+  switch (type) {
+    case VerificationType.EMAIL_VERIFY:
+      return VerificationScope.EMAIL_VERIFY; // หรือ EMAIL_VERIFY ถ้าคุณมี enum นี้
+    case VerificationType.EMAIL_CHANGE:
+      return VerificationScope.EMAIL_CHANGE;
+    case VerificationType.PHONE_CHANGE:
+      return VerificationScope.PHONE_CHANGE; // ถ้ายังไม่มี PHONE_CHANGE scope
+    case VerificationType.PASSWORD_RESET:
+      return VerificationScope.PASSWORD_CHANGE;
+    default:
+      throw new Error(`Unsupported verification type: ${type}`);
+  }
+}
 
   // =====================================================
   // Create Local User (Email / Password)
@@ -445,6 +460,7 @@ async createIdentityVerificationToken(params: {
     data: {
       userId: params.userId,
       type: params.type,
+      scope: this.mapScopeByType(params.type),
       tokenHash: params.tokenHash,
       target: params.target,
       expiresAt: params.expiresAt,
@@ -479,6 +495,7 @@ async consumeEmailChangeToken(params: {
       where: {
         userId: params.userId,
         type: VerificationType.EMAIL_CHANGE,
+        scope: VerificationScope.EMAIL_CHANGE,
         tokenHash: hash,
         expiresAt: { gt: new Date() },
         usedAt: null,
@@ -574,6 +591,7 @@ async findPhoneChangeTokenByHash(params: {
     where: {
       userId: params.userId,
       type: VerificationType.PHONE_CHANGE,
+      scope: VerificationScope.PHONE_CHANGE,
       tokenHash: params.tokenHash,
       usedAt: null,
     },
@@ -605,6 +623,7 @@ async confirmEmailChangeAtomic(params: {
         where: {
           userId: params.userId,
           type: VerificationType.EMAIL_CHANGE,
+          scope: VerificationScope.EMAIL_CHANGE,
           tokenHash: params.tokenHash,
           usedAt: null,
           expiresAt: { gt: now },
@@ -689,6 +708,7 @@ async confirmEmailChangeByTokenAtomic(params: {
         where: {
           tokenHash: params.tokenHash,
           type: VerificationType.EMAIL_CHANGE,
+          scope: VerificationScope.EMAIL_CHANGE,
           usedAt: null,
           expiresAt: { gt: now },
         },

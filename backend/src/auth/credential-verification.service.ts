@@ -4,6 +4,11 @@ import { Injectable, Logger } from '@nestjs/common';
 import { randomBytes, createHash } from 'crypto';
 import { RedisService } from '../redis/redis.service';
 
+export type SensitiveVerifyScope =
+  | 'ACCOUNT_LOCK'
+  | 'PROFILE_EXPORT';
+
+
 @Injectable()
 export class CredentialVerificationService {
   private readonly logger = new Logger(

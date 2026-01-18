@@ -873,12 +873,21 @@ enum SecurityEventType {
   EMAIL_VERIFIED
 }
 
+enum VerificationScope {
+  ACCOUNT_LOCK
+  PROFILE_EXPORT
+  EMAIL_CHANGE
+  PASSWORD_CHANGE
+  PHONE_CHANGE
+  EMAIL_VERIFY
+}
+
 model IdentityVerificationToken {
   id        String           @id @default(uuid())
 
   userId    String
   type      VerificationType
-
+  scope     VerificationScope
   /// hash ของ token เท่านั้น (เช่น sha256)
   tokenHash String
 
@@ -899,7 +908,10 @@ model IdentityVerificationToken {
   @@index([type, expiresAt])       
   @@index([usedAt])               
   @@index([userId, type, usedAt])
-  @@index([tokenHash, type])  
+  @@index([tokenHash, type])
+  @@index([userId, scope])          
+  @@index([scope, expiresAt])       
+  @@index([tokenHash, scope])   
 }
 
 model SecurityEvent {
