@@ -2,18 +2,18 @@
 
 import { useRouter } from "next/router";
 
+const API_BASE =
+  process.env.NEXT_PUBLIC_API_BASE_URL ||
+  "https://api.phlyphant.com";
+
 export default function ProfileExportButton() {
   const router = useRouter();
 
   function handleStartExportFlow() {
-    /**
-     * 🔐 Sensitive action → must verify credential first
-     * After verify, redirect to backend export endpoint
-     */
-    const next = "/users/me/profile/export";
+    const next = `${API_BASE}/users/me/profile/export`;
 
     router.push(
-      `/settings/verify?next=${encodeURIComponent(next)}`,
+      `/settings/verify?next=${encodeURIComponent(next)}`
     );
   }
 
