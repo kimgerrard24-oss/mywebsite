@@ -7,11 +7,11 @@ import Link from "next/link";
 import type { SecurityEventPage } from "@/types/security-event";
 import SecurityEventList from "@/components/security/SecurityEventList";
 import { useSecurityEvents } from "@/hooks/useSecurityEvents";
-
 import AccountLockForm from "@/components/security/AccountLockForm";
-
-/** ✅ NEW */
 import ProfileExportButton from "@/components/security/ProfileExportButton";
+import { useRouter } from "next/router";
+import { useEffect, useRef } from "react";
+import { lockMyAccount } from "@/lib/api/api-security";
 
 type Props = {
   initial: SecurityEventPage | null;
@@ -22,6 +22,23 @@ export default function SecuritySettingsPage({
 }: Props) {
   const { items, hasMore, loading, loadMore } =
     useSecurityEvents(initial ?? undefined);
+
+    const router = useRouter();
+    const didRunRef = useRef(false);
+
+useEffect(() => {
+  if (router.query.do === "lock" && !didRunRef.current) {
+    didRunRef.current = true;
+
+    lockMyAccount()
+      .then(() => {
+        window.location.href = "/";
+      })
+      .catch(() => {
+        router.replace("/settings/security");
+      });
+  }
+}, [router.query.do]);
 
   return (
     <>

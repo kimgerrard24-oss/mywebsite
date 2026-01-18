@@ -1,49 +1,30 @@
 // frontend/src/components/security/ProfileExportButton.tsx
 
-import { useState } from "react";
-import { exportMyProfile } from "@/lib/api/user-export";
-import { downloadBlob } from "@/utils/download";
+import { useRouter } from "next/router";
 
 export default function ProfileExportButton() {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const router = useRouter();
 
-  async function handleExport() {
-    setError(null);
-    setLoading(true);
+  function handleStartExportFlow() {
+    /**
+     * 🔐 Sensitive action → must verify credential first
+     * After verify, redirect to backend export endpoint
+     */
+    const next = "/users/me/profile/export";
 
-    try {
-      const blob = await exportMyProfile();
-
-      const filename = `phlyphant-profile-export-${new Date()
-        .toISOString()
-        .slice(0, 19)}.json`;
-
-      downloadBlob(blob, filename);
-    } catch (err: any) {
-      setError(
-        "Failed to export profile. Please try again later.",
-      );
-    } finally {
-      setLoading(false);
-    }
+    router.push(
+      `/settings/verify?next=${encodeURIComponent(next)}`,
+    );
   }
 
   return (
     <div>
       <button
-        onClick={handleExport}
-        disabled={loading}
-        className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm hover:bg-gray-50 disabled:opacity-50"
+        onClick={handleStartExportFlow}
+        className="rounded-md border border-gray-300 bg-white px-4 py-2 text-sm hover:bg-gray-50"
       >
-        {loading ? "Preparing export..." : "Download my data"}
+        Download my data
       </button>
-
-      {error && (
-        <p className="mt-2 text-sm text-red-600">
-          {error}
-        </p>
-      )}
     </div>
   );
 }

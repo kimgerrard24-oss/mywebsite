@@ -7,7 +7,21 @@ type Props = {
 };
 
 function formatType(type: string) {
-  return type.replace(/_/g, " ").toLowerCase();
+  const map: Record<string, string> = {
+    LOGIN_FAILED: "Failed login attempt",
+    CREDENTIAL_VERIFIED: "Security verification passed",
+    ACCOUNT_LOCKED: "Account locked",
+    PROFILE_EXPORTED: "Profile data exported",
+  };
+
+  return map[type] ?? type.replace(/_/g, " ").toLowerCase();
+}
+
+function formatTime(iso: string) {
+  return new Date(iso).toLocaleString("en-GB", {
+    dateStyle: "medium",
+    timeStyle: "short",
+  });
 }
 
 export default function SecurityEventList({ events }: Props) {
@@ -28,23 +42,25 @@ export default function SecurityEventList({ events }: Props) {
               <p className="text-sm font-medium">
                 {formatType(e.type)}
               </p>
+
               {e.ip && (
                 <p className="text-xs text-gray-500">
                   IP: {e.ip}
                 </p>
               )}
+
               {e.userAgent && (
-                <p className="mt-1 text-xs text-gray-500 line-clamp-2">
+                <p className="mt-1 text-xs text-gray-500 line-clamp-2 break-all">
                   {e.userAgent}
                 </p>
               )}
             </div>
 
             <time
-              className="text-xs text-gray-400"
+              className="text-xs text-gray-400 whitespace-nowrap"
               dateTime={e.createdAt}
             >
-              {new Date(e.createdAt).toLocaleString()}
+              {formatTime(e.createdAt)}
             </time>
           </div>
         </li>

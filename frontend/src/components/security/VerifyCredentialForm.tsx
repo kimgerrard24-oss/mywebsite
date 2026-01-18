@@ -16,9 +16,14 @@ export default function VerifyCredentialForm({
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
 
+    if (loading) return;
     if (!password.trim()) return;
 
     const ok = await submit(password);
+
+    // 🔐 clear sensitive input immediately
+    setPassword("");
+
     if (ok) {
       onSuccess();
     }
@@ -28,33 +33,45 @@ export default function VerifyCredentialForm({
     <form
       onSubmit={handleSubmit}
       className="space-y-4"
+      aria-busy={loading}
     >
       <div>
-        <label className="block text-sm font-medium">
+        <label
+          htmlFor="verify-password"
+          className="block text-sm font-medium"
+        >
           Confirm your password
         </label>
 
         <input
+          id="verify-password"
           type="password"
           value={password}
-          onChange={(e) =>
-            setPassword(e.target.value)
-          }
+          onChange={(e) => setPassword(e.target.value)}
           required
-          className="mt-1 w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+          autoFocus
+          autoComplete="current-password"
+          disabled={loading}
+          className="mt-1 w-full rounded-lg border px-3 py-2 text-sm
+                     focus:outline-none focus:ring-2 focus:ring-blue-500
+                     disabled:opacity-60 disabled:cursor-not-allowed"
         />
       </div>
 
       {error && (
-        <p className="text-sm text-red-600">
+        <p
+          className="text-sm text-red-600"
+          role="alert"
+        >
           {error}
         </p>
       )}
 
       <button
         type="submit"
-        disabled={loading}
-        className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-60"
+        disabled={loading || !password.trim()}
+        className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white
+                   hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed"
       >
         {loading ? "Verifying..." : "Verify"}
       </button>

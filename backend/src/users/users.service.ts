@@ -444,104 +444,102 @@ async updateAvatar(params: {
   dto: VerifyCredentialDto,
   meta?: { ip?: string; userAgent?: string; jti?: string },
 ) {
+  // =================================================
+  // 1) Load user (DB authority)
+  // =================================================
   const user = await this.repo.findUserForCredentialVerify(userId);
   if (!user) {
     throw new BadRequestException('User not found');
   }
 
+  // =================================================
+  // 2) Business policy
+  // =================================================
   VerifyCredentialPolicy.assertCanVerify({
     isDisabled: user.isDisabled,
     isBanned: user.isBanned,
     isAccountLocked: user.isAccountLocked,
   });
 
-  // ✅ ADD: OAuth / no-password account guard
-if (!user.hashedPassword) {
-  throw new BadRequestException(
-    'Password authentication not available for this account',
-  );
-}
+  // =================================================
+  // 3) OAuth / no-password guard
+  // =================================================
+  if (!user.hashedPassword) {
+    throw new BadRequestException(
+      'Password authentication not available for this account',
+    );
+  }
 
+  // =================================================
+  // 4) Verify password
+  // =================================================
   const isValid = await verifyPassword(
     user.hashedPassword,
     dto.password,
   );
 
   if (!isValid) {
-    await this.repo.createSecurityEvent({
-      userId,
-      type: 'LOGIN_FAILED',
-      ip: meta?.ip,
-      userAgent: meta?.userAgent,
-    });
+    // ---- security event (login failed / sensitive verify failed) ----
+    try {
+      await this.repo.createSecurityEvent({
+        userId,
+        type: SecurityEventType.LOGIN_FAILED,
+        ip: meta?.ip,
+        userAgent: meta?.userAgent,
+      });
+    } catch {
+      // fail-soft
+    }
 
     throw new BadRequestException('Invalid credential');
   }
 
-  const token = this.credentialVerify.generateToken();
-  const expiresAt = this.credentialVerify.getExpiry(10);
-
   // =================================================
-  // ✅ Revoke previous active SENSITIVE_ACTION tokens
+  // 5) Mark session as sensitive-verified (Redis authority)
   // =================================================
-  try {
-    await this.prisma.identityVerificationToken.updateMany({
-      where: {
-        userId,
-        type: VerificationType.SENSITIVE_ACTION,
-        usedAt: null,
-        expiresAt: { gt: new Date() },
-      },
-      data: {
-        usedAt: new Date(),
-      },
-    });
-  } catch (err) {
-    this.logger.error(
-      '[SENSITIVE_ACTION_REVOKE_OLD_TOKEN_FAILED]',
-      err,
-    );
+  if (!meta?.jti) {
+    // defensive: sensitive verify must be bound to session
     throw new BadRequestException(
-      'Unable to process credential verification',
+      'Session verification required',
     );
   }
 
-  // =================================================
-  // ✅ Persist new verification token
-  // =================================================
-  await this.repo.createIdentityVerificationToken({
-    userId,
-    type: VerificationType.SENSITIVE_ACTION,
-    tokenHash: token.hash,
-    expiresAt,
-  });
-
-  // ===============================
-// ✅ NEW: mark session as sensitive-verified (Option A)
-// ===============================
-if (meta?.jti) {
   try {
     await this.credentialVerify.markSessionVerified({
       userId,
       jti: meta.jti,
       scope: 'ACCOUNT_LOCK',
-      ttlSeconds: 300, // 5 นาที
+      ttlSeconds: 300, // 5 minutes
+    });
+  } catch (err) {
+    // Redis failure must not silently allow sensitive action
+    this.logger.error(
+      '[MARK_SESSION_VERIFIED_FAILED]',
+      err,
+    );
+
+    throw new BadRequestException(
+      'Unable to verify sensitive session',
+    );
+  }
+
+  // =================================================
+  // 6) Security event (credential verified)
+  // =================================================
+  try {
+    await this.repo.createSecurityEvent({
+      userId,
+      type: SecurityEventType.CREDENTIAL_VERIFIED,
+      ip: meta?.ip,
+      userAgent: meta?.userAgent,
     });
   } catch {
-    // fail-soft: do not block sensitive action flow
+    // fail-soft (audit only)
   }
-}
-
-
-  await this.repo.createSecurityEvent({
-    userId,
-    type: SecurityEventType.CREDENTIAL_VERIFIED,
-    ip: meta?.ip,
-    userAgent: meta?.userAgent,
-  });
 
   return { success: true };
 }
+
 
 
  // =============================
