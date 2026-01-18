@@ -1,6 +1,6 @@
 // backend/src/auth/credential-verification.service.ts
 
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, ForbiddenException, Logger } from '@nestjs/common';
 import { randomBytes, createHash } from 'crypto';
 import { RedisService } from '../redis/redis.service';
 
@@ -55,17 +55,19 @@ export class CredentialVerificationService {
     const { userId, jti, scope, ttlSeconds } = params;
 
     const key = `session:verified:${scope}:${jti}`;
+    const safeTtl = Math.min(ttlSeconds, 10 * 60); // max 10 min
 
     try {
       await this.redis.set(
-        key,
-        {
-          userId,
-          scope,
-          verifiedAt: new Date().toISOString(),
-        },
-        ttlSeconds, // ✅ TTL here
-      );
+  key,
+  {
+    userId,
+    scope,
+    verifiedAt: new Date().toISOString(),
+  },
+  safeTtl,
+);
+
     } catch (err) {
       this.logger.warn(
         `[MARK_SESSION_VERIFIED_FAILED] user=${userId} scope=${scope}`,
@@ -77,50 +79,74 @@ export class CredentialVerificationService {
   // ====================================================
   // ✅ check verified session (used by account-lock)
   // ====================================================
-  async isSessionVerified(params: {
+async isSessionVerified(params: {
   jti: string;
   scope: VerificationScope;
-}): Promise<boolean> {
-
-    const key = `session:verified:${params.scope}:${params.jti}`;
-
-    try {
-      const val = await this.redis.get(key);
-      return Boolean(val);
-    } catch {
-      return false;
-    }
-  }
-
-  async consumeVerifiedSession(params: {
-  jti: string;
-  scope: VerificationScope;
+  userId?: string;
 }): Promise<boolean> {
   const key = `session:verified:${params.scope}:${params.jti}`;
 
   try {
-    const val = await this.redis.get(key);
-    if (!val) return false;
+    const raw = await this.redis.get<string>(key);
+    if (!raw) return false;
 
-    await this.redis.del(key); // 🔥 consume once
+    let val: any;
+    try {
+      val = JSON.parse(raw);
+    } catch {
+      return false;
+    }
+
+    if (params.userId && val.userId !== params.userId) {
+      return false;
+    }
+
     return true;
   } catch {
     return false;
   }
 }
 
+
+
+  async consumeVerifiedSession(params: {
+  jti: string;
+  scope: VerificationScope;
+  userId?: string;
+}): Promise<boolean> {
+  const key = `session:verified:${params.scope}:${params.jti}`;
+
+  try {
+    const val = await this.redis.getAndDelete<any>(key); // ✅ atomic
+
+    if (!val) return false;
+
+    if (params.userId && val.userId !== params.userId) {
+      return false;
+    }
+
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+
+
 async assertSessionVerified(params: {
   jti: string;
   scope: VerificationScope;
+  userId?: string;
 }): Promise<void> {
   const ok = await this.consumeVerifiedSession(params);
 
   if (!ok) {
-    throw new Error(
+    throw new ForbiddenException(
       `Sensitive action verification required: ${params.scope}`,
     );
   }
 }
+
 
 
 }
