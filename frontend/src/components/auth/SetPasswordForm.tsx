@@ -54,7 +54,7 @@ export default function SetPasswordForm({ token }: Props) {
           You can now log in using your email and password.
         </p>
         <a
-          href="/login"
+          href="/"
           className="inline-block mt-6 text-blue-600 underline"
         >
           Go to Login

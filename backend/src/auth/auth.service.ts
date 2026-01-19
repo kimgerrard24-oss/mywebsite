@@ -1238,22 +1238,28 @@ async confirmSetPassword(params: {
   newPassword: string;
   meta?: { ip?: string; userAgent?: string };
 }): Promise<void> {
-  const { token, newPassword, meta } = params;
+  const { token: rawToken, newPassword, meta } = params;
   const now = new Date();
 
   // =================================================
   // 0) Defensive token format validation (anti spam / brute)
   // =================================================
+  const normalizedToken =
+    typeof rawToken === 'string' ? rawToken.trim() : rawToken;
+
   if (
-    !token ||
-    typeof token !== 'string' ||
-    token.length < 16 ||
-    token.length > 256
+    !normalizedToken ||
+    typeof normalizedToken !== 'string' ||
+    normalizedToken.length < 16 ||
+    normalizedToken.length > 256
   ) {
+    // anti-enumeration: generic error
     throw new BadRequestException('Invalid or expired token');
   }
 
-  const tokenHash = createHash('sha256').update(token).digest('hex');
+  const tokenHash = createHash('sha256')
+    .update(normalizedToken)
+    .digest('hex');
 
   // =================================================
   // 1) Load verification token (DB authority)
@@ -1279,8 +1285,8 @@ async confirmSetPassword(params: {
     },
   });
 
-
   if (!record || !record.user) {
+    // anti-enumeration
     throw new BadRequestException('Invalid or expired token');
   }
 
@@ -1301,27 +1307,40 @@ async confirmSetPassword(params: {
   }
 
   // =================================================
-  // 3) Hash new password
+  // 3) Hash new password (argon2id)
   // =================================================
-  const hashedPassword = await argon2.hash(newPassword);
+  const hashedPassword = await argon2.hash(newPassword, {
+    type: argon2.argon2id,
+  });
 
   // =================================================
-  // 4) Atomic update + consume token
+  // 4) Atomic update + consume token + revoke refresh
   // =================================================
   await this.prisma.$transaction(async (tx) => {
     await tx.user.update({
       where: { id: user.id },
       data: {
         hashedPassword,
+        updatedAt: new Date(),
       },
     });
 
-    await tx.identityVerificationToken.update({
-      where: { id: record.id },
-      data: {
-        usedAt: now,
-      },
-    });
+    // consume token (anti replay)
+    const consumed =
+      await tx.identityVerificationToken.updateMany({
+        where: {
+          id: record.id,
+          usedAt: null,
+        },
+        data: {
+          usedAt: now,
+        },
+      });
+
+    if (consumed.count !== 1) {
+      // race condition / replay detected
+      throw new BadRequestException('Invalid or expired token');
+    }
 
     // revoke all refresh tokens
     await tx.refreshToken.updateMany({
@@ -1337,14 +1356,13 @@ async confirmSetPassword(params: {
   // 5) Revoke Redis sessions (authority)
   // =================================================
   try {
-  await this.revokeSessions.revokeAll(user.id);
-} catch (err) {
-  this.logger.error(
-    '[CONFIRM_SET_PASSWORD_REVOKE_SESSIONS_FAILED]',
-    err,
-  );
-}
-
+    await this.revokeSessions.revokeAll(user.id);
+  } catch (err) {
+    this.logger.error(
+      '[CONFIRM_SET_PASSWORD_REVOKE_SESSIONS_FAILED]',
+      err,
+    );
+  }
 
   // =================================================
   // 6) Security Event
@@ -1363,14 +1381,14 @@ async confirmSetPassword(params: {
   // 7) Audit Log
   // =================================================
   try {
-  await this.audit.createLog({
-    userId: user.id,
-    action: 'auth.set_password',
-    success: true,
-    ip: meta?.ip ?? null,
-    userAgent: meta?.userAgent ?? null,
-  });
-} catch {}
-
+    await this.audit.createLog({
+      userId: user.id,
+      action: 'auth.set_password',
+      success: true,
+      ip: meta?.ip ?? null,
+      userAgent: meta?.userAgent ?? null,
+    });
+  } catch {}
 }
+
 }

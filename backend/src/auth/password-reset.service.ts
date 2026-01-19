@@ -52,7 +52,11 @@ export class PasswordResetService {
     }
 
     // ❗ do not reveal whether user exists
-    if (!user) return;
+if (!user) return;
+
+// SECURITY: social-only accounts must use set-password flow, not reset-password
+if (!user.hashedPassword) return;
+
 
     // ==================================================
     // Revoke previous PASSWORD_RESET tokens
