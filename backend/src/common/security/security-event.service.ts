@@ -22,6 +22,12 @@ export type SecurityEventType =
   | 'auth.logout'
   | 'auth.login.blocked'
 
+  // ===== PASSWORD / CREDENTIAL =====
+| 'auth.password.set.request'
+| 'auth.password.set.confirm'
+| 'auth.password.reset.request'
+| 'auth.password.reset.confirm'
+
    // ✅ REGISTER
   | 'auth.register.success'
   | 'auth.register.conflict'

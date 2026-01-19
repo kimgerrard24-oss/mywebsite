@@ -30,6 +30,8 @@ import { CredentialVerificationService } from '../auth/credential-verification.s
 import { VerificationType, SecurityEventType,VerificationScope } from '@prisma/client';
 import { ResendVerificationDto } from './dto/resend-verification.dto';
 import { OAuthProvider } from '@prisma/client';
+import { ConfirmSetPasswordPolicy } from './policies/confirm-set-password.policy';
+import { RevokeUserSessionsService } from './services/revoke-user-sessions.service';
 
 interface GoogleOAuthConfig {
   clientId: string;
@@ -76,6 +78,7 @@ constructor(
   private readonly sessionService: SessionService,
   private readonly securityEvent: SecurityEventService,
   private readonly credentialVerify: CredentialVerificationService,
+  private readonly revokeSessions: RevokeUserSessionsService,
 ) {}
 
 
@@ -786,7 +789,7 @@ async getOrCreateOAuthUser(
               `oauth-${provider.toLowerCase()}-${randomUUID()}@placeholder.local`,
             name: name || null,
             username,
-            hashedPassword: placeholderPassword,
+            hashedPassword: null, 
             avatarUrl: picture || null,
             firebaseUid: null,
             isEmailVerified: Boolean(normalizedEmail),
@@ -1098,4 +1101,262 @@ async recordLoginHistory(data: {
   return this.prisma.loginHistory.create({ data });
 }
 
+// -------------------------------------------------------
+// Request Set Password (for social-only accounts)
+// -------------------------------------------------------
+async requestSetPassword(
+  userId: string,
+  meta?: { ip?: string; userAgent?: string },
+): Promise<void> {
+  const now = new Date();
+
+  // =================================================
+  // 1) Load user (DB authority)
+  // =================================================
+  const user = await this.prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      email: true,
+      hashedPassword: true,
+      isDisabled: true,
+      isBanned: true,
+      isAccountLocked: true,
+    },
+  });
+
+  if (!user) {
+    // anti-enumeration: pretend success
+    return;
+  }
+
+  // =================================================
+  // 2) Business policy
+  // =================================================
+  if (user.isDisabled || user.isBanned || user.isAccountLocked) {
+    // do not leak account state
+    return;
+  }
+
+  // =================================================
+  // 3) Must be social-only (no password yet)
+  // =================================================
+  if (user.hashedPassword) {
+    // already has password → no action
+    return;
+  }
+
+  // =================================================
+  // 4) Generate verification token
+  // =================================================
+  const token = this.credentialVerify.generateToken();
+  const expiresAt = this.credentialVerify.getExpiry(30); // minutes
+
+  // =================================================
+  // 5) Atomic revoke old + create new token
+  // =================================================
+  try {
+    await this.prisma.$transaction(async (tx) => {
+      await tx.identityVerificationToken.updateMany({
+        where: {
+          userId,
+          type: VerificationType.PASSWORD_RESET,
+          scope: VerificationScope.PASSWORD_CHANGE,
+          usedAt: null,
+          expiresAt: { gt: now },
+        },
+        data: { usedAt: now },
+      });
+
+      await tx.identityVerificationToken.create({
+        data: {
+          userId,
+          type: VerificationType.PASSWORD_RESET,
+          scope: VerificationScope.PASSWORD_CHANGE,
+          tokenHash: token.hash,
+          expiresAt,
+        },
+      });
+    });
+  } catch (err) {
+    this.logger.error('[REQUEST_SET_PASSWORD_TOKEN_TX_FAILED]', err);
+    return; // must not leak infra failure
+  }
+
+  // =================================================
+  // 6) Build URL
+  // =================================================
+  const publicSiteUrl = process.env.PUBLIC_SITE_URL;
+
+  if (!publicSiteUrl) {
+    try {
+      this.securityEvent.log({
+        type: 'system.misconfiguration',
+        severity: 'error',
+        reason: 'PUBLIC_SITE_URL missing',
+      });
+    } catch {}
+    return;
+  }
+
+  const setPasswordUrl =
+    `${publicSiteUrl}/auth/set-password?token=${encodeURIComponent(
+      token.raw,
+    )}`;
+
+  // =================================================
+  // 7) Send email (best-effort)
+  // =================================================
+  try {
+    await this._mailService.sendSetPasswordEmail(
+      user.email,
+      setPasswordUrl,
+    );
+  } catch (err) {
+    this.logger.error('[REQUEST_SET_PASSWORD_EMAIL_FAILED]', err);
+    // token still valid → user can retry
+  }
+
+  // =================================================
+  // 8) Security Event (best-effort)
+  // =================================================
+  try {
+    this.securityEvent.log({
+  type: 'auth.password.set.request',
+  severity: 'info',
+  userId,
+  ip: meta?.ip,
+  meta: { phase: 'request_set_password' },
+});
+
+  } catch {}
+}
+
+async confirmSetPassword(params: {
+  token: string;
+  newPassword: string;
+  meta?: { ip?: string; userAgent?: string };
+}): Promise<void> {
+  const { token, newPassword, meta } = params;
+  const now = new Date();
+
+  const tokenHash = createHash('sha256').update(token).digest('hex');
+
+  // =================================================
+  // 1) Load verification token (DB authority)
+  // =================================================
+  const record = await this.prisma.identityVerificationToken.findFirst({
+    where: {
+      tokenHash,
+      type: VerificationType.PASSWORD_RESET,
+      scope: VerificationScope.PASSWORD_CHANGE,
+      usedAt: null,
+      expiresAt: { gt: now },
+    },
+    include: {
+      user: {
+        select: {
+          id: true,
+          hashedPassword: true,
+          isDisabled: true,
+          isBanned: true,
+          isAccountLocked: true,
+        },
+      },
+    },
+  });
+
+  if (!record || !record.user) {
+    throw new BadRequestException('Invalid or expired token');
+  }
+
+  const user = record.user;
+
+  // =================================================
+  // 2) Business policy
+  // =================================================
+  ConfirmSetPasswordPolicy.assertCanSetPassword({
+    isDisabled: user.isDisabled,
+    isBanned: user.isBanned,
+    isAccountLocked: user.isAccountLocked,
+  });
+
+  // must be social-only
+  if (user.hashedPassword) {
+    throw new BadRequestException('Password already set');
+  }
+
+  // =================================================
+  // 3) Hash new password
+  // =================================================
+  const hashedPassword = await argon2.hash(newPassword);
+
+  // =================================================
+  // 4) Atomic update + consume token
+  // =================================================
+  await this.prisma.$transaction(async (tx) => {
+    await tx.user.update({
+      where: { id: user.id },
+      data: {
+        hashedPassword,
+      },
+    });
+
+    await tx.identityVerificationToken.update({
+      where: { id: record.id },
+      data: {
+        usedAt: now,
+      },
+    });
+
+    // revoke all refresh tokens
+    await tx.refreshToken.updateMany({
+      where: {
+        userId: user.id,
+        revoked: false,
+      },
+      data: { revoked: true },
+    });
+  });
+
+  // =================================================
+  // 5) Revoke Redis sessions (authority)
+  // =================================================
+  try {
+  await this.revokeSessions.revokeAll(user.id);
+} catch (err) {
+  this.logger.error(
+    '[CONFIRM_SET_PASSWORD_REVOKE_SESSIONS_FAILED]',
+    err,
+  );
+}
+
+
+  // =================================================
+  // 6) Security Event
+  // =================================================
+  try {
+    this.securityEvent.log({
+      type: 'auth.session.revoked',
+      severity: 'info',
+      userId: user.id,
+      ip: meta?.ip,
+      meta: { reason: 'set_password' },
+    });
+  } catch {}
+
+  // =================================================
+  // 7) Audit Log
+  // =================================================
+  try {
+  await this.audit.createLog({
+    userId: user.id,
+    action: 'auth.set_password',
+    success: true,
+    ip: meta?.ip ?? null,
+    userAgent: meta?.userAgent ?? null,
+  });
+} catch {}
+
+}
 }

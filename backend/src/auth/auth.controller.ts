@@ -36,6 +36,8 @@ import { ResendVerificationDto } from './dto/resend-verification.dto';
 import type { SessionUser } from '../auth/services/validate-session.service';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { OAuthProvider } from '@prisma/client';
+import { RequestSetPasswordDto } from './dto/request-set-password.dto';
+import { ConfirmSetPasswordDto } from './dto/confirm-set-password.dto';
 
 
 function normalizeRedirectUri(raw: string): string {
@@ -385,6 +387,7 @@ try {
 // =========================================================
 @UseGuards(AccessTokenCookieAuthGuard, RateLimitGuard)
 @Post('logout')
+@RateLimit('logout')
 @HttpCode(200)
 async logout(@Req() req: Request, @Res() res: Response) {
   await this.authService.logout(req, res);
@@ -484,5 +487,63 @@ async resendVerification(
   };
 }
 
+// =========================================================
+// Request Set Password (Social-only → Set password)
+// =========================================================
+@UseGuards(AccessTokenCookieAuthGuard)
+@Post('request-set-password')
+@RateLimit('requestSetPassword')
+@HttpCode(200)
+async requestSetPassword(
+  @CurrentUser() user: SessionUser,
+  @Body() _: RequestSetPasswordDto,
+  @Req() req: Request,
+) {
+  if (!user?.userId) {
+    throw new UnauthorizedException('Authentication required');
+  }
 
+  await this.authService.requestSetPassword(user.userId, {
+    ip: req.ip,
+    userAgent:
+      typeof req.headers['user-agent'] === 'string'
+        ? req.headers['user-agent']
+        : undefined,
+  });
+
+  /**
+   * Anti-enumeration response:
+   * - ไม่บอกว่ามี password แล้วหรือไม่
+   * - ไม่บอกว่าส่ง email สำเร็จหรือไม่
+   */
+  return {
+    success: true,
+    message:
+      'If your account is eligible, a password setup email has been sent.',
+  };
+}
+
+@Post('confirm-set-password')
+@RateLimit('confirmSetPassword')
+@HttpCode(200)
+async confirmSetPassword(
+  @Body() dto: ConfirmSetPasswordDto,
+  @Req() req: Request,
+) {
+  await this.authService.confirmSetPassword({
+    token: dto.token,
+    newPassword: dto.newPassword,
+    meta: {
+      ip: req.ip,
+      userAgent:
+        typeof req.headers['user-agent'] === 'string'
+          ? req.headers['user-agent']
+          : undefined,
+    },
+  });
+
+  return {
+    success: true,
+  };
+}
 }

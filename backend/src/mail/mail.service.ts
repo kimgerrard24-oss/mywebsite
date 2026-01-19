@@ -175,6 +175,68 @@ export class MailService {
   private async delay(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
   }
+
+  // =====================================================
+// Set Password (Social → Local)
+// =====================================================
+
+/**
+ * Send set-password email for social-login users
+ *
+ * SECURITY RULES:
+ * - Do NOT log email
+ * - Do NOT log link
+ * - Do NOT throw (anti enumeration)
+ * - Infra failures must not affect business response
+ */
+async sendSetPasswordEmail(
+  to: string,
+  setPasswordUrl: string,
+): Promise<void> {
+  const subject = 'Set your PhlyPhant password';
+
+  const html = `
+    <p>You requested to set a password for your PhlyPhant account.</p>
+    <p><a href="${setPasswordUrl}">Click here to set your password</a></p>
+    <p>This link will expire in 30 minutes.</p>
+    <p>If you did not request this, you can safely ignore this email.</p>
+  `;
+
+  for (let attempt = 1; attempt <= RESEND_RETRY_ATTEMPTS; attempt++) {
+    try {
+      const result = await this.resend.emails.send({
+        from: this.from,
+        to,
+        subject,
+        html,
+      });
+
+      if (result && (result as any).error) {
+        this.logger.error(
+          'Resend returned error while sending set-password email',
+          (result as any).error,
+        );
+        return; // ❗ do NOT throw
+      }
+
+      return; // success
+    } catch (err: any) {
+      this.logger.error(
+        `Failed to send set-password email via Resend (attempt ${attempt}/${RESEND_RETRY_ATTEMPTS})`,
+        err?.stack || String(err),
+      );
+
+      if (attempt < RESEND_RETRY_ATTEMPTS) {
+        await this.delay(300 * attempt);
+        continue;
+      }
+
+      // ❗ must not throw (anti-enumeration)
+      return;
+    }
+  }
+}
+
 }
 
 
