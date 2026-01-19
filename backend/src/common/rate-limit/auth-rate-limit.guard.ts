@@ -100,7 +100,40 @@ export class AuthRateLimitGuard implements CanActivate {
     const rawIp = this.extractRealIp(req);
     const ipKey = this.normalizeIp(rawIp);
 
-    const info = await this.rlService.consume(action, ipKey);
+    let key = ipKey;
+
+    // ===============================
+// email-based flows (anti-NAT block)
+// ===============================
+if (action === 'requestPasswordReset') {
+  const email =
+    typeof req.body?.email === 'string'
+      ? req.body.email.trim().toLowerCase()
+      : '';
+
+  if (email) {
+    key = `${email}:${ipKey}`.replace(/[^a-z0-9_-]/g, '_');
+  }
+}
+
+
+// token-based flows
+if (
+  action === 'confirmPasswordReset' ||
+  action === 'confirmSetPassword' ||
+  action === 'emailVerify' ||
+  action === 'phoneChangeConfirm'
+) {
+  const token =
+    (req.body && (req.body.token || req.query?.token)) || null;
+
+  if (typeof token === 'string' && token.length > 10) {
+    key = `token:${token.slice(0, 32)}`; // or hash(token)
+  }
+}
+
+const info = await this.rlService.consume(action, key);
+
 
     // 🔴 FIX: เช็ค blocked โดยตรง
    if (info.blocked) {

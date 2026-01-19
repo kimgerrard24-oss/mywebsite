@@ -97,7 +97,7 @@ export default function SetPasswordForm({ token }: Props) {
 
       // redirect to login
       setTimeout(() => {
-        router.replace("/login");
+        router.replace("/");
       }, 1500);
     } catch (e: any) {
       setError(
