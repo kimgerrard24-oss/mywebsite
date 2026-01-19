@@ -849,13 +849,13 @@ CREATE INDEX "Appeal_resolvedByAdminId_resolvedAt_idx" ON "Appeal"("resolvedByAd
 CREATE UNIQUE INDEX "Appeal_userId_moderationActionId_key" ON "Appeal"("userId", "moderationActionId");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "IdentityVerificationToken_tokenHash_key" ON "IdentityVerificationToken"("tokenHash");
+
+-- CreateIndex
 CREATE INDEX "IdentityVerificationToken_userId_type_idx" ON "IdentityVerificationToken"("userId", "type");
 
 -- CreateIndex
 CREATE INDEX "IdentityVerificationToken_expiresAt_idx" ON "IdentityVerificationToken"("expiresAt");
-
--- CreateIndex
-CREATE INDEX "IdentityVerificationToken_tokenHash_idx" ON "IdentityVerificationToken"("tokenHash");
 
 -- CreateIndex
 CREATE INDEX "IdentityVerificationToken_type_expiresAt_idx" ON "IdentityVerificationToken"("type", "expiresAt");
