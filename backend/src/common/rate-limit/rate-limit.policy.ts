@@ -36,6 +36,8 @@ export type RateLimitAction =
   | 'emailChangeConfirm'
   | 'resendEmailVerify'
   | 'profileExport'
+  | 'requestSetPassword'
+  | 'confirmSetPassword'
   | 'emailVerify';
 
 export type RateLimitEscalationConfig = {
@@ -657,6 +659,44 @@ profileExport: {
     longBlockSec: 21600,  // block 6 ชม.
   },
 },
+
+requestSetPassword: {
+  /**
+   * Request password setup email (social → local)
+   * Prevent email abuse / enumeration
+   */
+  windowSec: 900,          // 15 minutes
+  max: 3,                  // allow 3 requests
+  blockDurationSec: 3600,  // block 1 hour
+
+  // legacy fields (still required by service)
+  points: 3,
+  duration: 900,
+  blockDuration: 3600,
+
+  escalation: {
+    maxViolations: 3,
+    windowSec: 86400,      // 24h
+    longBlockSec: 21600,   // block 6h
+  },
+},
+
+confirmSetPassword: {
+  windowSec: 300,        // 5 นาที
+  max: 5,                // เดา token ได้ 5 ครั้ง
+  blockDurationSec: 900, // block 15 นาที
+
+  points: 5,
+  duration: 300,
+  blockDuration: 900,
+
+  escalation: {
+    maxViolations: 3,
+    windowSec: 86400,
+    longBlockSec: 21600, // 6 ชม.
+  },
+},
+
 
 };
 

@@ -20,12 +20,18 @@ const SECURITY_ACTIONS = [
     label: "Download my data",
     href: "/settings/verify?next=/settings/security?do=export",
   },
- {
-  label: "Lock my account",
-  href: "/settings/verify?next=/settings/confirm-lock",
-  danger: true,
-},
 
+  // ✅ NEW: Set password (for social-login users)
+  {
+    label: "Set password",
+    href: "/settings/set-password",
+  },
+
+  {
+    label: "Lock my account",
+    href: "/settings/verify?next=/settings/confirm-lock",
+    danger: true,
+  },
 ];
 
 export default function AccountLayout({ children }: Props) {
@@ -96,4 +102,3 @@ export default function AccountLayout({ children }: Props) {
     </main>
   );
 }
-

@@ -182,3 +182,47 @@ export async function resendEmailVerification(): Promise<{
 }> {
   return apiPost("/auth/local/resend-verification", {});
 }
+
+// CSR (axios wrapper)
+export async function requestSetPassword(): Promise<{
+  success: true;
+  message: string;
+}> {
+  return apiPost("/auth/request-set-password", {});
+}
+
+// SSR-safe (fetch wrapper) — เผื่อใช้ใน server action / SSR
+export async function requestSetPasswordFetch(): Promise<{
+  success: true;
+  message: string;
+}> {
+  return client.post("/auth/request-set-password");
+}
+
+export interface ConfirmSetPasswordPayload {
+  token: string;
+  newPassword: string;
+}
+
+export async function confirmSetPassword(
+  payload: ConfirmSetPasswordPayload
+): Promise<{ success: true }> {
+  try {
+    const res = await client.post("/auth/confirm-set-password", payload, {
+      withCredentials: false,
+    });
+
+    return res.data;
+  } catch (err) {
+    const error = err as AxiosError<any>;
+
+    if (error.response?.status === 410) {
+      throw new Error("This link has expired. Please request a new one.");
+    }
+
+    throw new Error(
+      error.response?.data?.message ||
+        "Unable to set your password at this time."
+    );
+  }
+}
