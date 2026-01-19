@@ -1,16 +1,11 @@
 // frontend/src/lib/api/user-export.ts
 
-// ==============================
-// Profile Export API (CSR)
-// ==============================
+export function triggerProfileExport(apiBase: string) {
+  if (!apiBase) {
+    throw new Error("API base URL is required for export");
+  }
 
-import { api } from "./api";
-
-export async function exportMyProfile(): Promise<Blob> {
-  const res = await api.get("/users/me/profile/export", {
-    responseType: "blob",
-    withCredentials: true,
-  });
-
-  return res.data as Blob;
+  // Let browser handle file download via attachment headers
+  window.location.href = `${apiBase}/users/me/profile/export`;
 }
+

@@ -1,20 +1,30 @@
+// frontend/src/components/security/ProfileExportButton.tsx
+
 import { useRouter } from "next/router";
+import { useCallback } from "react";
 
 export default function ProfileExportButton() {
   const router = useRouter();
 
-  function handleStartExportFlow() {
+  const handleStartExportFlow = useCallback(() => {
     /**
-     * 🔐 Sensitive action
-     * Must verify credential first, then return to FE
-     * FE will trigger actual download
+     * 🔐 Sensitive action flow (legacy-compatible)
+     * 1) verify credential
+     * 2) redirect back to /settings/security?do=export
+     * 3) that page triggers actual download
+     *
+     * NOTE:
+     * - must be FE route only (anti open-redirect)
+     * - backend remains authority
      */
     const next = "/settings/security?do=export";
 
-    router.push(
-      `/settings/verify?next=${encodeURIComponent(next)}`,
-    );
-  }
+    const target = `/settings/verify?next=${encodeURIComponent(
+      next,
+    )}`;
+
+    router.push(target);
+  }, [router]);
 
   return (
     <div>
@@ -28,3 +38,4 @@ export default function ProfileExportButton() {
     </div>
   );
 }
+

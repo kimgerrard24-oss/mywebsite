@@ -40,64 +40,38 @@ export default function SecuritySettingsPage({
   // 🔐 Sensitive action orchestrator (post-verify)
   // =================================================
   useEffect(() => {
-    if (didRunRef.current) return;
+  if (!router.isReady) return;
+  if (didRunRef.current) return;
 
-    if (action === "lock") {
-      didRunRef.current = true;
+  if (action === "lock") {
+    didRunRef.current = true;
 
-      lockMyAccount()
-        .then(() => {
-          // account is now locked → must leave app
-          window.location.href = "/login";
-        })
-        .catch(() => {
-          router.replace("/settings/security");
-        });
-    }
+    lockMyAccount()
+      .then(() => {
+        window.location.href = "/login";
+      })
+      .catch(() => {
+        router.replace("/settings/security");
+      });
+  }
 
-   if (action === "export") {
-  didRunRef.current = true;
+  if (action === "export") {
+    didRunRef.current = true;
 
-  (async () => {
-    try {
-      const res = await fetch(
-        `${API_BASE}/users/me/profile/export`,
-        {
-          method: "GET",
-          credentials: "include", // ✅ ส่ง cookie auth
-        },
-      );
+    /**
+     * 🔐 Let browser handle file download (attachment)
+     */
+    window.location.href = `${API_BASE}/users/me/profile/export`;
 
-      if (!res.ok) {
-        throw new Error("Export failed");
-      }
+    // UX: clear action param after triggering
+    setTimeout(() => {
+      router.replace("/settings/security", undefined, {
+        shallow: true,
+      });
+    }, 1500);
+  }
+}, [action, router]);
 
-      const blob = await res.blob();
-
-      // ✅ ดึงชื่อไฟล์จาก header ถ้ามี
-      const cd = res.headers.get("content-disposition");
-      const filename =
-        cd?.match(/filename="(.+)"/)?.[1] ??
-        "phlyphant-profile.json";
-
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = filename;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      window.URL.revokeObjectURL(url);
-
-      // ✅ clean URL หลัง download
-      router.replace("/settings/security");
-    } catch (err) {
-      router.replace("/settings/security");
-    }
-  })();
-}
-
-  }, [action, router]);
 
   return (
     <>
