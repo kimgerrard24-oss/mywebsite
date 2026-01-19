@@ -28,18 +28,18 @@ export type ExportComment = {
 };
 
 export type ExportSecurityEvent = {
-  id: string;
   type: string;
-  ip: string | null;
-  userAgent: string | null;
-  createdAt: IsoDateString;
+  time: IsoDateString;
+  location: string | null;
+  device: string | null;
 };
+
 
 export type ProfileExportPayload = {
   profile: ExportProfile;
   posts: ExportPost[];
   comments: ExportComment[];
-  securityEvents?: ExportSecurityEvent[]; // optional for backward compatibility
+  events?: ExportSecurityEvent[];
   stats: {
     followers: number;
     following: number;
@@ -55,6 +55,39 @@ function toIso(value: any): IsoDateString {
   if (value instanceof Date) return value.toISOString();
   return new Date(value).toISOString();
 }
+
+function mapEventType(type: string): string {
+  switch (type) {
+    case 'CREDENTIAL_VERIFIED':
+      return 'Login verified';
+    case 'PROFILE_EXPORTED':
+      return 'Profile data downloaded';
+    case 'ACCOUNT_LOCKED':
+      return 'Account locked';
+    default:
+      return (
+  type
+    .replace(/_/g, ' ')
+    .toLowerCase()
+    .replace(/^\w/, (c) => c.toUpperCase())
+);
+
+  }
+}
+
+function parseDevice(ua?: string | null): string | null {
+  if (!ua) return null;
+
+  if (ua.includes('Edg')) return 'Edge on Windows';
+  if (ua.includes('Chrome') && ua.includes('Windows'))
+    return 'Chrome on Windows';
+  if (ua.includes('Mac')) return 'Browser on macOS';
+  if (ua.includes('Android')) return 'Android device';
+  if (ua.includes('iPhone')) return 'iPhone';
+
+  return 'Unknown device';
+}
+
 
 /* ==============================
    DTO Mapper
@@ -122,29 +155,30 @@ export class ProfileExportDto {
     // ==============================
     // Security events (safe subset)
     // ==============================
-    const mappedSecurityEvents: ExportSecurityEvent[] =
-      securityEvents.map(
-        (e: any): ExportSecurityEvent => ({
-          id: String(e.id),
-          type: String(e.type),
-          ip: e.ip ?? null,
-          userAgent: e.userAgent ?? null,
-          createdAt: toIso(e.createdAt),
-        }),
-      );
+   const mappedSecurityEvents: ExportSecurityEvent[] =
+  securityEvents.map(
+    (e: any): ExportSecurityEvent => ({
+      type: mapEventType(String(e.type)),
+      time: toIso(e.createdAt),
+      location: null, // reserved for future geo lookup
+      device: parseDevice(e.userAgent),
+    }),
+  );
+
 
     // ==============================
     // Final payload
     // ==============================
     return {
-      profile,
-      posts: mappedPosts,
-      comments: mappedComments,
-      securityEvents: mappedSecurityEvents,
-      stats: {
-        followers: followers.length,
-        following: following.length,
-      },
-    };
+  profile,
+  posts: mappedPosts,
+  comments: mappedComments,
+  events: mappedSecurityEvents,
+  stats: {
+    followers: followers.length,
+    following: following.length,
+  },
+};
+
   }
 }
