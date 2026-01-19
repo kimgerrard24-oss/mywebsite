@@ -889,22 +889,23 @@ model IdentityVerificationToken {
   type      VerificationType
 
   /// hash ของ token เท่านั้น (เช่น sha256)
-  tokenHash String
+  tokenHash String           @unique
 
   /// email หรือ phone ใหม่ (กรณี change identity)
   target    String?
   scope     VerificationScope
+
   expiresAt DateTime
   usedAt    DateTime?
   createdAt DateTime         @default(now())
-  attemptCount Int      @default(0)
+  attemptCount Int           @default(0)
+
   /// relations
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  /// indexes (สำคัญต่อ cleanup + lookup)
+  /// indexes
   @@index([userId, type])
   @@index([expiresAt])
-  @@index([tokenHash])
   @@index([type, expiresAt])       
   @@index([usedAt])               
   @@index([userId, type, usedAt])

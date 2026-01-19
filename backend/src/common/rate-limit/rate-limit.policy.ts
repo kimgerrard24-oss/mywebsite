@@ -101,12 +101,12 @@ export const RateLimitPolicy: Record<RateLimitAction, RateLimitConfig> = {
   },
 
   resetPassword: {
-    points: 3,
+    points: 5,
     duration: 3600,
     blockDuration: 1800,
 
     windowSec: 3600,
-    max: 3,
+    max: 5,
     blockDurationSec: 1800,
 
     escalation: {
@@ -666,11 +666,11 @@ requestSetPassword: {
    * Prevent email abuse / enumeration
    */
   windowSec: 900,          // 15 minutes
-  max: 3,                  // allow 3 requests
+  max: 5,                  // allow 3 requests
   blockDurationSec: 3600,  // block 1 hour
 
   // legacy fields (still required by service)
-  points: 3,
+  points: 5,
   duration: 900,
   blockDuration: 3600,
 
