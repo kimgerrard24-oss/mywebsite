@@ -3,9 +3,6 @@
 import { IsEmail, IsString, MinLength, MaxLength } from 'class-validator';
 
 export class ResetPasswordDto {
-  @IsEmail()
-  email!: string;
-
   @IsString()
   token!: string;
 

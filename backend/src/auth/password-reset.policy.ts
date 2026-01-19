@@ -1,6 +1,6 @@
 // file: src/auth/password-reset.policy.ts
 
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException } from '@nestjs/common';
 
 /**
  * Production baseline password policy
@@ -16,13 +16,9 @@ import { BadRequestException } from '@nestjs/common';
  * - Do NOT reveal which rule failed (anti brute-force enumeration)
  * - DTO validation alone is NOT sufficient
  */
-export function validatePasswordStrength(
-  rawPassword: string,
-): void {
+export function validatePasswordStrength(rawPassword: string): void {
   if (typeof rawPassword !== 'string') {
-    throw new BadRequestException(
-      'Invalid password format.',
-    );
+    throw new BadRequestException('Invalid password format.');
   }
 
   const password = rawPassword.normalize('NFKC');
@@ -53,3 +49,41 @@ export function validatePasswordStrength(
   }
 }
 
+/**
+ * Account-level policy for password reset
+ *
+ * Rules:
+ * - account must not be disabled
+ * - account must not be banned
+ * - account must not be locked
+ * - must already have password (reset only, not set-password flow)
+ *
+ * NOTE:
+ * - do not reveal exact reason to client
+ */
+export function assertCanResetPassword(params: {
+  isDisabled: boolean;
+  isBanned: boolean;
+  isAccountLocked: boolean;
+  hasPassword: boolean;
+}): void {
+  const {
+    isDisabled,
+    isBanned,
+    isAccountLocked,
+    hasPassword,
+  } = params;
+
+  if (isDisabled || isBanned || isAccountLocked) {
+    throw new ForbiddenException(
+      'Account is not allowed to reset password.',
+    );
+  }
+
+  // prevent using reset flow for social-only accounts
+  if (!hasPassword) {
+    throw new BadRequestException(
+      'Password reset is not available for this account.',
+    );
+  }
+}

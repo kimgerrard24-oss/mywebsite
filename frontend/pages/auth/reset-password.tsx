@@ -7,13 +7,11 @@ import ResetPasswordForm from "@/components/auth/ResetPasswordForm";
 
 interface ResetPasswordPageProps {
   token: string | null;
-  email: string | null;
 }
 
-const ResetPasswordPage: NextPage<ResetPasswordPageProps> = ({
-  token,
-  email,
-}) => {
+
+const ResetPasswordPage: NextPage<ResetPasswordPageProps> = ({ token }) => {
+
   const siteUrl =
     process.env.NEXT_PUBLIC_SITE_URL || "https://www.phlyphant.com";
 
@@ -27,6 +25,7 @@ const ResetPasswordPage: NextPage<ResetPasswordPageProps> = ({
         name="description"
         content="Set a new password for your PhlyPhant account using your secure reset link."
       />
+      <meta name="robots" content="noindex,nofollow" />
       <link rel="canonical" href={canonicalUrl} />
       <meta property="og:title" content="Reset Password – PhlyPhant" />
       <meta
@@ -104,7 +103,8 @@ const ResetPasswordPage: NextPage<ResetPasswordPageProps> = ({
         "
         aria-label="Reset password content"
       >
-        <ResetPasswordForm token={token} email={email} />
+        <ResetPasswordForm token={token} />
+
       </section>
 
       {/* FOOTER */}
@@ -120,19 +120,15 @@ const ResetPasswordPage: NextPage<ResetPasswordPageProps> = ({
 export const getServerSideProps: GetServerSideProps<
   ResetPasswordPageProps
 > = async (context) => {
-  const { token, email } = context.query;
+  const { token } = context.query;
 
   const tokenValue =
     typeof token === "string" && token.trim().length > 0 ? token : null;
-  const emailValue =
-    typeof email === "string" && email.trim().length > 0 ? email : null;
 
   return {
     props: {
       token: tokenValue,
-      email: emailValue,
     },
   };
 };
 
-export default ResetPasswordPage;

@@ -1,31 +1,19 @@
 // src/common/security/secure-token.util.ts
 
-import { randomBytes } from 'crypto';
-import * as argon2 from 'argon2';
+import { randomBytes, createHash } from 'crypto';
 
 /**
- * Generate a cryptographically secure random token (raw)
- * Will be sent to user via email (in URL)
+ * Generate cryptographically secure random token (URL-safe)
  */
-export function generateSecureToken(length = 32): string {
-  // length = bytes, hex string will be length * 2 characters
-  return randomBytes(length).toString('hex');
+export function generateSecureToken(bytes = 32): string {
+  return randomBytes(bytes).toString('hex'); // 64 chars for 32 bytes
 }
 
 /**
- * Hash token for storing in DB (similar to hashed password)
+ * Hash token for DB storage (fast + safe for high-entropy tokens)
  */
-export async function hashToken(token: string): Promise<string> {
-  return argon2.hash(token);
+export function hashToken(token: string): string {
+  const normalized = token.trim();
+  return createHash('sha256').update(normalized).digest('hex');
 }
 
-/**
- * Compare raw token (from user) with stored hash
- * (สำหรับใช้ตอนทำ reset password ตัวจริงในอนาคต)
- */
-export async function verifyTokenHash(
-  token: string,
-  tokenHash: string,
-): Promise<boolean> {
-  return argon2.verify(tokenHash, token);
-}

@@ -26,6 +26,7 @@ import { AccessTokenCookieAuthGuard } from './guards/access-token-cookie.guard';
 import { SessionModule } from './session/session.module';
 import { CredentialVerificationModule } from './credential-verification.module';
 import { RevokeUserSessionsModule } from './services/revoke-user-sessions.module';
+import { AuthRootController } from './auth-root.controller';
 
 @Module({
   imports: [
@@ -59,6 +60,7 @@ import { RevokeUserSessionsModule } from './services/revoke-user-sessions.module
     SocialAuthController,
     PasswordResetController,
     SessionController,
+    AuthRootController,
   ],
 
   exports: [
