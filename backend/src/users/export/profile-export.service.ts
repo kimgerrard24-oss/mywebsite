@@ -115,12 +115,12 @@ export class ProfileExportService {
   return {
     exportedAt: new Date().toISOString(),
     files: {
-      'profile.json': payload.profile,
-      'posts.json': payload.posts ?? [],
-      'comments.json': payload.comments ?? [],
-      'security-events.json':
-        payload.securityEvents ?? [],
-    },
+  'profile.json': payload.profile,
+  'posts.json': payload.posts ?? [],
+  'comments.json': payload.comments ?? [],
+  'security-events.json': payload.events ?? [],
+},
+
   };
 }
 
