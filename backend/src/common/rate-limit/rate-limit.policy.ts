@@ -38,6 +38,8 @@ export type RateLimitAction =
   | 'profileExport'
   | 'requestSetPassword'
   | 'confirmSetPassword'
+  | 'requestPasswordReset'  
+  | 'confirmPasswordReset'
   | 'emailVerify';
 
 export type RateLimitEscalationConfig = {
@@ -697,6 +699,37 @@ confirmSetPassword: {
   },
 },
 
+requestPasswordReset: {
+  windowSec: 900,
+  max: 3,
+  blockDurationSec: 3600,
+
+  points: 3,
+  duration: 900,
+  blockDuration: 3600,
+
+  escalation: {
+    maxViolations: 3,
+    windowSec: 86400,
+    longBlockSec: 21600,
+  },
+},
+
+confirmPasswordReset: {
+  windowSec: 300,
+  max: 5,
+  blockDurationSec: 900,
+
+  points: 5,
+  duration: 300,
+  blockDuration: 900,
+
+  escalation: {
+    maxViolations: 3,
+    windowSec: 86400,
+    longBlockSec: 21600,
+  },
+},
 
 };
 

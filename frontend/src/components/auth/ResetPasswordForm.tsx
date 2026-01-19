@@ -102,7 +102,7 @@ const ResetPasswordForm: React.FC<ResetPasswordFormProps> = ({ token }) => {
 
       // Redirect to success page after short delay
       setTimeout(() => {
-        router.replace('/reset-password-success');
+        router.replace('/auth/reset-password-success');
       }, 1500);
     } catch (err) {
       const msg =

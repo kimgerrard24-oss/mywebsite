@@ -28,7 +28,7 @@ export class PasswordResetController {
   // ============================
   @Public()
   @UseGuards(AuthRateLimitGuard)
-  @RateLimit('resetPassword')
+  @RateLimit('requestPasswordReset')
   @Post('request-password-reset')
   @HttpCode(HttpStatus.OK)
   async requestPasswordReset(
@@ -67,7 +67,7 @@ export class PasswordResetController {
   // ============================
   @Public()
   @UseGuards(AuthRateLimitGuard)
-  @RateLimit('resetPassword')
+  @RateLimit('confirmPasswordReset')
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
   async resetPassword(

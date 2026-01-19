@@ -1,4 +1,4 @@
-// pages/auth/rest-password.tsx
+// pages/auth/reset-password.tsx
 
 import React from "react";
 import Head from "next/head";
