@@ -9,7 +9,10 @@ import {
   PasswordResetTokenExpiredException,
   PasswordResetTokenInvalidException,
 } from './password-reset.exceptions';
-import { validatePasswordStrength } from './password-reset.policy';
+import {
+  validatePasswordStrength,
+  assertCanResetPassword,
+} from './password-reset.policy';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { VerificationType,VerificationScope } from '@prisma/client';
 import * as argon2 from 'argon2';
@@ -107,9 +110,9 @@ export class PasswordResetService {
     }
 
     const resetUrl =
-      `${publicSiteUrl.replace(/\/$/, '')}/auth/reset-password` +
-      `?token=${encodeURIComponent(rawToken)}` +
-      `&email=${encodeURIComponent(normalizedEmail)}`;
+  `${publicSiteUrl.replace(/\/$/, '')}/auth/reset-password` +
+  `?token=${encodeURIComponent(rawToken)}`;
+
 
     try {
       await this.mailService.sendPasswordResetEmail({
@@ -128,91 +131,137 @@ export class PasswordResetService {
   // RESET PASSWORD
   // ==================================================
   async resetPassword(
-    dto: ResetPasswordDto,
-    ipAddress?: string,
-    userAgent?: string,
-  ): Promise<void> {
-    const normalizedEmail = dto.email.trim().toLowerCase();
-    const { token, newPassword, confirmPassword } = dto;
+  dto: ResetPasswordDto,
+  ipAddress?: string,
+  userAgent?: string,
+): Promise<void> {
+  const { token: rawToken, newPassword, confirmPassword } = dto;
+  const token = typeof rawToken === 'string' ? rawToken.trim() : rawToken;
 
-    if (newPassword !== confirmPassword) {
-      throw new PasswordResetPasswordMismatchException();
-    }
 
-    validatePasswordStrength(newPassword);
+  // ==================================================
+  // 0) Defensive validation (anti spam / brute)
+  // ==================================================
+  if (
+    !token ||
+    typeof token !== 'string' ||
+    token.length < 16 ||
+    token.length > 256
+  ) {
+    // anti-enumeration: generic error
+    throw new PasswordResetTokenInvalidException();
+  }
 
-    const user = await this.prisma.user.findUnique({
-      where: { email: normalizedEmail },
+  // ==================================================
+  // 1) Basic password checks
+  // ==================================================
+  if (newPassword !== confirmPassword) {
+    throw new PasswordResetPasswordMismatchException();
+  }
+
+  validatePasswordStrength(newPassword);
+
+  // ==================================================
+  // 2) Resolve token → user (DB authority)
+  // ==================================================
+  
+  const tokenHash = await hashToken(token);
+
+  const tokenRecord =
+    await this.prisma.identityVerificationToken.findFirst({
+      where: {
+        type: VerificationType.PASSWORD_RESET,
+        scope: VerificationScope.PASSWORD_CHANGE,
+        tokenHash,
+        usedAt: null,
+      },
+      include: {
+        user: true,
+      },
+      orderBy: { createdAt: 'desc' },
     });
 
-    // ❗ do not reveal user existence
-    if (!user) return;
+  if (!tokenRecord || !tokenRecord.user) {
+    throw new PasswordResetTokenInvalidException();
+  }
 
-    const tokenHash = await hashToken(token);
+  if (tokenRecord.expiresAt <= new Date()) {
+    throw new PasswordResetTokenExpiredException();
+  }
 
-    const tokenRecord =
-      await this.prisma.identityVerificationToken.findFirst({
+  const user = tokenRecord.user;
+
+assertCanResetPassword({
+  isDisabled: user.isDisabled,
+  isBanned: user.isBanned,
+  isAccountLocked: user.isAccountLocked,
+  hasPassword: !!user.hashedPassword,
+});
+
+
+  // ==================================================
+  // 3) Hash new password (argon2id)
+  // ==================================================
+  const newHashedPassword = await argon2.hash(newPassword, {
+    type: argon2.argon2id,
+  });
+
+  // ==================================================
+  // 4) TRANSACTION (authority)
+  //    - update password
+  //    - revoke refresh tokens
+  //    - delete sessions
+  //    - consume token
+  // ==================================================
+  await this.prisma.$transaction(async (tx) => {
+    await tx.user.update({
+      where: { id: user.id },
+      data: {
+        hashedPassword: newHashedPassword,
+        currentRefreshTokenHash: null,
+        updatedAt: new Date(),
+      },
+    });
+
+    await tx.refreshToken.updateMany({
+      where: {
+        userId: user.id,
+        revoked: false,
+      },
+      data: {
+        revoked: true,
+      },
+    });
+
+    await tx.session.deleteMany({
+      where: { userId: user.id },
+    });
+
+    // atomic consume token (anti replay)
+    const consumed =
+      await tx.identityVerificationToken.updateMany({
         where: {
-          userId: user.id,
-          type: VerificationType.PASSWORD_RESET,
-          tokenHash,
+          id: tokenRecord.id,
           usedAt: null,
         },
-        orderBy: { createdAt: 'desc' },
+        data: {
+          usedAt: new Date(),
+        },
       });
 
-    if (!tokenRecord) {
+    if (consumed.count !== 1) {
+      // race / replay detected
       throw new PasswordResetTokenInvalidException();
     }
+  });
 
-    if (tokenRecord.expiresAt <= new Date()) {
-      throw new PasswordResetTokenExpiredException();
-    }
+  // ==================================================
+  // 5) Audit / Log (best-effort)
+  // ==================================================
+  this.logger.log(
+    `[PASSWORD_RESET_SUCCESS] userId=${user.id} ip=${ipAddress} ua=${userAgent}`,
+  );
+}
 
-    const newHashedPassword = await argon2.hash(newPassword, {
-      type: argon2.argon2id,
-    });
-
-    // ==================================================
-    // TRANSACTION:
-    // - update password
-    // - revoke refresh tokens
-    // - delete sessions
-    // - mark token used
-    // ==================================================
-    await this.prisma.$transaction(async (tx) => {
-      await tx.user.update({
-        where: { id: user.id },
-        data: {
-          hashedPassword: newHashedPassword,
-          currentRefreshTokenHash: null,
-          updatedAt: new Date(),
-        },
-      });
-
-      await tx.refreshToken.updateMany({
-        where: {
-          userId: user.id,
-          revoked: false,
-        },
-        data: {
-          revoked: true,
-        },
-      });
-
-      await tx.session.deleteMany({
-        where: { userId: user.id },
-      });
-
-      await tx.identityVerificationToken.update({
-        where: { id: tokenRecord.id },
-        data: { usedAt: new Date() },
-      });
-    });
-
-    this.logger.log(
-      `[PASSWORD_RESET_SUCCESS] userId=${user.id} ip=${ipAddress} ua=${userAgent}`,
-    );
-  }
 }
 

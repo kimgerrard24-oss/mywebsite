@@ -15,6 +15,7 @@ import { RequestPasswordResetDto } from './dto/request-password-reset.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { AuthRateLimitGuard } from '../common/rate-limit/auth-rate-limit.guard';
 import { Public } from './decorators/public.decorator';
+import { RateLimit } from '../common/rate-limit/rate-limit.decorator';
 
 @Controller('auth/local')
 export class PasswordResetController {
@@ -27,6 +28,7 @@ export class PasswordResetController {
   // ============================
   @Public()
   @UseGuards(AuthRateLimitGuard)
+  @RateLimit('resetPassword')
   @Post('request-password-reset')
   @HttpCode(HttpStatus.OK)
   async requestPasswordReset(
@@ -65,6 +67,7 @@ export class PasswordResetController {
   // ============================
   @Public()
   @UseGuards(AuthRateLimitGuard)
+  @RateLimit('resetPassword')
   @Post('reset-password')
   @HttpCode(HttpStatus.OK)
   async resetPassword(

@@ -93,11 +93,11 @@ export async function requestPasswordReset(email: string): Promise<string> {
 // RESET PASSWORD
 // ==================================================
 export interface ResetPasswordPayload {
-  email: string;
   token: string;
   newPassword: string;
   confirmPassword: string;
 }
+
 
 export async function resetPassword(
   payload: ResetPasswordPayload

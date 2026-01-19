@@ -25,6 +25,7 @@ const ResetPasswordSuccessPage: NextPage = () => {
         name="description"
         content="Your password has been successfully updated. You can now log in to PhlyPhant with your new password."
       />
+      <meta name="robots" content="noindex,nofollow" />
       <link rel="canonical" href={canonicalUrl} />
       <meta property="og:title" content="Password Updated – PhlyPhant" />
       <meta

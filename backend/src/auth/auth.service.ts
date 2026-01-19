@@ -1200,9 +1200,10 @@ async requestSetPassword(
   }
 
   const setPasswordUrl =
-    `${publicSiteUrl}/auth/set-password?token=${encodeURIComponent(
-      token.raw,
-    )}`;
+  `${publicSiteUrl}/settings/set-password?token=${encodeURIComponent(
+    token.raw,
+  )}`;
+
 
   // =================================================
   // 7) Send email (best-effort)
@@ -1240,6 +1241,18 @@ async confirmSetPassword(params: {
   const { token, newPassword, meta } = params;
   const now = new Date();
 
+  // =================================================
+  // 0) Defensive token format validation (anti spam / brute)
+  // =================================================
+  if (
+    !token ||
+    typeof token !== 'string' ||
+    token.length < 16 ||
+    token.length > 256
+  ) {
+    throw new BadRequestException('Invalid or expired token');
+  }
+
   const tokenHash = createHash('sha256').update(token).digest('hex');
 
   // =================================================
@@ -1265,6 +1278,7 @@ async confirmSetPassword(params: {
       },
     },
   });
+
 
   if (!record || !record.user) {
     throw new BadRequestException('Invalid or expired token');
