@@ -8,15 +8,22 @@ import {
   Matches,
   IsNotEmpty,
   IsOptional,
+  IsDate,
 } from 'class-validator';
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 
 export class RegisterDto {
+  // =====================
+  // Email
+  // =====================
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsEmail({}, { message: 'Invalid email format' })
   @MaxLength(255, { message: 'Email must not exceed 255 characters' })
   email!: string;
 
+  // =====================
+  // Username
+  // =====================
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsString()
   @IsNotEmpty({ message: 'Username is required' })
@@ -27,6 +34,19 @@ export class RegisterDto {
   })
   username!: string;
 
+  // =====================
+  // Display Name (new)
+  // =====================
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
+  @IsString()
+  @IsNotEmpty({ message: 'Display name is required' })
+  @MinLength(2, { message: 'Display name must be at least 2 characters' })
+  @MaxLength(50, { message: 'Display name must not exceed 50 characters' })
+  displayName!: string;
+
+  // =====================
+  // Password
+  // =====================
   @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   @IsString()
   @IsNotEmpty({ message: 'Password is required' })
@@ -38,7 +58,32 @@ export class RegisterDto {
   })
   password!: string;
 
+  // =====================
+  // Country Code (ISO-2) (new, optional)
+  // =====================
+  @IsOptional()
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.trim().toUpperCase() : value,
+  )
+  @IsString()
+  @Matches(/^[A-Z]{2}$/, {
+    message: 'Country code must be ISO-2 format (e.g. TH, US, JP)',
+  })
+  countryCode?: string;
+
+  // =====================
+  // Date of Birth (new, optional)
+  // =====================
+  @IsOptional()
+  @Type(() => Date)
+  @IsDate({ message: 'Date of birth must be a valid date' })
+  dateOfBirth?: Date;
+
+  // =====================
+  // Turnstile (existing)
+  // =====================
   @IsOptional()
   @IsString()
   turnstileToken?: string;
 }
+

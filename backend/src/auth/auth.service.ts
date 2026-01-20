@@ -118,10 +118,12 @@ async register(dto: RegisterDto) {
   // 3) Optional: check username separately (UX only)
   // =================================================
   if (dto.username) {
+    const normalizedUsername = dto.username.trim().toLowerCase();
+
     const existingByUsername =
       await this.repo.findByEmailOrUsername(
         '__ignore_email__',
-        dto.username,
+        normalizedUsername,
       );
 
     if (existingByUsername) {
@@ -138,11 +140,18 @@ async register(dto: RegisterDto) {
   // 5) Create local account (EMAIL = AUTHORITY)
   // =================================================
   const user = await this.repo.createUser({
-  email: normalizedEmail,
-  username: dto.username,
-  hashedPassword: hashed,
-});
+    email: normalizedEmail,
+    username: dto.username.trim().toLowerCase(),
+    displayName: dto.displayName.trim(),
+    hashedPassword: hashed,
 
+    // optional profile / compliance fields
+    countryCode: dto.countryCode
+      ? dto.countryCode.trim().toUpperCase()
+      : null,
+
+    dateOfBirth: dto.dateOfBirth ?? null,
+  });
 
   // =================================================
   // 6) Issue EMAIL_VERIFY token (IdentityVerificationToken)
@@ -188,10 +197,9 @@ async register(dto: RegisterDto) {
     }
 
     const verifyUrl =
-  `${publicSiteUrl}/auth/verify-email?token=${encodeURIComponent(
-    token.raw,
-  )}`;
-
+      `${publicSiteUrl}/auth/verify-email?token=${encodeURIComponent(
+        token.raw,
+      )}`;
 
     try {
       await this._mailService.sendEmailVerification(
@@ -226,6 +234,7 @@ async register(dto: RegisterDto) {
 
   return user;
 }
+
 
 
 

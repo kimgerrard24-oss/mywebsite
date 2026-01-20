@@ -115,10 +115,11 @@ export class AuthController {
   )
 
   @Public()
-  async register(
-  @Body() dto: RegisterDto & { turnstileToken?: string },
+ async register(
+  @Body() dto: RegisterDto,
   @Req() req: Request,
 ) {
+
   const secret = process.env.TURNSTILE_SECRET_KEY;
   const token = dto.turnstileToken;
 
