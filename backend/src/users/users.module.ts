@@ -21,13 +21,19 @@ import { PhoneModule } from '../identities/phone/phone.module';
 import { ProfileExportModule } from './export/profile-export.module';
 import { AuditModule } from './audit/audit.module';
 import { MailModule } from '../mail/mail.module';
+import { UsersPrivacyModule } from './privacy/users-privacy.module';
+import { FollowsModule } from '../follows/follows.module';
+import { FollowingModule } from '../following/following.module';
 
 @Module({
   imports: [
     PrismaModule, 
     AuthModule, 
-    R2Module, 
+    R2Module,
+    UsersPrivacyModule, 
     MailModule,
+    FollowsModule,
+    FollowingModule,
     NotificationsModule,
     forwardRef(() => ProfileExportModule),
     AuditModule,

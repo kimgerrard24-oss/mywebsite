@@ -5,8 +5,10 @@ import {
   Controller,
   Post,
   Get,
+  Req,
   Param,
   Query,
+  HttpCode,
   UseGuards,
 } from '@nestjs/common';
 import { AccessTokenCookieAuthGuard } from '../auth/guards/access-token-cookie.guard';
@@ -19,6 +21,8 @@ import { GetMyReportsQueryDto } from './dto/get-my-reports.query.dto';
 import { GetMyReportParamDto } from './dto/get-my-report.param.dto';
 import { WithdrawReportParamDto } from './dto/withdraw-report.param.dto';
 import { ReportDetailDto } from './dto/report-detail.dto';
+import { Request } from 'express';
+import { ReportFollowRequestDto } from './dto/report-follow-request.dto';
 
 @Controller('reports')
 export class ReportsController {
@@ -99,5 +103,26 @@ export class ReportsController {
 
     return { success: true };
   }
+
+ // ================================
+// POST /api/reports/follow-requests/:id
+// ================================
+@Post('follow-requests/:id')
+@HttpCode(204)
+async reportFollowRequest(
+  @Param('id') id: string,
+  @Body() dto: ReportFollowRequestDto,
+  @Req() req: Request & {
+    user: { userId: string; jti: string };
+  },
+) {
+  await this.reportsService.reportFollowRequest({
+    reporterId: req.user.userId,
+    followRequestId: id,
+    reason: dto.reason,                 // ✅ enum ReportReason
+    description: dto.description,       // ✅ not "note"
+  });
+}
+
 }
 

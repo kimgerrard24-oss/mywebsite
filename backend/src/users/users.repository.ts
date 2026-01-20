@@ -6,7 +6,40 @@ import type { User } from '@prisma/client';
 import { UpdateUserDto } from './dto/update-user.dto';
 import { VerificationType,SecurityEventType,VerificationScope } from '@prisma/client';
 import { createHash } from 'crypto';
-import * as crypto from 'node:crypto';
+import { Prisma } from '@prisma/client';
+
+const publicUserSelect =
+  Prisma.validator<Prisma.UserSelect>()({
+    id: true,
+    username: true,
+    displayName: true,
+    avatarUrl: true,
+    coverUrl: true,
+    bio: true,
+    createdAt: true,
+
+    isBanned: true,
+    isDisabled: true,
+    isAccountLocked: true,
+    isPrivate: true,
+
+    _count: {
+      select: {
+        followers: true,
+        following: true,
+      },
+    },
+
+    followers: true,
+    followRequestsReceived: true,
+    blockedBy: true,
+    blockedUsers: true,
+  });
+
+export type PublicUserWithViewerState =
+  Prisma.UserGetPayload<{
+    select: typeof publicUserSelect;
+  }>;
 
 @Injectable()
 export class UsersRepository {
@@ -94,13 +127,13 @@ async findPublicUserById(
   params?: {
     viewerUserId?: string | null;
   },
-) {
+): Promise<PublicUserWithViewerState | null> {
   const viewerUserId = params?.viewerUserId ?? null;
 
   return this.prisma.user.findFirst({
     where: { id: userId },
+
     select: {
-      // ===== ของเดิม (ไม่แก้) =====
       id: true,
       username: true,
       displayName: true,
@@ -108,11 +141,12 @@ async findPublicUserById(
       coverUrl: true,
       bio: true,
       createdAt: true,
-      
+
       isBanned: true,
       isDisabled: true,
       isAccountLocked: true,
-      // ===== counts =====
+      isPrivate: true,
+
       _count: {
         select: {
           followers: true,
@@ -120,40 +154,37 @@ async findPublicUserById(
         },
       },
 
-      // ===== isFollowing =====
       followers: viewerUserId
         ? {
-            where: {
-              followerId: viewerUserId,
-            },
+            where: { followerId: viewerUserId },
             take: 1,
           }
         : false,
 
-      // ===== block relations (ใช้ชื่อจริงจาก schema) =====
+      followRequestsReceived: viewerUserId
+        ? {
+            where: { requesterId: viewerUserId },
+            take: 1,
+          }
+        : false,
 
-      // viewer → target (viewer block user นี้ไหม)
       blockedBy: viewerUserId
         ? {
-            where: {
-              blockerId: viewerUserId,
-            },
+            where: { blockerId: viewerUserId },
             take: 1,
           }
         : false,
 
-      // target → viewer (user นี้ block viewer ไหม)
       blockedUsers: viewerUserId
         ? {
-            where: {
-              blockedId: viewerUserId,
-            },
+            where: { blockedId: viewerUserId },
             take: 1,
           }
         : false,
     },
   });
 }
+
 
 
   async updateProfile(userId: string, dto: UpdateUserDto) {
@@ -754,7 +785,17 @@ async confirmEmailChangeByTokenAtomic(params: {
   });
 }
 
-
+async findUserForPolicyCheck(userId: string) {
+  return this.prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      isAccountLocked: true,
+      isBanned: true,
+      isDisabled: true,
+    },
+  });
+}
 }
 
 

@@ -90,6 +90,11 @@ export function connectSocket(): void {
     return;
   }
 
+  if (socketInstance.active) {
+    console.warn("[socket] connect skipped (already connecting)");
+    return;
+  }
+
   console.log("[socket] connecting...");
   socketInstance.connect();
 }
@@ -104,7 +109,8 @@ export function resetSocket(): void {
     id: socketInstance.id,
     connected: socketInstance.connected,
   });
-
+  
+  socketInstance.removeAllListeners();
   socketInstance.disconnect();
   socketInstance = null;
 }
@@ -118,4 +124,22 @@ export function resetAfterAccountLock() {
   // e.g. useAuthStore.getState().reset()
 
   // Clear client-only caches if any
+}
+
+function safeOn(
+  socket: Socket,
+  event: string,
+  handler: (...args: any[]) => void,
+) {
+  socket.off(event, handler);
+  socket.on(event, handler);
+}
+
+export function bindSocketEvent(
+  event: string,
+  handler: (...args: any[]) => void,
+) {
+  const socket = getSocket();
+  socket.off(event, handler);
+  socket.on(event, handler);
 }

@@ -158,4 +158,59 @@ export class FollowsRepository {
 
     });
   }
+
+async getFollowVisibilityState(params: {
+  targetUserId: string;
+  viewerUserId: string | null;
+}): Promise<{
+  isPrivate: boolean;
+  isSelf: boolean;
+  isFollowing: boolean;
+  isBlockedByTarget: boolean;
+  hasBlockedTarget: boolean;
+} | null> {
+  const { targetUserId, viewerUserId } = params;
+
+  const viewerId = viewerUserId ?? '__none__'; // never match real id
+
+  const user = await this.prisma.user.findUnique({
+    where: { id: targetUserId },
+
+    include: {
+      followers: {
+        where: { followerId: viewerId },
+        take: 1,
+        select: { followerId: true },
+      },
+
+      blockedUsers: {
+        where: { blockedId: viewerId },
+        take: 1,
+        select: { blockedId: true },
+      },
+
+      blockedBy: {
+        where: { blockerId: viewerId },
+        take: 1,
+        select: { blockerId: true },
+      },
+    },
+  });
+
+  if (!user) return null;
+
+  const isSelf =
+    viewerUserId !== null &&
+    viewerUserId === user.id;
+
+  return {
+    isPrivate: user.isPrivate,
+    isSelf,
+    isFollowing: user.followers.length > 0,
+    isBlockedByTarget: user.blockedUsers.length > 0,
+    hasBlockedTarget: user.blockedBy.length > 0,
+  };
+}
+
+
 }

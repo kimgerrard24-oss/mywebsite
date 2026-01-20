@@ -220,5 +220,41 @@ export class NotificationsService {
 }
 
 
+// =========================
+// FOLLOW APPROVED
+// =========================
+async createFollowApproved(params: {
+  userId: string;        // requester (คนที่ขอ follow)
+  actorUserId: string;  // target (คนที่กด approve)
+}) {
+  return this.createNotification({
+    userId: params.userId,
+    actorUserId: params.actorUserId,
+    type: 'follow',                // ✅ canonical type
+    entityId: params.actorUserId,  // reference ผู้ที่ follow
+    payload: {},                   // ✅ follow payload = {}
+  });
+}
+
+
+// =========================
+// FOLLOW REQUEST RECEIVED
+// =========================
+async createFollowRequest(params: {
+  userId: string;        // target (คนที่ถูกขอ follow)
+  actorUserId: string;  // requester
+  followRequestId: string;
+}) {
+  return this.createNotification({
+    userId: params.userId,
+    actorUserId: params.actorUserId,
+    type: 'follow_request',
+    entityId: params.followRequestId,
+    payload: {
+      requesterId: params.actorUserId,
+    },
+  });
+}
+
 
 }

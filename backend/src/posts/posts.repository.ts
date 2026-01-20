@@ -104,11 +104,34 @@ async findPublicFeed(params: {
           displayName: true,
           avatarUrl: true,
 
-          // follow state (unchanged)
+          // ===== privacy =====
+          isPrivate: true,
+
+          // ===== isFollowing (viewer → author) =====
           followers: params.viewerUserId
             ? {
                 where: {
                   followerId: params.viewerUserId,
+                },
+                take: 1,
+              }
+            : false,
+
+          // ===== follow request sent? (viewer → author) =====
+          followRequestsReceived: params.viewerUserId
+            ? {
+                where: {
+                  requesterId: params.viewerUserId,
+                },
+                take: 1,
+              }
+            : false,
+
+          // ===== UX block flag (viewer blocked by author?) =====
+          blockedBy: params.viewerUserId
+            ? {
+                where: {
+                  blockerId: params.viewerUserId,
                 },
                 take: 1,
               }
@@ -133,6 +156,7 @@ async findPublicFeed(params: {
     },
   });
 }
+
 
 
 
@@ -375,7 +399,10 @@ async findUserPosts(params: {
           displayName: true,
           avatarUrl: true,
 
-          // follow state (unchanged)
+          // ===== privacy =====
+          isPrivate: true,
+
+          // ===== isFollowing (viewer → author) =====
           followers: viewerUserId
             ? {
                 where: {
@@ -383,6 +410,32 @@ async findUserPosts(params: {
                 },
                 select: {
                   followerId: true,
+                },
+                take: 1,
+              }
+            : false,
+
+          // ===== follow request sent? (viewer → author) =====
+          followRequestsReceived: viewerUserId
+            ? {
+                where: {
+                  requesterId: viewerUserId,
+                },
+                select: {
+                  requesterId: true,
+                },
+                take: 1,
+              }
+            : false,
+
+          // ===== UX block flag (author blocks viewer?) =====
+          blockedBy: viewerUserId
+            ? {
+                where: {
+                  blockerId: viewerUserId,
+                },
+                select: {
+                  blockerId: true,
                 },
                 take: 1,
               }
@@ -408,11 +461,12 @@ async findUserPosts(params: {
   });
 }
 
-  async findPostsByTag(params: {
+
+async findPostsByTag(params: {
   tag: string;
   cursor?: string;
   limit: number;
-  viewerUserId?: string | null; // ✅ NEW
+  viewerUserId?: string | null; // ✅ viewer-aware
 }) {
   const normalizedTag = params.tag.toLowerCase();
   const { viewerUserId } = params;
@@ -466,30 +520,88 @@ async findUserPosts(params: {
       createdAt: 'desc',
     },
 
-    include: {
+    // ✅ USE SELECT ONLY (mapper-safe, no overfetch)
+    select: {
+      id: true,
+      content: true,
+      createdAt: true,
+
+      /** for appeal + ownership */
+      isHidden: true,
+      isDeleted: true,
+
+      likeCount: true,
+      commentCount: true,
+
       author: {
         select: {
           id: true,
           displayName: true,
           avatarUrl: true,
+
+          // ===== privacy =====
+          isPrivate: true,
+
+          // ===== isFollowing (viewer → author) =====
+          followers: viewerUserId
+            ? {
+                where: {
+                  followerId: viewerUserId,
+                },
+                select: { followerId: true },
+                take: 1,
+              }
+            : false,
+
+          // ===== follow request sent? (viewer → author) =====
+          followRequestsReceived: viewerUserId
+            ? {
+                where: {
+                  requesterId: viewerUserId,
+                },
+                select: { requesterId: true },
+                take: 1,
+              }
+            : false,
+
+          // ===== UX block flag (author blocks viewer?) =====
+          blockedBy: viewerUserId
+            ? {
+                where: {
+                  blockerId: viewerUserId,
+                },
+                select: { blockerId: true },
+                take: 1,
+              }
+            : false,
         },
       },
 
       media: {
-        include: {
-          media: true,
+        select: {
+          media: {
+            select: {
+              id: true,
+              mediaType: true,
+              objectKey: true,
+              width: true,
+              height: true,
+              duration: true,
+            },
+          },
         },
       },
     },
   });
 }
 
+
   
 async findPublicPosts(params: {
   limit: number;
   cursor?: string;
   mediaType?: "video";
-  viewerUserId?: string | null; // ✅ ADD
+  viewerUserId?: string | null;
 }) {
   const { viewerUserId } = params;
 
@@ -542,21 +654,6 @@ async findPublicPosts(params: {
         : {}),
     },
 
-    include: {
-      author: {
-        select: {
-          id: true,
-          displayName: true,
-          avatarUrl: true,
-        },
-      },
-      media: {
-        include: {
-          media: true,
-        },
-      },
-    },
-
     orderBy: { createdAt: "desc" },
 
     take: params.limit,
@@ -564,8 +661,82 @@ async findPublicPosts(params: {
     ...(params.cursor
       ? { skip: 1, cursor: { id: params.cursor } }
       : {}),
+
+    // ✅ USE SELECT ONLY (mapper-safe)
+    select: {
+      id: true,
+      content: true,
+      createdAt: true,
+
+      /** for appeal + ownership */
+      isHidden: true,
+      isDeleted: true,
+
+      likeCount: true,
+      commentCount: true,
+
+      author: {
+        select: {
+          id: true,
+          displayName: true,
+          avatarUrl: true,
+
+          // ===== privacy =====
+          isPrivate: true,
+
+          // ===== isFollowing (viewer → author) =====
+          followers: viewerUserId
+            ? {
+                where: {
+                  followerId: viewerUserId,
+                },
+                select: { followerId: true },
+                take: 1,
+              }
+            : false,
+
+          // ===== follow request sent? (viewer → author) =====
+          followRequestsReceived: viewerUserId
+            ? {
+                where: {
+                  requesterId: viewerUserId,
+                },
+                select: { requesterId: true },
+                take: 1,
+              }
+            : false,
+
+          // ===== UX block flag (author blocks viewer?) =====
+          blockedBy: viewerUserId
+            ? {
+                where: {
+                  blockerId: viewerUserId,
+                },
+                select: { blockerId: true },
+                take: 1,
+              }
+            : false,
+        },
+      },
+
+      media: {
+        select: {
+          media: {
+            select: {
+              id: true,
+              mediaType: true,
+              objectKey: true,
+              width: true,
+              height: true,
+              duration: true,
+            },
+          },
+        },
+      },
+    },
   });
 }
+
 
  
  async findPostForLike(params: {

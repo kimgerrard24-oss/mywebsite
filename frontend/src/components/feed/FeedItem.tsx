@@ -8,7 +8,7 @@ import { usePostLike } from "@/hooks/usePostLike";
 import { useEffect,useState } from "react";
 import CommentComposer from "@/components/comments/CommentComposer";
 import CommentList from "@/components/comments/CommentList";
-import FollowControl from "@/components/follows/FollowController";
+import FollowActionButton from '@/components/follows/FollowActionButton';
 import Avatar from "@/components/ui/Avatar";
 
 type Props = {
@@ -139,11 +139,15 @@ export default function FeedItem({ post, onDeleted }: Props) {
 
     {/* Follow (render only) */}
  {!post.isSelf && !isBlocked && (
-  <FollowControl
+  <FollowActionButton
     userId={post.author.id}
     isFollowing={post.author.isFollowing}
+    isPrivate={post.author.isPrivate}
+    isBlocked={post.author.isBlocked}
+    isFollowRequested={post.author.isFollowRequested}
   />
 )}
+
 
 
     <PostActionMenu

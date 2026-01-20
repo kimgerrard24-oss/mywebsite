@@ -46,6 +46,16 @@ export class PostFeedMapper {
         isFollowing:
           Array.isArray(author?.followers) &&
           author.followers.length > 0,
+
+        isFollowRequested:
+    Array.isArray(author?.followRequestsReceived) &&
+    author.followRequestsReceived.length > 0,
+
+  isBlocked:
+    Array.isArray(author?.blockedBy) &&
+    author.blockedBy.length > 0,
+
+  isPrivate: author?.isPrivate === true,  
       },
 
       media: Array.isArray(row.media)

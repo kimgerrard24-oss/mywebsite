@@ -28,6 +28,9 @@ export default function NotificationItem({ item }: Props) {
   const resolveHref = useCallback((): string | null => {
     switch (item.type) {
 
+      case 'follow_request':
+      return '/requests';
+
       case 'moderation_action': {
   const { targetType, targetId } = item.payload || {};
   if (!targetType || !targetId) return null;
@@ -105,6 +108,9 @@ if (targetType === 'CHAT_MESSAGE')
    */
   const message = (() => {
     switch (item.type) {
+      case 'follow_request':
+      return 'sent you a follow request';
+
       case 'comment':
         return 'commented on your post';
 

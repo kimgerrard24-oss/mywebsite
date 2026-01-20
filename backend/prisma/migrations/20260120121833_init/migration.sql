@@ -25,10 +25,10 @@ CREATE TYPE "ReportStatus" AS ENUM ('PENDING', 'REVIEWED', 'ACTION_TAKEN', 'REJE
 CREATE TYPE "ReportReason" AS ENUM ('SPAM', 'HARASSMENT', 'HATE_SPEECH', 'SCAM', 'NSFW', 'MISINFORMATION', 'OTHER');
 
 -- CreateEnum
-CREATE TYPE "ReportTargetType" AS ENUM ('POST', 'COMMENT', 'USER', 'CHAT_MESSAGE');
+CREATE TYPE "ReportTargetType" AS ENUM ('POST', 'COMMENT', 'USER', 'CHAT_MESSAGE', 'FOLLOW_REQUEST');
 
 -- CreateEnum
-CREATE TYPE "ModerationTargetType" AS ENUM ('USER', 'POST', 'COMMENT', 'CHAT_MESSAGE');
+CREATE TYPE "ModerationTargetType" AS ENUM ('USER', 'POST', 'COMMENT', 'CHAT_MESSAGE', 'FOLLOW');
 
 -- CreateEnum
 CREATE TYPE "ModerationActionType" AS ENUM ('HIDE', 'UNHIDE', 'DELETE', 'BAN_USER', 'WARN', 'NO_ACTION');
@@ -75,6 +75,7 @@ CREATE TABLE "User" (
     "coverUrl" TEXT,
     "currentRefreshTokenHash" TEXT,
     "adminNote" TEXT,
+    "isPrivate" BOOLEAN NOT NULL DEFAULT false,
     "lastSeenAt" TIMESTAMP(3),
     "role" "UserRole" NOT NULL DEFAULT 'USER',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -345,6 +346,16 @@ CREATE TABLE "PostTag" (
     "tagId" TEXT NOT NULL,
 
     CONSTRAINT "PostTag_pkey" PRIMARY KEY ("postId","tagId")
+);
+
+-- CreateTable
+CREATE TABLE "FollowRequest" (
+    "id" TEXT NOT NULL,
+    "requesterId" TEXT NOT NULL,
+    "targetUserId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "FollowRequest_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -732,6 +743,15 @@ CREATE INDEX "Tag_name_idx" ON "Tag"("name");
 CREATE INDEX "PostTag_tagId_idx" ON "PostTag"("tagId");
 
 -- CreateIndex
+CREATE INDEX "FollowRequest_targetUserId_createdAt_idx" ON "FollowRequest"("targetUserId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "FollowRequest_requesterId_createdAt_idx" ON "FollowRequest"("requesterId", "createdAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "FollowRequest_requesterId_targetUserId_key" ON "FollowRequest"("requesterId", "targetUserId");
+
+-- CreateIndex
 CREATE INDEX "Follow_followingId_createdAt_idx" ON "Follow"("followingId", "createdAt");
 
 -- CreateIndex
@@ -958,6 +978,12 @@ ALTER TABLE "PostTag" ADD CONSTRAINT "PostTag_postId_fkey" FOREIGN KEY ("postId"
 
 -- AddForeignKey
 ALTER TABLE "PostTag" ADD CONSTRAINT "PostTag_tagId_fkey" FOREIGN KEY ("tagId") REFERENCES "Tag"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "FollowRequest" ADD CONSTRAINT "FollowRequest_requesterId_fkey" FOREIGN KEY ("requesterId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "FollowRequest" ADD CONSTRAINT "FollowRequest_targetUserId_fkey" FOREIGN KEY ("targetUserId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Follow" ADD CONSTRAINT "Follow_followerId_fkey" FOREIGN KEY ("followerId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;

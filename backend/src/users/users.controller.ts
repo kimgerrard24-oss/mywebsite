@@ -22,7 +22,6 @@ import {
 } from '@nestjs/common';
 import { Request } from 'express';
 import { CreateUserDto } from './dto/create-user.dto';
-import { UserProfileDto } from './dto/user-profile.dto';
 import { AccessTokenCookieAuthGuard } from '../auth/guards/access-token-cookie.guard';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { SessionUser } from '../auth/services/validate-session.service';
@@ -47,12 +46,19 @@ import { EmailChangeRequestDto } from './dto/email-change-request.dto';
 import { ConfirmEmailChangeDto } from './dto/confirm-email-change.dto';
 import { RequestPhoneChangeDto } from './dto/request-phone-change.dto';
 import { ConfirmPhoneChangeDto } from './dto/confirm-phone-change.dto';
+import { FollowsService } from '../follows/follows.service';
+import { GetFollowersParams } from '../follows/dto/get-followers.params';
+import { GetFollowersQuery } from '../follows/dto/get-followers.query';
+import { FollowingService } from '../following/following.service';
+import { GetFollowingQuery } from '../following/dto/get-following.query';
 
 @Controller('users')
 export class UsersController {
   constructor(
     private readonly usersService: UsersService,
     private readonly authService: AuthService,
+    private readonly followsService: FollowsService,
+    private readonly followingService: FollowingService,
   ) {}
 
   @Post()
@@ -427,6 +433,40 @@ async confirmEmailChangePublic(
   return this.usersService.confirmEmailChangeByToken(dto, {
     ip,
     userAgent,
+  });
+}
+
+@Get(':id/followers')
+@UseGuards(AccessTokenCookieAuthGuard)
+async getFollowers(
+  @Param('id', ParseUserIdPipe) userId: string,
+  @Query() query: GetFollowersQuery,
+  @Req() req: Request,
+) {
+  const actor = req.user as { userId: string };
+
+  return this.followsService.getFollowers({
+    userId,
+    viewerUserId: actor.userId,
+    cursor: query.cursor,
+    limit: query.limit,
+  });
+}
+
+@Get(':id/following')
+@UseGuards(AccessTokenCookieAuthGuard)
+async getFollowing(
+  @Param('id', ParseUserIdPipe) userId: string,
+  @Query() query: GetFollowingQuery,
+  @Req() req: Request,
+) {
+  const actor = req.user as { userId: string };
+
+  return this.followingService.getFollowing({
+    userId,
+    viewerUserId: actor.userId,
+    cursor: query.cursor,
+    limit: query.limit,
   });
 }
 

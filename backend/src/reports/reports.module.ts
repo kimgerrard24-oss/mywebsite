@@ -9,11 +9,15 @@ import { ReportAudit } from './audit/report.audit';
 import { AuthModule } from '../auth/auth.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { ReportWithdrawPolicy } from './policy/report-withdraw.policy';
+import { UsersModule } from '../users/users.module';
+import { ReportFollowRequestAudit } from './audit/report-follow-request.audit';
+import { ReportFollowRequestSecurityEvent } from './events/report-follow-request.security.event';
 
 @Module({
   imports: [
     PrismaModule, 
     AuthModule, 
+    UsersModule,
     ],
   controllers: [ReportsController],
   providers: [
@@ -21,7 +25,9 @@ import { ReportWithdrawPolicy } from './policy/report-withdraw.policy';
     ReportsRepository,
     ReportCreatePolicy,
     ReportAudit,
+    ReportFollowRequestAudit,
     ReportWithdrawPolicy,
+    ReportFollowRequestSecurityEvent,
   ],
 })
 export class ReportsModule {}
