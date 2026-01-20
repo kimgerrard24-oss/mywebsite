@@ -36,12 +36,26 @@ client.interceptors.request.use((config) => {
 export async function registerUser(body: {
   email: string;
   username: string;
+  displayName: string;
   password: string;
+  countryCode?: string;
+  dateOfBirth?: string; // ISO string
   turnstileToken: string;
 }) {
-  const res = await client.post("/auth/local/register", body);
+  const payload = {
+    email: body.email,
+    username: body.username,
+    displayName: body.displayName,
+    password: body.password,
+    countryCode: body.countryCode,
+    dateOfBirth: body.dateOfBirth,
+    turnstileToken: body.turnstileToken,
+  };
+
+  const res = await client.post('/auth/local/register', payload);
   return res.data;
 }
+
 
 
 // ==================================================
