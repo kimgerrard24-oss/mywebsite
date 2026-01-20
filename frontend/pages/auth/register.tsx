@@ -51,7 +51,7 @@ export default function RegisterPage() {
               text-gray-900
             "
           >
-            Create Account
+            Create your PhlyPhant account
           </h1>
         </header>
 
