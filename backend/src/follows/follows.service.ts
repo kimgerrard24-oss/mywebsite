@@ -120,24 +120,45 @@ export class FollowsService {
   }
 
   async getFollowers(params: {
-    userId: string;
-    viewerUserId?: string | null; // ✅ NEW (optional, backward compatible)
-    cursor?: string;
-    limit?: number;
-  }) {
-    FollowersReadPolicy.assertCanReadFollowers({
-      userId: params.userId,
-    });
+  userId: string;
+  viewerUserId?: string | null;
+  cursor?: string;
+  limit?: number;
+}) {
+  const limit = params.limit ?? 20;
 
-    const limit = params.limit ?? 20;
+  // ==============================
+  // 1) Load relation & privacy state
+  // ==============================
+  const relation = await this.repo.getFollowVisibilityState({
+    targetUserId: params.userId,
+    viewerUserId: params.viewerUserId ?? null,
+  });
 
-    const rows = await this.repo.findFollowers({
-      userId: params.userId,
-      viewerUserId: params.viewerUserId ?? null, // ✅ pass-through for block filter
-      cursor: params.cursor,
-      limit,
-    });
-
-    return FollowersMapper.toResponse(rows, limit);
+  if (!relation) {
+    // target user not found → treat as forbidden
+    throw new ConflictException('USER_NOT_FOUND');
   }
+
+  FollowersReadPolicy.assertCanReadFollowers({
+    isPrivate: relation.isPrivate,
+    isSelf: relation.isSelf,
+    isFollowing: relation.isFollowing,
+    isBlockedByTarget: relation.isBlockedByTarget,
+    hasBlockedTarget: relation.hasBlockedTarget,
+  });
+
+  // ==============================
+  // 2) Load followers list
+  // ==============================
+  const rows = await this.repo.findFollowers({
+    userId: params.userId,
+    viewerUserId: params.viewerUserId ?? null,
+    cursor: params.cursor,
+    limit,
+  });
+
+  return FollowersMapper.toResponse(rows, limit);
+}
+
 }

@@ -39,6 +39,7 @@ model User {
   coverUrl                  String?
   currentRefreshTokenHash   String?
   adminNote                 String?
+  isPrivate                 Boolean  @default(false)
   lastSeenAt                DateTime?
   role                      UserRole @default(USER)
   createdAt                 DateTime @default(now())
@@ -93,7 +94,8 @@ model User {
   // ===== Social =====
   following Follow[] @relation("UserFollowing")
   followers Follow[] @relation("UserFollowers")
-
+  followRequestsSent     FollowRequest[] @relation("FollowRequestRequester")
+  followRequestsReceived FollowRequest[] @relation("FollowRequestTarget")
   // ===== Chat =====
   chatReports        ChatReport[]
   chatParticipants   ChatParticipant[]
@@ -440,6 +442,29 @@ enum PostVisibility {
   PRIVATE
 }
 
+model FollowRequest {
+  id String @id @default(uuid())
+
+  requesterId String
+  targetUserId String
+
+  createdAt DateTime @default(now())
+
+  /// relations
+  requester User @relation("FollowRequestRequester", fields: [requesterId], references: [id], onDelete: Cascade)
+  target    User @relation("FollowRequestTarget", fields: [targetUserId], references: [id], onDelete: Cascade)
+
+  /// prevent duplicate request
+  @@unique([requesterId, targetUserId])
+
+  /// GET /api/follows/requests/incoming
+  @@index([targetUserId, createdAt])
+
+  /// check outgoing requests
+  @@index([requesterId, createdAt])
+}
+
+
 model Follow {
   followerId  String
   followingId String
@@ -759,6 +784,7 @@ enum ReportTargetType {
   COMMENT
   USER
   CHAT_MESSAGE
+  FOLLOW_REQUEST
 }
 
 enum ModerationTargetType {
@@ -766,6 +792,7 @@ enum ModerationTargetType {
   POST
   COMMENT
   CHAT_MESSAGE
+  FOLLOW
 }
 
 enum ModerationActionType {

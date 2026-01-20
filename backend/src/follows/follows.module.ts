@@ -10,6 +10,7 @@ import { FollowRemovedEvent } from './events/follow-removed.event';
 import { FollowersMapper } from './mappers/followers.mapper';
 import { AuthModule } from '../auth/auth.module';
 import { NotificationsModule } from '../notifications/notifications.module';
+import { FollowRequestsModule } from './follow-request/follow-requests.module';
 
 @Module({
   imports: [ AuthModule, NotificationsModule],
@@ -21,7 +22,9 @@ import { NotificationsModule } from '../notifications/notifications.module';
     FollowersMapper,
     FollowRemovedEvent,
     FollowCreatedEvent,
+    FollowRequestsModule,
     FollowAudit,
   ],
+  exports: [FollowsService],
 })
 export class FollowsModule {}

@@ -12,6 +12,11 @@ import { CreateReportDto } from './dto/create-report.dto';
 import { ReportItemDto } from './dto/report-item.dto';
 import { ReportDetailDto } from './dto/report-detail.dto';
 import { ReportWithdrawPolicy } from './policy/report-withdraw.policy';
+import { ReportFollowRequestSecurityEvent } from './events/report-follow-request.security.event';
+import { ReportFollowRequestPolicy } from './policy/report-follow-request.policy';
+import { ReportFollowRequestAudit } from './audit/report-follow-request.audit';
+import { UsersRepository } from '../users/users.repository';
+import { ReportReason } from '@prisma/client';
 
 @Injectable()
 export class ReportsService {
@@ -19,7 +24,10 @@ export class ReportsService {
     private readonly repo: ReportsRepository,
     private readonly policy: ReportCreatePolicy,
     private readonly audit: ReportAudit,
+    private readonly usersRepo: UsersRepository,
     private readonly withdrawpolicy: ReportWithdrawPolicy,
+    private readonly auditfollow: ReportFollowRequestAudit,
+    private readonly security: ReportFollowRequestSecurityEvent,
   ) {}
 
   async createReport(params: {
@@ -268,6 +276,84 @@ try {
     } catch {
       // production-safe
     }
+  }
+
+  async reportFollowRequest(params: {
+  reporterId: string;
+  followRequestId: string;
+  reason: ReportReason;
+  description?: string;
+}) {
+    // ============================
+    // 1) Load reporter (DB authority)
+    // ============================
+    const reporter =
+      await this.usersRepo.findUserForPolicyCheck(
+        params.reporterId,
+      );
+
+    if (!reporter) {
+      throw new NotFoundException('User not found');
+    }
+
+    // ============================
+    // 2) Load follow request
+    // ============================
+    const fr =
+      await this.repo.findFollowRequestById(
+        params.followRequestId,
+      );
+
+    if (!fr) {
+      throw new NotFoundException(
+        'Follow request not found',
+      );
+    }
+
+    // ============================
+    // 3) Policy
+    // ============================
+    ReportFollowRequestPolicy.assertCanReport({
+      isReporterDisabled: reporter.isDisabled,
+      isReporterBanned: reporter.isBanned,
+      isReporterLocked: reporter.isAccountLocked,
+      isSelfTarget:
+        fr.requesterId === params.reporterId ||
+        fr.targetUserId === params.reporterId,
+    });
+
+    // ============================
+    // 4) Persist report (DB authority)
+    // ============================
+    await this.repo.createFollowRequestReport({
+  reporterId: params.reporterId,
+  followRequestId: params.followRequestId,
+  reason: params.reason,
+  description: params.description,
+});
+
+
+    // ============================
+    // 5) Audit (fail-soft)
+    // ============================
+    try {
+      await this.auditfollow.record({
+        reporterId: params.reporterId,
+        followRequestId: params.followRequestId,
+        reason: params.reason,
+      });
+    } catch {}
+
+    // ============================
+    // 6) Security signal (fail-soft)
+    // ============================
+    try {
+      this.security.emit({
+        reporterId: params.reporterId,
+        followRequestId: params.followRequestId,
+        reason: params.reason,
+      });
+    } catch {}
   }
 }
 

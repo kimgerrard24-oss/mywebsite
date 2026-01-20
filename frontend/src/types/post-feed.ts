@@ -11,6 +11,11 @@ export type PostFeedItem = {
 
     isFollowing: boolean;
     isBlocked: boolean;
+     // 🆕 private account
+    isPrivate: boolean;
+
+    // 📨 follow request already sent
+    isFollowRequested: boolean;
   };
 
   media: {

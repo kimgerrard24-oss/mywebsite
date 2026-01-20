@@ -3,9 +3,7 @@ import {
   Controller,
   Post,
   Delete,
-  Get,
   Param,
-  Query,
   Req,
   UseGuards,
   HttpCode,
@@ -15,10 +13,8 @@ import { FollowsService } from './follows.service';
 import { FollowUserParams } from './dto/follow-user.params';
 import { AccessTokenCookieAuthGuard } from '../auth/guards/access-token-cookie.guard';
 import { UnfollowUserParams } from './dto/unfollow-user.params';
-import { GetFollowersParams } from './dto/get-followers.params';
-import { GetFollowersQuery } from './dto/get-followers.query';
 
-@Controller('follow')
+@Controller('/api/follows')
 export class FollowsController {
   constructor(private readonly service: FollowsService) {}
 
@@ -37,7 +33,7 @@ export class FollowsController {
     });
   }
 
-   @Delete('unfollow/:userId')
+  @Delete(':userId')
   @HttpCode(204)
   @UseGuards(AccessTokenCookieAuthGuard)
   async unfollowUser(
@@ -51,17 +47,5 @@ export class FollowsController {
       followingId: params.userId,
     });
   }
-
-  @Get(':userId')
-  @UseGuards(AccessTokenCookieAuthGuard)
-  async getFollowers(
-    @Param() params: GetFollowersParams,
-    @Query() query: GetFollowersQuery,
-  ) {
-    return this.service.getFollowers({
-      userId: params.userId,
-      cursor: query.cursor,
-      limit: query.limit,
-    });
-  }
 }
+

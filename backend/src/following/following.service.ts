@@ -1,5 +1,5 @@
 // backend/src/following/following.service.ts
-import { Injectable } from '@nestjs/common';
+import { Injectable, ConflictException } from '@nestjs/common';
 import { FollowingRepository } from './following.repository';
 import { FollowingReadPolicy } from './policy/following-read.policy';
 import { FollowingMapper } from './mapper/following.mapper';
@@ -11,26 +11,44 @@ export class FollowingService {
   ) {}
 
   async getFollowing(params: {
-    userId: string;
-    viewerUserId?: string | null; // viewer context (optional)
-    cursor?: string;
-    limit?: number;
-  }) {
-    // 🔒 permission / privacy hook (future-proof)
-    FollowingReadPolicy.assertCanReadFollowing({
-      userId: params.userId,
-      viewerUserId: params.viewerUserId ?? null,
-    });
+  userId: string;
+  viewerUserId?: string | null;
+  cursor?: string;
+  limit?: number;
+}) {
+  const limit = params.limit ?? 20;
 
-    const limit = params.limit ?? 20;
+  // ==============================
+  // 1) Load relation & privacy state
+  // ==============================
+  const relation = await this.repo.getFollowVisibilityState({
+    targetUserId: params.userId,
+    viewerUserId: params.viewerUserId ?? null,
+  });
 
-    const rows = await this.repo.findFollowing({
-      userId: params.userId,
-      viewerUserId: params.viewerUserId ?? null, // 🔒 enforcement in repo
-      cursor: params.cursor,
-      limit,
-    });
-
-    return FollowingMapper.toResponse(rows, limit);
+  if (!relation) {
+    throw new ConflictException('USER_NOT_FOUND');
   }
+
+  FollowingReadPolicy.assertCanReadFollowing({
+    isPrivate: relation.isPrivate,
+    isSelf: relation.isSelf,
+    isFollowing: relation.isFollowing,
+    isBlockedByTarget: relation.isBlockedByTarget,
+    hasBlockedTarget: relation.hasBlockedTarget,
+  });
+
+  // ==============================
+  // 2) Load following list
+  // ==============================
+  const rows = await this.repo.findFollowing({
+    userId: params.userId,
+    viewerUserId: params.viewerUserId ?? null,
+    cursor: params.cursor,
+    limit,
+  });
+
+  return FollowingMapper.toResponse(rows, limit);
+}
+
 }

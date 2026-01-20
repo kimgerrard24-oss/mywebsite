@@ -34,7 +34,7 @@ export interface UserProfile {
    * target → viewer
    */
   hasBlockedViewer: boolean;
-
+  isPrivate: boolean;
   /**
    * follow state (only when not blocked & not self)
    */

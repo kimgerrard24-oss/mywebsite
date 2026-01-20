@@ -95,4 +95,81 @@ export class FollowingRepository {
       },
     });
   }
+
+  async getFollowVisibilityState(params: {
+  targetUserId: string;
+  viewerUserId: string | null;
+}): Promise<{
+  isPrivate: boolean;
+  isSelf: boolean;
+  isFollowing: boolean;
+  isBlockedByTarget: boolean;
+  hasBlockedTarget: boolean;
+} | null> {
+  const { targetUserId, viewerUserId } = params;
+
+  // ============================
+  // Case 1: viewer not logged in
+  // ============================
+  if (!viewerUserId) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: targetUserId },
+      select: {
+        id: true,
+        isPrivate: true,
+      },
+    });
+
+    if (!user) return null;
+
+    return {
+      isPrivate: user.isPrivate,
+      isSelf: false,
+      isFollowing: false,
+      isBlockedByTarget: false,
+      hasBlockedTarget: false,
+    };
+  }
+
+  // ============================
+  // Case 2: viewer logged in
+  // ============================
+  const user = await this.prisma.user.findUnique({
+    where: { id: targetUserId },
+    include: {
+      followers: {
+        where: { followerId: viewerUserId },
+        take: 1,
+        select: { followerId: true },
+      },
+
+      blockedUsers: {
+        where: { blockedId: viewerUserId },
+        take: 1,
+        select: { blockedId: true },
+      },
+
+      blockedBy: {
+        where: { blockerId: viewerUserId },
+        take: 1,
+        select: { blockerId: true },
+      },
+    },
+  });
+
+  if (!user) return null;
+
+  const isSelf = viewerUserId === user.id;
+
+  return {
+    isPrivate: user.isPrivate,
+    isSelf,
+    isFollowing: user.followers.length > 0,
+    isBlockedByTarget: user.blockedUsers.length > 0,
+    hasBlockedTarget: user.blockedBy.length > 0,
+  };
+}
+
+
+
 }

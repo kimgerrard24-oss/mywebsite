@@ -24,15 +24,14 @@ export async function getFollowing(params: {
   if (limit) query.set('limit', String(limit));
 
   const res = await fetch(
-    `${API_BASE}/following/${userId}?${query.toString()}`,
-    {
-      method: 'GET',
-      credentials: 'include', // ✅ HttpOnly cookie
-      headers: {
-        Accept: 'application/json',
-      },
-    },
-  );
+  `${API_BASE}/users/${userId}/following?${query.toString()}`,
+  {
+    method: 'GET',
+    credentials: 'include',
+    headers: { Accept: 'application/json' },
+  },
+);
+
 
   if (!res.ok) {
     if (res.status === 401) {

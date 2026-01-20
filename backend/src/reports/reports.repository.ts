@@ -5,8 +5,8 @@ import { PrismaService } from '../prisma/prisma.service';
 import {
   ReportStatus,
   ReportTargetType,
+  ReportReason,
 } from '@prisma/client';
-import type { ReportReason } from '@prisma/client';
 
 @Injectable()
 export class ReportsRepository {
@@ -299,4 +299,32 @@ export class ReportsRepository {
       },
     });
   }
+
+   findFollowRequestById(id: string) {
+    return this.prisma.followRequest.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        requesterId: true,
+        targetUserId: true,
+      },
+    });
+  }
+
+  createFollowRequestReport(params: {
+  reporterId: string;
+  followRequestId: string;
+  reason: ReportReason;
+  description?: string | null;
+}) {
+  return this.prisma.report.create({
+    data: {
+      reporterId: params.reporterId,
+      targetType: ReportTargetType.FOLLOW_REQUEST,
+      targetId: params.followRequestId,
+      reason: params.reason,
+      description: params.description ?? null,
+    },
+  });
+}
 }

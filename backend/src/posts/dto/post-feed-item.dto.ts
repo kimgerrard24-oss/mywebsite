@@ -9,7 +9,14 @@ export class PostFeedItemDto {
     id: string;
     displayName: string | null;
     avatarUrl: string | null;
+
+    // ===== follow state =====
     isFollowing: boolean;
+    isFollowRequested: boolean;
+
+    // ===== privacy / block =====
+    isBlocked: boolean;
+    isPrivate: boolean;
   };
 
   media!: {
@@ -34,3 +41,4 @@ export class PostFeedItemDto {
    */
   canAppeal?: boolean;
 }
+

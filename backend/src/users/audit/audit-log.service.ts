@@ -1,6 +1,7 @@
 // backend/src/users/audit/audit-log.service.ts
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { SecurityEventType } from '@prisma/client';
 
 
 @Injectable()
@@ -34,5 +35,18 @@ async log(params: {
   });
 }
 
+async logSecurityEvent(params: {
+  userId: string;
+  type: SecurityEventType;
+  metadata?: any;
+}) {
+  return this.prisma.securityEvent.create({
+    data: {
+      userId: params.userId,
+      type: params.type,
+      metadata: params.metadata,
+    },
+  });
+}
 
 }

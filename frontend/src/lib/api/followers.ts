@@ -23,15 +23,14 @@ export async function getFollowers(params: {
   if (limit) query.set('limit', String(limit));
 
   const res = await fetch(
-    `${API_BASE}/follow/${userId}?${query.toString()}`,
-    {
-      method: 'GET',
-      credentials: 'include',
-      headers: {
-        Accept: 'application/json',
-      },
-    },
-  );
+  `${API_BASE}/users/${userId}/followers?${query.toString()}`,
+  {
+    method: 'GET',
+    credentials: 'include',
+    headers: { Accept: 'application/json' },
+  },
+);
+
 
   if (!res.ok) {
     if (res.status === 401) {

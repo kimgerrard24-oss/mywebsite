@@ -20,6 +20,10 @@ export type NotificationPayloadMap = {
 
   follow: {};
 
+  follow_request: {
+    requesterId: string;
+  };
+
   chat: {
     chatId: string;
     messageId: string;
