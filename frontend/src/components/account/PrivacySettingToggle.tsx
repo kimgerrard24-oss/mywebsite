@@ -7,15 +7,15 @@ import { updateMyPrivacy } from "@/lib/api/user-privacy";
 import { fetchMyProfileClient } from "@/lib/api/user";
 
 type Props = {
-  initialIsPrivate: boolean;
+  initialIsPrivate: boolean; // still accepted, but NOT trusted
 };
 
-export default function PrivacySettingToggle({ initialIsPrivate }: Props) {
-  const [isPrivate, setIsPrivate] = useState(initialIsPrivate);
+export default function PrivacySettingToggle({}: Props) {
+  const [isPrivate, setIsPrivate] = useState<boolean | null>(null); // null = not yet synced
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // ✅ ALWAYS resync from backend on mount (backend authority)
+  // ✅ Always sync from backend on mount (backend authority)
   useEffect(() => {
     let alive = true;
 
@@ -30,7 +30,7 @@ export default function PrivacySettingToggle({ initialIsPrivate }: Props) {
           setIsPrivate(profile.isPrivate);
         }
       } catch {
-        // fail-soft: keep initial state
+        // fail-soft: keep disabled state
       }
     }
 
@@ -42,23 +42,22 @@ export default function PrivacySettingToggle({ initialIsPrivate }: Props) {
   }, []);
 
   async function handleToggle() {
-    if (loading) return;
+    if (loading || isPrivate === null) return;
 
     const next = !isPrivate;
 
     setLoading(true);
     setError(null);
 
-    // optimistic UX (but backend still authority)
+    // optimistic UX
     setIsPrivate(next);
 
     try {
-      await updateMyPrivacy(next);
+      const res = await updateMyPrivacy(next);
 
-      // resync from backend to guarantee truth
-      const profile = await fetchMyProfileClient();
-      if (profile && typeof profile.isPrivate === "boolean") {
-        setIsPrivate(profile.isPrivate);
+      // ✅ use backend response as authority
+      if (res && typeof res.isPrivate === "boolean") {
+        setIsPrivate(res.isPrivate);
       }
     } catch {
       // rollback on failure
@@ -68,6 +67,8 @@ export default function PrivacySettingToggle({ initialIsPrivate }: Props) {
       setLoading(false);
     }
   }
+
+  const isDisabled = loading || isPrivate === null;
 
   return (
     <section className="rounded border p-4">
@@ -82,13 +83,13 @@ export default function PrivacySettingToggle({ initialIsPrivate }: Props) {
         <button
           type="button"
           onClick={handleToggle}
-          disabled={loading}
-          aria-pressed={isPrivate}
+          disabled={isDisabled}
+          aria-pressed={!!isPrivate}
           aria-busy={loading}
           className={[
             "relative inline-flex h-6 w-11 items-center rounded-full transition",
             isPrivate ? "bg-blue-600" : "bg-gray-300",
-            loading ? "opacity-60 cursor-not-allowed" : "cursor-pointer",
+            isDisabled ? "opacity-60 cursor-not-allowed" : "cursor-pointer",
           ].join(" ")}
         >
           <span
@@ -108,5 +109,6 @@ export default function PrivacySettingToggle({ initialIsPrivate }: Props) {
     </section>
   );
 }
+
 
 
