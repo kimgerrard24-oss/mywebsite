@@ -166,6 +166,7 @@ async getFollowVisibilityState(params: {
   isPrivate: boolean;
   isSelf: boolean;
   isFollowing: boolean;
+  hasPendingFollowRequest: boolean;
   isBlockedByTarget: boolean;
   hasBlockedTarget: boolean;
 } | null> {
@@ -177,18 +178,38 @@ async getFollowVisibilityState(params: {
     where: { id: targetUserId },
 
     include: {
+      // =========================
+      // FOLLOW RELATION
+      // =========================
       followers: {
         where: { followerId: viewerId },
         take: 1,
         select: { followerId: true },
       },
 
+      // =========================
+      // PENDING FOLLOW REQUEST
+      // =========================
+      followRequestsReceived: viewerUserId
+        ? {
+            where: { requesterId: viewerId },
+            take: 1,
+            select: { id: true },
+          }
+        : false,
+
+      // =========================
+      // BLOCK: target blocked viewer?
+      // =========================
       blockedUsers: {
         where: { blockedId: viewerId },
         take: 1,
         select: { blockedId: true },
       },
 
+      // =========================
+      // BLOCK: viewer blocked target?
+      // =========================
       blockedBy: {
         where: { blockerId: viewerId },
         take: 1,
@@ -204,13 +225,43 @@ async getFollowVisibilityState(params: {
     viewerUserId === user.id;
 
   return {
+    // =========================
+    // PRIVACY
+    // =========================
     isPrivate: user.isPrivate,
+
+    // =========================
+    // SELF
+    // =========================
     isSelf,
+
+    // =========================
+    // FOLLOW STATE
+    // =========================
     isFollowing: user.followers.length > 0,
+
+    // =========================
+    // REQUEST STATE (NEW FLOW)
+    // =========================
+    hasPendingFollowRequest:
+      Array.isArray(user.followRequestsReceived) &&
+      user.followRequestsReceived.length > 0,
+
+    // =========================
+    // BLOCK STATE
+    // =========================
     isBlockedByTarget: user.blockedUsers.length > 0,
     hasBlockedTarget: user.blockedBy.length > 0,
   };
 }
 
+
+
+async getTargetPrivacy(userId: string) {
+  return this.prisma.user.findUnique({
+    where: { id: userId },
+    select: { isPrivate: true },
+  });
+}
 
 }

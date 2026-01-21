@@ -10,6 +10,9 @@ export interface PublicUserProfile {
   isFollowing: boolean;
   isBlocked: boolean;
   hasBlockedViewer: boolean;
+  hasPendingFollowRequest?: boolean;
+  isPrivate?: boolean;
+  isFollowRequested: boolean;
 
   stats: {
     followers: number;

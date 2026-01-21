@@ -5,6 +5,8 @@ import type { UserProfile, PublicUserProfile } from "@/types/user-profile";
 import UserProfileStats from "@/components/profile/UserProfileStats";
 import BlockUserButton from "@/components/users/BlockUserButton";
 import UnblockUserButton from "@/components/users/UnblockUserButton";
+import FollowActionButton from "@/components/follows/FollowActionButton";
+import FollowController from "@/components/follows/FollowController";
 
 export interface ProfileCardProps {
   profile: UserProfile | PublicUserProfile | null;
@@ -186,54 +188,76 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
           </div>
 
           {/* ===== Right-side actions ===== */}
-          <div className="flex items-center gap-2 sm:gap-3">
-            {/* Edit (owner only) */}
-            {isSelf && (
-              <Link
-                href="/settings/profile"
-                prefetch={false}
-                className="
-                  inline-flex
-                  items-center
-                  justify-center
-                  rounded-md
-                  sm:rounded-lg
-                  border
-                  border-gray-300
-                  bg-white
-                  px-3
-                  sm:px-4
-                  py-1.5
-                  sm:py-2
-                  text-xs
-                  sm:text-sm
-                  font-medium
-                  text-gray-700
-                  hover:bg-gray-50
-                  transition
-                "
-              >
-                แก้ไขโปรไฟล์
-              </Link>
-            )}
+<div className="flex items-center gap-2 sm:gap-3">
+  {/* Edit (owner only) */}
+  {isSelf && (
+    <Link
+      href="/settings/profile"
+      prefetch={false}
+      className="
+        inline-flex
+        items-center
+        justify-center
+        rounded-md
+        sm:rounded-lg
+        border
+        border-gray-300
+        bg-white
+        px-3
+        sm:px-4
+        py-1.5
+        sm:py-2
+        text-xs
+        sm:text-sm
+        font-medium
+        text-gray-700
+        hover:bg-gray-50
+        transition
+      "
+    >
+      แก้ไขโปรไฟล์
+    </Link>
+  )}
 
-            {/* Block / Unblock (viewer only) */}
-            {!isSelf && isPublic && !hasBlockedViewer && (
-              <>
-                {isBlocked ? (
-                  <UnblockUserButton
-                    targetUserId={profile.id}
-                    onUnblocked={() => window.location.reload()}
-                  />
-                ) : (
-                  <BlockUserButton
-                    targetUserId={profile.id}
-                    onBlocked={() => window.location.reload()}
-                  />
-                )}
-              </>
-            )}
-          </div>
+  {/* ===== FOLLOW / REQUEST FOLLOW ===== */}
+  {isPublic && !isSelf && !hasBlockedViewer && (
+  profile.isFollowing ? (
+    <FollowController
+      userId={profile.id}
+      isFollowing={true}
+      isBlocked={isBlocked}
+    />
+  ) : (
+    <FollowActionButton
+      userId={profile.id}
+      isFollowing={false}
+      isPrivate={profile.isPrivate === true}
+      isBlocked={isBlocked}
+      isFollowRequested={profile.isFollowRequested === true}
+    />
+  )
+)}
+
+
+
+  {/* ===== Block / Unblock ===== */}
+  {!isSelf && isPublic && !hasBlockedViewer && (
+    <>
+      {isBlocked ? (
+        <UnblockUserButton
+          targetUserId={profile.id}
+          onUnblocked={() => window.location.reload()}
+        />
+      ) : (
+        <BlockUserButton
+          targetUserId={profile.id}
+          onBlocked={() => window.location.reload()}
+        />
+      )}
+    </>
+  )}
+</div>
+
         </div>
 
         {/* ===== Bio ===== */}

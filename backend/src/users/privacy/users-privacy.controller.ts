@@ -14,7 +14,7 @@ import { UpdatePrivacyDto } from './dto/update-privacy.dto';
 
 import { AccessTokenCookieAuthGuard } from '../../auth/guards/access-token-cookie.guard';
 
-@Controller('/api/users/me/privacy')
+@Controller('users/me/privacy')
 export class UsersPrivacyController {
   constructor(
     private readonly privacyService: UsersPrivacyService,
