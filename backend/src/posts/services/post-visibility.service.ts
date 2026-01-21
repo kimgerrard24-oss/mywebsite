@@ -1,9 +1,15 @@
 // backend/src/posts/services/post-visibility.service.ts
+
 import { Injectable } from '@nestjs/common';
+import { PrismaService } from '../../prisma/prisma.service';
 import { PostVisibilityPolicy } from '../policy/post-visibility.policy';
 
 @Injectable()
 export class PostVisibilityService {
+  constructor(
+    private readonly prisma: PrismaService,
+  ) {}
+
   /**
    * =========================================================
    * EXISTING (DO NOT TOUCH)
@@ -23,17 +29,8 @@ export class PostVisibilityService {
 
   /**
    * =========================================================
-   * NEW (ADDED)
-   * User feed visibility (aggregation-level)
+   * User feed visibility (profile page)
    * =========================================================
-   *
-   * Decide whether viewer can see posts of target user
-   * Fail-soft: user/profile load failure ≠ auth failure
-   *
-   * NOTE:
-   * - Session validity already guaranteed by guard
-   * - Redis is authority (not user/profile)
-   * - Relationship logic can be extended later
    */
   async resolveUserPostVisibility(params: {
     targetUserId: string;
@@ -44,7 +41,9 @@ export class PostVisibilityService {
   }> {
     const viewerId = params.viewer?.userId ?? null;
 
-    // Self-view: full access
+    // =========================
+    // Self-view
+    // =========================
     if (viewerId && viewerId === params.targetUserId) {
       return {
         canView: true,
@@ -52,12 +51,53 @@ export class PostVisibilityService {
       };
     }
 
-    // Default production-safe rule:
-    // - viewer authenticated
-    // - public posts only
+    // =========================
+    // Load privacy + follow state (DB authority)
+    // =========================
+    const user = await this.prisma.user.findUnique({
+      where: { id: params.targetUserId },
+      select: {
+        isPrivate: true,
+        followers: viewerId
+          ? {
+              where: { followerId: viewerId },
+              select: { followerId: true },
+              take: 1,
+            }
+          : false,
+      },
+    });
+
+    if (!user) {
+      // fail-soft: behave as no content
+      return {
+        canView: false,
+        scope: 'public',
+      };
+    }
+
+    const isFollower =
+      viewerId && Array.isArray(user.followers)
+        ? user.followers.length > 0
+        : false;
+
+    // =========================
+    // Private account gate
+    // =========================
+    if (user.isPrivate && !isFollower) {
+      return {
+        canView: false,
+        scope: 'public',
+      };
+    }
+
+    // =========================
+    // Public or approved follower
+    // =========================
     return {
       canView: true,
       scope: 'public',
     };
   }
 }
+

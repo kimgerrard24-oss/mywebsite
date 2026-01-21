@@ -4,7 +4,9 @@ export type NotificationType =
   | 'comment'
   | 'comment_mention'
   | 'like'
+  | 'follow_request'
   | 'follow'
+  | 'follow_request_approved'
   | 'chat_message'
   | 'moderation_action'
   | 'appeal_resolved'
@@ -21,8 +23,14 @@ export type NotificationPayloadMap = {
   like: {
     postId: string;
   };
+  
+  follow_request: {
+  requesterId: string;
+  };
 
   follow: Record<string, never>;
+
+  follow_request_approved: Record<string, never>;
 
   chat_message: {
     chatId: string;
@@ -96,7 +104,9 @@ export type NotificationItem =
   | BaseNotificationItem<'comment'>
   | BaseNotificationItem<'comment_mention'>
   | BaseNotificationItem<'like'>
+  | BaseNotificationItem<'follow_request'>
   | BaseNotificationItem<'follow'>
+  | BaseNotificationItem<'follow_request_approved'>
   | BaseNotificationItem<'chat_message'>
   | BaseNotificationItem<'moderation_action'>
   | BaseNotificationItem<'appeal_resolved'>

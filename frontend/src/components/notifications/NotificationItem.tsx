@@ -51,6 +51,11 @@ if (targetType === 'CHAT_MESSAGE')
         return item.payload?.appealId
           ? `/appeals/${item.payload.appealId}`
           : null;
+          
+      case 'follow_request_approved':
+        return item.actor?.id
+          ? `/users/${item.actor.id}`
+          : null;
 
       case 'comment':
       case 'like':
@@ -110,6 +115,9 @@ if (targetType === 'CHAT_MESSAGE')
     switch (item.type) {
       case 'follow_request':
       return 'sent you a follow request';
+      
+      case 'follow_request_approved':
+      return 'approved your follow request';
 
       case 'comment':
         return 'commented on your post';

@@ -20,6 +20,8 @@ export type NotificationPayloadMap = {
 
   follow: {};
 
+  follow_request_approved: {};
+  
   follow_request: {
     requesterId: string;
   };

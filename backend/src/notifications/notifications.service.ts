@@ -224,15 +224,15 @@ export class NotificationsService {
 // FOLLOW APPROVED
 // =========================
 async createFollowApproved(params: {
-  userId: string;        // requester (คนที่ขอ follow)
-  actorUserId: string;  // target (คนที่กด approve)
+  userId: string;        
+  actorUserId: string;  
 }) {
   return this.createNotification({
     userId: params.userId,
     actorUserId: params.actorUserId,
-    type: 'follow',                // ✅ canonical type
-    entityId: params.actorUserId,  // reference ผู้ที่ follow
-    payload: {},                   // ✅ follow payload = {}
+    type: 'follow_request_approved',   
+    entityId: params.actorUserId,  
+    payload: {},                   
   });
 }
 

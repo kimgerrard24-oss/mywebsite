@@ -2,7 +2,6 @@
 
 import Head from "next/head";
 import type { GetServerSideProps } from "next";
-import { sessionCheckServerSide } from "@/lib/api/api";
 import AccountLayout from "@/components/account/AccountLayout";
 import PrivacySettingToggle from "@/components/account/PrivacySettingToggle";
 
@@ -45,20 +44,61 @@ export default function AccountPrivacyPage({ isPrivate }: Props) {
 export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
   const cookieHeader = ctx.req.headers.cookie ?? "";
 
-  // 🔐 AuthN only — backend is authority
-  const session = await sessionCheckServerSide(cookieHeader);
-
-  if (!session.valid) {
-    return {
-      redirect: { destination: "/feed", permanent: false },
-    };
-  }
-
   const base =
     process.env.INTERNAL_BACKEND_URL ??
     process.env.NEXT_PUBLIC_BACKEND_URL ??
     "https://api.phlyphant.com";
 
+  // =================================================
+  // 1) AUTH CHECK — authority = /auth/session-check ONLY
+  // =================================================
+  try {
+    const sessionRes = await fetch(
+      `${base}/auth/session-check`,
+      {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+          ...(cookieHeader
+            ? { Cookie: cookieHeader }
+            : {}),
+        },
+        credentials: "include",
+        cache: "no-store",
+      },
+    );
+
+    if (!sessionRes.ok) {
+      return {
+        redirect: {
+          destination: "/feed",
+          permanent: false,
+        },
+      };
+    }
+
+    const sessionJson = await sessionRes.json();
+
+    if (!sessionJson?.valid) {
+      return {
+        redirect: {
+          destination: "/feed",
+          permanent: false,
+        },
+      };
+    }
+  } catch {
+    return {
+      redirect: {
+        destination: "/feed",
+        permanent: false,
+      },
+    };
+  }
+
+  // =================================================
+  // 2) LOAD PROFILE (NOT AUTH GATE)
+  // =================================================
   try {
     const res = await fetch(`${base}/users/me`, {
       method: "GET",
@@ -71,9 +111,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
     });
 
     if (!res.ok) {
-      return {
-        redirect: { destination: "/feed", permanent: false },
-      };
+      return { notFound: true };
     }
 
     const json = await res.json().catch(() => null);
@@ -84,9 +122,7 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
         : json;
 
     if (!profile || typeof profile.isPrivate !== "boolean") {
-      return {
-        redirect: { destination: "/feed", permanent: false },
-      };
+      return { notFound: true };
     }
 
     return {
@@ -95,9 +131,8 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
       },
     };
   } catch {
-    return {
-      redirect: { destination: "/feed", permanent: false },
-    };
+    return { notFound: true };
   }
 };
+
 
