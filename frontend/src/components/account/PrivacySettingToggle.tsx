@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { updateMyPrivacy } from "@/lib/api/user-privacy";
 import { fetchMyProfileClient } from "@/lib/api/user";
 
@@ -15,6 +15,32 @@ export default function PrivacySettingToggle({ initialIsPrivate }: Props) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // ✅ ALWAYS resync from backend on mount (backend authority)
+  useEffect(() => {
+    let alive = true;
+
+    async function sync() {
+      try {
+        const profile = await fetchMyProfileClient();
+        if (
+          alive &&
+          profile &&
+          typeof profile.isPrivate === "boolean"
+        ) {
+          setIsPrivate(profile.isPrivate);
+        }
+      } catch {
+        // fail-soft: keep initial state
+      }
+    }
+
+    sync();
+
+    return () => {
+      alive = false;
+    };
+  }, []);
+
   async function handleToggle() {
     if (loading) return;
 
@@ -23,18 +49,20 @@ export default function PrivacySettingToggle({ initialIsPrivate }: Props) {
     setLoading(true);
     setError(null);
 
+    // optimistic UX (but backend still authority)
+    setIsPrivate(next);
+
     try {
-      // backend authority
       await updateMyPrivacy(next);
 
-      // resync from backend (never trust local state)
+      // resync from backend to guarantee truth
       const profile = await fetchMyProfileClient();
       if (profile && typeof profile.isPrivate === "boolean") {
         setIsPrivate(profile.isPrivate);
-      } else {
-        setIsPrivate(next);
       }
-    } catch (err: any) {
+    } catch {
+      // rollback on failure
+      setIsPrivate(!next);
       setError("Unable to update privacy setting. Please try again.");
     } finally {
       setLoading(false);
@@ -56,6 +84,7 @@ export default function PrivacySettingToggle({ initialIsPrivate }: Props) {
           onClick={handleToggle}
           disabled={loading}
           aria-pressed={isPrivate}
+          aria-busy={loading}
           className={[
             "relative inline-flex h-6 w-11 items-center rounded-full transition",
             isPrivate ? "bg-blue-600" : "bg-gray-300",
@@ -79,3 +108,5 @@ export default function PrivacySettingToggle({ initialIsPrivate }: Props) {
     </section>
   );
 }
+
+

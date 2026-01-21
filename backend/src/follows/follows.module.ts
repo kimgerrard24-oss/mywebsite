@@ -13,7 +13,11 @@ import { NotificationsModule } from '../notifications/notifications.module';
 import { FollowRequestsModule } from './follow-request/follow-requests.module';
 
 @Module({
-  imports: [ AuthModule, NotificationsModule],
+  imports: [ 
+    AuthModule, 
+    NotificationsModule,
+    FollowRequestsModule,
+  ],
   controllers: [FollowsController],
   providers: [
     FollowsService,
@@ -22,7 +26,6 @@ import { FollowRequestsModule } from './follow-request/follow-requests.module';
     FollowersMapper,
     FollowRemovedEvent,
     FollowCreatedEvent,
-    FollowRequestsModule,
     FollowAudit,
   ],
   exports: [FollowsService],
