@@ -345,51 +345,16 @@ async findUserPosts(params: {
     where: {
       authorId: userId,
 
-      // ===== BASE VISIBILITY (PUBLIC FEED SCOPE) =====
+      // ===== BASE FILTER =====
+      isDeleted: false,
+      isHidden: false,
+
       ...(params.scope === 'public'
-        ? {
-            isDeleted: false,
-            isHidden: false,
-            visibility: 'PUBLIC',
-          }
-        : {}),
-
-      // ===== PRIVATE ACCOUNT ENFORCEMENT (AUTHORITY) =====
-      ...(params.scope === 'public'
-        ? {
-            OR: [
-              // author is public
-              {
-                author: {
-                  isPrivate: false,
-                },
-              },
-
-              ...(viewerUserId
-                ? [
-                    // viewer is owner
-                    {
-                      authorId: viewerUserId,
-                    },
-
-                    // viewer is approved follower
-                    {
-                      author: {
-                        followers: {
-                          some: {
-                            followerId: viewerUserId,
-                          },
-                        },
-                      },
-                    },
-                  ]
-                : []),
-            ],
-          }
+        ? { visibility: 'PUBLIC' }
         : {}),
 
       // ===== BLOCK ENFORCEMENT (viewer ↔ author) =====
-      ...(viewerUserId && params.scope === 'public'
+      ...(viewerUserId
         ? {
             AND: [
               {
@@ -419,13 +384,11 @@ async findUserPosts(params: {
       createdAt: 'desc',
     },
 
-    // ✅ USE SELECT ONLY (no include)
     select: {
       id: true,
       content: true,
       createdAt: true,
 
-      /** ✅ required for canAppeal + ownership */
       authorId: true,
       isHidden: true,
       isDeleted: true,
@@ -438,45 +401,28 @@ async findUserPosts(params: {
           id: true,
           displayName: true,
           avatarUrl: true,
-
-          // ===== privacy =====
           isPrivate: true,
 
-          // ===== isFollowing (viewer → author) =====
           followers: viewerUserId
             ? {
-                where: {
-                  followerId: viewerUserId,
-                },
-                select: {
-                  followerId: true,
-                },
+                where: { followerId: viewerUserId },
+                select: { followerId: true },
                 take: 1,
               }
             : false,
 
-          // ===== follow request sent? (viewer → author) =====
           followRequestsReceived: viewerUserId
             ? {
-                where: {
-                  requesterId: viewerUserId,
-                },
-                select: {
-                  requesterId: true,
-                },
+                where: { requesterId: viewerUserId },
+                select: { requesterId: true },
                 take: 1,
               }
             : false,
 
-          // ===== UX block flag (author blocks viewer?) =====
           blockedBy: viewerUserId
             ? {
-                where: {
-                  blockerId: viewerUserId,
-                },
-                select: {
-                  blockerId: true,
-                },
+                where: { blockerId: viewerUserId },
+                select: { blockerId: true },
                 take: 1,
               }
             : false,
@@ -500,6 +446,8 @@ async findUserPosts(params: {
     },
   });
 }
+
+
 
 
 
