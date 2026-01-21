@@ -19,7 +19,7 @@ import { CancelFollowRequestParams } from './dto/cancel-follow-request.params';
 import { GetIncomingFollowRequestsQuery } from './dto/get-incoming-follow-requests.query';
 import { ApproveFollowRequestParams } from './dto/approve-follow-request.params';
 
-@Controller('/api/follows/requests')
+@Controller('follows/requests')
 export class FollowRequestsController {
   constructor(
     private readonly service: FollowRequestsService,

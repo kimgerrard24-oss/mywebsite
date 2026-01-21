@@ -2,7 +2,6 @@
 import Head from "next/head";
 import type { GetServerSideProps } from "next";
 import AccountLayout from "@/components/account/AccountLayout";
-import Link from "next/link";
 
 /* =====================================================
    PAGE
@@ -47,22 +46,6 @@ export default function AccountPage() {
           </div>
         </div>
       </AccountLayout>
-
-      <div className="rounded border p-4">
-  <p className="font-medium">Privacy</p>
-  <p className="text-gray-600">
-    Control who can follow and view your profile.
-  </p>
-
-  <div className="mt-2">
-    <Link
-      href="/account/privacy"
-      className="text-blue-600 hover:underline text-sm"
-    >
-      Manage privacy settings →
-    </Link>
-  </div>
-</div>
 
     </>
   );
