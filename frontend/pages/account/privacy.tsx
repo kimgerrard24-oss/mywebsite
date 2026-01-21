@@ -5,7 +5,6 @@ import type { GetServerSideProps } from "next";
 
 import AccountLayout from "@/components/account/AccountLayout";
 import PrivacySettingToggle from "@/components/account/PrivacySettingToggle";
-import { fetchMyProfileServer } from "@/lib/api/user";
 
 /* =====================================================
    PAGE
@@ -45,6 +44,7 @@ export default function AccountPrivacyPage({ isPrivate }: Props) {
 
 /* =====================================================
    SSR AUTH + DATA (BACKEND AUTHORITY)
+   Pattern: same as reports/me.tsx
    ===================================================== */
 export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
   const cookieHeader = ctx.req.headers.cookie;
@@ -60,7 +60,9 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
     process.env.NEXT_PUBLIC_BACKEND_URL ??
     "https://api.phlyphant.com";
 
-  // 1) session-check (authority)
+  /* =========================
+     1) session-check (authority)
+     ========================= */
   const sessionRes = await fetch(`${base}/auth/session-check`, {
     method: "GET",
     headers: {
@@ -85,18 +87,47 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
     };
   }
 
-  // 2) fetch profile from backend
-  const { profile, status } = await fetchMyProfileServer(cookieHeader);
+  /* =========================
+     2) fetch profile (authority, same base)
+     ========================= */
+  try {
+    const res = await fetch(`${base}/users/me`, {
+      method: "GET",
+      headers: {
+        Accept: "application/json",
+        Cookie: cookieHeader,
+      },
+      credentials: "include",
+      cache: "no-store",
+    });
 
-  if (status === 401 || !profile) {
+    if (!res.ok) {
+      return {
+        redirect: { destination: "/feed", permanent: false },
+      };
+    }
+
+    const json = await res.json().catch(() => null);
+
+    const profile =
+      json?.data && typeof json.data === "object"
+        ? json.data
+        : json;
+
+    if (!profile || typeof profile.isPrivate !== "boolean") {
+      return {
+        redirect: { destination: "/feed", permanent: false },
+      };
+    }
+
+    return {
+      props: {
+        isPrivate: Boolean(profile.isPrivate),
+      },
+    };
+  } catch {
     return {
       redirect: { destination: "/feed", permanent: false },
     };
   }
-
-  return {
-    props: {
-      isPrivate: Boolean(profile.isPrivate),
-    },
-  };
 };

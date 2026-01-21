@@ -166,7 +166,7 @@ async getFollowVisibilityState(params: {
   isPrivate: boolean;
   isSelf: boolean;
   isFollowing: boolean;
-  hasPendingFollowRequest: boolean;
+  isFollowRequested: boolean;
   isBlockedByTarget: boolean;
   hasBlockedTarget: boolean;
 } | null> {
@@ -243,9 +243,10 @@ async getFollowVisibilityState(params: {
     // =========================
     // REQUEST STATE (NEW FLOW)
     // =========================
-    hasPendingFollowRequest:
-      Array.isArray(user.followRequestsReceived) &&
-      user.followRequestsReceived.length > 0,
+    isFollowRequested:
+  Array.isArray(user.followRequestsReceived) &&
+  user.followRequestsReceived.length > 0,
+
 
     // =========================
     // BLOCK STATE
