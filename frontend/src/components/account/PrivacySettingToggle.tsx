@@ -7,21 +7,28 @@ import { updateMyPrivacy } from "@/lib/api/user-privacy";
 import { fetchMyProfileClient } from "@/lib/api/user";
 
 type Props = {
-  initialIsPrivate: boolean; // still accepted, but NOT trusted
+  initialIsPrivate: boolean; // fallback only (UX), backend still authority
 };
 
-export default function PrivacySettingToggle({}: Props) {
-  const [isPrivate, setIsPrivate] = useState<boolean | null>(null); // null = not yet synced
+export default function PrivacySettingToggle({
+  initialIsPrivate,
+}: Props) {
+  // ✅ start with SSR value to avoid disabled UI
+  const [isPrivate, setIsPrivate] =
+    useState<boolean>(initialIsPrivate);
+
+  const [synced, setSynced] = useState(false); // backend sync status
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // ✅ Always sync from backend on mount (backend authority)
+  // ✅ Always resync from backend on mount (authority)
   useEffect(() => {
     let alive = true;
 
     async function sync() {
       try {
         const profile = await fetchMyProfileClient();
+
         if (
           alive &&
           profile &&
@@ -30,7 +37,9 @@ export default function PrivacySettingToggle({}: Props) {
           setIsPrivate(profile.isPrivate);
         }
       } catch {
-        // fail-soft: keep disabled state
+        // fail-soft: keep SSR value
+      } finally {
+        if (alive) setSynced(true);
       }
     }
 
@@ -42,7 +51,7 @@ export default function PrivacySettingToggle({}: Props) {
   }, []);
 
   async function handleToggle() {
-    if (loading || isPrivate === null) return;
+    if (loading || !synced) return;
 
     const next = !isPrivate;
 
@@ -55,20 +64,22 @@ export default function PrivacySettingToggle({}: Props) {
     try {
       const res = await updateMyPrivacy(next);
 
-      // ✅ use backend response as authority
+      // ✅ backend authority
       if (res && typeof res.isPrivate === "boolean") {
         setIsPrivate(res.isPrivate);
       }
     } catch {
-      // rollback on failure
+      // rollback
       setIsPrivate(!next);
-      setError("Unable to update privacy setting. Please try again.");
+      setError(
+        "Unable to update privacy setting. Please try again.",
+      );
     } finally {
       setLoading(false);
     }
   }
 
-  const isDisabled = loading || isPrivate === null;
+  const isDisabled = loading || !synced;
 
   return (
     <section className="rounded border p-4">
@@ -76,7 +87,8 @@ export default function PrivacySettingToggle({}: Props) {
         <div>
           <h2 className="font-medium">Private account</h2>
           <p className="text-sm text-gray-600 mt-1">
-            When private, only approved followers can see your posts and profile.
+            When private, only approved followers can see your
+            posts and profile.
           </p>
         </div>
 
@@ -84,18 +96,22 @@ export default function PrivacySettingToggle({}: Props) {
           type="button"
           onClick={handleToggle}
           disabled={isDisabled}
-          aria-pressed={!!isPrivate}
+          aria-pressed={isPrivate}
           aria-busy={loading}
           className={[
             "relative inline-flex h-6 w-11 items-center rounded-full transition",
             isPrivate ? "bg-blue-600" : "bg-gray-300",
-            isDisabled ? "opacity-60 cursor-not-allowed" : "cursor-pointer",
+            isDisabled
+              ? "opacity-60 cursor-not-allowed"
+              : "cursor-pointer",
           ].join(" ")}
         >
           <span
             className={[
               "inline-block h-5 w-5 transform rounded-full bg-white transition",
-              isPrivate ? "translate-x-5" : "translate-x-1",
+              isPrivate
+                ? "translate-x-5"
+                : "translate-x-1",
             ].join(" ")}
           />
         </button>
@@ -109,6 +125,7 @@ export default function PrivacySettingToggle({}: Props) {
     </section>
   );
 }
+
 
 
 
