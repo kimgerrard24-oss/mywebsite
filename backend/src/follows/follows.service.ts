@@ -25,69 +25,102 @@ export class FollowsService {
   ) {}
 
   async follow(params: {
-    followerId: string;
-    followingId: string;
-  }): Promise<void> {
-    FollowCreatePolicy.assertCanFollow(params);
+  followerId: string;
+  followingId: string;
+}): Promise<void> {
+  FollowCreatePolicy.assertCanFollow(params);
 
-    // ==============================
-    // 🔒 BLOCK CHECK (2-way, fail-closed)
-    // ==============================
-    const blocked = await this.repo.isBlockedBetween({
-      userA: params.followerId,
-      userB: params.followingId,
-    });
+  // ==============================
+  // 1) 🔒 BLOCK CHECK (2-way, fail-closed)
+  // ==============================
+  const blocked = await this.repo.isBlockedBetween({
+    userA: params.followerId,
+    userB: params.followingId,
+  });
 
-    if (blocked) {
-  try {
-    await this.audit.recordBlockedAttempt({
-      followerId: params.followerId,
-      followingId: params.followingId,
-    });
-  } catch {}
+  if (blocked) {
+    try {
+      await this.audit.recordBlockedAttempt({
+        followerId: params.followerId,
+        followingId: params.followingId,
+      });
+    } catch {}
 
-  throw new ConflictException('CANNOT_FOLLOW_USER');
-}
-
-
-    const exists = await this.repo.exists(params);
-    if (exists) {
-  try {
-    await this.audit.recordDuplicateAttempt({
-      followerId: params.followerId,
-      followingId: params.followingId,
-    });
-  } catch {}
-
-  throw new ConflictException('ALREADY_FOLLOWING');
-}
-
-
-    await this.repo.createFollow(params);
-
-    // 🔔 CREATE NOTIFICATION (fire-and-forget, fail-soft)
-    if (params.followerId !== params.followingId) {
-      try {
-        await this.notifications.createNotification({
-          userId: params.followingId,     // ผู้รับ
-          actorUserId: params.followerId, // ผู้กระทำ
-          type: 'follow',
-          entityId: params.followerId,
-          payload: {}, // follow ไม่มี payload เพิ่ม
-        });
-      } catch {
-        // ❗ notification fail ต้องไม่กระทบ follow
-      }
-    }
-
-    await this.cache.invalidateCounts([
-      params.followerId,
-      params.followingId,
-    ]);
-
-    await this.eventcreate.emit(params);
-    await this.audit.record(params);
+    throw new ConflictException('CANNOT_FOLLOW_USER');
   }
+
+  // ==============================
+  // 2) 🔒 TARGET PRIVACY CHECK (DB authority)
+  // ==============================
+  const targetPrivacy =
+    await this.repo.getTargetPrivacy(params.followingId);
+
+  if (!targetPrivacy) {
+    // defensive: target not found
+    throw new ConflictException('USER_NOT_FOUND');
+  }
+
+  // ❗ private account must use follow-request flow
+  if (targetPrivacy.isPrivate) {
+    throw new ConflictException('ACCOUNT_IS_PRIVATE');
+  }
+
+  // ==============================
+  // 3) DUPLICATE FOLLOW CHECK
+  // ==============================
+  const exists = await this.repo.exists(params);
+  if (exists) {
+    try {
+      await this.audit.recordDuplicateAttempt({
+        followerId: params.followerId,
+        followingId: params.followingId,
+      });
+    } catch {}
+
+    throw new ConflictException('ALREADY_FOLLOWING');
+  }
+
+  // ==============================
+  // 4) CREATE FOLLOW (DB authority)
+  // ==============================
+  await this.repo.createFollow(params);
+
+  // ==============================
+  // 5) 🔔 NOTIFICATION (fail-soft)
+  // ==============================
+  if (params.followerId !== params.followingId) {
+    try {
+      await this.notifications.createNotification({
+        userId: params.followingId,     // ผู้รับ
+        actorUserId: params.followerId, // ผู้กระทำ
+        type: 'follow',
+        entityId: params.followerId,
+        payload: {}, // follow ไม่มี payload เพิ่ม
+      });
+    } catch {
+      // ❗ notification fail ต้องไม่กระทบ follow
+    }
+  }
+
+  // ==============================
+  // 6) CACHE INVALIDATE (counts only)
+  // ==============================
+  await this.cache.invalidateCounts([
+    params.followerId,
+    params.followingId,
+  ]);
+
+  // ==============================
+  // 7) REALTIME EVENT (infra only)
+  // ==============================
+  await this.eventcreate.emit(params);
+
+  // ==============================
+  // 8) AUDIT LOG
+  // ==============================
+  await this.audit.record(params);
+}
+
 
   async unfollow(params: {
     followerId: string;

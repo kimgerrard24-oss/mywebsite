@@ -10,6 +10,7 @@ import CommentComposer from "@/components/comments/CommentComposer";
 import CommentList from "@/components/comments/CommentList";
 import FollowActionButton from '@/components/follows/FollowActionButton';
 import Avatar from "@/components/ui/Avatar";
+import FollowController from "@/components/follows/FollowController";
 
 type Props = {
   post: PostFeedItem;
@@ -36,15 +37,23 @@ export default function FeedItem({ post, onDeleted }: Props) {
   const [commentCount, setCommentCount] = useState(
   post.stats.commentCount
   );
-
+  
   const [isFollowing, setIsFollowing] = useState(
   post.author.isFollowing
-);
+ );
+
+ const [isFollowRequested, setIsFollowRequested] = useState(
+  post.author.isFollowRequested
+ );
+
+  
   const isBlocked = post.author.isBlocked === true;
 
+  
   useEffect(() => {
   setIsFollowing(post.author.isFollowing);
-}, [post.author.isFollowing]);
+  setIsFollowRequested(post.author.isFollowRequested);
+}, [post.author.isFollowing, post.author.isFollowRequested]);
 
   return (
     <article
@@ -139,14 +148,34 @@ export default function FeedItem({ post, onDeleted }: Props) {
 
     {/* Follow (render only) */}
  {!post.isSelf && !isBlocked && (
-  <FollowActionButton
-    userId={post.author.id}
-    isFollowing={post.author.isFollowing}
-    isPrivate={post.author.isPrivate}
-    isBlocked={post.author.isBlocked}
-    isFollowRequested={post.author.isFollowRequested}
-  />
+  isFollowing ? (
+    <FollowController
+      userId={post.author.id}
+      isFollowing={isFollowing}
+      isBlocked={isBlocked}
+      onChange={(v) => {
+        setIsFollowing(v);
+        if (!v) setIsFollowRequested(false);
+      }}
+    />
+  ) : (
+    <FollowActionButton
+      userId={post.author.id}
+      isFollowing={false}
+      isPrivate={post.author.isPrivate}
+      isBlocked={isBlocked}
+      isFollowRequested={isFollowRequested}
+      onFollowed={() => {
+        setIsFollowing(true);
+        setIsFollowRequested(false);
+      }}
+      onRequested={() => {
+        setIsFollowRequested(true);
+      }}
+    />
+  )
 )}
+
 
 
 

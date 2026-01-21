@@ -134,6 +134,9 @@ async findPublicUserById(
     where: { id: userId },
 
     select: {
+      // =========================
+      // BASIC PUBLIC PROFILE
+      // =========================
       id: true,
       username: true,
       displayName: true,
@@ -142,11 +145,17 @@ async findPublicUserById(
       bio: true,
       createdAt: true,
 
+      // =========================
+      // ACCOUNT STATE (for policy)
+      // =========================
       isBanned: true,
       isDisabled: true,
       isAccountLocked: true,
       isPrivate: true,
 
+      // =========================
+      // COUNTS
+      // =========================
       _count: {
         select: {
           followers: true,
@@ -154,36 +163,53 @@ async findPublicUserById(
         },
       },
 
+      // =========================
+      // FOLLOW RELATION (viewer → target)
+      // =========================
       followers: viewerUserId
         ? {
             where: { followerId: viewerUserId },
             take: 1,
+            select: { followerId: true },
           }
         : false,
 
+      // =========================
+      // FOLLOW REQUEST (viewer → target)
+      // =========================
       followRequestsReceived: viewerUserId
         ? {
             where: { requesterId: viewerUserId },
             take: 1,
+            select: { id: true },
           }
         : false,
 
+      // =========================
+      // BLOCK: viewer blocked target?
+      // =========================
       blockedBy: viewerUserId
         ? {
             where: { blockerId: viewerUserId },
             take: 1,
+            select: { blockerId: true },
           }
         : false,
 
+      // =========================
+      // BLOCK: target blocked viewer?
+      // =========================
       blockedUsers: viewerUserId
         ? {
             where: { blockedId: viewerUserId },
             take: 1,
+            select: { blockedId: true },
           }
         : false,
     },
   });
 }
+
 
 
 

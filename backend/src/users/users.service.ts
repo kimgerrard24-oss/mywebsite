@@ -257,9 +257,15 @@ async getPublicProfile(params: {
 
   if (!user) return null;
 
+  // =========================
+  // SELF
+  // =========================
   const isSelf =
     viewerUserId !== null && viewerUserId === user.id;
 
+  // =========================
+  // BLOCK RELATION (viewer-aware)
+  // =========================
   const isBlockedByViewer =
     Array.isArray(user.blockedBy) &&
     user.blockedBy.length > 0;
@@ -268,11 +274,29 @@ async getPublicProfile(params: {
     Array.isArray(user.blockedUsers) &&
     user.blockedUsers.length > 0;
 
+  // 🔒 HARD VISIBILITY — block hides profile
   if (!isSelf && (isBlockedByViewer || hasBlockedViewer)) {
     return null;
   }
 
-  /** ===== Appeal UX Guard (backend still authority) ===== */
+  // =========================
+  // FOLLOW STATE
+  // =========================
+  const isFollowing =
+    !isSelf &&
+    !isBlockedByViewer &&
+    Array.isArray(user.followers) &&
+    user.followers.length > 0;
+
+  // ✅ NEW — pending follow request (private account)
+  const hasPendingFollowRequest =
+    !isSelf &&
+    Array.isArray(user.followRequestsReceived) &&
+    user.followRequestsReceived.length > 0;
+
+  // =========================
+  // APPEAL UX GUARD
+  // =========================
   const hasActiveModeration =
     user.isBanned === true ||
     user.isDisabled === true ||
@@ -281,6 +305,9 @@ async getPublicProfile(params: {
   const canAppeal =
     Boolean(isSelf && hasActiveModeration);
 
+  // =========================
+  // RESPONSE (PUBLIC DTO)
+  // =========================
   return {
     id: user.id,
     username: user.username,
@@ -290,26 +317,29 @@ async getPublicProfile(params: {
     bio: user.bio,
     createdAt: user.createdAt.toISOString(),
 
+    // ===== viewer-aware flags =====
     isSelf,
+
+    isPrivate: user.isPrivate, // ✅ NEW — FE decides follow vs request
 
     isBlocked: isBlockedByViewer,
     hasBlockedViewer,
 
-    isFollowing:
-      !isSelf &&
-      !isBlockedByViewer &&
-      Array.isArray(user.followers) &&
-      user.followers.length > 0,
+    isFollowing,
 
+    hasPendingFollowRequest, // ✅ NEW — FE shows "Requested"
+
+    // ===== stats =====
     stats: {
       followers: user._count?.followers ?? 0,
       following: user._count?.following ?? 0,
     },
 
-    /** ✅ UX guard only */
+    /** UX guard only — backend still authority */
     canAppeal,
   };
- }
+}
+
 
    async updateProfile(userId: string, dto: UpdateUserDto) {
     const updated = await this.repo.updateProfile(userId, dto);

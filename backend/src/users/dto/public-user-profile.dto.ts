@@ -16,9 +16,21 @@ export class PublicUserProfileDto {
   isSelf!: boolean;
 
   /**
+   * target account privacy
+   * FE ใช้ตัดสิน follow vs request
+   */
+  isPrivate!: boolean; // ✅ NEW
+
+  /**
    * viewer follow user นี้อยู่หรือไม่
    */
   isFollowing!: boolean;
+
+  /**
+   * viewer ส่ง follow request ไปแล้วหรือไม่
+   * (ใช้กับ private account)
+   */
+  hasPendingFollowRequest!: boolean; // ✅ NEW
 
   /**
    * viewer block user นี้อยู่หรือไม่
@@ -39,6 +51,10 @@ export class PublicUserProfileDto {
     followers: number;
     following: number;
   };
+
+  /**
+   * UX guard only (backend still authority)
+   */
   canAppeal?: boolean;
 }
 
@@ -58,6 +74,11 @@ export class MeUserProfileDto {
 
   isSelf!: true;
 
+  /** me route does not use follow flow */
+  isPrivate?: boolean;
+
+  hasPendingFollowRequest?: false;
+
   hasBlockedViewer!: false;
   isBlocked!: false;
   isFollowing!: false;
@@ -69,5 +90,6 @@ export class MeUserProfileDto {
 
   canAppeal?: boolean;
 }
+
 
 
