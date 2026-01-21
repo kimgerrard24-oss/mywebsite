@@ -7,8 +7,14 @@ import { FollowRequestsRepository } from './follow-requests.repository';
 import { FollowRequestAudit } from './audit/follow-request.audit';
 import { UsersRepository } from '../../users/users.repository';
 import { AuditLogService } from '../../users/audit/audit-log.service';
+import { NotificationsModule } from '../../notifications/notifications.module';
+import { AuthModule } from '../../auth/auth.module';
 
 @Module({
+   imports: [
+    NotificationsModule,
+    AuthModule,  
+  ],
   controllers: [FollowRequestsController],
   providers: [
     FollowRequestsService,
