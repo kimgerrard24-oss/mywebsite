@@ -97,10 +97,9 @@ export class PostVisibilityService {
         };
       }
 
-      // approved follower → full profile feed
       return {
         canView: true,
-        scope: 'self',
+        scope: 'public',
       };
     }
 
