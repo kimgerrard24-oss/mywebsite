@@ -8,6 +8,7 @@ import type {
 } from '@/lib/api/followRequests';
 import { useApproveFollowRequest } from '@/hooks/useApproveFollowRequest';
 import { useRejectFollowRequest } from '@/hooks/useRejectFollowRequest';
+import Link from 'next/link';
 
 type Props = {
   request: IncomingFollowRequest;
@@ -49,29 +50,32 @@ export default function IncomingFollowRequestItem({
         rounded-xl border p-3
       "
     >
-      <div className="flex items-center gap-3">
-        {request.avatarUrl ? (
-          <Image
-            src={request.avatarUrl}
-            alt={`${request.username} avatar`}
-            width={36}
-            height={36}
-            className="rounded-full"
-          />
-        ) : (
-          <div className="h-9 w-9 rounded-full bg-zinc-300" />
-        )}
+      <Link
+  href={`/users/${request.requesterId}`}
+  className="flex items-center gap-3"
+>
+  {request.avatarUrl ? (
+    <Image
+      src={request.avatarUrl}
+      alt={`${request.username} avatar`}
+      width={36}
+      height={36}
+      className="rounded-full"
+    />
+  ) : (
+    <div className="h-9 w-9 rounded-full bg-zinc-300" />
+  )}
 
-        <div className="leading-tight">
-          <div className="text-sm font-medium">
-            {request.displayName ??
-              request.username}
-          </div>
-          <div className="text-xs text-zinc-500">
-            @{request.username}
-          </div>
-        </div>
-      </div>
+  <div className="leading-tight">
+    <div className="text-sm font-medium hover:underline">
+      {request.displayName ?? request.username}
+    </div>
+    <div className="text-xs text-zinc-500">
+      @{request.username}
+    </div>
+  </div>
+</Link>
+
 
       <div className="flex gap-2">
         <button
