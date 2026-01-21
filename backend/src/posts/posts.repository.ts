@@ -167,10 +167,37 @@ async findPostById(
     where: {
       id: postId,
 
-      // ===== POST VISIBILITY AUTHORITY =====
-      visibility: 'PUBLIC',
+      // ===== BASE POST FILTER =====
       isDeleted: false,
       isHidden: false,
+
+      // ===== VISIBILITY (PUBLIC / OWNER / APPROVED FOLLOWER) =====
+      OR: [
+        // public post
+        {
+          visibility: 'PUBLIC',
+        },
+
+        ...(viewerUserId
+          ? [
+              // owner can view
+              {
+                authorId: viewerUserId,
+              },
+
+              // approved follower can view (private account)
+              {
+                author: {
+                  followers: {
+                    some: {
+                      followerId: viewerUserId,
+                    },
+                  },
+                },
+              },
+            ]
+          : []),
+      ],
 
       // ===== BLOCK ENFORCEMENT (2-way) =====
       ...(viewerUserId
@@ -250,6 +277,7 @@ async findPostById(
     },
   });
 }
+
 
 
   async findById(postId: string): Promise<{

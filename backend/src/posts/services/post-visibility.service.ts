@@ -42,7 +42,7 @@ export class PostVisibilityService {
     const viewerId = params.viewer?.userId ?? null;
 
     // =========================
-    // Self-view
+    // 1) Self-view
     // =========================
     if (viewerId && viewerId === params.targetUserId) {
       return {
@@ -52,7 +52,7 @@ export class PostVisibilityService {
     }
 
     // =========================
-    // Load privacy + follow state (DB authority)
+    // 2) Load privacy + follow state (DB authority)
     // =========================
     const user = await this.prisma.user.findUnique({
       where: { id: params.targetUserId },
@@ -77,22 +77,30 @@ export class PostVisibilityService {
     }
 
     const isFollower =
-      viewerId && Array.isArray(user.followers)
-        ? user.followers.length > 0
-        : false;
+      !!viewerId &&
+      Array.isArray(user.followers) &&
+      user.followers.length > 0;
 
     // =========================
-    // Private account gate
+    // 3) Private account gate
     // =========================
-    if (user.isPrivate && !isFollower) {
+    if (user.isPrivate) {
+      if (!isFollower) {
+        return {
+          canView: false,
+          scope: 'public',
+        };
+      }
+
+      // ✅ approved follower → full profile feed
       return {
-        canView: false,
-        scope: 'public',
+        canView: true,
+        scope: 'self',
       };
     }
 
     // =========================
-    // Public or approved follower
+    // 4) Public account
     // =========================
     return {
       canView: true,
@@ -100,4 +108,5 @@ export class PostVisibilityService {
     };
   }
 }
+
 
