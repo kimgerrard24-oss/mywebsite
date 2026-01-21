@@ -47,8 +47,8 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
   publicProfile ? publicProfile.isFollowing : false
 );
 
-const [isFollowRequested, setIsFollowRequested] = React.useState(
-  publicProfile ? publicProfile.isFollowRequested === true : false
+const [isFollowRequested, setIsFollowRequested] = React.useState<boolean>(
+  Boolean(publicProfile?.isFollowRequested)
 );
 
   const isBlocked = isPublic && profile.isBlocked === true;
@@ -65,6 +65,12 @@ const [isFollowRequested, setIsFollowRequested] = React.useState(
   publicProfile?.isFollowing,
   publicProfile?.isFollowRequested,
 ]);
+   
+const isPrivateLocked =
+  isPublic &&
+  publicProfile?.isPrivate === true &&
+  !isSelf &&
+  !isFollowing;
 
   return (
     <section
@@ -349,9 +355,13 @@ const [isFollowRequested, setIsFollowRequested] = React.useState(
         </dl>
 
         {/* ===== Followers / Following ===== */}
-        {isPublicUserProfile(profile) && !isBlocked && !hasBlockedViewer && (
-          <UserProfileStats profile={profile} />
-        )}
+{isPublicUserProfile(profile) &&
+  !isBlocked &&
+  !hasBlockedViewer &&
+  !isPrivateLocked && (
+    <UserProfileStats profile={profile} />
+  )}
+
       </div>
     </section>
   );

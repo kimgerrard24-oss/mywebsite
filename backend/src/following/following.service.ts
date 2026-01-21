@@ -1,5 +1,9 @@
 // backend/src/following/following.service.ts
-import { Injectable, ConflictException } from '@nestjs/common';
+import { 
+  Injectable, 
+  ConflictException,
+  NotFoundException,
+ } from '@nestjs/common';
 import { FollowingRepository } from './following.repository';
 import { FollowingReadPolicy } from './policy/following-read.policy';
 import { FollowingMapper } from './mapper/following.mapper';
@@ -27,7 +31,7 @@ export class FollowingService {
   });
 
   if (!relation) {
-    throw new ConflictException('USER_NOT_FOUND');
+    throw new NotFoundException();
   }
 
   FollowingReadPolicy.assertCanReadFollowing({

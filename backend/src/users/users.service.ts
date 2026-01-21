@@ -289,10 +289,11 @@ async getPublicProfile(params: {
     user.followers.length > 0;
 
   // ✅ NEW — pending follow request (private account)
-  const hasPendingFollowRequest =
-    !isSelf &&
-    Array.isArray(user.followRequestsReceived) &&
-    user.followRequestsReceived.length > 0;
+  const isFollowRequested =
+  !isSelf &&
+  Array.isArray(user.followRequestsReceived) &&
+  user.followRequestsReceived.length > 0;
+
 
   // =========================
   // APPEAL UX GUARD
@@ -304,6 +305,11 @@ async getPublicProfile(params: {
 
   const canAppeal =
     Boolean(isSelf && hasActiveModeration);
+  
+  const canViewContent =
+  !user.isPrivate ||
+  isSelf ||
+  isFollowing;
 
   // =========================
   // RESPONSE (PUBLIC DTO)
@@ -327,8 +333,8 @@ async getPublicProfile(params: {
 
     isFollowing,
 
-    hasPendingFollowRequest, // ✅ NEW — FE shows "Requested"
-
+    isFollowRequested,
+    canViewContent,
     // ===== stats =====
     stats: {
       followers: user._count?.followers ?? 0,

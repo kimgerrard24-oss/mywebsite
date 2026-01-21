@@ -26,12 +26,8 @@ export class PublicUserProfileDto {
    */
   isFollowing!: boolean;
 
-  /**
-   * viewer ส่ง follow request ไปแล้วหรือไม่
-   * (ใช้กับ private account)
-   */
-  hasPendingFollowRequest!: boolean; // ✅ NEW
-
+  
+  isFollowRequested!: boolean;
   /**
    * viewer block user นี้อยู่หรือไม่
    * (ใช้ตัดสิน Block / Unblock button)
@@ -43,6 +39,13 @@ export class PublicUserProfileDto {
    * (ใช้กับ chat / follow / notif)
    */
   hasBlockedViewer?: boolean;
+  
+
+  /**
+ * viewer can see full profile content
+ * (posts, stats, media, etc.)
+ */
+  canViewContent!: boolean;
 
   /**
    * follower / following counts
@@ -77,7 +80,7 @@ export class MeUserProfileDto {
   /** me route does not use follow flow */
   isPrivate?: boolean;
 
-  hasPendingFollowRequest?: false;
+  isFollowRequested?: false;
 
   hasBlockedViewer!: false;
   isBlocked!: false;

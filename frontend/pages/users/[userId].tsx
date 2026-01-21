@@ -103,19 +103,12 @@ export default function UserProfilePage({ profile }: Props) {
           </section>
 
           {/* ===== Profile posts ===== */}
-          <section
-            aria-label="User posts"
-            className="
-              mx-auto
-              w-full
-              max-w-5xl
-              px-4
-              pb-8
-              sm:pb-12
-            "
-          >
-            <ProfilePosts userId={profile.id} />
-          </section>
+          {!profile.canViewContent && !profile.isSelf && (
+  <section className="mx-auto max-w-5xl px-4 pb-12 text-sm text-gray-500">
+    This account is private. Follow to see their posts.
+  </section>
+)}
+
         </main>
       </ProfileLayout>
     </>
@@ -142,17 +135,20 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
 
     let posts: PostFeedItem[] = [];
 
-    try {
-      const feed = await getUserPosts({
-        userId,
-        limit: 20,
-        cookie: ctx.req.headers.cookie,
-      });
+if (profile.canViewContent === true) {
+  try {
+    const feed = await getUserPosts({
+      userId,
+      limit: 20,
+      cookie: ctx.req.headers.cookie,
+    });
 
-      posts = feed.items;
-    } catch {
-      // intentional fail-soft
-    }
+    posts = feed.items;
+  } catch {
+    // fail-soft
+  }
+}
+
 
     return {
       props: {
