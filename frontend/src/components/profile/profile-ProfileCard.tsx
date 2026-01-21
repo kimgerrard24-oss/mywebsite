@@ -40,11 +40,31 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
       ? profile.displayName
       : "User";
 
-  const isPublic = profile && isPublicUserProfile(profile);
+  const isPublic = isPublicUserProfile(profile);
+  const publicProfile = isPublic ? profile : null;
+
+  const [isFollowing, setIsFollowing] = React.useState(
+  publicProfile ? publicProfile.isFollowing : false
+);
+
+const [isFollowRequested, setIsFollowRequested] = React.useState(
+  publicProfile ? publicProfile.isFollowRequested === true : false
+);
 
   const isBlocked = isPublic && profile.isBlocked === true;
 
   const hasBlockedViewer = isPublic && profile.hasBlockedViewer === true;
+  React.useEffect(() => {
+  if (!publicProfile) return;
+
+  setIsFollowing(publicProfile.isFollowing);
+  setIsFollowRequested(
+    publicProfile.isFollowRequested === true
+  );
+}, [
+  publicProfile?.isFollowing,
+  publicProfile?.isFollowRequested,
+]);
 
   return (
     <section
@@ -220,21 +240,34 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
   )}
 
   {/* ===== FOLLOW / REQUEST FOLLOW ===== */}
-  {isPublic && !isSelf && !hasBlockedViewer && (
-  profile.isFollowing ? (
+  {publicProfile && !isSelf && !hasBlockedViewer && (
+   isFollowing ? (
     <FollowController
-      userId={profile.id}
-      isFollowing={true}
-      isBlocked={isBlocked}
-    />
+  userId={publicProfile.id}
+  isFollowing={true}
+  isBlocked={isBlocked}
+  onChange={(v) => {
+    setIsFollowing(v);
+    if (!v) setIsFollowRequested(false);
+  }}
+/>
+
   ) : (
     <FollowActionButton
-      userId={profile.id}
-      isFollowing={false}
-      isPrivate={profile.isPrivate === true}
-      isBlocked={isBlocked}
-      isFollowRequested={profile.isFollowRequested === true}
-    />
+  userId={publicProfile.id}
+  isFollowing={false}
+  isPrivate={publicProfile.isPrivate === true}
+  isBlocked={isBlocked}
+  isFollowRequested={isFollowRequested}
+  onFollowed={() => {
+    setIsFollowing(true);
+    setIsFollowRequested(false);
+  }}
+  onRequested={() => {
+    setIsFollowRequested(true);
+  }}
+/>
+
   )
 )}
 
