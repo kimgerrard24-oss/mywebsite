@@ -52,39 +52,44 @@ export class PostVisibilityService {
     }
 
     // =========================
-    // 2) Load privacy + follow state (DB authority)
+    // 2) Load privacy (DB authority)
     // =========================
     const user = await this.prisma.user.findUnique({
       where: { id: params.targetUserId },
       select: {
         isPrivate: true,
-        followers: viewerId
-          ? {
-              where: { followerId: viewerId },
-              select: { followerId: true },
-              take: 1,
-            }
-          : false,
       },
     });
 
     if (!user) {
-      // fail-soft: behave as no content
       return {
         canView: false,
         scope: 'public',
       };
     }
 
-    const isFollower =
-      !!viewerId &&
-      Array.isArray(user.followers) &&
-      user.followers.length > 0;
-
     // =========================
     // 3) Private account gate
     // =========================
     if (user.isPrivate) {
+      if (!viewerId) {
+        return {
+          canView: false,
+          scope: 'public',
+        };
+      }
+
+      // 🔒 authority check: follow relation table (explicit)
+      const isFollower = await this.prisma.follow.findFirst({
+        where: {
+          followerId: viewerId,
+          followingId: params.targetUserId,
+        },
+        select: {
+          followerId: true, // composite PK, minimal select
+        },
+      });
+
       if (!isFollower) {
         return {
           canView: false,
@@ -92,7 +97,7 @@ export class PostVisibilityService {
         };
       }
 
-      // ✅ approved follower → full profile feed
+      // approved follower → full profile feed
       return {
         canView: true,
         scope: 'self',
@@ -108,5 +113,7 @@ export class PostVisibilityService {
     };
   }
 }
+
+
 
 
