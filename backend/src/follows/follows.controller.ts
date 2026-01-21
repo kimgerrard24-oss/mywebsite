@@ -14,7 +14,7 @@ import { FollowUserParams } from './dto/follow-user.params';
 import { AccessTokenCookieAuthGuard } from '../auth/guards/access-token-cookie.guard';
 import { UnfollowUserParams } from './dto/unfollow-user.params';
 
-@Controller('/api/follows')
+@Controller('follows')
 export class FollowsController {
   constructor(private readonly service: FollowsService) {}
 

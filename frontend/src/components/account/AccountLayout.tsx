@@ -22,7 +22,6 @@ const SECURITY_ACTIONS = [
     href: "/settings/verify?next=/settings/security?do=export",
   },
 
-  // ✅ NEW: Set password (for social-login users)
   {
     label: "Set password",
     href: "/settings/set-password",
