@@ -2,7 +2,7 @@
 
 import Head from "next/head";
 import type { GetServerSideProps } from "next";
-
+import { sessionCheckServerSide } from "@/lib/api/api";
 import AccountLayout from "@/components/account/AccountLayout";
 import PrivacySettingToggle from "@/components/account/PrivacySettingToggle";
 
@@ -42,14 +42,13 @@ export default function AccountPrivacyPage({ isPrivate }: Props) {
   );
 }
 
-/* =====================================================
-   SSR AUTH + DATA (BACKEND AUTHORITY)
-   Pattern: same as reports/me.tsx
-   ===================================================== */
 export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
-  const cookieHeader = ctx.req.headers.cookie;
+  const cookieHeader = ctx.req.headers.cookie ?? "";
 
-  if (!cookieHeader) {
+  // 🔐 AuthN only — backend is authority
+  const session = await sessionCheckServerSide(cookieHeader);
+
+  if (!session.valid) {
     return {
       redirect: { destination: "/feed", permanent: false },
     };
@@ -60,42 +59,12 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
     process.env.NEXT_PUBLIC_BACKEND_URL ??
     "https://api.phlyphant.com";
 
-  /* =========================
-     1) session-check (authority)
-     ========================= */
-  const sessionRes = await fetch(`${base}/auth/session-check`, {
-    method: "GET",
-    headers: {
-      Accept: "application/json",
-      Cookie: cookieHeader,
-    },
-    credentials: "include",
-    cache: "no-store",
-  });
-
-  if (!sessionRes.ok) {
-    return {
-      redirect: { destination: "/feed", permanent: false },
-    };
-  }
-
-  const session = await sessionRes.json().catch(() => null);
-
-  if (!session || session.valid !== true) {
-    return {
-      redirect: { destination: "/feed", permanent: false },
-    };
-  }
-
-  /* =========================
-     2) fetch profile (authority, same base)
-     ========================= */
   try {
     const res = await fetch(`${base}/users/me`, {
       method: "GET",
       headers: {
         Accept: "application/json",
-        Cookie: cookieHeader,
+        ...(cookieHeader ? { Cookie: cookieHeader } : {}),
       },
       credentials: "include",
       cache: "no-store",
@@ -131,3 +100,4 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
     };
   }
 };
+

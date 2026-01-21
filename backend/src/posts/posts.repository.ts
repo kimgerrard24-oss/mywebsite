@@ -44,7 +44,7 @@ async findPublicFeed(params: {
     },
 
     where: {
-      visibility: 'PUBLIC',
+      visibility: 'PUBLIC', // ✅ feed authority = post visibility
       isDeleted: false,
       isHidden: false,
 
@@ -61,43 +61,10 @@ async findPublicFeed(params: {
           }
         : {}),
 
-      // ===== PRIVACY + BLOCK ENFORCEMENT (PRODUCTION) =====
-      AND: [
-        // ---------- PRIVATE ACCOUNT VISIBILITY ----------
-        {
-          OR: [
-            // public account
-            {
-              author: {
-                isPrivate: false,
-              },
-            },
-
-            // owner can always see
-            ...(params.viewerUserId
-              ? [
-                  {
-                    authorId: params.viewerUserId,
-                  },
-
-                  // approved follower
-                  {
-                    author: {
-                      followers: {
-                        some: {
-                          followerId: params.viewerUserId,
-                        },
-                      },
-                    },
-                  },
-                ]
-              : []),
-          ],
-        },
-
-        // ---------- BLOCK (2-way) ----------
-        ...(params.viewerUserId
-          ? [
+      // ===== BLOCK ENFORCEMENT (2-way, production authority) =====
+      ...(params.viewerUserId
+        ? {
+            AND: [
               // viewer must NOT block author
               {
                 author: {
@@ -119,9 +86,9 @@ async findPublicFeed(params: {
                   },
                 },
               },
-            ]
-          : []),
-      ],
+            ],
+          }
+        : {}),
     },
 
     select: {
@@ -137,7 +104,7 @@ async findPublicFeed(params: {
           displayName: true,
           avatarUrl: true,
 
-          // ===== privacy =====
+          // ===== privacy (UX only, not for feed gating) =====
           isPrivate: true,
 
           // ===== isFollowing (viewer → author) =====
@@ -191,6 +158,7 @@ async findPublicFeed(params: {
 }
 
 
+
 async findPostById(
   postId: string,
   viewerUserId?: string,
@@ -199,43 +167,15 @@ async findPostById(
     where: {
       id: postId,
 
-      // ===== PRIVACY + BLOCK ENFORCEMENT (PRODUCTION) =====
-      AND: [
-        // ---------- PRIVATE ACCOUNT VISIBILITY ----------
-        {
-          OR: [
-            // public account
-            {
-              author: {
-                isPrivate: false,
-              },
-            },
+      // ===== POST VISIBILITY AUTHORITY =====
+      visibility: 'PUBLIC',
+      isDeleted: false,
+      isHidden: false,
 
-            ...(viewerUserId
-              ? [
-                  // owner can always see
-                  {
-                    authorId: viewerUserId,
-                  },
-
-                  // approved follower
-                  {
-                    author: {
-                      followers: {
-                        some: {
-                          followerId: viewerUserId,
-                        },
-                      },
-                    },
-                  },
-                ]
-              : []),
-          ],
-        },
-
-        // ---------- BLOCK (2-way) ----------
-        ...(viewerUserId
-          ? [
+      // ===== BLOCK ENFORCEMENT (2-way) =====
+      ...(viewerUserId
+        ? {
+            AND: [
               // viewer must NOT block author
               {
                 author: {
@@ -257,9 +197,9 @@ async findPostById(
                   },
                 },
               },
-            ]
-          : []),
-      ],
+            ],
+          }
+        : {}),
     },
 
     select: {
@@ -310,8 +250,6 @@ async findPostById(
     },
   });
 }
-
-
 
 
   async findById(postId: string): Promise<{
@@ -578,6 +516,7 @@ async findPostsByTag(params: {
     where: {
       isDeleted: false,
       isHidden: false,
+      visibility: 'PUBLIC', // ✅ authority = post visibility
 
       tags: {
         some: {
@@ -587,43 +526,10 @@ async findPostsByTag(params: {
         },
       },
 
-      // ===== PRIVACY + BLOCK ENFORCEMENT (PRODUCTION) =====
-      AND: [
-        // ---------- PRIVATE ACCOUNT VISIBILITY ----------
-        {
-          OR: [
-            // public account
-            {
-              author: {
-                isPrivate: false,
-              },
-            },
-
-            ...(viewerUserId
-              ? [
-                  // owner can always see
-                  {
-                    authorId: viewerUserId,
-                  },
-
-                  // approved follower
-                  {
-                    author: {
-                      followers: {
-                        some: {
-                          followerId: viewerUserId,
-                        },
-                      },
-                    },
-                  },
-                ]
-              : []),
-          ],
-        },
-
-        // ---------- BLOCK (2-way) ----------
-        ...(viewerUserId
-          ? [
+      // ===== BLOCK ENFORCEMENT (2-way, production authority) =====
+      ...(viewerUserId
+        ? {
+            AND: [
               // viewer does NOT block author
               {
                 author: {
@@ -645,9 +551,9 @@ async findPostsByTag(params: {
                   },
                 },
               },
-            ]
-          : []),
-      ],
+            ],
+          }
+        : {}),
     },
 
     take: params.limit,
@@ -677,7 +583,7 @@ async findPostsByTag(params: {
           displayName: true,
           avatarUrl: true,
 
-          // ===== privacy =====
+          // ===== privacy (UX only) =====
           isPrivate: true,
 
           // ===== isFollowing (viewer → author) =====
@@ -735,6 +641,7 @@ async findPostsByTag(params: {
 
 
 
+
   
 async findPublicPosts(params: {
   limit: number;
@@ -748,6 +655,8 @@ async findPublicPosts(params: {
     where: {
       isDeleted: false,
       isHidden: false,
+
+      // ✅ FEED AUTHORITY = POST VISIBILITY ONLY
       visibility: "PUBLIC",
 
       // ===== MEDIA FILTER =====
@@ -763,43 +672,10 @@ async findPublicPosts(params: {
           }
         : {}),
 
-      // ===== PRIVACY + BLOCK ENFORCEMENT (PRODUCTION) =====
-      AND: [
-        // ---------- PRIVATE ACCOUNT VISIBILITY ----------
-        {
-          OR: [
-            // public account
-            {
-              author: {
-                isPrivate: false,
-              },
-            },
-
-            ...(viewerUserId
-              ? [
-                  // owner can always see
-                  {
-                    authorId: viewerUserId,
-                  },
-
-                  // approved follower
-                  {
-                    author: {
-                      followers: {
-                        some: {
-                          followerId: viewerUserId,
-                        },
-                      },
-                    },
-                  },
-                ]
-              : []),
-          ],
-        },
-
-        // ---------- BLOCK (2-way) ----------
-        ...(viewerUserId
-          ? [
+      // ===== BLOCK ENFORCEMENT (2-way, PRODUCTION) =====
+      ...(viewerUserId
+        ? {
+            AND: [
               // viewer must NOT block author
               {
                 author: {
@@ -821,9 +697,9 @@ async findPublicPosts(params: {
                   },
                 },
               },
-            ]
-          : []),
-      ],
+            ],
+          }
+        : {}),
     },
 
     orderBy: { createdAt: "desc" },
@@ -853,7 +729,7 @@ async findPublicPosts(params: {
           displayName: true,
           avatarUrl: true,
 
-          // ===== privacy =====
+          // ===== privacy (UX only, NOT feed gating) =====
           isPrivate: true,
 
           // ===== isFollowing (viewer → author) =====
@@ -908,8 +784,6 @@ async findPublicPosts(params: {
     },
   });
 }
-
-
 
  
 async findPostForLike(params: {
