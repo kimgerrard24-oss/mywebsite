@@ -64,14 +64,18 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
 
   try {
     const res = await fetch(`${base}/users/me`, {
-      method: "GET",
-      headers: {
-        Accept: "application/json",
-        ...(cookie ? { Cookie: cookie } : {}),
-      },
-      credentials: "include",
-      cache: "no-store",
-    });
+  method: "GET",
+  headers: {
+    Accept: "application/json",
+    ...(cookie ? { Cookie: cookie } : {}),
+    // 🔥 force bypass CDN / proxy cache
+    "Cache-Control": "no-store, no-cache, must-revalidate, proxy-revalidate",
+    Pragma: "no-cache",
+  },
+  credentials: "include",
+  cache: "no-store",
+});
+
 
     if (!res.ok) {
       return {

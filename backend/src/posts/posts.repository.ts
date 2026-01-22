@@ -360,7 +360,7 @@ async findUserPosts(params: {
   viewerUserId: string | null;
   limit?: number;
   cursor?: string;
-  scope: 'public' | 'self';
+  scope: 'public' | 'self'; // kept for compatibility, not used here
 }) {
   const {
     userId,
@@ -373,13 +373,19 @@ async findUserPosts(params: {
     where: {
       authorId: userId,
 
-      // ===== BASE FILTER =====
+      // ===== BASE FILTER (DB authority) =====
       isDeleted: false,
       isHidden: false,
 
-      ...(params.scope === 'public'
-        ? { visibility: 'PUBLIC' }
-        : {}),
+      /**
+       * IMPORTANT:
+       * - Privacy (private / follower / self) is already enforced
+       *   by PostVisibilityService.resolveUserPostVisibility()
+       * - Repository must NOT re-check:
+       *   - isPrivate
+       *   - follow relation
+       *   - post.visibility
+       */
 
       // ===== BLOCK ENFORCEMENT (viewer ↔ author) =====
       ...(viewerUserId
@@ -431,6 +437,7 @@ async findUserPosts(params: {
           avatarUrl: true,
           isPrivate: true,
 
+          // ===== UX flags (viewer → author) =====
           followers: viewerUserId
             ? {
                 where: { followerId: viewerUserId },
@@ -474,6 +481,7 @@ async findUserPosts(params: {
     },
   });
 }
+
 
 
 
