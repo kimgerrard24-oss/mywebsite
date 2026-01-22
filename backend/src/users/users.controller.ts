@@ -93,14 +93,18 @@ export class UsersController {
 @UseGuards(AccessTokenCookieAuthGuard)
 @Header(
   'Cache-Control',
-  'no-store, no-cache, must-revalidate, proxy-revalidate',
+  // browser + proxy + CDN safe
+  'no-store, no-cache, must-revalidate, proxy-revalidate, max-age=0, s-maxage=0',
 )
-@Header('Pragma', 'no-cache')
+@Header('Pragma', 'no-cache') // legacy HTTP/1.0 proxies
 @Header('Expires', '0')
+@Header('Surrogate-Control', 'no-store') // some CDNs (extra safety)
+@Header('Vary', 'Cookie, Authorization') // prevent shared cache poisoning
 async getMe(
   @CurrentUser() sessionUser: SessionUser,
 ) {
   if (!sessionUser?.userId) {
+    // guard should already block, but keep defense-in-depth
     throw new UnauthorizedException('Authentication required');
   }
 
@@ -112,6 +116,7 @@ async getMe(
    */
   return this.usersService.getMe(sessionUser.userId);
 }
+
 
 
     @Get('search')
