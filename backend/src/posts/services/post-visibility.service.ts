@@ -99,7 +99,7 @@ export class PostVisibilityService {
 
       return {
         canView: true,
-        scope: 'self',
+        scope: 'public',
       };
     }
 
