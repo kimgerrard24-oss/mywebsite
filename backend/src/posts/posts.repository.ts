@@ -14,6 +14,7 @@ export class PostsRepository {
       data: {
         authorId: params.authorId,
         content: params.content,
+        visibility: 'PUBLIC',
       },
       select: {
         id: true,
@@ -334,6 +335,7 @@ async findPostById(
       data: {
         authorId: params.authorId,
         content: params.content,
+        visibility: 'PUBLIC',
       },
     });
   }
