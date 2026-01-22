@@ -3,6 +3,7 @@
 import type { AdminPostDetail } from "@/types/admin-post";
 import AdminPostMedia from "./AdminPostMedia";
 import AdminAuditUnhidePanel from "@/components/admin/moderation/AdminAuditUnhidePanel";
+import PostVisibilityOverridePanel from "@/components/moderation/PostVisibilityOverridePanel";
 
 type Props = {
   post: AdminPostDetail;
@@ -46,7 +47,7 @@ export default function AdminPostDetail({
       {/* ===== Media ===== */}
       <AdminPostMedia postId={post.id} />
 
-      {/* ===== Meta ===== */}
+            {/* ===== Meta ===== */}
       <footer className="flex flex-wrap gap-4 text-xs text-gray-600">
         <span>
           Comments: {post.stats.commentCount}
@@ -64,21 +65,37 @@ export default function AdminPostDetail({
           </span>
         )}
 
-        {!post.isDeleted &&
-          post.isHidden && (
-            <span className="text-orange-600">
-              Hidden by admin
-            </span>
-          )}
+        {!post.isDeleted && post.isHidden && (
+          <span className="text-orange-600">
+            Hidden by admin
+          </span>
+        )}
+
+        {!post.isDeleted && post.overriddenByAdmin && (
+          <span className="text-blue-600">
+            Visibility overridden
+          </span>
+        )}
       </footer>
 
-      {/* ===== Admin Moderation (authority = backend) ===== */}
+      {/* ===== Admin Visibility Override (PUBLIC / PRIVATE) ===== */}
+      {!post.isDeleted && (
+        <PostVisibilityOverridePanel
+          postId={post.id}
+          currentEffectiveVisibility={
+            post.effectiveVisibility
+          }
+        />
+      )}
+
+      {/* ===== Admin Moderation (HIDE / UNHIDE) ===== */}
       {!post.isDeleted && (
         <AdminAuditUnhidePanel
           targetType="POST"
           targetId={post.id}
         />
       )}
+
     </article>
   );
 }

@@ -8,6 +8,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import {
   ModerationActionType,
   ModerationTargetType,
+  PostVisibility,
 } from '@prisma/client';
 
 @Injectable()
@@ -95,171 +96,192 @@ export class AdminModerationRepository {
    * Apply side-effect (FIXED)
    * ==================================================
    */
-  async applyActionEffect(
-    targetType: ModerationTargetType,
-    targetId: string,
-    actionType: ModerationActionType,
-  ) {
-    /**
-     * ===== USER =====
-     * BAN only (no UNHIDE)
-     */
-    if (
-      targetType === ModerationTargetType.USER &&
-      actionType ===
-        ModerationActionType.BAN_USER
-    ) {
-      await this.prisma.user.update({
-        where: { id: targetId },
-        data: {
-          isDisabled: true,
-          disabledAt: new Date(),
-        },
-      });
-      return;
-    }
-
-    /**
-     * ===== POST =====
-     * HIDE / UNHIDE via isHidden
-     */
-    if (
-      targetType === ModerationTargetType.POST
-    ) {
-      if (
-        actionType ===
-        ModerationActionType.HIDE
-      ) {
-        await this.prisma.post.update({
-          where: { id: targetId },
-          data: {
-            isHidden: true,
-            hiddenAt: new Date(),
-          },
-        });
-        return;
-      }
-
-      if (
-        actionType ===
-        ModerationActionType.UNHIDE
-      ) {
-        await this.prisma.post.update({
-          where: { id: targetId },
-          data: {
-            isHidden: false,
-            hiddenAt: null,
-          },
-        });
-        return;
-      }
-    }
-
+async applyActionEffect(
+  targetType: ModerationTargetType,
+  targetId: string,
+  actionType: ModerationActionType,
+) {
   /**
- * ===== COMMENT =====
- * HIDE / UNHIDE via isHidden + sync post.commentCount
- */
-if (targetType === ModerationTargetType.COMMENT) {
-  const comment =
-    await this.prisma.comment.findUnique({
+   * ==================================================
+   * USER — BAN ONLY
+   * ==================================================
+   */
+  if (
+    targetType === ModerationTargetType.USER &&
+    actionType === ModerationActionType.BAN_USER
+  ) {
+    await this.prisma.user.update({
       where: { id: targetId },
-      select: {
-        id: true,
-        postId: true,
-        isHidden: true,
-        isDeleted: true,
+      data: {
+        isDisabled: true,
+        disabledAt: new Date(),
       },
     });
+    return;
+  }
 
-  if (!comment) return;
-
-  if (
-    actionType === ModerationActionType.HIDE &&
-    comment.isHidden !== true &&
-    comment.isDeleted !== true
-  ) {
-    await this.prisma.$transaction([
-      this.prisma.comment.update({
+  /**
+   * ==================================================
+   * POST
+   * - HIDE / UNHIDE  → isHidden
+   * - FORCE VISIBILITY → effectiveVisibility + overriddenByAdmin
+   * ==================================================
+   */
+  if (targetType === ModerationTargetType.POST) {
+    if (actionType === ModerationActionType.HIDE) {
+      await this.prisma.post.update({
         where: { id: targetId },
         data: {
           isHidden: true,
           hiddenAt: new Date(),
         },
-      }),
-      this.prisma.post.update({
-        where: { id: comment.postId },
-        data: {
-          commentCount: { decrement: 1 },
-        },
-      }),
-    ]);
-    return;
-  }
+      });
+      return;
+    }
 
-  if (
-    actionType === ModerationActionType.UNHIDE &&
-    comment.isHidden === true &&
-    comment.isDeleted !== true
-  ) {
-    await this.prisma.$transaction([
-      this.prisma.comment.update({
+    if (actionType === ModerationActionType.UNHIDE) {
+      await this.prisma.post.update({
         where: { id: targetId },
         data: {
           isHidden: false,
           hiddenAt: null,
         },
-      }),
-      this.prisma.post.update({
-        where: { id: comment.postId },
+      });
+      return;
+    }
+
+    // ✅ ADMIN FORCE VISIBILITY (NOT HIDE)
+    if (
+      actionType === ModerationActionType.POST_FORCE_PUBLIC
+    ) {
+      await this.prisma.post.update({
+        where: { id: targetId },
         data: {
-          commentCount: { increment: 1 },
+          effectiveVisibility: 'PUBLIC',
+          overriddenByAdmin: true,
         },
-      }),
-    ]);
+      });
+      return;
+    }
+
+    if (
+      actionType === ModerationActionType.POST_FORCE_PRIVATE
+    ) {
+      await this.prisma.post.update({
+        where: { id: targetId },
+        data: {
+          effectiveVisibility: 'PRIVATE',
+          overriddenByAdmin: true,
+        },
+      });
+      return;
+    }
+
     return;
   }
 
-  return;
-}
+  /**
+   * ==================================================
+   * COMMENT
+   * - HIDE / UNHIDE
+   * - sync post.commentCount
+   * ==================================================
+   */
+  if (targetType === ModerationTargetType.COMMENT) {
+    const comment =
+      await this.prisma.comment.findUnique({
+        where: { id: targetId },
+        select: {
+          id: true,
+          postId: true,
+          isHidden: true,
+          isDeleted: true,
+        },
+      });
 
+    if (!comment) return;
 
-    /**
-     * ===== CHAT MESSAGE =====
-     * DELETE / RESTORE style (no isHidden in schema)
-     */
     if (
-      targetType ===
-      ModerationTargetType.CHAT_MESSAGE
+      actionType === ModerationActionType.HIDE &&
+      comment.isHidden !== true &&
+      comment.isDeleted !== true
     ) {
-      if (
-        actionType ===
-        ModerationActionType.HIDE
-      ) {
-        await this.prisma.chatMessage.update({
+      await this.prisma.$transaction([
+        this.prisma.comment.update({
           where: { id: targetId },
           data: {
-            isDeleted: true,
-            deletedAt: new Date(),
+            isHidden: true,
+            hiddenAt: new Date(),
           },
-        });
-        return;
-      }
-
-      if (
-        actionType ===
-        ModerationActionType.UNHIDE
-      ) {
-        await this.prisma.chatMessage.update({
-          where: { id: targetId },
+        }),
+        this.prisma.post.update({
+          where: { id: comment.postId },
           data: {
-            isDeleted: false,
-            deletedAt: null,
+            commentCount: { decrement: 1 },
           },
-        });
-        return;
-      }
+        }),
+      ]);
+      return;
     }
+
+    if (
+      actionType === ModerationActionType.UNHIDE &&
+      comment.isHidden === true &&
+      comment.isDeleted !== true
+    ) {
+      await this.prisma.$transaction([
+        this.prisma.comment.update({
+          where: { id: targetId },
+          data: {
+            isHidden: false,
+            hiddenAt: null,
+          },
+        }),
+        this.prisma.post.update({
+          where: { id: comment.postId },
+          data: {
+            commentCount: { increment: 1 },
+          },
+        }),
+      ]);
+      return;
+    }
+
+    return;
   }
+
+  /**
+   * ==================================================
+   * CHAT MESSAGE
+   * - soft delete / restore
+   * ==================================================
+   */
+  if (targetType === ModerationTargetType.CHAT_MESSAGE) {
+    if (actionType === ModerationActionType.HIDE) {
+      await this.prisma.chatMessage.update({
+        where: { id: targetId },
+        data: {
+          isDeleted: true,
+          deletedAt: new Date(),
+        },
+      });
+      return;
+    }
+
+    if (actionType === ModerationActionType.UNHIDE) {
+      await this.prisma.chatMessage.update({
+        where: { id: targetId },
+        data: {
+          isDeleted: false,
+          deletedAt: null,
+        },
+      });
+      return;
+    }
+
+    return;
+  }
+}
 
   /**
    * ==================================================
@@ -385,5 +407,68 @@ if (targetType === ModerationTargetType.COMMENT) {
 
   return null;
 }
+
+
+async findPostForModeration(postId: string) {
+    return this.prisma.post.findUnique({
+      where: { id: postId },
+      select: {
+        id: true,
+        isDeleted: true,
+        isHidden: true,
+        authorId: true,
+      },
+    });
+  }
+
+  async overrideVisibility(params: {
+    postId: string;
+    effectiveVisibility: PostVisibility;
+    adminId: string;
+    reason?: string;
+  }) {
+    return this.prisma.post.update({
+      where: { id: params.postId },
+      data: {
+        effectiveVisibility: params.effectiveVisibility,
+        hiddenByAdminId: params.adminId,
+        hiddenReason: params.reason ?? null,
+        hiddenAt: new Date(),
+      },
+    });
+  }
+
+  async canOverridePostVisibility(postId: string): Promise<boolean> {
+  const post = await this.prisma.post.findUnique({
+    where: { id: postId },
+    select: {
+      id: true,
+      isDeleted: true,
+      isHidden: true,
+      authorId: true,
+      overriddenByAdmin: true, // ❗ใช้ได้ก็ต่อเมื่อมี field นี้ใน schema
+    },
+  });
+
+  if (!post) return false;
+
+  // ❌ deleted post → no override
+  if (post.isDeleted) return false;
+
+  // ❌ already overridden → prevent stacking override
+  if (post.overriddenByAdmin === true) return false;
+
+  // 🔍 check author state separately (DB authority)
+  const author = await this.prisma.user.findUnique({
+    where: { id: post.authorId },
+    select: { isDisabled: true },
+  });
+
+  // ❌ author already banned → visibility meaningless
+  if (author?.isDisabled === true) return false;
+
+  return true;
+}
+
 
 }

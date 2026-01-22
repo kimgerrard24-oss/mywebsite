@@ -8,6 +8,8 @@ export type AdminPostDetail = {
   isHidden: boolean;
   isDeleted: boolean;
   deletedSource?: string | null;
+  effectiveVisibility: "PUBLIC" | "PRIVATE";
+  overriddenByAdmin: boolean;
 
   author: {
     id: string;

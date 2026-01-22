@@ -102,6 +102,34 @@ export class AdminModerationService {
     }
   }
 
+  if (
+  dto.targetType === 'POST' &&
+  (dto.actionType === ModerationActionType.POST_FORCE_PUBLIC ||
+   dto.actionType === ModerationActionType.POST_FORCE_PRIVATE)
+) {
+  const canOverride =
+    await this.repo.canOverridePostVisibility(dto.targetId);
+
+  if (!canOverride) {
+    try {
+      await this.audit.logAdminAction({
+        adminId,
+        action: dto.actionType,
+        targetId: dto.targetId,
+        reason: dto.reason,
+        metadata: {
+          targetType: dto.targetType,
+          blocked: 'invalid_visibility_state',
+        },
+      });
+    } catch {}
+
+    throw new BadRequestException(
+      'Post visibility cannot be overridden in current state',
+    );
+  }
+}
+
   /**
    * 3️⃣ Create moderation action (DB)
    */
@@ -111,9 +139,12 @@ export class AdminModerationService {
       ...dto,
     });
 
-  /**
-   * 4️⃣ Apply side-effect
-   */
+ /**
+ * 4️⃣ Apply side-effect (DB authority)
+ * - hide/unhide
+ * - ban user
+ * - override post visibility
+ */
   await this.repo.applyActionEffect(
     dto.targetType,
     dto.targetId,
@@ -167,6 +198,10 @@ try {
     dto.actionType === ModerationActionType.HIDE ||
     dto.actionType === ModerationActionType.UNHIDE ||
     dto.actionType === ModerationActionType.BAN_USER
+    
+    || dto.actionType === ModerationActionType.POST_FORCE_PUBLIC
+    || dto.actionType === ModerationActionType.POST_FORCE_PRIVATE
+
   ) {
     await this.repo.markReportActionTaken({
       targetType: dto.targetType,

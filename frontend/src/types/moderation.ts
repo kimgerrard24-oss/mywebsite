@@ -8,6 +8,9 @@ export type ModeratedPostDetail = {
     isHidden: boolean;
     isDeleted: boolean;
     createdAt: string;
+
+    effectiveVisibility: "PUBLIC" | "PRIVATE";
+    overriddenByAdmin: boolean;
   };
 
   moderation: {
@@ -52,3 +55,4 @@ export type ModeratedMessageDetail = {
 
   canAppeal: boolean;
 };
+
