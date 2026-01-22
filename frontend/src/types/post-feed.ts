@@ -31,6 +31,10 @@ export type PostFeedItem = {
     likeCount: number;
     commentCount: number;
   };
+  
+  width: number | null;
+  height: number | null;
+  duration: number | null;
 
   canDelete: boolean;
 
@@ -44,6 +48,11 @@ export type PostFeedResponse = {
 };
 
 export type UserPostFeedResponse = {
+  items: PostFeedItem[];
+  nextCursor: string | null;
+};
+
+export type FeedResponse = {
   items: PostFeedItem[];
   nextCursor: string | null;
 };

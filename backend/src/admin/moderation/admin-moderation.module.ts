@@ -8,6 +8,7 @@ import { AdminModerationRepository } from './admin-moderation.repository';
 import { AuthModule } from '../../auth/auth.module';
 import { NotificationsModule } from '../../notifications/notifications.module';
 import { ModerationFollowsModule } from './follows/moderation-follows.module';
+import { AdminPostModerationController } from './admin-post-moderation.controller';
 
 @Module({
   imports: [ 
@@ -16,7 +17,7 @@ import { ModerationFollowsModule } from './follows/moderation-follows.module';
     NotificationsModule,
     ModerationFollowsModule,
    ],
-  controllers: [AdminModerationController],
+  controllers: [AdminPostModerationController,AdminModerationController],
   providers: [
     AdminModerationService,
     AdminModerationRepository,

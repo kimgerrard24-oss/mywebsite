@@ -1,7 +1,7 @@
 // frontend/src/lib/api/moderation.ts
 import type { GetServerSidePropsContext } from "next";
 
-import { apiPath,client } from '@/lib/api/api';
+import { apiPath } from '@/lib/api/api';
 import type { 
   ModeratedCommentDetail,
   ModeratedPostDetail,
@@ -178,4 +178,40 @@ export async function getMyModeratedMessageClient(
   }
 
   return res.json();
+}
+
+/**
+ * POST /api/moderation/posts/:id/override-visibility
+ * Cookie-based auth (HttpOnly)
+ */
+export async function overridePostVisibility(params: {
+  postId: string;
+  visibility: "PUBLIC" | "PRIVATE";
+  reason: string;
+}) {
+  const res = await fetch(
+    apiPath(`/admin/moderation/posts/${params.postId}/override-visibility`),
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({
+        visibility: params.visibility,
+        reason: params.reason,
+      }),
+    },
+  );
+
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(
+      `Override visibility failed (${res.status}): ${text}`,
+    );
+  }
+
+  return res.json() as Promise<{
+    success: true;
+    postId: string;
+    effectiveVisibility: "PUBLIC" | "PRIVATE";
+  }>;
 }

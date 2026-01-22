@@ -10,6 +10,9 @@ CREATE TYPE "DeleteSource" AS ENUM ('USER', 'ADMIN', 'SYSTEM');
 CREATE TYPE "OAuthProvider" AS ENUM ('LOCAL', 'GOOGLE', 'FACEBOOK');
 
 -- CreateEnum
+CREATE TYPE "VisibilityRuleType" AS ENUM ('INCLUDE', 'EXCLUDE');
+
+-- CreateEnum
 CREATE TYPE "MediaType" AS ENUM ('IMAGE', 'VIDEO', 'AUDIO');
 
 -- CreateEnum
@@ -31,7 +34,7 @@ CREATE TYPE "ReportTargetType" AS ENUM ('POST', 'COMMENT', 'USER', 'CHAT_MESSAGE
 CREATE TYPE "ModerationTargetType" AS ENUM ('USER', 'POST', 'COMMENT', 'CHAT_MESSAGE', 'FOLLOW');
 
 -- CreateEnum
-CREATE TYPE "ModerationActionType" AS ENUM ('HIDE', 'UNHIDE', 'DELETE', 'BAN_USER', 'WARN', 'NO_ACTION');
+CREATE TYPE "ModerationActionType" AS ENUM ('HIDE', 'UNHIDE', 'DELETE', 'BAN_USER', 'WARN', 'NO_ACTION', 'POST_FORCE_PUBLIC', 'POST_FORCE_PRIVATE');
 
 -- CreateEnum
 CREATE TYPE "AppealStatus" AS ENUM ('PENDING', 'APPROVED', 'REJECTED', 'WITHDRAWN');
@@ -190,6 +193,8 @@ CREATE TABLE "Post" (
     "hiddenAt" TIMESTAMP(3),
     "hiddenByAdminId" TEXT,
     "hiddenReason" TEXT,
+    "overriddenByAdmin" BOOLEAN NOT NULL DEFAULT false,
+    "effectiveVisibility" "PostVisibility" NOT NULL DEFAULT 'PUBLIC',
     "deletedSource" "DeleteSource",
     "deleteReason" TEXT,
     "commentCount" INTEGER NOT NULL DEFAULT 0,
@@ -199,6 +204,17 @@ CREATE TABLE "Post" (
     "visibility" "PostVisibility" NOT NULL DEFAULT 'PUBLIC',
 
     CONSTRAINT "Post_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "PostVisibilityRule" (
+    "id" TEXT NOT NULL,
+    "postId" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "rule" "VisibilityRuleType" NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "PostVisibilityRule_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -263,44 +279,6 @@ CREATE TABLE "Comment" (
 
     CONSTRAINT "Comment_pkey" PRIMARY KEY ("id")
 );
-
--- =====================================================
--- 🔒 Enforce ONE-LEVEL reply only (PRODUCTION SAFE)
--- - Applies ONLY on INSERT
--- - Prevents nested replies (reply of reply)
--- =====================================================
-
-CREATE OR REPLACE FUNCTION enforce_one_level_reply()
-RETURNS trigger AS $$
-BEGIN
-  -- Only validate when this is a reply
-  IF NEW."parentId" IS NOT NULL THEN
-    -- If parent itself is already a reply → reject
-    IF EXISTS (
-      SELECT 1
-      FROM "Comment"
-      WHERE id = NEW."parentId"
-        AND "parentId" IS NOT NULL
-    ) THEN
-      RAISE EXCEPTION
-        'Nested replies are not allowed (only 1-level replies supported)';
-    END IF;
-  END IF;
-
-  RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
--- =====================================================
--- Trigger: INSERT ONLY (⚠️ DO NOT USE UPDATE)
--- =====================================================
-
-DROP TRIGGER IF EXISTS trg_comment_one_level_reply ON "Comment";
-
-CREATE TRIGGER trg_comment_one_level_reply
-BEFORE INSERT ON "Comment"
-FOR EACH ROW
-EXECUTE FUNCTION enforce_one_level_reply();
 
 -- CreateTable
 CREATE TABLE "CommentLike" (
@@ -564,10 +542,6 @@ CREATE TABLE "IdentityVerificationToken" (
     CONSTRAINT "IdentityVerificationToken_pkey" PRIMARY KEY ("id")
 );
 
-CREATE UNIQUE INDEX uniq_active_identity_token
-ON "IdentityVerificationToken"("userId", "type")
-WHERE "usedAt" IS NULL;
-
 -- CreateTable
 CREATE TABLE "SecurityEvent" (
     "id" TEXT NOT NULL,
@@ -644,6 +618,9 @@ CREATE INDEX "LoginHistory_provider_createdAt_idx" ON "LoginHistory"("provider",
 CREATE UNIQUE INDEX "RefreshToken_token_key" ON "RefreshToken"("token");
 
 -- CreateIndex
+CREATE INDEX "Post_effectiveVisibility_publishedAt_idx" ON "Post"("effectiveVisibility", "publishedAt");
+
+-- CreateIndex
 CREATE INDEX "Post_authorId_publishedAt_idx" ON "Post"("authorId", "publishedAt");
 
 -- CreateIndex
@@ -657,6 +634,15 @@ CREATE INDEX "Post_deletedSource_deletedAt_idx" ON "Post"("deletedSource", "dele
 
 -- CreateIndex
 CREATE INDEX "Post_deletedById_deletedAt_idx" ON "Post"("deletedById", "deletedAt");
+
+-- CreateIndex
+CREATE INDEX "PostVisibilityRule_postId_rule_idx" ON "PostVisibilityRule"("postId", "rule");
+
+-- CreateIndex
+CREATE INDEX "PostVisibilityRule_userId_idx" ON "PostVisibilityRule"("userId");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "PostVisibilityRule_postId_userId_key" ON "PostVisibilityRule"("postId", "userId");
 
 -- CreateIndex
 CREATE INDEX "PostLike_postId_idx" ON "PostLike"("postId");
@@ -923,10 +909,19 @@ ALTER TABLE "RefreshToken" ADD CONSTRAINT "RefreshToken_userId_fkey" FOREIGN KEY
 ALTER TABLE "AuditLog" ADD CONSTRAINT "AuditLog_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "Post" ADD CONSTRAINT "Post_hiddenByAdminId_fkey" FOREIGN KEY ("hiddenByAdminId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "Post" ADD CONSTRAINT "Post_authorId_fkey" FOREIGN KEY ("authorId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Post" ADD CONSTRAINT "Post_deletedById_fkey" FOREIGN KEY ("deletedById") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PostVisibilityRule" ADD CONSTRAINT "PostVisibilityRule_postId_fkey" FOREIGN KEY ("postId") REFERENCES "Post"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PostVisibilityRule" ADD CONSTRAINT "PostVisibilityRule_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "PostLike" ADD CONSTRAINT "PostLike_postId_fkey" FOREIGN KEY ("postId") REFERENCES "Post"("id") ON DELETE CASCADE ON UPDATE CASCADE;

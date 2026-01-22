@@ -16,11 +16,13 @@ import { PostLikedEvent } from './events/post-liked.event';
 import { PostUnlikePolicy } from './policy/post-unlike.policy';
 import { CommentsModule } from '../comments/comments.module';
 import { NotificationsModule } from '../notifications/notifications.module'; // ✅
+import { PostsVisibilityModule } from './visibility/posts-visibility.module';
 
 @Module({
   imports: [
     PrismaModule, 
     AuthModule, 
+    PostsVisibilityModule,
     NotificationsModule, 
     CommentsModule,
   ],
@@ -37,6 +39,9 @@ import { NotificationsModule } from '../notifications/notifications.module'; // 
     PostLikePolicy,
     PostLikedEvent,
     PostUnlikePolicy,
+  ],
+exports: [
+    PostVisibilityService,
   ],
 })
 export class PostsModule {}

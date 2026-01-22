@@ -14,7 +14,7 @@ import { ForceRemoveFollowDto } from './dto/force-remove-follow.dto';
 import { AccessTokenCookieAuthGuard } from '../../../auth/guards/access-token-cookie.guard';
 import { AdminRoleGuard } from '../../guards/admin-role.guard';
 
-@Controller('api/moderation/follows')
+@Controller('moderation/follows')
 @UseGuards(AccessTokenCookieAuthGuard, AdminRoleGuard)
 export class ModerationFollowsController {
   constructor(

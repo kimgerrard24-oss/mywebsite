@@ -57,7 +57,8 @@ model User {
   moderationActions ModerationAction[] @relation("AdminModerationActions")
   // ใน User model (admin side)
   bannedUsers User[] @relation("UserBannedByAdmin")
-
+  hiddenPosts Post[] @relation("PostHiddenByAdmin")
+  postVisibilityRules PostVisibilityRule[]
   identityVerificationTokens IdentityVerificationToken[]
   securityEvents             SecurityEvent[]
   identityHistory            UserIdentityHistory[]
@@ -231,14 +232,16 @@ model Post {
   hiddenAt      DateTime?
   hiddenByAdminId String?
   hiddenReason    String?
-
+  hiddenByAdmin User? @relation("PostHiddenByAdmin",fields: [hiddenByAdminId],references: [id],onDelete: SetNull)
+  overriddenByAdmin   Boolean  @default(false)
+  effectiveVisibility PostVisibility @default(PUBLIC)
   deletedSource DeleteSource?
   deleteReason  String?
-
+  visibilityRules PostVisibilityRule[]
   author User @relation("PostAuthor",fields: [authorId],references: [id])
 
   deletedBy User? @relation("PostDeletedBy",fields: [deletedById],references: [id],onDelete: SetNull)
-
+  
   commentCount Int @default(0)
   likeCount    Int @default(0)
 
@@ -250,12 +253,35 @@ model Post {
   media    PostMedia[]
   tags     PostTag[]
   likes    PostLike[]
-
+  
+  @@index([effectiveVisibility, publishedAt])
   @@index([authorId, publishedAt])
   @@index([isPublished, isDeleted, isHidden, publishedAt])
   @@index([isDeleted, deletedAt])
   @@index([deletedSource, deletedAt])
   @@index([deletedById, deletedAt])
+}
+
+model PostVisibilityRule {
+  id        String @id @default(uuid())
+
+  postId    String
+  userId    String
+  rule      VisibilityRuleType
+
+  createdAt DateTime @default(now())
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+  @@index([postId, rule])
+  @@index([userId])
+}
+
+enum VisibilityRuleType {
+  INCLUDE
+  EXCLUDE
 }
 
 model PostLike {
@@ -802,6 +828,8 @@ enum ModerationActionType {
   BAN_USER
   WARN
   NO_ACTION
+  POST_FORCE_PUBLIC
+  POST_FORCE_PRIVATE
 }
 
 model Appeal {

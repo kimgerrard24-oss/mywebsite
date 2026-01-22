@@ -8,7 +8,7 @@ import { useState, useEffect} from "react";
 import PostDetail from "@/components/posts/PostDetail";
 import CommentComposer from "@/components/comments/CommentComposer";
 import CommentList from "@/components/comments/CommentList";
-
+import PostVisibilityGuard from "@/components/posts/PostVisibilityGuard";
 import { getPostById } from "@/lib/api/posts";
 import { requireSessionSSR } from "@/lib/auth/require-session-ssr";
 import type { PostDetail as PostDetailType } from "@/types/post-detail";
@@ -116,49 +116,51 @@ export default function PostDetailPage({ post }: Props) {
       </Head>
 
       <main
-        className="
-          mx-auto
-          w-full
-          max-w-sm
-          sm:max-w-md
-          md:max-w-2xl
-          px-4
-          sm:px-6
-          py-6
-          sm:py-8
-        "
+  className="
+    mx-auto
+    w-full
+    max-w-sm
+    sm:max-w-md
+    md:max-w-2xl
+    px-4
+    sm:px-6
+    py-6
+    sm:py-8
+  "
+>
+  <PostVisibilityGuard postId={post.id}>
+    <article
+      aria-label="Post content"
+      className="w-full"
+    >
+      {/* ===== Post ===== */}
+      <PostDetail post={post} />
+
+      {/* ===== Comments ===== */}
+      <section
+        className="mt-6 border-t pt-4"
+        aria-label="Post comments"
       >
-        <article
-          aria-label="Post content"
-          className="w-full"
-        >
-          {/* ===== Post ===== */}
-          <PostDetail post={post} />
+        <CommentComposer
+          postId={post.id}
+          onCreated={() => {
+            setCommentCount((c) => c + 1);
+          }}
+        />
 
-          {/* ===== Comments ===== */}
-          <section
-            className="mt-6 border-t pt-4"
-            aria-label="Post comments"
-          >
-            <CommentComposer
-              postId={post.id}
-              onCreated={() => {
-                // fail-soft
-                setCommentCount((c) => c + 1);
-              }}
-            />
+        <CommentList
+          postId={post.id}
+          onDeleted={() => {
+            setCommentCount((c) =>
+              Math.max(0, c - 1)
+            );
+          }}
+        />
+      </section>
+    </article>
+  </PostVisibilityGuard>
+</main>
 
-            <CommentList
-              postId={post.id}
-              onDeleted={() => {
-                setCommentCount((c) =>
-                  Math.max(0, c - 1)
-                );
-              }}
-            />
-          </section>
-        </article>
-      </main>
     </>
   );
 }
