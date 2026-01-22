@@ -103,11 +103,18 @@ export default function UserProfilePage({ profile }: Props) {
           </section>
 
           {/* ===== Profile posts ===== */}
-          {!profile.canViewContent && !profile.isSelf && (
-  <section className="mx-auto max-w-5xl px-4 pb-12 text-sm text-gray-500">
-    This account is private. Follow to see their posts.
+{profile.canViewContent ? (
+  <section className="mx-auto max-w-5xl px-4 pb-12">
+    <ProfilePosts userId={profile.id} />
   </section>
+) : (
+  !profile.isSelf && (
+    <section className="mx-auto max-w-5xl px-4 pb-12 text-sm text-gray-500">
+      This account is private. Follow to see their posts.
+    </section>
+  )
 )}
+
 
         </main>
       </ProfileLayout>
