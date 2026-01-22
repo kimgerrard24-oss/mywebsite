@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { updateMyPrivacy } from "@/lib/api/user-privacy";
 import { fetchMyProfileClient } from "@/lib/api/user";
 
@@ -13,7 +13,7 @@ type Props = {
 export default function PrivacySettingToggle({
   initialIsPrivate,
 }: Props) {
-  // ✅ start with SSR value to avoid disabled UI
+  // start with SSR value
   const [isPrivate, setIsPrivate] =
     useState<boolean>(initialIsPrivate);
 
@@ -21,7 +21,10 @@ export default function PrivacySettingToggle({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // ✅ Always resync from backend on mount (authority)
+  // prevent initial sync from overwriting user action
+  const hasUserInteractedRef = useRef(false);
+
+  // backend authority sync on mount
   useEffect(() => {
     let alive = true;
 
@@ -31,6 +34,7 @@ export default function PrivacySettingToggle({
 
         if (
           alive &&
+          !hasUserInteractedRef.current &&
           profile &&
           typeof profile.isPrivate === "boolean"
         ) {
@@ -53,24 +57,21 @@ export default function PrivacySettingToggle({
   async function handleToggle() {
     if (loading || !synced) return;
 
+    hasUserInteractedRef.current = true;
+
     const next = !isPrivate;
 
     setLoading(true);
     setError(null);
 
-    // optimistic UX
-    setIsPrivate(next);
-
     try {
       const res = await updateMyPrivacy(next);
 
-      // ✅ backend authority
+      // backend authority
       if (res && typeof res.isPrivate === "boolean") {
         setIsPrivate(res.isPrivate);
       }
     } catch {
-      // rollback
-      setIsPrivate(!next);
       setError(
         "Unable to update privacy setting. Please try again.",
       );
@@ -125,6 +126,7 @@ export default function PrivacySettingToggle({
     </section>
   );
 }
+
 
 
 

@@ -94,6 +94,7 @@ export class PostsService {
         data: {
           authorId,
           content,
+          visibility: 'PUBLIC',
         },
         select: {
           id: true,
