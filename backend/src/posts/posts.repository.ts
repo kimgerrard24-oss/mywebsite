@@ -360,13 +360,14 @@ async findUserPosts(params: {
   viewerUserId: string | null;
   limit?: number;
   cursor?: string;
-  scope: 'public' | 'self'; // kept for compatibility, not used here
+  scope: 'public' | 'self';
 }) {
   const {
     userId,
     viewerUserId,
     limit = 20,
     cursor,
+    scope,
   } = params;
 
   return this.prisma.post.findMany({
@@ -377,14 +378,16 @@ async findUserPosts(params: {
       isDeleted: false,
       isHidden: false,
 
+      // ===== POST VISIBILITY (post-level authority) =====
+      ...(scope === 'public'
+        ? { visibility: 'PUBLIC' }
+        : {}),
+
       /**
        * IMPORTANT:
-       * - Privacy (private / follower / self) is already enforced
-       *   by PostVisibilityService.resolveUserPostVisibility()
-       * - Repository must NOT re-check:
-       *   - isPrivate
-       *   - follow relation
-       *   - post.visibility
+       * - User privacy (private / follower / self)
+       *   is enforced in PostVisibilityService.resolveUserPostVisibility()
+       * - Repository only enforces post-level visibility
        */
 
       // ===== BLOCK ENFORCEMENT (viewer ↔ author) =====
@@ -426,7 +429,7 @@ async findUserPosts(params: {
       authorId: true,
       isHidden: true,
       isDeleted: true,
-
+      visibility: true,
       likeCount: true,
       commentCount: true,
 
@@ -481,10 +484,6 @@ async findUserPosts(params: {
     },
   });
 }
-
-
-
-
 
 
 async findPostsByTag(params: {

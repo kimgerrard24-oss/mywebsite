@@ -197,6 +197,7 @@ async getMe(userId: string): Promise<MeUserProfileDto> {
       createdAt: true,
       updatedAt: true,
       isDisabled: true,
+      isPrivate: true,
 
 
       _count: {
@@ -227,7 +228,7 @@ return {
   coverUrl: user.coverUrl ?? null,
   bio: user.bio,
   createdAt: user.createdAt.toISOString(),
-
+  isPrivate: user.isPrivate,
   isSelf: true,
   isBlocked: false,
   hasBlockedViewer: false,

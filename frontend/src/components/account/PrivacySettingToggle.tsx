@@ -2,12 +2,11 @@
 
 "use client";
 
-import { useEffect, useState, useRef } from "react";
+import { useState } from "react";
 import { updateMyPrivacy } from "@/lib/api/user-privacy";
-import { fetchMyProfileClient } from "@/lib/api/user";
 
 type Props = {
-  initialIsPrivate: boolean; // fallback only (UX), backend still authority
+  initialIsPrivate: boolean; // SSR = source of truth
 };
 
 export default function PrivacySettingToggle({
@@ -17,47 +16,11 @@ export default function PrivacySettingToggle({
   const [isPrivate, setIsPrivate] =
     useState<boolean>(initialIsPrivate);
 
-  const [synced, setSynced] = useState(false); // backend sync status
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  // prevent initial sync from overwriting user action
-  const hasUserInteractedRef = useRef(false);
-
-  // backend authority sync on mount
-  useEffect(() => {
-    let alive = true;
-
-    async function sync() {
-      try {
-        const profile = await fetchMyProfileClient();
-
-        if (
-          alive &&
-          !hasUserInteractedRef.current &&
-          profile &&
-          typeof profile.isPrivate === "boolean"
-        ) {
-          setIsPrivate(profile.isPrivate);
-        }
-      } catch {
-        // fail-soft: keep SSR value
-      } finally {
-        if (alive) setSynced(true);
-      }
-    }
-
-    sync();
-
-    return () => {
-      alive = false;
-    };
-  }, []);
-
   async function handleToggle() {
-    if (loading || !synced) return;
-
-    hasUserInteractedRef.current = true;
+    if (loading) return;
 
     const next = !isPrivate;
 
@@ -80,7 +43,7 @@ export default function PrivacySettingToggle({
     }
   }
 
-  const isDisabled = loading || !synced;
+  const isDisabled = loading;
 
   return (
     <section className="rounded border p-4">
@@ -126,6 +89,7 @@ export default function PrivacySettingToggle({
     </section>
   );
 }
+
 
 
 
