@@ -53,8 +53,10 @@ model User {
   reports Report[] @relation("UserReports")
   resolvedReports Report[] @relation("ReportResolvedBy")
   // relation (optional แต่ production-grade)
+
   bannedByAdmin     User?     @relation("UserBannedByAdmin",fields: [bannedByAdminId],references: [id],onDelete: SetNull)
   moderationActions ModerationAction[] @relation("AdminModerationActions")
+  
   // ใน User model (admin side)
   bannedUsers User[] @relation("UserBannedByAdmin")
   hiddenPosts Post[] @relation("PostHiddenByAdmin")
