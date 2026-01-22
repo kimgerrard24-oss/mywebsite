@@ -40,7 +40,8 @@ export type RateLimitAction =
   | 'confirmSetPassword'
   | 'requestPasswordReset'  
   | 'confirmPasswordReset'
-  | 'emailVerify';
+  | 'emailVerify'
+  | 'updatePrivacy';
 
 export type RateLimitEscalationConfig = {
   maxViolations: number;
@@ -728,6 +729,23 @@ confirmPasswordReset: {
     maxViolations: 3,
     windowSec: 86400,
     longBlockSec: 21600,
+  },
+},
+
+updatePrivacy: {
+  windowSec: 300,        // 5 นาที
+  max: 5,                // เปลี่ยนได้ 5 ครั้ง
+  blockDurationSec: 900, // block 15 นาที
+
+  // legacy fields (ยังใช้ใน service)
+  points: 5,
+  duration: 300,
+  blockDuration: 900,
+
+  escalation: {
+    maxViolations: 3,
+    windowSec: 86400,     // ภายใน 24 ชม.
+    longBlockSec: 21600,  // block 6 ชม.
   },
 },
 

@@ -94,7 +94,6 @@ export class PostsService {
         data: {
           authorId,
           content,
-          visibility: 'PUBLIC',
         },
         select: {
           id: true,
@@ -414,9 +413,18 @@ async getUserPostFeed(params: {
       viewer,
     });
 
-  if (!visibilityScope.canView) {
-    return { items: [], nextCursor: null };
-  }
+  // =====================================================
+// PROFILE FEED VISIBILITY
+// - public profile → always viewable
+// - private profile → must satisfy canView
+// =====================================================
+if (
+  visibilityScope.scope !== 'public' &&
+  !visibilityScope.canView
+) {
+  return { items: [], nextCursor: null };
+}
+
 
   const effectiveLimit = query.limit ?? 20;
 
