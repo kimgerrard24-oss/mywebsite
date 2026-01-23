@@ -11,9 +11,9 @@ import { CommentUpdatePolicy } from './policy/comment-update.policy';
 import { CommentMapper } from './mappers/comment.mapper';
 import { CommentItemDto } from './dto/comment-item.dto';
 import { NotificationsService } from '../notifications/notifications.service';
-import { NotificationMapper } from '../notifications/mapper/notification.mapper';
 import { parseHashtags } from '../posts/utils/parse-hashtags.util';
 import { AuditService } from '../auth/audit.service'
+import { PostVisibilityService } from '../posts/services/post-visibility.service';
 
 @Injectable()
 export class CommentsService {
@@ -23,6 +23,7 @@ export class CommentsService {
     private readonly readpolicy: CommentReadPolicy,
     private readonly notifications: NotificationsService,
     private readonly audit: AuditService,
+    private readonly postVisibility: PostVisibilityService,
   ) {}
 
 async createComment(params: {
@@ -39,29 +40,45 @@ async createComment(params: {
   } = params;
 
   // ==================================================
-// 🔒 LOAD POST + BLOCK ENFORCEMENT (2-way)
-// ==================================================
-const post = await this.repo.findPostForComment({
-  postId,
-  viewerUserId: authorId,
-});
+  // 🔒 LOAD POST + BLOCK ENFORCEMENT (repo pre-filter)
+  // ==================================================
+  const post = await this.repo.findPostForComment({
+    postId,
+    viewerUserId: authorId,
+  });
 
-if (!post) {
-  throw new NotFoundException('Post not found');
-}
-
-// 🔒 HARD VISIBILITY GUARD (AUTHORITY)
-if (post.isHidden === true || post.isDeleted === true) {
-  // production behavior: do not reveal existence
-  throw new NotFoundException('Post not found');
-}
-
-this.commentpolicy.assertCanComment(post);
-
-
+  if (!post) {
+    // production behavior: do not reveal existence
+    throw new NotFoundException('Post not found');
+  }
 
   // ==================================================
-  // 1️⃣ CREATE COMMENT (เดิม)
+  // 🔒 HARD STATE GUARD (deleted / hidden)
+  // ==================================================
+  if (post.isHidden === true || post.isDeleted === true) {
+    throw new NotFoundException('Post not found');
+  }
+
+  // ==================================================
+  // 🔐 FINAL AUTHORITY: POST VISIBILITY
+  // ==================================================
+  const canView = await this.postVisibility.canViewPost({
+    post,
+    viewer: { userId: authorId },
+  });
+
+  if (!canView) {
+    // production behavior: behave as not found
+    throw new NotFoundException('Post not found');
+  }
+
+  // ==================================================
+  // 🔐 BUSINESS POLICY (unchanged)
+  // ==================================================
+  this.commentpolicy.assertCanComment(post);
+
+  // ==================================================
+  // 1️⃣ CREATE COMMENT
   // ==================================================
   const created = await this.repo.createComment({
     postId,
@@ -104,23 +121,24 @@ this.commentpolicy.assertCanComment(post);
       }
     }
   }
-   // ===============================
-// ✅ AUDIT LOG: CREATE COMMENT
-// ===============================
-try {
-  await this.audit.createLog({
-    userId: authorId,
-    action: 'comment.create',
-    success: true,
-    targetId: created.id,
-    metadata: {
-      postId,
-      hasMentions: uniqueMentions.length > 0,
-    },
-  });
-} catch {
-  // must not affect main flow
-}
+
+  // ===============================
+  // ✅ AUDIT LOG: CREATE COMMENT
+  // ===============================
+  try {
+    await this.audit.createLog({
+      userId: authorId,
+      action: 'comment.create',
+      success: true,
+      targetId: created.id,
+      metadata: {
+        postId,
+        hasMentions: uniqueMentions.length > 0,
+      },
+    });
+  } catch {
+    // must not affect main flow
+  }
 
   // ==================================================
   // 🔔 NOTIFICATION: COMMENT (respect block)
@@ -222,38 +240,63 @@ try {
 
 
 
+
 async getPostComments(params: {
   postId: string;
   viewerUserId: string | null;
   limit: number;
   cursor?: string;
 }) {
-  const post = await this.repo.findReadablePost(
-    params.postId,
-  );
+  const { postId, viewerUserId, limit, cursor } = params;
+
+  // ==================================================
+  // 🔒 LOAD POST (repo pre-filter)
+  // ==================================================
+  const post = await this.repo.findReadablePost(postId);
+
   if (!post) {
+    // production behavior: do not reveal existence
     throw new NotFoundException('Post not found');
   }
 
-  // 🔒 HARD VISIBILITY GUARD (AUTHORITY)
-  // ถ้า post ถูก hide หรือ deleted → ห้ามอ่าน comment เด็ดขาด
-  // production behavior: do not reveal existence
+  // ==================================================
+  // 🔒 HARD STATE GUARD (deleted / hidden)
+  // ==================================================
   if (post.isHidden === true || post.isDeleted === true) {
     throw new NotFoundException('Post not found');
   }
 
+  // ==================================================
+  // 🔐 FINAL AUTHORITY: POST VISIBILITY
+  // ==================================================
+  const canView = await this.postVisibility.canViewPost({
+    post,
+    viewer: viewerUserId ? { userId: viewerUserId } : null,
+  });
+
+  if (!canView) {
+    // behave as not found
+    throw new NotFoundException('Post not found');
+  }
+
+  // ==================================================
+  // 🔐 BUSINESS READ POLICY (unchanged)
+  // ==================================================
   this.readpolicy.assertCanRead(post);
 
+  // ==================================================
+  // 1️⃣ LOAD COMMENTS (repo handles block filter)
+  // ==================================================
   const rows = await this.repo.findByPostId({
-    postId: params.postId,
-    limit: params.limit,
-    cursor: params.cursor,
-    viewerUserId: params.viewerUserId,
+    postId,
+    limit,
+    cursor,
+    viewerUserId,
   });
 
   const baseItems = CommentMapper.toItemDtos(
     rows,
-    params.viewerUserId,
+    viewerUserId,
   );
 
   /**
@@ -262,24 +305,21 @@ async getPostComments(params: {
    */
   const items = baseItems.map((item, idx) => {
     const row = rows[idx];
-    const viewerId = params.viewerUserId;
 
     const isOwner =
-      !!viewerId && row.authorId === viewerId;
+      !!viewerUserId && row.authorId === viewerUserId;
 
     const hasActiveModeration =
-      row.isHidden === true ||
-      row.isDeleted === true;
+      row.isHidden === true || row.isDeleted === true;
 
     return {
       ...item,
-      canAppeal:
-        Boolean(isOwner && hasActiveModeration),
+      canAppeal: Boolean(isOwner && hasActiveModeration),
     };
   });
 
   const nextCursor =
-    rows.length === params.limit
+    rows.length === limit
       ? rows[rows.length - 1].id
       : null;
 
@@ -288,6 +328,7 @@ async getPostComments(params: {
     nextCursor,
   };
 }
+
 
 
 
