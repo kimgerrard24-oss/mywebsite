@@ -22,7 +22,12 @@ export default function NotificationBell() {
 
   // ===== store (single source of truth) =====
   const storeItems = useNotificationStore((s) => s.items);
-  const unreadCount = useNotificationStore((s) => s.unreadCount);
+  const unreadCount = useNotificationStore((s) =>
+  s.items.filter(
+    (n) => !n.isRead && n.type !== 'feed_new_post',
+  ).length,
+);
+
   const hydrate = useNotificationStore((s) => s.hydrate);
   const clearUnread = useNotificationStore(
     (s) => s.clearUnread,
@@ -34,10 +39,14 @@ export default function NotificationBell() {
   /**
    * Narrow store items → UI domain type
    */
-  const items = useMemo(
-    () => storeItems as NotificationItem[],
-    [storeItems],
-  );
+ const items = useMemo(
+  () =>
+    storeItems.filter(
+      (n) => n.type !== 'feed_new_post',
+    ),
+  [storeItems],
+);
+
 
   // ===== toggle bell (open = read all) =====
   function handleToggle() {

@@ -63,6 +63,10 @@ if (targetType === 'CHAT_MESSAGE')
           ? `/posts/${item.entityId}`
           : null;
 
+      case 'feed_new_post':
+        return '/feed';
+    
+
       case 'comment_mention':
         return item.payload?.postId && item.entityId
           ? `/posts/${item.payload.postId}#comment-${item.entityId}`
@@ -97,7 +101,7 @@ if (targetType === 'CHAT_MESSAGE')
 
     const href = resolveHref();
     if (href && !isBlocked) {
-      router.push(href);
+       router.push(href).catch(() => {});
     }
   }
 
@@ -127,6 +131,9 @@ if (targetType === 'CHAT_MESSAGE')
 
       case 'like':
         return 'liked your post';
+
+      case 'feed_new_post':
+        return 'new post in your feed';
 
       case 'follow':
         return 'started following you';

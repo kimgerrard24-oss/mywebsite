@@ -1,28 +1,6 @@
 // frontend/src/stores/notification.store.ts
-
+import type { NotificationItem } from '@/types/notification';
 import { create } from 'zustand';
-
-export type NotificationItem = {
-  id: string;
-  type: string;
-  actor: {
-    id: string;
-    displayName: string | null;
-    avatarUrl: string | null;
-  } | null;
-  entityId: string | null;
-
-  /**
-   * Optional payload from backend
-   * - required for comment_mention
-   * - safe for other types
-   */
-  payload?: unknown;
-
-  isRead: boolean;
-  createdAt: string;
-};
-
 
 type NotificationState = {
   items: NotificationItem[];
