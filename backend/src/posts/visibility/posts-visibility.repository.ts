@@ -2,6 +2,7 @@
 
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
+import { VisibilityRuleType } from '@prisma/client';
 
 @Injectable()
 export class PostsVisibilityRepository {
@@ -20,6 +21,22 @@ export class PostsVisibilityRepository {
         authorId: true,
         isDeleted: true,
         isHidden: true,
+
+        // ✅ NEW: post-level visibility
+        visibility: true,
+
+        // ✅ NEW: custom visibility rules (INCLUDE / EXCLUDE)
+        visibilityRules: viewerUserId
+          ? {
+              where: {
+                userId: viewerUserId,
+              },
+              select: {
+                rule: true,
+              },
+            }
+          : false,
+
         author: {
           select: {
             isPrivate: true,
@@ -29,7 +46,12 @@ export class PostsVisibilityRepository {
     });
 
     if (!post) {
-      return { post: null, isFollower: false, isBlockedEitherWay: false };
+      return {
+        post: null,
+        isFollower: false,
+        isBlockedEitherWay: false,
+        visibilityRule: null as VisibilityRuleType | null,
+      };
     }
 
     let isFollower = false;
@@ -60,10 +82,23 @@ export class PostsVisibilityRepository {
       isBlockedEitherWay = Boolean(block);
     }
 
+    const visibilityRule =
+      viewerUserId && Array.isArray(post.visibilityRules)
+        ? post.visibilityRules[0]?.rule ?? null
+        : null;
+
     return {
-      post,
+      post: {
+        id: post.id,
+        authorId: post.authorId,
+        isDeleted: post.isDeleted,
+        isHidden: post.isHidden,
+        visibility: post.visibility,
+        author: post.author,
+      },
       isFollower,
       isBlockedEitherWay,
+      visibilityRule, // INCLUDE | EXCLUDE | null
     };
   }
 }

@@ -1,9 +1,16 @@
 // frontend/src/types/post-detail.ts
 
+export type PostVisibility =
+  | "PUBLIC"
+  | "FOLLOWERS"
+  | "PRIVATE"
+  | "CUSTOM";
+
 export type PostDetail = {
   id: string;
   content: string;
   createdAt: string;
+  visibility: PostVisibility;
 
   author: {
     id: string;
@@ -21,6 +28,7 @@ export type PostDetail = {
   }[];
 
   likeCount: number;
+  commentCount: number;
   isLikedByViewer: boolean;
 
   canDelete: boolean;

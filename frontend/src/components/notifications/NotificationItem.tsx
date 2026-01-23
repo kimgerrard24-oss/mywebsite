@@ -5,6 +5,7 @@ import { useNotificationRead } from '@/hooks/useNotificationRead';
 import { useRouter } from 'next/router';
 import { useState, useCallback } from 'react';
 import { useNotificationStore } from '@/stores/notification.store';
+import { useFeedStore } from '@/stores/feed.store';
 
 type Props = {
   item: Item;
@@ -16,6 +17,9 @@ export default function NotificationItem({ item }: Props) {
   const { markRead } = useNotificationRead();
   const markAsReadInStore =
     useNotificationStore((s) => s.markAsRead);
+const invalidateFeed = useFeedStore((s) => s.invalidate);
+
+
 
   const isBlocked =
     item.actor?.isBlocked === true ||
@@ -64,8 +68,7 @@ if (targetType === 'CHAT_MESSAGE')
           : null;
 
       case 'feed_new_post':
-        return '/feed';
-    
+        return null;
 
       case 'comment_mention':
         return item.payload?.postId && item.entityId
@@ -87,23 +90,32 @@ if (targetType === 'CHAT_MESSAGE')
     }
   }, [item]);
 
-  async function handleClick() {
-    if (!isRead) {
-      setIsRead(true);
-      markAsReadInStore(item.id);
+ async function handleClick() {
+  if (!isRead) {
+    setIsRead(true);
+    markAsReadInStore(item.id);
 
-      try {
-        await markRead(item.id);
-      } catch {
-        setIsRead(false);
-      }
-    }
-
-    const href = resolveHref();
-    if (href && !isBlocked) {
-       router.push(href).catch(() => {});
+    try {
+      await markRead(item.id);
+    } catch {
+      setIsRead(false);
     }
   }
+
+ if (item.type === 'feed_new_post') {
+  invalidateFeed('new-post'); // ใช้ระบบ invalidate กลาง
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+  return;
+}
+
+
+
+  const href = resolveHref();
+  if (href && !isBlocked) {
+    router.push(href).catch(() => {});
+  }
+}
+
 
   const actorName =
     item.actor?.displayName ??

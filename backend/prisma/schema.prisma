@@ -467,7 +467,9 @@ model PostTag {
 
 enum PostVisibility {
   PUBLIC
+  FOLLOWERS
   PRIVATE
+  CUSTOM
 }
 
 model FollowRequest {

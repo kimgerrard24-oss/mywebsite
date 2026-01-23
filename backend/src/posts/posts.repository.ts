@@ -1,6 +1,7 @@
 // backend/src/posts/posts.repository.ts
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { VisibilityRuleType, PostVisibility } from '@prisma/client';
 
 @Injectable()
 export class PostsRepository {
@@ -30,6 +31,7 @@ async findPublicFeed(params: {
   mediaType?: 'video';
 }) {
   const limit = params.limit ?? 20;
+  const viewerUserId = params.viewerUserId;
 
   return this.prisma.post.findMany({
     take: limit,
@@ -44,9 +46,82 @@ async findPublicFeed(params: {
     },
 
     where: {
-      visibility: 'PUBLIC', // ✅ feed authority = post visibility
+      // ===== BASE POST FILTER =====
       isDeleted: false,
       isHidden: false,
+
+      // =================================================
+      // 🔐 POST VISIBILITY AUTHORITY (PRODUCTION)
+      // - PUBLIC
+      // - FOLLOWERS (viewer must follow author)
+      // - CUSTOM (INCLUDE rule)
+      // - OWNER always allowed
+      // - EXCLUDE always denied (handled below)
+      // =================================================
+      AND: [
+        {
+          OR: [
+            // ===== OWNER =====
+            ...(viewerUserId
+              ? [
+                  {
+                    authorId: viewerUserId,
+                  },
+                ]
+              : []),
+
+            // ===== PUBLIC =====
+            {
+              visibility: PostVisibility.PUBLIC,
+            },
+
+            // ===== FOLLOWERS =====
+            ...(viewerUserId
+              ? [
+                  {
+                    visibility: PostVisibility.FOLLOWERS,
+                    author: {
+                      followers: {
+                        some: {
+                          followerId: viewerUserId,
+                        },
+                      },
+                    },
+                  },
+                ]
+              : []),
+
+            // ===== CUSTOM (INCLUDE) =====
+            ...(viewerUserId
+              ? [
+                  {
+                    visibility: PostVisibility.CUSTOM,
+                    visibilityRules: {
+                      some: {
+                        userId: viewerUserId,
+                        rule: VisibilityRuleType.INCLUDE,
+                      },
+                    },
+                  },
+                ]
+              : []),
+          ],
+        },
+
+        // ===== EXCLUDE RULE OVERRIDE (DENY ALWAYS) =====
+        ...(viewerUserId
+          ? [
+              {
+                visibilityRules: {
+                  none: {
+                    userId: viewerUserId,
+                    rule: VisibilityRuleType.EXCLUDE,
+                  },
+                },
+              },
+            ]
+          : []),
+      ],
 
       // ===== MEDIA FILTER (right video feed) =====
       ...(params.mediaType === 'video'
@@ -62,7 +137,7 @@ async findPublicFeed(params: {
         : {}),
 
       // ===== BLOCK ENFORCEMENT (2-way, production authority) =====
-      ...(params.viewerUserId
+      ...(viewerUserId
         ? {
             AND: [
               // viewer must NOT block author
@@ -70,7 +145,7 @@ async findPublicFeed(params: {
                 author: {
                   blockedBy: {
                     none: {
-                      blockerId: params.viewerUserId,
+                      blockerId: viewerUserId,
                     },
                   },
                 },
@@ -81,7 +156,7 @@ async findPublicFeed(params: {
                 author: {
                   blockedUsers: {
                     none: {
-                      blockedId: params.viewerUserId,
+                      blockedId: viewerUserId,
                     },
                   },
                 },
@@ -108,30 +183,30 @@ async findPublicFeed(params: {
           isPrivate: true,
 
           // ===== isFollowing (viewer → author) =====
-          followers: params.viewerUserId
+          followers: viewerUserId
             ? {
                 where: {
-                  followerId: params.viewerUserId,
+                  followerId: viewerUserId,
                 },
                 take: 1,
               }
             : false,
 
           // ===== follow request sent? (viewer → author) =====
-          followRequestsReceived: params.viewerUserId
+          followRequestsReceived: viewerUserId
             ? {
                 where: {
-                  requesterId: params.viewerUserId,
+                  requesterId: viewerUserId,
                 },
                 take: 1,
               }
             : false,
 
           // ===== UX block flag (viewer blocked by author?) =====
-          blockedBy: params.viewerUserId
+          blockedBy: viewerUserId
             ? {
                 where: {
-                  blockerId: params.viewerUserId,
+                  blockerId: viewerUserId,
                 },
                 take: 1,
               }
@@ -158,7 +233,6 @@ async findPublicFeed(params: {
 }
 
 
-
 async findPostById(
   postId: string,
   viewerUserId?: string,
@@ -171,27 +245,67 @@ async findPostById(
       isDeleted: false,
       isHidden: false,
 
-      // ===== VISIBILITY (PUBLIC / OWNER / APPROVED FOLLOWER) =====
-      OR: [
-        // public post
+      // =================================================
+      // 🔐 POST VISIBILITY AUTHORITY (PRODUCTION)
+      // =================================================
+      AND: [
         {
-          visibility: 'PUBLIC',
+          OR: [
+            // ===== OWNER (always allowed) =====
+            ...(viewerUserId
+              ? [
+                  {
+                    authorId: viewerUserId,
+                  },
+                ]
+              : []),
+
+            // ===== PUBLIC =====
+            {
+              visibility: PostVisibility.PUBLIC,
+            },
+
+            // ===== FOLLOWERS =====
+            ...(viewerUserId
+              ? [
+                  {
+                    visibility: PostVisibility.FOLLOWERS,
+                    author: {
+                      followers: {
+                        some: {
+                          followerId: viewerUserId,
+                        },
+                      },
+                    },
+                  },
+                ]
+              : []),
+
+            // ===== CUSTOM (INCLUDE) =====
+            ...(viewerUserId
+              ? [
+                  {
+                    visibility: PostVisibility.CUSTOM,
+                    visibilityRules: {
+                      some: {
+                        userId: viewerUserId,
+                        rule: VisibilityRuleType.INCLUDE,
+                      },
+                    },
+                  },
+                ]
+              : []),
+          ],
         },
 
+        // ===== EXCLUDE RULE OVERRIDE (DENY ALWAYS) =====
         ...(viewerUserId
           ? [
-              // owner can view
               {
-                authorId: viewerUserId,
-              },
-
-              // approved follower can view (private account)
-              {
-                author: {
-                  followers: {
-                    some: {
-                      followerId: viewerUserId,
-                    },
+                visibilityRules: {
+                  none: {
+                    userId: viewerUserId,
+                    rule: VisibilityRuleType.EXCLUDE,
                   },
                 },
               },
@@ -277,6 +391,7 @@ async findPostById(
     },
   });
 }
+
 
 
 
@@ -370,6 +485,8 @@ async findUserPosts(params: {
     scope,
   } = params;
 
+  const isOwner = viewerUserId === userId;
+
   return this.prisma.post.findMany({
     where: {
       authorId: userId,
@@ -378,16 +495,90 @@ async findUserPosts(params: {
       isDeleted: false,
       isHidden: false,
 
-      // ===== POST VISIBILITY (post-level authority) =====
+      // =================================================
+      // 🔐 POST VISIBILITY (POST-LEVEL AUTHORITY)
+      // - scope=self  → owner sees all (no visibility filter)
+      // - scope=public:
+      //    - PUBLIC
+      //    - FOLLOWERS (viewer must follow author)
+      //    - CUSTOM (INCLUDE rule)
+      //    - PRIVATE (owner only)
+      //    - EXCLUDE override always deny
+      // =================================================
       ...(scope === 'public'
-        ? { visibility: 'PUBLIC' }
+        ? {
+            AND: [
+              {
+                OR: [
+                  // ===== OWNER =====
+                  ...(viewerUserId && isOwner
+                    ? [
+                        {
+                          authorId: viewerUserId,
+                        },
+                      ]
+                    : []),
+
+                  // ===== PUBLIC =====
+                  {
+                    visibility: PostVisibility.PUBLIC,
+                  },
+
+                  // ===== FOLLOWERS =====
+                  ...(viewerUserId
+                    ? [
+                        {
+                          visibility: PostVisibility.FOLLOWERS,
+                          author: {
+                            followers: {
+                              some: {
+                                followerId: viewerUserId,
+                              },
+                            },
+                          },
+                        },
+                      ]
+                    : []),
+
+                  // ===== CUSTOM (INCLUDE) =====
+                  ...(viewerUserId
+                    ? [
+                        {
+                          visibility: PostVisibility.CUSTOM,
+                          visibilityRules: {
+                            some: {
+                              userId: viewerUserId,
+                              rule: VisibilityRuleType.INCLUDE,
+                            },
+                          },
+                        },
+                      ]
+                    : []),
+                ],
+              },
+
+              // ===== EXCLUDE RULE OVERRIDE (DENY ALWAYS) =====
+              ...(viewerUserId
+                ? [
+                    {
+                      visibilityRules: {
+                        none: {
+                          userId: viewerUserId,
+                          rule: VisibilityRuleType.EXCLUDE,
+                        },
+                      },
+                    },
+                  ]
+                : []),
+            ],
+          }
         : {}),
 
       /**
-       * IMPORTANT:
-       * - User privacy (private / follower / self)
+       * IMPORTANT (KEEP):
+       * - Account privacy (private / follower / self)
        *   is enforced in PostVisibilityService.resolveUserPostVisibility()
-       * - Repository only enforces post-level visibility
+       * - Repository enforces only post-level visibility
        */
 
       // ===== BLOCK ENFORCEMENT (viewer ↔ author) =====
@@ -486,6 +677,7 @@ async findUserPosts(params: {
 }
 
 
+
 async findPostsByTag(params: {
   tag: string;
   cursor?: string;
@@ -493,14 +685,15 @@ async findPostsByTag(params: {
   viewerUserId?: string | null; // ✅ viewer-aware
 }) {
   const normalizedTag = params.tag.toLowerCase();
-  const { viewerUserId } = params;
+  const viewerUserId = params.viewerUserId ?? null;
 
   return this.prisma.post.findMany({
     where: {
+      // ===== BASE POST FILTER =====
       isDeleted: false,
       isHidden: false,
-      visibility: 'PUBLIC', // ✅ authority = post visibility
 
+      // ===== TAG FILTER =====
       tags: {
         some: {
           tag: {
@@ -508,6 +701,74 @@ async findPostsByTag(params: {
           },
         },
       },
+
+      // =================================================
+      // 🔐 POST VISIBILITY AUTHORITY (PRODUCTION)
+      // =================================================
+      AND: [
+        {
+          OR: [
+            // ===== OWNER =====
+            ...(viewerUserId
+              ? [
+                  {
+                    authorId: viewerUserId,
+                  },
+                ]
+              : []),
+
+            // ===== PUBLIC =====
+            {
+              visibility: PostVisibility.PUBLIC,
+            },
+
+            // ===== FOLLOWERS =====
+            ...(viewerUserId
+              ? [
+                  {
+                    visibility: PostVisibility.FOLLOWERS,
+                    author: {
+                      followers: {
+                        some: {
+                          followerId: viewerUserId,
+                        },
+                      },
+                    },
+                  },
+                ]
+              : []),
+
+            // ===== CUSTOM (INCLUDE) =====
+            ...(viewerUserId
+              ? [
+                  {
+                    visibility: PostVisibility.CUSTOM,
+                    visibilityRules: {
+                      some: {
+                        userId: viewerUserId,
+                        rule: VisibilityRuleType.INCLUDE,
+                      },
+                    },
+                  },
+                ]
+              : []),
+          ],
+        },
+
+        // ===== EXCLUDE RULE OVERRIDE (DENY ALWAYS) =====
+        ...(viewerUserId
+          ? [
+              {
+                visibilityRules: {
+                  none: {
+                    userId: viewerUserId,
+                    rule: VisibilityRuleType.EXCLUDE,
+                  },
+                },
+              },
+            ]
+          : []),
+      ],
 
       // ===== BLOCK ENFORCEMENT (2-way, production authority) =====
       ...(viewerUserId
@@ -624,23 +885,87 @@ async findPostsByTag(params: {
 
 
 
-
-  
 async findPublicPosts(params: {
   limit: number;
   cursor?: string;
   mediaType?: "video";
   viewerUserId?: string | null;
 }) {
-  const { viewerUserId } = params;
+  const viewerUserId = params.viewerUserId ?? null;
 
   return this.prisma.post.findMany({
     where: {
+      // ===== BASE POST FILTER =====
       isDeleted: false,
       isHidden: false,
 
-      // ✅ FEED AUTHORITY = POST VISIBILITY ONLY
-      visibility: "PUBLIC",
+      // =================================================
+      // 🔐 POST VISIBILITY AUTHORITY (PRODUCTION)
+      // =================================================
+      AND: [
+        {
+          OR: [
+            // ===== OWNER =====
+            ...(viewerUserId
+              ? [
+                  {
+                    authorId: viewerUserId,
+                  },
+                ]
+              : []),
+
+            // ===== PUBLIC =====
+            {
+              visibility: PostVisibility.PUBLIC,
+            },
+
+            // ===== FOLLOWERS =====
+            ...(viewerUserId
+              ? [
+                  {
+                    visibility: PostVisibility.FOLLOWERS,
+                    author: {
+                      followers: {
+                        some: {
+                          followerId: viewerUserId,
+                        },
+                      },
+                    },
+                  },
+                ]
+              : []),
+
+            // ===== CUSTOM (INCLUDE) =====
+            ...(viewerUserId
+              ? [
+                  {
+                    visibility: PostVisibility.CUSTOM,
+                    visibilityRules: {
+                      some: {
+                        userId: viewerUserId,
+                        rule: VisibilityRuleType.INCLUDE,
+                      },
+                    },
+                  },
+                ]
+              : []),
+          ],
+        },
+
+        // ===== EXCLUDE RULE OVERRIDE (DENY ALWAYS) =====
+        ...(viewerUserId
+          ? [
+              {
+                visibilityRules: {
+                  none: {
+                    userId: viewerUserId,
+                    rule: VisibilityRuleType.EXCLUDE,
+                  },
+                },
+              },
+            ]
+          : []),
+      ],
 
       // ===== MEDIA FILTER =====
       ...(params.mediaType === "video"
@@ -768,36 +1093,84 @@ async findPublicPosts(params: {
   });
 }
 
+
  
 async findPostForLike(params: {
   postId: string;
   viewerUserId?: string | null;
 }) {
-  const { postId, viewerUserId } = params;
+  const postId = params.postId;
+  const viewerUserId = params.viewerUserId ?? null;
 
   return this.prisma.post.findFirst({
     where: {
       id: postId,
+
+      // ===== BASE POST FILTER =====
       isDeleted: false,
       isHidden: false,
 
-      // ✅ LIKE AUTHORITY = POST VISIBILITY (FEED AUTHORITY)
-      OR: [
-        // public post (anyone in feed can like)
-        { visibility: 'PUBLIC' },
+      // =================================================
+      // 🔐 LIKE AUTHORITY = POST VISIBILITY AUTHORITY
+      // =================================================
+      AND: [
+        {
+          OR: [
+            // ===== OWNER =====
+            ...(viewerUserId
+              ? [
+                  {
+                    authorId: viewerUserId,
+                  },
+                ]
+              : []),
 
+            // ===== PUBLIC =====
+            {
+              visibility: PostVisibility.PUBLIC,
+            },
+
+            // ===== FOLLOWERS =====
+            ...(viewerUserId
+              ? [
+                  {
+                    visibility: PostVisibility.FOLLOWERS,
+                    author: {
+                      followers: {
+                        some: {
+                          followerId: viewerUserId,
+                        },
+                      },
+                    },
+                  },
+                ]
+              : []),
+
+            // ===== CUSTOM (INCLUDE) =====
+            ...(viewerUserId
+              ? [
+                  {
+                    visibility: PostVisibility.CUSTOM,
+                    visibilityRules: {
+                      some: {
+                        userId: viewerUserId,
+                        rule: VisibilityRuleType.INCLUDE,
+                      },
+                    },
+                  },
+                ]
+              : []),
+          ],
+        },
+
+        // ===== EXCLUDE RULE OVERRIDE (DENY ALWAYS) =====
         ...(viewerUserId
           ? [
-              // owner
-              { authorId: viewerUserId },
-
-              // approved follower (future-proof if private-post added)
               {
-                author: {
-                  followers: {
-                    some: {
-                      followerId: viewerUserId,
-                    },
+                visibilityRules: {
+                  none: {
+                    userId: viewerUserId,
+                    rule: VisibilityRuleType.EXCLUDE,
                   },
                 },
               },
@@ -840,6 +1213,7 @@ async findPostForLike(params: {
     },
   });
 }
+
 
 
 
@@ -1106,5 +1480,16 @@ async findPostForLike(params: {
   return { rows, nextCursor };
 }
 
+async findPostVisibilityRules(params: { postId: string }) {
+  const { postId } = params;
+
+  return this.prisma.postVisibilityRule.findMany({
+    where: { postId },
+    select: {
+      userId: true,
+      rule: true,
+    },
+  });
+}
 
 }

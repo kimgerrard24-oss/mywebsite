@@ -10,22 +10,79 @@ export class PostVisibilityService {
     private readonly prisma: PrismaService,
   ) {}
 
-  /**
+    /**
    * =========================================================
-   * EXISTING (DO NOT TOUCH)
-   * Post-level visibility
+   * Post-level visibility (backend authority)
    * =========================================================
    */
   async canViewPost(params: {
     post: any;
     viewer: { userId: string } | null;
   }): Promise<boolean> {
+    const { post, viewer } = params;
+
+    const visibility = post.visibility;
+    const viewerId = viewer?.userId ?? null;
+    const authorId = post.authorId;
+
+    // =========================
+    // Owner
+    // =========================
+    const isOwner =
+      !!viewerId && viewerId === authorId;
+
+    // =========================
+    // Follower (DB authority)
+    // =========================
+    let isFollower = false;
+
+    if (viewerId && viewerId !== authorId) {
+      const follow = await this.prisma.follow.findFirst({
+  where: {
+    followerId: viewerId,
+    followingId: authorId,
+  },
+  select: { followerId: true },
+});
+
+
+      isFollower = !!follow;
+    }
+
+    // =========================
+    // CUSTOM visibility rules
+    // =========================
+    let isIncludedByRule = false;
+    let isExcludedByRule = false;
+
+    if (visibility === 'CUSTOM' && viewerId) {
+      const rules =
+        await this.prisma.postVisibilityRule.findMany({
+          where: {
+            postId: post.id,
+            userId: viewerId,
+          },
+          select: { rule: true },
+        });
+
+      for (const r of rules) {
+        if (r.rule === 'INCLUDE') isIncludedByRule = true;
+        if (r.rule === 'EXCLUDE') isExcludedByRule = true;
+      }
+    }
+
+    // =========================
+    // Policy (pure business rule)
+    // =========================
     return PostVisibilityPolicy.canView({
-      visibility: params.post.visibility,
-      authorId: params.post.authorId,
-      viewerId: params.viewer?.userId ?? null,
+      visibility,
+      isOwner,
+      isFollower,
+      isIncludedByRule,
+      isExcludedByRule,
     });
   }
+
 
   /**
    * =========================================================

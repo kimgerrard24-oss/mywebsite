@@ -13,6 +13,7 @@ import {
   Query,
   UseGuards,
   NotFoundException, 
+  Patch,
 } from '@nestjs/common';
 import type { Request } from 'express';
 import { PostsService } from './posts.service';
@@ -28,6 +29,8 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { PostLikeResponseDto } from './dto/post-like-response.dto';
 import { PostUnlikeResponseDto } from './dto/post-unlike-response.dto';
 import { RateLimit } from '../common/rate-limit/rate-limit.decorator';
+import { UpdatePostVisibilityDto } from './dto/update-post-visibility.dto';
+import { PostVisibilityRulesDto } from './dto/post-visibility-rules.dto';
 
 @Controller('posts')
 export class PostsController {
@@ -150,6 +153,26 @@ export class PostsController {
   });
  }
  
+   // =================================================
+  // 🔐 UPDATE POST VISIBILITY (NEW)
+  // PATCH /api/posts/:id/visibility
+  // =================================================
+  @Patch(':id/visibility')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(AccessTokenCookieAuthGuard)
+  async updatePostVisibility(
+    @Param('id', ParsePostIdPipe) postId: string,
+    @Body() dto: UpdatePostVisibilityDto,
+    @Req() req: Request,
+  ) {
+    const actor = req.user as { userId: string; jti: string };
+
+    return this.postsService.updatePostVisibility({
+      postId,
+      actorUserId: actor.userId,
+      dto,
+    });
+  }
 
   @UseGuards(AccessTokenCookieAuthGuard)
  @Get('user/:userId')
@@ -229,4 +252,20 @@ export class PostsController {
   });
  }
 
+ @UseGuards(AccessTokenCookieAuthGuard)
+@Get(':id/visibility-rules')
+async getPostVisibilityRules(
+  @Param('id') postId: string,
+  @Req() req: Request,
+): Promise<PostVisibilityRulesDto> {
+  const user = req.user as {
+    userId: string;
+    jti: string;
+  };
+
+  return this.postsService.getPostVisibilityRules({
+    postId,
+    actorUserId: user.userId,
+  });
+}
 }
