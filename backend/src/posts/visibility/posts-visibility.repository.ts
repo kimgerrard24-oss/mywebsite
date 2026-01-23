@@ -101,4 +101,34 @@ export class PostsVisibilityRepository {
       visibilityRule, // INCLUDE | EXCLUDE | null
     };
   }
+
+    // =================================================
+  // Account-level privacy (profile visibility gate)
+  // =================================================
+  async findUserPrivacy(params: { userId: string }) {
+    return this.prisma.user.findUnique({
+      where: { id: params.userId },
+      select: {
+        isPrivate: true,
+      },
+    });
+  }
+
+  async isFollower(params: {
+    followerId: string;
+    followingId: string;
+  }): Promise<boolean> {
+    const row = await this.prisma.follow.findFirst({
+      where: {
+        followerId: params.followerId,
+        followingId: params.followingId,
+      },
+      select: {
+        followerId: true, // minimal select (PK)
+      },
+    });
+
+    return Boolean(row);
+  }
+
 }

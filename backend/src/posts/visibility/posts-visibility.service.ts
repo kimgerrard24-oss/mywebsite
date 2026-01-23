@@ -46,4 +46,82 @@ export class PostsVisibilityService {
 });
 
   }
+
+    /**
+   * =========================================================
+   * User feed visibility (profile page)
+   * Account-level visibility gate (backend authority)
+   * =========================================================
+   */
+  async resolveUserPostVisibility(params: {
+    targetUserId: string;
+    viewer: { userId: string } | null;
+  }): Promise<{
+    canView: boolean;
+    scope: 'public' | 'self';
+  }> {
+    const viewerId = params.viewer?.userId ?? null;
+
+    // =========================
+    // 1) Self-view
+    // =========================
+    if (viewerId && viewerId === params.targetUserId) {
+      return {
+        canView: true,
+        scope: 'self',
+      };
+    }
+
+    // =========================
+    // 2) Load privacy (DB authority)
+    // =========================
+    const user = await this.repo.findUserPrivacy({
+      userId: params.targetUserId,
+    });
+
+    if (!user) {
+      return {
+        canView: false,
+        scope: 'public',
+      };
+    }
+
+    // =========================
+    // 3) Private account gate
+    // =========================
+    if (user.isPrivate) {
+      if (!viewerId) {
+        return {
+          canView: false,
+          scope: 'public',
+        };
+      }
+
+      const isFollower = await this.repo.isFollower({
+        followerId: viewerId,
+        followingId: params.targetUserId,
+      });
+
+      if (!isFollower) {
+        return {
+          canView: false,
+          scope: 'public',
+        };
+      }
+
+      return {
+        canView: true,
+        scope: 'self',
+      };
+    }
+
+    // =========================
+    // 4) Public account
+    // =========================
+    return {
+      canView: true,
+      scope: 'public',
+    };
+  }
+
 }

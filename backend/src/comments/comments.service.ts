@@ -13,7 +13,7 @@ import { CommentItemDto } from './dto/comment-item.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 import { parseHashtags } from '../posts/utils/parse-hashtags.util';
 import { AuditService } from '../auth/audit.service'
-import { PostVisibilityService } from '../posts/services/post-visibility.service';
+import { PostsVisibilityService } from '../posts/visibility/posts-visibility.service';
 
 @Injectable()
 export class CommentsService {
@@ -23,7 +23,7 @@ export class CommentsService {
     private readonly readpolicy: CommentReadPolicy,
     private readonly notifications: NotificationsService,
     private readonly audit: AuditService,
-    private readonly postVisibility: PostVisibilityService,
+    private readonly postVisibility: PostsVisibilityService,
   ) {}
 
 async createComment(params: {
@@ -62,15 +62,15 @@ async createComment(params: {
   // ==================================================
   // 🔐 FINAL AUTHORITY: POST VISIBILITY
   // ==================================================
-  const canView = await this.postVisibility.canViewPost({
-    post,
-    viewer: { userId: authorId },
-  });
+  const decision = await this.postVisibility.validateVisibility({
+  postId,
+  viewerUserId: authorId,
+});
 
-  if (!canView) {
-    // production behavior: behave as not found
-    throw new NotFoundException('Post not found');
-  }
+if (!decision.canView) {
+  throw new NotFoundException('Post not found');
+}
+
 
   // ==================================================
   // 🔐 BUSINESS POLICY (unchanged)
@@ -269,15 +269,15 @@ async getPostComments(params: {
   // ==================================================
   // 🔐 FINAL AUTHORITY: POST VISIBILITY
   // ==================================================
-  const canView = await this.postVisibility.canViewPost({
-    post,
-    viewer: viewerUserId ? { userId: viewerUserId } : null,
-  });
+  const decision = await this.postVisibility.validateVisibility({
+  postId,
+  viewerUserId,
+});
 
-  if (!canView) {
-    // behave as not found
-    throw new NotFoundException('Post not found');
-  }
+if (!decision.canView) {
+  throw new NotFoundException('Post not found');
+}
+
 
   // ==================================================
   // 🔐 BUSINESS READ POLICY (unchanged)
