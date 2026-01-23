@@ -5,7 +5,7 @@ import { PostCreatePolicy } from './policy/post-create.policy';
 import { PostAudit } from './audit/post.audit';
 import { PostCreatedEvent } from './events/post-created.event';
 import { PostFeedMapper } from './mappers/post-feed.mapper';
-import { PostVisibilityService } from './services/post-visibility.service';
+import { PostsVisibilityService } from './visibility/posts-visibility.service';
 import { PostCacheService } from './cache/post-cache.service';
 import { PostDetailDto } from './dto/post-detail.dto';
 import { PostDeletePolicy } from './policy/post-delete.policy';
@@ -34,7 +34,7 @@ export class PostsService {
     private readonly repo: PostsRepository,
     private readonly audit: PostAudit,
     private readonly postCreatedEvent: PostCreatedEvent,
-    private readonly visibility: PostVisibilityService,
+    private readonly visibility: PostsVisibilityService,
     private readonly cache: PostCacheService,
     private readonly prisma: PrismaService,
     private readonly policy: PostLikePolicy,
@@ -269,17 +269,16 @@ async getPublicFeed(params: {
   const visiblePosts: typeof rows = [];
 
   for (const post of rows) {
-    const canView = await this.visibility.canViewPost({
-      post,
-      viewer: viewerUserId
-        ? { userId: viewerUserId }
-        : null,
-    });
+  const decision = await this.visibility.validateVisibility({
+    postId: post.id,
+    viewerUserId,
+  });
 
-    if (canView) {
-      visiblePosts.push(post);
-    }
+  if (decision.canView) {
+    visiblePosts.push(post);
   }
+}
+
 
   // =================================================
   // 3) Map DTO (UX layer only, no authority here)
@@ -354,12 +353,14 @@ async getPublicFeed(params: {
     }
   }
 
-  // 3) Visibility (existing logic — KEEP)
-  const canView = await this.visibility.canViewPost({
-    post,
-    viewer,
-  });
-  if (!canView) return null;
+  // 3) Visibility (final authority)
+const decision = await this.visibility.validateVisibility({
+  postId: post.id,
+  viewerUserId: viewer?.userId ?? null,
+});
+
+if (!decision.canView) return null;
+
 
   // 4) Map DTO
   const dto = PostDetailDto.from(
@@ -546,17 +547,16 @@ async getUserPostFeed(params: {
   const visiblePosts: typeof rows = [];
 
   for (const post of rows) {
-    const canView = await this.visibility.canViewPost({
-      post,
-      viewer: viewer
-        ? { userId: viewer.userId }
-        : null,
-    });
+  const decision = await this.visibility.validateVisibility({
+    postId: post.id,
+    viewerUserId: viewer?.userId ?? null,
+  });
 
-    if (canView) {
-      visiblePosts.push(post);
-    }
+  if (decision.canView) {
+    visiblePosts.push(post);
   }
+}
+
 
   // =====================================================
   // 3) Map DTO (UX layer only)
@@ -612,17 +612,15 @@ async getPostsByTag(params: {
   const visiblePosts: typeof rows = [];
 
   for (const post of rows) {
-    const canView = await this.visibility.canViewPost({
-      post,
-      viewer: viewerUserId
-        ? { userId: viewerUserId }
-        : null,
-    });
+  const decision = await this.visibility.validateVisibility({
+    postId: post.id,
+    viewerUserId,
+  });
 
-    if (canView) {
-      visiblePosts.push(post);
-    }
+  if (decision.canView) {
+    visiblePosts.push(post);
   }
+}
 
   // =================================================
   // 3) Map DTO (UX layer only)
@@ -668,15 +666,16 @@ async toggleLike(params: {
   // 2) FINAL AUTHORITY DECISION (POST-LEVEL)
   //    - unify with feed / post detail
   // =================================================
-  const canView = await this.visibility.canViewPost({
-    post,
-    viewer: { userId },
-  });
+  const decision = await this.visibility.validateVisibility({
+  postId,
+  viewerUserId: userId,
+});
 
-  if (!canView) {
-    // production behavior: behave as not found
-    throw new NotFoundException('Post not found');
-  }
+if (!decision.canView) {
+  // production behavior: behave as not found
+  throw new NotFoundException('Post not found');
+}
+
 
   // =================================================
   // 3) Business policy (unchanged)
@@ -760,15 +759,16 @@ async toggleLike(params: {
   // 2) FINAL AUTHORITY DECISION (POST-LEVEL)
   //    - unify with feed / post detail / like
   // =================================================
-  const canView = await this.visibility.canViewPost({
-    post,
-    viewer: { userId },
-  });
+  const decision = await this.visibility.validateVisibility({
+  postId,
+  viewerUserId: userId,
+});
 
-  if (!canView) {
-    // behave as not found
-    throw new NotFoundException('Post not found');
-  }
+if (!decision.canView) {
+  // production behavior: behave as not found
+  throw new NotFoundException('Post not found');
+}
+
 
   // =================================================
   // 3) Business policy (unchanged)
