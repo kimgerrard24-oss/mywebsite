@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react';
 import { getSocket } from '@/lib/socket';
 import { useNotificationStore } from '@/stores/notification.store';
+import type { NotificationItem } from '@/types/notification';
 
 type NotificationNewPayload = {
   notification: {
@@ -53,7 +54,8 @@ export function useNotificationRealtime() {
         return;
       }
 
-      pushNotification(payload.notification);
+      pushNotification(payload.notification as NotificationItem);
+
     };
 
     const chatHandler = (

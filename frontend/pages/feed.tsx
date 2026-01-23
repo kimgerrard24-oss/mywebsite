@@ -21,6 +21,7 @@ import { useState, useRef, useEffect } from "react";
 import NotificationBell from '@/components/notifications/NotificationBell';
 import FeedRealtimeBridge from "@/components/feed/FeedRealtimeBridge";
 import { useFeedStore } from "@/stores/feed.store";
+import FeedActivityDropdown from '@/components/notifications/FeedActivityDropdown'; 
 
 type FeedProps = {
   user: any | null;
@@ -156,6 +157,10 @@ export default function FeedPage({
             PhlyPhant
           </Link>
 
+           <div className="flex items-center gap-1">
+             <FeedActivityDropdown />
+           </div>
+
           {/* ===== Center: Search (GLOBAL) ===== */}
           <div
             className="
@@ -207,7 +212,7 @@ export default function FeedPage({
   >
     Chats
   </Link>
-
+  
   {/* 🔔 Notifications */}
   <NotificationBell />
 
@@ -391,7 +396,7 @@ export default function FeedPage({
         hover:bg-blue-700
       "
     >
-      มีโพสต์ใหม่ • กดเพื่อรีเฟรช
+      feed new post • tap to refresh
     </button>
   </div>
 )}
