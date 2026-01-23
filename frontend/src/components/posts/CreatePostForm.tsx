@@ -4,6 +4,7 @@ import { useRouter } from 'next/router';
 import { useMediaUpload } from '@/hooks/useMediaUpload';
 import { useMediaComplete } from '@/hooks/useMediaComplete';
 import { createPost } from '@/lib/api/posts';
+import PostVisibilitySelector from "@/components/posts/PostVisibilitySelector";
 
 const MAX_FILES = 5;
 
@@ -19,6 +20,11 @@ export default function CreatePostForm() {
   const { complete, loading: completing } = useMediaComplete();
 
   const submitting = loading || uploading || completing;
+  const [visibility, setVisibility] = useState<{
+    visibility: "PUBLIC" | "FOLLOWERS" | "PRIVATE" | "CUSTOM";
+    includeUserIds?: string[];
+    excludeUserIds?: string[];
+      }>({ visibility: "PUBLIC" });
 
   
   // =========================
@@ -73,6 +79,9 @@ export default function CreatePostForm() {
       await createPost({
         content,
         mediaIds: mediaIds.length > 0 ? mediaIds : undefined,
+        visibility: visibility.visibility,
+        includeUserIds: visibility.includeUserIds,
+        excludeUserIds: visibility.excludeUserIds,
       });
 
       setContent('');
@@ -192,6 +201,12 @@ export default function CreatePostForm() {
         {error}
       </p>
     )}
+    
+     <PostVisibilitySelector
+  value={visibility}
+  disabled={submitting}
+  onChange={setVisibility}
+/>
 
     <div className="flex justify-end pt-1 sm:pt-2">
       <button

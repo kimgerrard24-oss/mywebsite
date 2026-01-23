@@ -12,6 +12,9 @@ export function useCreatePost() {
     async (params: {
       content: string;
       mediaIds?: string[];
+      visibility?: "PUBLIC" | "FOLLOWERS" | "PRIVATE" | "CUSTOM";
+      includeUserIds?: string[];
+      excludeUserIds?: string[];
     }) => {
       setLoading(true);
       setError(null);

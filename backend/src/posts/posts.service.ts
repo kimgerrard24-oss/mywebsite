@@ -24,6 +24,9 @@ import { PostUnlikeResponseDto } from './dto/post-unlike-response.dto';
 import { PostLikeDto } from './dto/post-like.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
+import { PostVisibility, VisibilityRuleType } from '@prisma/client';
+import { UpdatePostVisibilityDto } from './dto/update-post-visibility.dto';
+import { PostVisibilityRulesDto } from './dto/post-visibility-rules.dto';
 
 @Injectable()
 export class PostsService {
@@ -57,6 +60,15 @@ async createPost(params: {
   const mediaIds =
     params.dto?.mediaIds ?? [];
 
+  const visibility =
+    params.dto?.visibility ?? PostVisibility.PUBLIC;
+
+  const includeUserIds =
+    params.dto?.includeUserIds ?? [];
+
+  const excludeUserIds =
+    params.dto?.excludeUserIds ?? [];
+
   PostCreatePolicy.assertCanCreatePost();
 
   PostCreatePolicy.assertValid({
@@ -64,6 +76,9 @@ async createPost(params: {
     mediaCount: mediaIds.length,
   });
 
+  // =========================
+  // Media ownership check
+  // =========================
   if (mediaIds.length > 0) {
     const mediaList = await this.prisma.media.findMany({
       where: { id: { in: mediaIds } },
@@ -91,11 +106,14 @@ async createPost(params: {
    */
   const post = await this.prisma.$transaction(
     async (tx) => {
+      // -------------------------
+      // 1) Create post
+      // -------------------------
       const createdPost = await tx.post.create({
         data: {
           authorId,
           content,
-          visibility: 'PUBLIC',
+          visibility, // ✅ production visibility support
         },
         select: {
           id: true,
@@ -103,6 +121,9 @@ async createPost(params: {
         },
       });
 
+      // -------------------------
+      // 2) Attach media
+      // -------------------------
       if (mediaIds.length > 0) {
         await tx.postMedia.createMany({
           data: mediaIds.map((mediaId) => ({
@@ -113,6 +134,34 @@ async createPost(params: {
         });
       }
 
+      // -------------------------
+      // 3) Visibility rules (CUSTOM only)
+      // -------------------------
+      if (visibility === PostVisibility.CUSTOM) {
+        const rules = [
+          ...includeUserIds.map((userId) => ({
+            postId: createdPost.id,
+            userId,
+            rule: VisibilityRuleType.INCLUDE,
+          })),
+          ...excludeUserIds.map((userId) => ({
+            postId: createdPost.id,
+            userId,
+            rule: VisibilityRuleType.EXCLUDE,
+          })),
+        ];
+
+        if (rules.length > 0) {
+          await tx.postVisibilityRule.createMany({
+            data: rules,
+            skipDuplicates: true,
+          });
+        }
+      }
+
+      // -------------------------
+      // 4) Tags (fail-soft)
+      // -------------------------
       try {
         const tags = parseHashtags(content);
 
@@ -160,15 +209,6 @@ async createPost(params: {
    * =================================================
    * DOMAIN EVENT → ASYNC FEED FAN-OUT WORKER
    * =================================================
-   *
-   * FeedEventsListener will:
-   * - resolve followers
-   * - batch create notifications
-   * - invalidate caches
-   * - emit realtime via Redis + Socket.IO
-   *
-   * ❗ DO NOT fan-out here
-   * ❗ DO NOT await heavy work
    */
   try {
     this.eventEmitter.emit('post.created', {
@@ -186,6 +226,7 @@ async createPost(params: {
     createdAt: post.createdAt,
   };
 }
+
 
 
  
@@ -638,4 +679,235 @@ return result;
       nextCursor,
     };
   }
+
+  async updatePostVisibility(params: {
+  postId: string;
+  actorUserId: string;
+  dto: UpdatePostVisibilityDto;
+}) {
+  const { postId, actorUserId, dto } = params;
+
+  // =================================================
+  // 1) Load post (DB authority)
+  // =================================================
+  const post = await this.prisma.post.findUnique({
+    where: { id: postId },
+    select: {
+      id: true,
+      authorId: true,
+      isDeleted: true,
+    },
+  });
+
+  if (!post || post.isDeleted) {
+    throw new NotFoundException('Post not found');
+  }
+
+  // =================================================
+  // 2) Ownership policy
+  // =================================================
+  if (post.authorId !== actorUserId) {
+    throw new BadRequestException('Not allowed');
+  }
+
+  const visibility = dto.visibility;
+
+  const includeUserIds = Array.isArray(dto.includeUserIds)
+    ? Array.from(new Set(dto.includeUserIds))
+    : [];
+
+  const excludeUserIds = Array.isArray(dto.excludeUserIds)
+    ? Array.from(new Set(dto.excludeUserIds))
+    : [];
+
+  // =================================================
+  // 3) Business policy (server-side authority)
+  // =================================================
+  if (visibility === PostVisibility.CUSTOM) {
+    if (includeUserIds.length === 0 && excludeUserIds.length === 0) {
+      throw new BadRequestException(
+        'CUSTOM visibility requires include or exclude rules',
+      );
+    }
+
+    if (
+      includeUserIds.includes(actorUserId) ||
+      excludeUserIds.includes(actorUserId)
+    ) {
+      throw new BadRequestException(
+        'Owner cannot be included or excluded in custom visibility',
+      );
+    }
+  }
+
+  // =================================================
+// 3.1) Validate target users exist (prevent orphan rules)
+// =================================================
+if (visibility === PostVisibility.CUSTOM) {
+  const uniqueIds = Array.from(
+    new Set([...includeUserIds, ...excludeUserIds]),
+  );
+
+  if (uniqueIds.length > 0) {
+    const count = await this.prisma.user.count({
+      where: {
+        id: { in: uniqueIds },
+      },
+    });
+
+    if (count !== uniqueIds.length) {
+      throw new BadRequestException(
+        'Some users not found for visibility rules',
+      );
+    }
+  }
+}
+
+  // =================================================
+  // 4) DB Transaction (authority)
+  // =================================================
+  await this.prisma.$transaction(async (tx) => {
+    // -------------------------
+    // 4.1 Update post visibility
+    // -------------------------
+    await tx.post.update({
+      where: { id: postId },
+      data: {
+        visibility,
+        overriddenByAdmin: false,
+      },
+    });
+
+    // -------------------------
+    // 4.2 Clear old rules
+    // -------------------------
+    await tx.postVisibilityRule.deleteMany({
+      where: { postId },
+    });
+
+    // -------------------------
+    // 4.3 Insert new rules (CUSTOM only)
+    // -------------------------
+    if (visibility === PostVisibility.CUSTOM) {
+      const rules = [
+        ...includeUserIds.map((userId) => ({
+          postId,
+          userId,
+          rule: VisibilityRuleType.INCLUDE,
+        })),
+        ...excludeUserIds.map((userId) => ({
+          postId,
+          userId,
+          rule: VisibilityRuleType.EXCLUDE,
+        })),
+      ];
+
+      if (rules.length > 0) {
+        await tx.postVisibilityRule.createMany({
+          data: rules,
+          skipDuplicates: true,
+        });
+      }
+    }
+  });
+
+  // =================================================
+  // 5) Audit (fail-soft) — keep signature compatible
+  // =================================================
+  try {
+    await this.audit.logGeneric({
+      userId: actorUserId,
+      action: 'post.visibility.update',
+      targetId: postId,
+    });
+  } catch {}
+
+  // =================================================
+  // 6) Cache invalidate
+  // =================================================
+  try {
+    await this.cache.invalidate(postId);
+  } catch {}
+
+  // =================================================
+  // 7) Domain event (fan-out workers)
+  // =================================================
+  try {
+    this.eventEmitter.emit('post.visibility.updated', {
+      postId,
+      authorId: actorUserId,
+      visibility,
+    });
+  } catch {}
+
+  return { success: true };
+}
+
+async getPostVisibilityRules(params: {
+  postId: string;
+  actorUserId: string;
+}): Promise<PostVisibilityRulesDto> {
+  const { postId, actorUserId } = params;
+
+  // =================================================
+  // 1) Load post (DB authority)
+  // =================================================
+  const post = await this.prisma.post.findUnique({
+    where: { id: postId },
+    select: {
+      id: true,
+      authorId: true,
+      visibility: true,
+      isDeleted: true,
+    },
+  });
+
+  if (!post || post.isDeleted) {
+    throw new NotFoundException('Post not found');
+  }
+
+  // =================================================
+  // 2) Owner only
+  // =================================================
+  if (post.authorId !== actorUserId) {
+    // production behavior: do not reveal existence
+    throw new NotFoundException('Post not found');
+  }
+
+  // =================================================
+  // 3) Non-CUSTOM → return empty rules
+  // =================================================
+  if (post.visibility !== 'CUSTOM') {
+    return {
+      visibility: post.visibility,
+      includeUserIds: [],
+      excludeUserIds: [],
+    };
+  }
+
+  // =================================================
+  // 4) Load rules
+  // =================================================
+  const rules =
+    await this.repo.findPostVisibilityRules({
+      postId,
+    });
+
+  const includeUserIds: string[] = [];
+  const excludeUserIds: string[] = [];
+
+  for (const r of rules) {
+    if (r.rule === VisibilityRuleType.INCLUDE) {
+      includeUserIds.push(r.userId);
+    } else if (r.rule === VisibilityRuleType.EXCLUDE) {
+      excludeUserIds.push(r.userId);
+    }
+  }
+
+  return {
+    visibility: post.visibility,
+    includeUserIds,
+    excludeUserIds,
+  };
+}
 }

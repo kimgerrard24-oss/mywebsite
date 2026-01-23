@@ -2,12 +2,13 @@
 
 import { MediaType } from '@prisma/client';
 import { buildCdnUrl } from '../../media/utils/build-cdn-url.util';
+import { PostVisibility } from '@prisma/client';
 
 export class PostDetailDto {
   id!: string;
   content!: string;
   createdAt!: Date;
-
+  visibility!: PostVisibility;
   author!: {
     id: string;
     displayName: string | null;
@@ -52,6 +53,7 @@ export class PostDetailDto {
       id: post.id,
       content: post.content,
       createdAt: post.createdAt,
+      visibility: post.visibility,
 
       author: {
         id: post.author.id,

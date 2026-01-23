@@ -10,6 +10,8 @@ import { useRouter } from "next/router";
 import { useMediaUpload } from "@/hooks/useMediaUpload";
 import { useMediaComplete } from "@/hooks/useMediaComplete";
 import { useCreatePost } from "@/hooks/useCreatePost";
+import PostVisibilitySelector from "@/components/posts/PostVisibilitySelector";
+import type { PostVisibilityValue } from "@/components/posts/PostVisibilitySelector";
 
 type Props = {
   onPostCreated?: () => void;
@@ -38,7 +40,10 @@ export default function PostComposer({
 
   const submitting = uploading || completing || creating;
   const remaining = MAX_LENGTH - content.length;
-
+  const [visibility, setVisibility] =
+  useState<PostVisibilityValue>({
+    visibility: "PUBLIC",
+  });
   // =========================
   // Auto-resize textarea
   // =========================
@@ -122,6 +127,9 @@ export default function PostComposer({
       await submit({
         content,
         mediaIds: mediaIds.length > 0 ? mediaIds : undefined,
+        visibility: visibility.visibility,
+        includeUserIds: visibility.includeUserIds,
+        excludeUserIds: visibility.excludeUserIds,
       });
 
       // reset state
@@ -285,6 +293,13 @@ export default function PostComposer({
           เลือกไฟล์แล้ว {files.length} ไฟล์
         </p>
       )}
+       
+       <PostVisibilitySelector
+  value={visibility}
+  disabled={submitting}
+  compact
+  onChange={setVisibility}
+/>
 
       {/* ===== Action ===== */}
       <div className="flex justify-end pt-0.5">

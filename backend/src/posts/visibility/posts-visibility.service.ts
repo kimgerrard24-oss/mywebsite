@@ -31,13 +31,19 @@ export class PostsVisibilityService {
       ctx.post.authorId === viewerUserId;
 
     return PostVisibilityPolicy.decide({
-      postExists: true,
-      isDeleted: ctx.post.isDeleted,
-      isHidden: ctx.post.isHidden,
-      isOwner,
-      isPrivateAccount: ctx.post.author.isPrivate,
-      isFollower: ctx.isFollower,
-      isBlockedEitherWay: ctx.isBlockedEitherWay,
-    });
+  postExists: true,
+  isDeleted: ctx.post.isDeleted,
+  isHidden: ctx.post.isHidden,
+
+  isOwner,
+  isPrivateAccount: ctx.post.author.isPrivate,
+  isFollower: ctx.isFollower,
+
+  postVisibility: ctx.post.visibility,
+  visibilityRule: ctx.visibilityRule,
+
+  isBlockedEitherWay: ctx.isBlockedEitherWay,
+});
+
   }
 }

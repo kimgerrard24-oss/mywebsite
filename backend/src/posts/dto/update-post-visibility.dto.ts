@@ -1,48 +1,43 @@
-// backend/src/posts/dto/create-post.dto.ts
+// backend/src/posts/dto/update-post-visibility.dto.ts
 
 import {
   IsArray,
+  IsEnum,
   IsOptional,
   IsString,
-  Length,
   ArrayMaxSize,
-  IsEnum,
+  ValidateIf,
 } from 'class-validator';
 import { PostVisibility } from '@prisma/client';
 
-export class CreatePostDto {
-  @IsString()
-  @Length(1, 2000, {
-    message: 'Post content must be between 1 and 2000 characters',
-  })
-  content!: string;
-
-  @IsOptional()
-  @IsArray()
-  @ArrayMaxSize(10)
-  @IsString({ each: true })
-  mediaIds?: string[];
-
+export class UpdatePostVisibilityDto {
   // =========================
-  // Post visibility
+  // Visibility level
   // =========================
-  @IsOptional()
   @IsEnum(PostVisibility)
-  visibility?: PostVisibility;
+  visibility!: PostVisibility;
 
   // =========================
   // CUSTOM visibility rules
   // =========================
+
+  /**
+   * Only allowed when visibility === CUSTOM
+   */
+  @ValidateIf((o) => o.visibility === PostVisibility.CUSTOM)
   @IsOptional()
   @IsArray()
   @ArrayMaxSize(200) // production-safe cap
   @IsString({ each: true })
   includeUserIds?: string[];
 
+  /**
+   * Only allowed when visibility === CUSTOM
+   */
+  @ValidateIf((o) => o.visibility === PostVisibility.CUSTOM)
   @IsOptional()
   @IsArray()
   @ArrayMaxSize(200)
   @IsString({ each: true })
   excludeUserIds?: string[];
 }
-

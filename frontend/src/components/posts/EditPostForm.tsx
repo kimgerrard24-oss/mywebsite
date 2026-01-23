@@ -4,17 +4,25 @@ import { useRouter } from 'next/router';
 import { useUpdatePost } from '@/hooks/useUpdatePost';
 import { useMediaUpload } from '@/hooks/useMediaUpload';
 import { useMediaComplete } from '@/hooks/useMediaComplete';
+import PostVisibilitySelector from "@/components/posts/PostVisibilitySelector";
+import { usePostVisibility } from "@/hooks/usePostVisibility";
+import type {
+  PostVisibilityValue,
+} from "@/components/posts/PostVisibilitySelector";
 
 type Props = {
   postId: string;
   initialContent: string;
+  initialVisibility: PostVisibilityValue;
 };
+
 
 const MAX_FILES = 5;
 
 export default function EditPostForm({
   postId,
   initialContent,
+  initialVisibility,
 }: Props) {
   const router = useRouter();
   const [content, setContent] = useState(initialContent);
@@ -25,8 +33,19 @@ export default function EditPostForm({
   const { upload, uploading } = useMediaUpload();
   const { complete, loading: completing } = useMediaComplete();
 
-  const submitting = loading || uploading || completing;
+  const {
+  value: visibility,
+  loading: visibilityLoading,
+  error: visibilityError,
+  updateVisibility,
+} = usePostVisibility({
+  postId,
+  initial: initialVisibility,
+});
 
+const submitting =
+  loading || uploading || completing || visibilityLoading;
+   
   // =========================
   // File selection (UNCHANGED)
   // =========================
@@ -48,7 +67,7 @@ export default function EditPostForm({
   // =========================
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-
+    if (submitting) return;
     try {
       setLocalError(null);
 
@@ -187,6 +206,36 @@ export default function EditPostForm({
       </p>
     )}
 
+    <PostVisibilitySelector
+  value={visibility}
+  disabled={submitting || visibilityLoading}
+  onChange={updateVisibility}
+/>
+
+<p className="text-xs text-gray-500">
+  Visibility is saved automatically.
+</p>
+
+{visibility.visibility === 'CUSTOM' &&
+  (visibility.includeUserIds?.length ?? 0) === 0 &&
+  (visibility.excludeUserIds?.length ?? 0) === 0 && (
+    <p className="text-xs text-yellow-600">
+      Custom visibility requires selecting at least one person.
+    </p>
+)}
+
+
+{visibilityError && (
+  <p
+    className="text-xs sm:text-sm text-red-600"
+    role="alert"
+  >
+    Failed to update post visibility
+  </p>
+)}
+
+
+
     <div
       className="
         flex
@@ -249,6 +298,7 @@ export default function EditPostForm({
       >
         {submitting ? "Saving…" : "Save"}
       </button>
+      
     </div>
   </form>
 );

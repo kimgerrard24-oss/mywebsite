@@ -16,7 +16,7 @@ CREATE TYPE "VisibilityRuleType" AS ENUM ('INCLUDE', 'EXCLUDE');
 CREATE TYPE "MediaType" AS ENUM ('IMAGE', 'VIDEO', 'AUDIO');
 
 -- CreateEnum
-CREATE TYPE "PostVisibility" AS ENUM ('PUBLIC', 'PRIVATE');
+CREATE TYPE "PostVisibility" AS ENUM ('PUBLIC', 'FOLLOWERS', 'PRIVATE', 'CUSTOM');
 
 -- CreateEnum
 CREATE TYPE "ChatReportReason" AS ENUM ('SPAM', 'HARASSMENT', 'HATE_SPEECH', 'SCAM', 'SEXUAL_CONTENT', 'OTHER');
