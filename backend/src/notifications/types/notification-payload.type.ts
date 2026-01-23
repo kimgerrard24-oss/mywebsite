@@ -53,4 +53,19 @@ export type NotificationPayloadMap = {
     targetId: string;
     reason?: string;
   };
+
+  feed_new_post: {
+    postId: string;
+    authorId: string;
+  };
+
+  feed_repost: {
+    postId: string;
+    actorUserId: string;
+  };
+
+  feed_mention_in_post: {
+    postId: string;
+  };
+  
 };

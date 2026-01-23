@@ -779,44 +779,36 @@ async findPostForLike(params: {
     where: {
       id: postId,
       isDeleted: false,
+      isHidden: false,
 
-      AND: [
-        // ===== PRIVATE ACCOUNT VISIBILITY =====
-        {
-          OR: [
-            // public account
-            {
-              author: {
-                isPrivate: false,
-              },
-            },
+      // ✅ LIKE AUTHORITY = POST VISIBILITY (FEED AUTHORITY)
+      OR: [
+        // public post (anyone in feed can like)
+        { visibility: 'PUBLIC' },
 
-            ...(viewerUserId
-              ? [
-                  // owner
-                  {
-                    authorId: viewerUserId,
-                  },
-
-                  // approved follower
-                  {
-                    author: {
-                      followers: {
-                        some: {
-                          followerId: viewerUserId,
-                        },
-                      },
-                    },
-                  },
-                ]
-              : []),
-          ],
-        },
-
-        // ===== BLOCK ENFORCEMENT (2-way) =====
         ...(viewerUserId
           ? [
-              // viewer must NOT block author
+              // owner
+              { authorId: viewerUserId },
+
+              // approved follower (future-proof if private-post added)
+              {
+                author: {
+                  followers: {
+                    some: {
+                      followerId: viewerUserId,
+                    },
+                  },
+                },
+              },
+            ]
+          : []),
+      ],
+
+      // ===== BLOCK ENFORCEMENT (2-way) — KEEP EXACTLY AS IS =====
+      ...(viewerUserId
+        ? {
+            AND: [
               {
                 author: {
                   blockedBy: {
@@ -826,8 +818,6 @@ async findPostForLike(params: {
                   },
                 },
               },
-
-              // author must NOT block viewer
               {
                 author: {
                   blockedUsers: {
@@ -837,9 +827,9 @@ async findPostForLike(params: {
                   },
                 },
               },
-            ]
-          : []),
-      ],
+            ],
+          }
+        : {}),
     },
 
     select: {
@@ -850,6 +840,7 @@ async findPostForLike(params: {
     },
   });
 }
+
 
 
 

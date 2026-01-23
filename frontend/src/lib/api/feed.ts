@@ -38,7 +38,7 @@ export async function fetchFeedClient(params?: {
   mediaType?: "video";
 }): Promise<FeedResponse | null> {
   try {
-    const res = await apiClient.get("/api/feed", {
+    const res = await apiClient.get("feed", {
       params: {
         cursor: params?.cursor ?? undefined,
         limit: params?.limit ?? undefined,
@@ -71,7 +71,7 @@ export async function fetchFeedServer(params: {
     process.env.INTERNAL_BACKEND_URL || PUBLIC_API_BASE_URL
   );
 
-  const url = new URL(`${baseUrl}/api/feed`);
+  const url = new URL(`${baseUrl}/feed`);
   if (params.cursor) url.searchParams.set("cursor", params.cursor);
   if (params.limit) url.searchParams.set("limit", String(params.limit));
   if (params.mediaType) url.searchParams.set("mediaType", params.mediaType);

@@ -40,6 +40,7 @@ import { AppealsModule } from './appeals/appeals.module';
 import { UserModerationModule } from './moderation/user/user-moderation.module';
 import { SecuritiesModule } from './securities/securities.module';
 import { FeedModule } from './feed/feed.module';
+import { EventsModule } from './core/events/events.module';
 
 @Module({
   imports: [
@@ -55,6 +56,7 @@ import { FeedModule } from './feed/feed.module';
     AlertModule,
     UserModerationModule,
     FeedModule,
+    EventsModule,
     ChatModule,
     AppealsModule,
     SecuritiesModule,

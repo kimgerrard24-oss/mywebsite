@@ -20,6 +20,12 @@ type FeedState = {
     | FeedInvalidateReason
     | null;
 
+    /**
+   * เวลา invalidate ล่าสุด (ms)
+   * ใช้กัน spam จาก realtime burst
+   */
+  lastInvalidateAt: number | null;  
+    
   /**
    * realtime signal
    */
@@ -33,20 +39,36 @@ type FeedState = {
   markRefreshed: () => void;
 };
 
-export const useFeedStore =
-  create<FeedState>((set) => ({
-    shouldRefresh: false,
-    lastInvalidateReason: null,
+const INVALIDATE_DEBOUNCE_MS = 3000;
 
-    invalidate: (reason) =>
-      set(() => ({
-        shouldRefresh: true,
-        lastInvalidateReason: reason,
-      })),
+export const useFeedStore = create<FeedState>((set, get) => ({
+  shouldRefresh: false,
+  lastInvalidateReason: null,
+  lastInvalidateAt: null,
 
-    markRefreshed: () =>
-      set(() => ({
-        shouldRefresh: false,
-        lastInvalidateReason: null,
-      })),
-  }));
+  invalidate: (reason) => {
+    const now = Date.now();
+    const lastAt = get().lastInvalidateAt;
+
+    /**
+     * 🛡️ Debounce realtime burst
+     * เช่น follower post ติด ๆ กัน หรือ reconnect replay
+     */
+    if (lastAt && now - lastAt < INVALIDATE_DEBOUNCE_MS) {
+      return;
+    }
+
+    set(() => ({
+      shouldRefresh: true,
+      lastInvalidateReason: reason,
+      lastInvalidateAt: now,
+    }));
+  },
+
+  markRefreshed: () =>
+    set(() => ({
+      shouldRefresh: false,
+      lastInvalidateReason: null,
+      // keep lastInvalidateAt for debounce window
+    })),
+}));

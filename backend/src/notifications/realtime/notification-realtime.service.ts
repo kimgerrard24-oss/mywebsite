@@ -24,16 +24,16 @@ export class NotificationRealtimeService {
   }
 
   /**
-   * Emit notification ไปหา user คนเดียว
-   * ❗ ต้องเรียกหลัง DB commit เท่านั้น
+   * Emit notification to single user room
+   * Must be called AFTER DB commit
    */
   emitNewNotification(
     userId: string,
     payload: NotificationNewEvent,
   ) {
-    if (!this.server) {
+    if (!this.server || !this.server.sockets) {
       this.logger.error(
-        `[emitNewNotification] server not bound (userId=${userId})`,
+        `[emitNewNotification] socket server not ready (userId=${userId})`,
       );
       return;
     }
@@ -45,15 +45,17 @@ export class NotificationRealtimeService {
       return;
     }
 
-    this.logger.log(
-      `[emitNewNotification] emit event=${WS_NOTIFICATION_EVENTS.NEW} to room=user:${userId}`,
+    this.logger.debug(
+      `[emitNewNotification] event=${WS_NOTIFICATION_EVENTS.NEW} user=${userId}`,
     );
 
     this.server
       .to(`user:${userId}`)
+      .volatile // feed invalidate = UX only
       .emit(
         WS_NOTIFICATION_EVENTS.NEW,
         payload,
       );
   }
 }
+

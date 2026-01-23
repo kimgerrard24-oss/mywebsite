@@ -19,6 +19,8 @@ import PostComposer from "@/components/posts/PostComposer";
 import FeedModeSwitcher from "@/components/common/FeedModeSwitcher";
 import { useState, useRef, useEffect } from "react";
 import NotificationBell from '@/components/notifications/NotificationBell';
+import FeedRealtimeBridge from "@/components/feed/FeedRealtimeBridge";
+import { useFeedStore } from "@/stores/feed.store";
 
 type FeedProps = {
   user: any | null;
@@ -38,6 +40,9 @@ export default function FeedPage({
   const refreshFeedRef = useRef<() => void>(() => {});
   const [menuOpen, setMenuOpen] = useState(false);
   const menuWrapperRef = useRef<HTMLDivElement | null>(null);
+  const shouldRefresh = useFeedStore((s) => s.shouldRefresh);
+  const markRefreshed = useFeedStore((s) => s.markRefreshed);
+
 
   const handleLogout = async () => {
     try {
@@ -100,6 +105,10 @@ export default function FeedPage({
         overflow-hidden
       "
     >
+
+  {/* 🔔 Feed Realtime Bridge (no UI) */}
+  <FeedRealtimeBridge />
+
       {/* ================= Header (LOCKED) ================= */}
       <header
         className="
@@ -363,6 +372,30 @@ export default function FeedPage({
             lg:grid-cols-[minmax(0,2fr)_minmax(0,1fr)]
           "
         >
+          {shouldRefresh && (
+  <div className="px-3 py-2">
+    <button
+      type="button"
+      onClick={() => {
+        markRefreshed();            
+        refreshFeedRef.current?.(); 
+      }}
+
+      className="
+        w-full
+        rounded-full
+        bg-blue-600
+        py-1.5
+        text-xs
+        text-white
+        hover:bg-blue-700
+      "
+    >
+      มีโพสต์ใหม่ • กดเพื่อรีเฟรช
+    </button>
+  </div>
+)}
+
           {/* ===== Left: Text Feed ===== */}
           <aside
             aria-label="Text feed"
