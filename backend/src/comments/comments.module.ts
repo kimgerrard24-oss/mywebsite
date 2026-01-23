@@ -14,9 +14,14 @@ import { CommentsRepliesRepository } from './replies/comments-replies.repository
 import { CommentReplyPolicy } from './replies/policy/comment-reply.policy';
 import { CommentsLikesController } from './likes/comments-likes.controller';
 import { CommentsLikesService } from './likes/comments-likes.service';
+import { PostsVisibilityModule } from '../posts/visibility/posts-visibility.module';
 
 @Module({
-  imports: [ AuthModule, NotificationsModule],
+  imports: [ 
+    AuthModule, 
+    NotificationsModule,
+    PostsVisibilityModule,
+  ],
   controllers: [ PostCommentsController, CommentsLikesController, CommentsController, CommentsRepliesController ],
   providers: [
     CommentsService,
