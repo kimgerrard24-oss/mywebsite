@@ -23,7 +23,7 @@ import { PostUnlikePolicy } from './policy/post-unlike.policy';
 import { PostUnlikeResponseDto } from './dto/post-unlike-response.dto';
 import { PostLikeDto } from './dto/post-like.dto';
 import { NotificationsService } from '../notifications/notifications.service';
-import { NotificationMapper } from '../notifications/mapper/notification.mapper';
+import { EventEmitter2 } from '@nestjs/event-emitter';
 
 @Injectable()
 export class PostsService {
@@ -39,13 +39,14 @@ export class PostsService {
     private readonly unlikePolicy: PostUnlikePolicy,
     private readonly postslikes: PostsRepository,
     private readonly notifications: NotificationsService,
+    private readonly eventEmitter: EventEmitter2,
   ) {}
 
- async createPost(params: {
+async createPost(params: {
   authorId: string;
   dto?: CreatePostDto;
   content?: string;
- }) {
+}) {
   const { authorId } = params;
 
   const content =
@@ -65,13 +66,8 @@ export class PostsService {
 
   if (mediaIds.length > 0) {
     const mediaList = await this.prisma.media.findMany({
-      where: {
-        id: { in: mediaIds },
-      },
-      select: {
-        id: true,
-        ownerUserId: true,
-      },
+      where: { id: { in: mediaIds } },
+      select: { id: true, ownerUserId: true },
     });
 
     if (mediaList.length !== mediaIds.length) {
@@ -88,6 +84,11 @@ export class PostsService {
     }
   }
 
+  /**
+   * =================================================
+   * DB TRANSACTION (AUTHORITY)
+   * =================================================
+   */
   const post = await this.prisma.$transaction(
     async (tx) => {
       const createdPost = await tx.post.create({
@@ -116,7 +117,6 @@ export class PostsService {
         const tags = parseHashtags(content);
 
         if (tags.length > 0) {
-          // upsert tags
           const tagRows = await Promise.all(
             tags.map((name) =>
               tx.tag.upsert({
@@ -128,7 +128,6 @@ export class PostsService {
             ),
           );
 
-          // link post ↔ tags
           await tx.postTag.createMany({
             data: tagRows.map((tag) => ({
               postId: createdPost.id,
@@ -138,31 +137,56 @@ export class PostsService {
           });
         }
       } catch {
-
+        // ❗ tag system must never break post creation
       }
 
       return createdPost;
     },
   );
 
-  this.audit.logPostCreated({
-    postId: post.id,
-    authorId,
-  });
+  /**
+   * =================================================
+   * AUDIT (FAIL-SOFT)
+   * =================================================
+   */
+  try {
+    await this.audit.logPostCreated({
+      postId: post.id,
+      authorId,
+    });
+  } catch {}
 
-  this.postCreatedEvent.emit({
-    id: post.id,
-    authorId,
-    createdAt: post.createdAt,
-    mediaIds,
-  });
+  /**
+   * =================================================
+   * DOMAIN EVENT → ASYNC FEED FAN-OUT WORKER
+   * =================================================
+   *
+   * FeedEventsListener will:
+   * - resolve followers
+   * - batch create notifications
+   * - invalidate caches
+   * - emit realtime via Redis + Socket.IO
+   *
+   * ❗ DO NOT fan-out here
+   * ❗ DO NOT await heavy work
+   */
+  try {
+    this.eventEmitter.emit('post.created', {
+      id: post.id,
+      authorId,
+      createdAt: post.createdAt,
+      mediaIds,
+    });
+  } catch {
+    // ❗ realtime / feed must never break post creation
+  }
 
   return {
     id: post.id,
     createdAt: post.createdAt,
   };
+}
 
- }
 
  
 async getPublicFeed(params: {

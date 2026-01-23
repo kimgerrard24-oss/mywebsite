@@ -256,5 +256,85 @@ async createFollowRequest(params: {
   });
 }
 
+// =========================
+// FEED: NEW POST FROM FOLLOWING
+// =========================
+async createFeedNewPost(params: {
+  userId: string;        // follower
+  actorUserId: string;  // author
+  postId: string;
+}) {
+  return this.createNotification({
+    userId: params.userId,
+    actorUserId: params.actorUserId,
+    type: 'feed_new_post',
+    entityId: params.postId,
+    payload: {
+      postId: params.postId,
+      authorId: params.actorUserId,
+    },
+  });
+}
+
+async createFeedBatch(
+  inputs: Array<{
+    userId: string;
+    actorUserId: string;
+    type: 'feed_new_post';
+    entityId: string;
+    payload: {
+      postId: string;
+      authorId: string;
+    };
+  }>,
+) {
+  if (!inputs.length) return;
+
+  // defensive: remove self-notify
+  const filtered = inputs.filter(
+    (i) => i.userId !== i.actorUserId,
+  );
+
+  if (!filtered.length) return;
+
+  // 1) DB bulk insert
+  await this.prisma.notification.createMany({
+    data: filtered.map((i) => ({
+      userId: i.userId,
+      actorUserId: i.actorUserId,
+      type: i.type,
+      entityId: i.entityId,
+      payload: i.payload,
+    })),
+    skipDuplicates: true,
+  });
+
+  // 2) cache invalidate per user
+  await Promise.allSettled(
+    filtered.map((i) =>
+      this.cache.invalidateList(i.userId),
+    ),
+  );
+
+  // 3) realtime emit
+  for (const i of filtered) {
+    try {
+      this.realtime.emitNewNotification(
+        i.userId,
+        {
+          notification: {
+            id: 'realtime', // client not rely on id
+            type: i.type,
+            actor: null,
+            entityId: i.entityId,
+            payload: i.payload,
+            isRead: false,
+            createdAt: new Date().toISOString(),
+          },
+        },
+      );
+    } catch {}
+  }
+}
 
 }
