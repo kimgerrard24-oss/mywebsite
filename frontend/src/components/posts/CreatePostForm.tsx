@@ -26,7 +26,8 @@ export default function CreatePostForm() {
     excludeUserIds?: string[];
       }>({ visibility: "PUBLIC" });
 
-  
+  const [showVisibility, setShowVisibility] = useState(false);
+
   // =========================
   // File selection (UNCHANGED)
   // =========================
@@ -202,11 +203,33 @@ export default function CreatePostForm() {
       </p>
     )}
     
-     <PostVisibilitySelector
-  value={visibility}
-  disabled={submitting}
-  onChange={setVisibility}
-/>
+     <div className="relative">
+  <button
+    type="button"
+    disabled={submitting}
+    onClick={() => setShowVisibility(v => !v)}
+    className="
+      inline-flex items-center gap-1
+      text-sm text-gray-600 hover:text-gray-900
+    "
+  >
+    🔒 {visibility.visibility.toLowerCase()}
+  </button>
+
+  {showVisibility && (
+    <div className="mt-2">
+      <PostVisibilitySelector
+        value={visibility}
+        disabled={submitting}
+        onChange={(v) => {
+          setVisibility(v);
+          setShowVisibility(false); // ปิดหลังเลือก
+        }}
+      />
+    </div>
+  )}
+</div>
+
 
     <div className="flex justify-end pt-1 sm:pt-2">
       <button

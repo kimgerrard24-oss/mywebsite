@@ -53,6 +53,7 @@ export default function PostComposer({
     el.style.height = "auto";
     el.style.height = `${el.scrollHeight}px`;
   };
+  const [showVisibility, setShowVisibility] = useState(false);
 
   // =========================
   // File selection (safe)
@@ -294,12 +295,33 @@ export default function PostComposer({
         </p>
       )}
        
-       <PostVisibilitySelector
-  value={visibility}
-  disabled={submitting}
-  compact
-  onChange={setVisibility}
-/>
+       {showVisibility && (
+  <PostVisibilitySelector
+    value={visibility}
+    compact
+    disabled={submitting}
+    onChange={(v) => {
+      setVisibility(v);
+      setShowVisibility(false);
+    }}
+  />
+)}
+
+<div className="flex justify-between items-center pt-1">
+  <button
+    type="button"
+    disabled={submitting}
+    onClick={() => setShowVisibility(v => !v)}
+    className="
+      inline-flex items-center gap-1
+      text-[10px] sm:text-[11px]
+      text-gray-600 hover:text-gray-900
+    "
+  >
+    🔒 {visibility.visibility.toLowerCase()}
+  </button>
+</div>
+
 
       {/* ===== Action ===== */}
       <div className="flex justify-end pt-0.5">

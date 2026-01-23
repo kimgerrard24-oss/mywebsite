@@ -249,19 +249,48 @@ async getPublicFeed(params: {
     mediaType,
   } = params;
 
+  // =================================================
+  // 1) Load candidate posts (DB pre-filter only)
+  //    - isDeleted / isHidden / block / mediaType
+  //    - visibility here is NOT final authority
+  // =================================================
   const rows = await this.repo.findPublicFeed({
     limit,
     cursor,
     viewerUserId,
-
-    // ✅ pass-through แบบ fail-safe
-    mediaType,
+    mediaType, // pass-through (right video feed)
   });
 
-  const items = rows.map((post) =>
+  // =================================================
+  // 2) Final Authority Decision (Post-level)
+  //    - Single source of truth
+  //    - Same logic as post detail / validate
+  // =================================================
+  const visiblePosts: typeof rows = [];
+
+  for (const post of rows) {
+    const canView = await this.visibility.canViewPost({
+      post,
+      viewer: viewerUserId
+        ? { userId: viewerUserId }
+        : null,
+    });
+
+    if (canView) {
+      visiblePosts.push(post);
+    }
+  }
+
+  // =================================================
+  // 3) Map DTO (UX layer only, no authority here)
+  // =================================================
+  const items = visiblePosts.map((post) =>
     PostFeedMapper.toDto(post, viewerUserId),
   );
 
+  // =================================================
+  // 4) Cursor (based on visible items only)
+  // =================================================
   const nextCursor =
     items.length === limit
       ? items[items.length - 1].id
@@ -272,6 +301,8 @@ async getPublicFeed(params: {
     nextCursor,
   };
 }
+
+
 
 
  async getPostDetail(params: {
@@ -443,7 +474,7 @@ async getUserPostFeed(params: {
   // 🔒 HARD BLOCK GUARD (2-way)
   // - viewer block target
   // - target block viewer
-  // - ต้อง deny ตั้งแต่ระดับ service (authority)
+  // - deny at service level (authority)
   // =====================================================
   if (viewer?.userId) {
     const blocked = await this.prisma.userBlock.findFirst({
@@ -464,14 +495,14 @@ async getUserPostFeed(params: {
 
     if (blocked) {
       // production behavior:
-      // - ไม่บอกว่า block
-      // - behave เหมือน user ไม่อยู่
+      // - do not reveal block
+      // - behave as not found
       throw new NotFoundException();
     }
   }
 
   // =====================================================
-  // 🔐 Existing visibility logic (KEEP)
+  // 🔐 ACCOUNT-LEVEL VISIBILITY (PROFILE GATE) — KEEP
   // =====================================================
   const visibilityScope =
     await this.visibility.resolveUserPostVisibility({
@@ -480,20 +511,26 @@ async getUserPostFeed(params: {
     });
 
   // =====================================================
-// PROFILE FEED VISIBILITY
-// - public profile → always viewable
-// - private profile → must satisfy canView
-// =====================================================
-if (
-  visibilityScope.scope !== 'public' &&
-  !visibilityScope.canView
-) {
-  return { items: [], nextCursor: null };
-}
-
+  // PROFILE FEED VISIBILITY
+  // - public profile → always viewable
+  // - private profile → must satisfy canView
+  // =====================================================
+  if (
+    visibilityScope.scope !== 'public' &&
+    !visibilityScope.canView
+  ) {
+    return { items: [], nextCursor: null };
+  }
 
   const effectiveLimit = query.limit ?? 20;
 
+  // =====================================================
+  // 1) Load candidate posts (DB pre-filter only)
+  //    - authorId
+  //    - isDeleted / isHidden
+  //    - block (repo responsibility)
+  //    - post-level visibility here is NOT final authority
+  // =====================================================
   const rows = await this.repo.findUserPosts({
     userId: targetUserId,
     viewerUserId: viewer?.userId ?? null,
@@ -502,13 +539,38 @@ if (
     scope: visibilityScope.scope,
   });
 
-  const items = rows.map((row) =>
+  // =====================================================
+  // 2) FINAL AUTHORITY DECISION (POST-LEVEL)
+  //    - unify with post detail / feed / tag
+  // =====================================================
+  const visiblePosts: typeof rows = [];
+
+  for (const post of rows) {
+    const canView = await this.visibility.canViewPost({
+      post,
+      viewer: viewer
+        ? { userId: viewer.userId }
+        : null,
+    });
+
+    if (canView) {
+      visiblePosts.push(post);
+    }
+  }
+
+  // =====================================================
+  // 3) Map DTO (UX layer only)
+  // =====================================================
+  const items = visiblePosts.map((row) =>
     PostFeedMapper.toDto(row, viewer?.userId ?? null),
   );
 
+  // =====================================================
+  // 4) Cursor (based on visible items only)
+  // =====================================================
   const nextCursor =
-    rows.length === effectiveLimit
-      ? rows[rows.length - 1].id
+    items.length === effectiveLimit
+      ? items[items.length - 1].id
       : null;
 
   return {
@@ -518,33 +580,68 @@ if (
 }
 
 
- async getPostsByTag(params: {
-    tag: string;
-    viewerUserId: string | null;
-    cursor?: string;
-    limit: number;
-  }): Promise<{
-    items: PostFeedItemDto[];
-    nextCursor: string | null;
-  }> {
-    const rows = await this.repo.findPostsByTag({
-      tag: params.tag,
-      cursor: params.cursor,
-      limit: params.limit,
-      viewerUserId: params.viewerUserId,
+
+async getPostsByTag(params: {
+  tag: string;
+  viewerUserId: string | null;
+  cursor?: string;
+  limit: number;
+}): Promise<{
+  items: PostFeedItemDto[];
+  nextCursor: string | null;
+}> {
+  const { tag, viewerUserId, cursor, limit } = params;
+
+  // =================================================
+  // 1) Load candidate posts (DB pre-filter only)
+  //    - tag
+  //    - isDeleted / isHidden / block (repo responsibility)
+  //    - visibility here is NOT final authority
+  // =================================================
+  const rows = await this.repo.findPostsByTag({
+    tag,
+    cursor,
+    limit,
+    viewerUserId,
+  });
+
+  // =================================================
+  // 2) Final Authority Decision (Post-level)
+  //    - Single source of truth
+  // =================================================
+  const visiblePosts: typeof rows = [];
+
+  for (const post of rows) {
+    const canView = await this.visibility.canViewPost({
+      post,
+      viewer: viewerUserId
+        ? { userId: viewerUserId }
+        : null,
     });
 
-    const items = rows.map((row) =>
-      PostFeedMapper.toDto(row, params.viewerUserId),
-    );
-
-    const nextCursor =
-      rows.length === params.limit
-        ? rows[rows.length - 1].id
-        : null;
-
-    return { items, nextCursor };
+    if (canView) {
+      visiblePosts.push(post);
+    }
   }
+
+  // =================================================
+  // 3) Map DTO (UX layer only)
+  // =================================================
+  const items = visiblePosts.map((row) =>
+    PostFeedMapper.toDto(row, viewerUserId),
+  );
+
+  // =================================================
+  // 4) Cursor (based on visible items only)
+  // =================================================
+  const nextCursor =
+    items.length === limit
+      ? items[items.length - 1].id
+      : null;
+
+  return { items, nextCursor };
+}
+
   
 
 async toggleLike(params: {
@@ -553,39 +650,62 @@ async toggleLike(params: {
 }): Promise<PostLikeResponseDto> {
   const { postId, userId } = params;
 
+  // =================================================
+  // 1) Load candidate post (DB pre-filter only)
+  //    - isDeleted / isHidden / block / coarse visibility
+  // =================================================
   const post = await this.repo.findPostForLike({
-  postId,
-  viewerUserId: userId, // ✅ ADD
-});
+    postId,
+    viewerUserId: userId,
+  });
 
   if (!post) {
+    // production behavior: do not reveal existence
     throw new NotFoundException('Post not found');
   }
 
+  // =================================================
+  // 2) FINAL AUTHORITY DECISION (POST-LEVEL)
+  //    - unify with feed / post detail
+  // =================================================
+  const canView = await this.visibility.canViewPost({
+    post,
+    viewer: { userId },
+  });
+
+  if (!canView) {
+    // production behavior: behave as not found
+    throw new NotFoundException('Post not found');
+  }
+
+  // =================================================
+  // 3) Business policy (unchanged)
+  // =================================================
   this.policy.assertCanLike(post);
 
+  // =================================================
+  // 4) Toggle like (DB authority)
+  // =================================================
   const result = await this.repo.toggleLike({
     postId,
     userId,
   });
 
-  // ===============================
-// ✅ AUDIT LOG: TOGGLE LIKE
-// ===============================
-try {
-  await this.audit.logGeneric({
-    userId,
-    action: result.liked ? 'post.like' : 'post.unlike',
-    targetId: postId,
-  });
-} catch {}
+  // =================================================
+  // 5) AUDIT LOG (fail-soft)
+  // =================================================
+  try {
+    await this.audit.logGeneric({
+      userId,
+      action: result.liked ? 'post.like' : 'post.unlike',
+      targetId: postId,
+    });
+  } catch {}
 
-
-  // 🔔 CREATE NOTIFICATION (only when liked, fire-and-forget, fail-soft)
-  if (
-    result.liked === true &&
-    post.authorId !== userId
-  ) {
+  // =================================================
+  // 6) CREATE NOTIFICATION (only when liked, fail-soft)
+  // =================================================
+  if (result.liked === true && post.authorId !== userId) {
     try {
       await this.notifications.createNotification({
         userId: post.authorId,
@@ -597,10 +717,13 @@ try {
         },
       });
     } catch {
-      // ❗ notification fail ต้องไม่กระทบ like
+      // ❗ notification fail must not affect like
     }
   }
 
+  // =================================================
+  // 7) DOMAIN EVENT (fan-out workers)
+  // =================================================
   this.postLikedEvent.emit({
     postId,
     userId,
@@ -612,38 +735,65 @@ try {
 
 
 
+
   async unlikePost(params: {
-    postId: string;
-    userId: string;
-  }): Promise<PostUnlikeResponseDto> {
-    const { postId, userId } = params;
+  postId: string;
+  userId: string;
+}): Promise<PostUnlikeResponseDto> {
+  const { postId, userId } = params;
 
-    const post = await this.repo.findPostForLike({
-  postId,
-  viewerUserId: userId, // ✅ ADD
-});
-
-    this.unlikePolicy.assertCanUnlike(post);
-
-    // idempotent: unlike ซ้ำไม่ error
-const result = await this.repo.unlike({ postId, userId });
-
-// ===============================
-// ✅ AUDIT LOG: UNLIKE
-// ===============================
-try {
-  await this.audit.logGeneric({
-    userId,
-    action: 'post.unlike',
-    targetId: postId,
+  // =================================================
+  // 1) Load candidate post (DB pre-filter only)
+  //    - isDeleted / isHidden / block / coarse visibility
+  // =================================================
+  const post = await this.repo.findPostForLike({
+    postId,
+    viewerUserId: userId,
   });
-} catch {}
 
-return result;
-
-
-    
+  if (!post) {
+    // production behavior: do not reveal existence
+    throw new NotFoundException('Post not found');
   }
+
+  // =================================================
+  // 2) FINAL AUTHORITY DECISION (POST-LEVEL)
+  //    - unify with feed / post detail / like
+  // =================================================
+  const canView = await this.visibility.canViewPost({
+    post,
+    viewer: { userId },
+  });
+
+  if (!canView) {
+    // behave as not found
+    throw new NotFoundException('Post not found');
+  }
+
+  // =================================================
+  // 3) Business policy (unchanged)
+  // =================================================
+  this.unlikePolicy.assertCanUnlike(post);
+
+  // =================================================
+  // 4) Idempotent unlike (DB authority)
+  // =================================================
+  const result = await this.repo.unlike({ postId, userId });
+
+  // =================================================
+  // 5) AUDIT LOG (fail-soft)
+  // =================================================
+  try {
+    await this.audit.logGeneric({
+      userId,
+      action: 'post.unlike',
+      targetId: postId,
+    });
+  } catch {}
+
+  return result;
+}
+
 
   async getLikes(params: {
     postId: string;
