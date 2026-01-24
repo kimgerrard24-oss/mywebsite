@@ -9,6 +9,7 @@ import { usePostVisibility } from "@/hooks/usePostVisibility";
 import type {
   PostVisibilityValue,
 } from "@/components/posts/PostVisibilitySelector";
+import UserPickerModal from "@/components/users/UserPickerModal";
 
 type Props = {
   postId: string;
@@ -28,6 +29,8 @@ export default function EditPostForm({
   const [content, setContent] = useState(initialContent);
   const [files, setFiles] = useState<File[]>([]);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [showIncludePicker, setShowIncludePicker] = useState(false);
+  const [showExcludePicker, setShowExcludePicker] = useState(false);
 
   const { submit, loading, error } = useUpdatePost();
   const { upload, uploading } = useMediaUpload();
@@ -68,6 +71,16 @@ const submitting =
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (submitting) return;
+
+    if (
+  visibility.visibility === "CUSTOM" &&
+  (visibility.includeUserIds?.length ?? 0) === 0 &&
+  (visibility.excludeUserIds?.length ?? 0) === 0
+) {
+  setLocalError("Custom visibility ต้องเลือกอย่างน้อย 1 คน");
+  return;
+}
+
     try {
       setLocalError(null);
 
@@ -210,7 +223,40 @@ const submitting =
   value={visibility}
   disabled={submitting || visibilityLoading}
   onChange={updateVisibility}
+  onPickInclude={() => setShowIncludePicker(true)}
+  onPickExclude={() => setShowExcludePicker(true)}
 />
+
+{showIncludePicker && (
+  <UserPickerModal
+    title="Select people who can see this post"
+    onClose={() => setShowIncludePicker(false)}
+    onConfirm={(userIds: string[]) => {
+      updateVisibility({
+        visibility: "CUSTOM",
+        includeUserIds: userIds,
+        excludeUserIds: visibility.excludeUserIds,
+      });
+      setShowIncludePicker(false);
+    }}
+  />
+)}
+
+{showExcludePicker && (
+  <UserPickerModal
+    title="Exclude people from this post"
+    onClose={() => setShowExcludePicker(false)}
+    onConfirm={(userIds: string[]) => {
+      updateVisibility({
+        visibility: "CUSTOM",
+        excludeUserIds: userIds,
+        includeUserIds: visibility.includeUserIds,
+      });
+      setShowExcludePicker(false);
+    }}
+  />
+)}
+
 
 <p className="text-xs text-gray-500">
   Visibility is saved automatically.

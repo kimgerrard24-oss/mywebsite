@@ -20,12 +20,13 @@ type Props = {
   value: PostVisibilityValue;
   onChange: (value: PostVisibilityValue) => void;
 
-  /** disable while saving */
-  disabled?: boolean;
+  onPickInclude?: () => void;
+  onPickExclude?: () => void;
 
-  /** optional: show compact mode (e.g. inside modal) */
+  disabled?: boolean;
   compact?: boolean;
 };
+
 
 const OPTIONS: Array<{
   value: PostVisibility;
@@ -57,9 +58,12 @@ const OPTIONS: Array<{
 export default function PostVisibilitySelector({
   value,
   onChange,
+  onPickInclude,
+  onPickExclude,
   disabled = false,
   compact = false,
-}: Props) {
+}: Props)
+ {
   // ✅ backend authority — use value from parent only
   const localVisibility = value.visibility;
 
@@ -73,137 +77,159 @@ export default function PostVisibilitySelector({
     }
 
     onChange({
-      visibility: 'CUSTOM',
-      includeUserIds,
-      excludeUserIds,
-    });
-  }
+   visibility: 'CUSTOM',
+   includeUserIds: includeUserIds ?? [],
+   excludeUserIds: excludeUserIds ?? [],
+ });
+}
 
   return (
-    <section
-      aria-label="Post visibility"
-      className={clsx(
-        'flex flex-col gap-3',
-        !compact && 'rounded-xl border p-4',
-      )}
-    >
-      <h3 className="text-sm font-semibold">
-        Who can see this post
-      </h3>
+  <section
+    aria-label="Post visibility"
+    className={clsx(
+      'flex flex-col gap-3',
+      !compact && 'rounded-xl border p-4',
+    )}
+  >
+    <h3 className="text-sm font-semibold">
+      Who can see this post
+    </h3>
 
-      <ul className="flex flex-col gap-2">
-        {OPTIONS.map((opt) => {
-          const selected =
-            localVisibility === opt.value;
+    <ul className="flex flex-col gap-2">
+      {OPTIONS.map((opt) => {
+        const selected =
+          localVisibility === opt.value;
 
-          return (
-            <li key={opt.value}>
-              <button
-                type="button"
-                disabled={disabled}
-                onClick={() => selectVisibility(opt.value)}
-                className={clsx(
-                  'w-full rounded-lg border px-3 py-2 text-left transition',
-                  'focus:outline-none focus:ring-2 focus:ring-blue-500',
-                  selected
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-gray-300 hover:bg-gray-50',
-                  disabled &&
-                    'cursor-not-allowed opacity-60',
-                )}
-              >
-                <div className="flex items-center justify-between">
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium">
-                      {opt.title}
-                    </span>
-                    <span className="text-xs text-gray-600">
-                      {opt.description}
-                    </span>
-                  </div>
-
-                  {selected && (
-                    <span
-                      aria-hidden
-                      className="text-blue-600"
-                    >
-                      ✓
-                    </span>
-                  )}
+        return (
+          <li key={opt.value}>
+            <button
+              type="button"
+              disabled={disabled}
+              onClick={() => selectVisibility(opt.value)}
+              className={clsx(
+                'w-full rounded-lg border px-3 py-2 text-left transition',
+                'focus:outline-none focus:ring-2 focus:ring-blue-500',
+                selected
+                  ? 'border-blue-500 bg-blue-50'
+                  : 'border-gray-300 hover:bg-gray-50',
+                disabled &&
+                  'cursor-not-allowed opacity-60',
+              )}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex flex-col">
+                  <span className="text-sm font-medium">
+                    {opt.title}
+                  </span>
+                  <span className="text-xs text-gray-600">
+                    {opt.description}
+                  </span>
                 </div>
-              </button>
-            </li>
-          );
-        })}
-      </ul>
 
-      {/* ================= CUSTOM RULES ================= */}
-      {localVisibility === 'CUSTOM' && (
-        <div className="mt-2 flex flex-col gap-4 rounded-lg border bg-gray-50 p-3">
-          <div className="flex flex-col gap-1">
-            <span className="text-xs font-semibold uppercase text-gray-700">
-              Show to
-            </span>
-
-            {includeUserIds.length === 0 ? (
-              <span className="text-xs text-gray-500">
-                No specific users selected
-              </span>
-            ) : (
-              <span className="text-xs text-gray-700">
-                {includeUserIds.length} people selected
-              </span>
-            )}
-
-            {/* 👉 placeholder for user picker */}
-            <button
-              type="button"
-              disabled={disabled}
-              className="mt-1 w-fit rounded-md border px-2 py-1 text-xs hover:bg-white disabled:opacity-60"
-              onClick={() => {
-                // TODO: open user picker modal (include)
-                alert('Open user picker (include)');
-              }}
-            >
-              Select people
+                {selected && (
+                  <span
+                    aria-hidden
+                    className="text-blue-600"
+                  >
+                    ✓
+                  </span>
+                )}
+              </div>
             </button>
-          </div>
+          </li>
+        );
+      })}
+    </ul>
 
-          <div className="flex flex-col gap-1">
-            <span className="text-xs font-semibold uppercase text-gray-700">
-              Hide from
+    {/* ===== Custom summary ===== */}
+    {localVisibility === 'CUSTOM' && (
+      <p className="text-xs text-gray-600">
+        {includeUserIds.length > 0 && (
+          <>Shown to {includeUserIds.length} people</>
+        )}
+        {includeUserIds.length > 0 &&
+          excludeUserIds.length > 0 && ' · '}
+        {excludeUserIds.length > 0 && (
+          <>Hidden from {excludeUserIds.length} people</>
+        )}
+        {includeUserIds.length === 0 &&
+          excludeUserIds.length === 0 &&
+          'No custom rules selected'}
+      </p>
+    )}
+
+    {/* ================= CUSTOM RULES ================= */}
+    {localVisibility === 'CUSTOM' && (
+      <div
+        role="group"
+        aria-label="Custom visibility rules"
+        className="mt-2 flex flex-col gap-4 rounded-lg border bg-gray-50 p-3"
+      >
+        <div className="flex flex-col gap-1">
+          <span className="text-xs font-semibold uppercase text-gray-700">
+            Show to
+          </span>
+
+          {includeUserIds.length === 0 ? (
+            <span className="text-xs text-gray-500">
+              No specific users selected
             </span>
+          ) : (
+            <span className="text-xs text-gray-700">
+              {includeUserIds.length} people selected
+            </span>
+          )}
 
-            {excludeUserIds.length === 0 ? (
-              <span className="text-xs text-gray-500">
-                No excluded users
-              </span>
-            ) : (
-              <span className="text-xs text-gray-700">
-                {excludeUserIds.length} people excluded
-              </span>
-            )}
-
-            {/* 👉 placeholder for user picker */}
-            <button
-              type="button"
-              disabled={disabled}
-              className="mt-1 w-fit rounded-md border px-2 py-1 text-xs hover:bg-white disabled:opacity-60"
-              onClick={() => {
-                // TODO: open user picker modal (exclude)
-                alert('Open user picker (exclude)');
-              }}
-            >
-              Exclude people
-            </button>
-          </div>
-
-          <p className="text-xs text-gray-500">
-            Excluded users will never see this post, even if they are followers.
-          </p>
+          <button
+            type="button"
+            disabled={
+              disabled ||
+              !onPickInclude ||
+              localVisibility !== 'CUSTOM'
+            }
+            className="mt-1 w-fit rounded-md border px-2 py-1 text-xs hover:bg-white disabled:opacity-60"
+            onClick={() => onPickInclude?.()}
+          >
+            Select people
+          </button>
         </div>
-      )}
-    </section>
-  );
+
+        <div className="flex flex-col gap-1">
+          <span className="text-xs font-semibold uppercase text-gray-700">
+            Hide from
+          </span>
+
+          {excludeUserIds.length === 0 ? (
+            <span className="text-xs text-gray-500">
+              No excluded users
+            </span>
+          ) : (
+            <span className="text-xs text-gray-700">
+              {excludeUserIds.length} people excluded
+            </span>
+          )}
+
+          <button
+            type="button"
+            disabled={
+              disabled ||
+              !onPickExclude ||
+              localVisibility !== 'CUSTOM'
+            }
+            className="mt-1 w-fit rounded-md border px-2 py-1 text-xs hover:bg-white disabled:opacity-60"
+            onClick={() => onPickExclude?.()}
+          >
+            Exclude people
+          </button>
+        </div>
+
+        <p className="text-xs text-gray-500">
+          Excluded users will never see this post, even if they are followers.
+        </p>
+      </div>
+    )}
+  </section>
+);
+
 }
 

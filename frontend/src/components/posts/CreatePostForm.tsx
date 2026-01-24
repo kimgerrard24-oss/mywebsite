@@ -6,6 +6,7 @@ import { useMediaComplete } from '@/hooks/useMediaComplete';
 import { createPost } from '@/lib/api/posts';
 import PostVisibilitySelector from "@/components/posts/PostVisibilitySelector";
 import { Settings } from "lucide-react";
+import UserPickerModal from "@/components/users/UserPickerModal";
 
 const MAX_FILES = 5;
 
@@ -19,7 +20,7 @@ export default function CreatePostForm() {
 
   const { upload, uploading } = useMediaUpload();
   const { complete, loading: completing } = useMediaComplete();
-
+  
   const submitting = loading || uploading || completing;
   const [visibility, setVisibility] = useState<{
     visibility: "PUBLIC" | "FOLLOWERS" | "PRIVATE" | "CUSTOM";
@@ -28,6 +29,8 @@ export default function CreatePostForm() {
       }>({ visibility: "PUBLIC" });
 
   const [showVisibility, setShowVisibility] = useState(false);
+  const [showIncludePicker, setShowIncludePicker] = useState(false);
+  const [showExcludePicker, setShowExcludePicker] = useState(false);
 
   // =========================
   // File selection (UNCHANGED)
@@ -55,6 +58,16 @@ export default function CreatePostForm() {
       setError('Post must have text or media');
       return;
     }
+
+    if (
+  visibility.visibility === "CUSTOM" &&
+  (visibility.includeUserIds?.length ?? 0) === 0 &&
+  (visibility.excludeUserIds?.length ?? 0) === 0
+) {
+  setError("Custom visibility requires selecting at least one person");
+  return;
+}
+
 
     try {
       setLoading(true);
@@ -208,7 +221,17 @@ export default function CreatePostForm() {
   <button
   type="button"
   disabled={submitting}
-  onClick={() => setShowVisibility(v => !v)}
+  onClick={() => {
+  setShowVisibility(v => {
+    const next = !v;
+    if (!next) {
+      setShowIncludePicker(false);
+      setShowExcludePicker(false);
+    }
+    return next;
+  });
+}}
+
   className="
     inline-flex items-center gap-1
     text-sm text-gray-600 hover:text-gray-900
@@ -223,13 +246,54 @@ export default function CreatePostForm() {
   {showVisibility && (
     <div className="mt-2">
       <PostVisibilitySelector
-        value={visibility}
-        disabled={submitting}
-        onChange={(v) => {
-          setVisibility(v);
-          setShowVisibility(false); // ปิดหลังเลือก
-        }}
-      />
+  value={visibility}
+  disabled={submitting}
+  onChange={(v) => {
+  setVisibility(v);
+
+  if (v.visibility !== "CUSTOM") {
+    setShowVisibility(false);
+  }
+}}
+
+  onPickInclude={() => !submitting && setShowIncludePicker(true)}
+  onPickExclude={() => !submitting && setShowExcludePicker(true)}
+
+/>
+
+{showIncludePicker && (
+  <UserPickerModal
+    title="Select people who can see this post"
+    onClose={() => setShowIncludePicker(false)}
+    onConfirm={(userIds) => {
+      setVisibility(v => ({
+        ...v,
+        visibility: "CUSTOM",
+        includeUserIds: userIds,
+        excludeUserIds: v.excludeUserIds,
+      }));
+      setShowIncludePicker(false);
+    }}
+  />
+)}
+
+{showExcludePicker && (
+  <UserPickerModal
+    title="Exclude people from this post"
+    onClose={() => setShowExcludePicker(false)}
+    onConfirm={(userIds) => {
+      setVisibility(v => ({
+        ...v,
+        visibility: "CUSTOM",
+        excludeUserIds: userIds,
+        includeUserIds: v.includeUserIds,
+      }));
+      setShowExcludePicker(false);
+    }}
+  />
+)}
+
+
     </div>
   )}
 </div>
