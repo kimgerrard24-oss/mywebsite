@@ -13,6 +13,7 @@ import { useCreatePost } from "@/hooks/useCreatePost";
 import PostVisibilitySelector from "@/components/posts/PostVisibilitySelector";
 import type { PostVisibilityValue } from "@/components/posts/PostVisibilitySelector";
 import { Settings } from "lucide-react";
+import UserPickerModal from "@/components/users/UserPickerModal";
 
 type Props = {
   onPostCreated?: () => void;
@@ -55,6 +56,8 @@ export default function PostComposer({
     el.style.height = `${el.scrollHeight}px`;
   };
   const [showVisibility, setShowVisibility] = useState(false);
+  const [showIncludePicker, setShowIncludePicker] = useState(false);
+  const [showExcludePicker, setShowExcludePicker] = useState(false);
 
   // =========================
   // File selection (safe)
@@ -105,6 +108,15 @@ export default function PostComposer({
       return;
     }
 
+    if (
+    visibility.visibility === "CUSTOM" &&
+    (visibility.includeUserIds?.length ?? 0) === 0 &&
+    (visibility.excludeUserIds?.length ?? 0) === 0
+  ) {
+    setError("Custom visibility ต้องเลือกอย่างน้อย 1 คน");
+    return;
+  }
+
     try {
       setError(null);
 
@@ -133,7 +145,7 @@ export default function PostComposer({
         includeUserIds: visibility.includeUserIds,
         excludeUserIds: visibility.excludeUserIds,
       });
-
+       
       // reset state
       setContent("");
       setFiles([]);
@@ -142,9 +154,14 @@ export default function PostComposer({
       onPostCreated?.();
       onPosted?.();
 
+     
       if (!onPostCreated && !onPosted) {
         router.replace(router.asPath);
       }
+    setShowVisibility(false);
+setShowIncludePicker(false);
+setShowExcludePicker(false);
+
     } catch (err) {
       console.error("Create post failed:", err);
       setError("ไม่สามารถโพสต์ได้ กรุณาลองใหม่");
@@ -298,15 +315,61 @@ export default function PostComposer({
        
        {showVisibility && (
   <PostVisibilitySelector
-    value={visibility}
-    compact
-    disabled={submitting}
-    onChange={(v) => {
-      setVisibility(v);
+  value={visibility}
+  compact
+  disabled={submitting}
+  onChange={(v) => {
+    setVisibility(v);
+
+    if (v.visibility !== "CUSTOM") {
       setShowVisibility(false);
+    }
+  }}
+  onPickInclude={() => {
+    setShowVisibility(false);      // ✅ ปิด visibility panel
+    setShowIncludePicker(true);    // ✅ เปิด modal เลือกคน
+  }}
+  onPickExclude={() => {
+    setShowVisibility(false);      // ✅ ปิด visibility panel
+    setShowExcludePicker(true);    // ✅ เปิด modal เลือกคน
+  }}
+/>
+
+
+)}
+
+{showIncludePicker && (
+  <UserPickerModal
+    title="Select people who can see this post"
+    onClose={() => setShowIncludePicker(false)}
+    onConfirm={(userIds: string[]) => {
+      setVisibility(v => ({
+        ...v,
+        visibility: "CUSTOM",
+        includeUserIds: userIds,
+        excludeUserIds: v.excludeUserIds,
+      }));
+      setShowIncludePicker(false);
     }}
   />
 )}
+
+{showExcludePicker && (
+  <UserPickerModal
+    title="Exclude people from this post"
+    onClose={() => setShowExcludePicker(false)}
+    onConfirm={(userIds: string[]) => {
+      setVisibility(v => ({
+        ...v,
+        visibility: "CUSTOM",
+        excludeUserIds: userIds,
+        includeUserIds: v.includeUserIds,
+      }));
+      setShowExcludePicker(false);
+    }}
+  />
+)}
+
 
 <div className="flex justify-between items-center pt-1">
   <button
