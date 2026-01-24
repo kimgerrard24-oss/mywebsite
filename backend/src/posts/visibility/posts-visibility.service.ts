@@ -31,23 +31,21 @@ export class PostsVisibilityService {
       ctx.post.authorId === viewerUserId;
 
     return PostVisibilityPolicy.decide({
-  postExists: true,
-  isDeleted: ctx.post.isDeleted,
-  isHidden: ctx.post.isHidden,
+      postExists: true,
+      isDeleted: ctx.post.isDeleted,
+      isHidden: ctx.post.isHidden,
 
-  isOwner,
-  isPrivateAccount: ctx.post.author.isPrivate,
-  isFollower: ctx.isFollower,
+      isOwner,
+      isFollower: ctx.isFollower,
 
-  postVisibility: ctx.post.visibility,
-  visibilityRule: ctx.visibilityRule,
+      postVisibility: ctx.post.visibility,
+      visibilityRule: ctx.visibilityRule,
 
-  isBlockedEitherWay: ctx.isBlockedEitherWay,
-});
-
+      isBlockedEitherWay: ctx.isBlockedEitherWay,
+    });
   }
 
-    /**
+  /**
    * =========================================================
    * User feed visibility (profile page)
    * Account-level visibility gate (backend authority)
@@ -123,5 +121,4 @@ export class PostsVisibilityService {
       scope: 'public',
     };
   }
-
 }

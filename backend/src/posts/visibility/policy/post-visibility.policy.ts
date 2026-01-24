@@ -12,8 +12,7 @@ export class PostVisibilityPolicy {
     // ===== identity =====
     isOwner: boolean;
 
-    // ===== account-level privacy =====
-    isPrivateAccount: boolean;
+    // ===== relation =====
     isFollower: boolean;
 
     // ===== post-level visibility =====
@@ -23,86 +22,104 @@ export class PostVisibilityPolicy {
     // ===== security =====
     isBlockedEitherWay: boolean;
   }): PostVisibilityDecision {
+    const {
+      postExists,
+      isDeleted,
+      isHidden,
+      isOwner,
+      isFollower,
+      postVisibility,
+      visibilityRule,
+      isBlockedEitherWay,
+    } = params;
+
     // =================================================
-    // 1) Existence
+    // Decision Order (High → Low Priority)
     // =================================================
-    if (!params.postExists) {
+
+    // 1) Not found
+    if (!postExists) {
       return { canView: false, reason: 'NOT_FOUND' };
     }
 
-    // =================================================
-    // 2) Hard system states
-    // =================================================
-    if (params.isDeleted) {
+    // 2) System states
+    if (isDeleted) {
       return { canView: false, reason: 'POST_DELETED' };
     }
 
-    if (params.isHidden && !params.isOwner) {
+    if (isHidden) {
       return { canView: false, reason: 'POST_HIDDEN' };
     }
 
-    if (params.isBlockedEitherWay) {
+    // 3) Security
+    if (isBlockedEitherWay) {
       return { canView: false, reason: 'BLOCKED' };
     }
 
-    // =================================================
-    // 3) Owner always allowed (after system guards)
-    // =================================================
-    if (params.isOwner) {
+    // 4) Owner always allowed
+    if (isOwner) {
       return { canView: true, reason: 'OWNER' };
     }
 
     // =================================================
-    // 4) Post-level visibility authority
+    // Custom rules (override post visibility)
     // =================================================
-    const visibility = params.postVisibility ?? PostVisibility.PUBLIC;
 
-    // ❗ EXCLUDE rule overrides everything (except owner handled above)
-    if (params.visibilityRule === VisibilityRuleType.EXCLUDE) {
+    // EXCLUDE always deny
+    if (visibilityRule === VisibilityRuleType.EXCLUDE) {
       return { canView: false, reason: 'EXCLUDED' };
     }
 
+    // INCLUDE always allow
+    if (visibilityRule === VisibilityRuleType.INCLUDE) {
+      return { canView: true, reason: 'OK' };
+    }
+
+    // =================================================
+    // Post-level visibility authority
+    // =================================================
+
+    const visibility =
+      postVisibility ?? PostVisibility.PUBLIC;
+
     switch (visibility) {
       case PostVisibility.PUBLIC: {
-        // pass to account-level privacy
-        break;
+        return { canView: true, reason: 'OK' };
       }
 
       case PostVisibility.FOLLOWERS: {
-        if (!params.isFollower) {
-          return { canView: false, reason: 'NOT_FOLLOWER' };
+        if (!isFollower) {
+          return {
+            canView: false,
+            reason: 'NOT_FOLLOWER',
+          };
         }
-        break;
+        return { canView: true, reason: 'OK' };
       }
 
       case PostVisibility.PRIVATE: {
-        // only owner allowed (already returned above)
-        return { canView: false, reason: 'PRIVATE_POST' };
+        // owner already handled above
+        return {
+          canView: false,
+          reason: 'PRIVATE_POST',
+        };
       }
 
       case PostVisibility.CUSTOM: {
-        if (params.visibilityRule === VisibilityRuleType.INCLUDE) {
-          break;
-        }
-        return { canView: false, reason: 'NOT_IN_CUSTOM_LIST' };
+        // no rule matched → deny
+        return {
+          canView: false,
+          reason: 'NOT_IN_CUSTOM_LIST',
+        };
       }
 
       default: {
         // fail-safe
-        return { canView: false, reason: 'VISIBILITY_DENIED' };
+        return {
+          canView: false,
+          reason: 'VISIBILITY_DENIED',
+        };
       }
     }
-
-    // =================================================
-    // 5) Account-level privacy (existing behavior)
-    // =================================================
-    if (params.isPrivateAccount && !params.isFollower) {
-      return { canView: false, reason: 'PRIVATE_ACCOUNT' };
-    }
-
-    // =================================================
-    // 6) Allowed
-    // =================================================
-    return { canView: true, reason: 'OK' };
   }
 }

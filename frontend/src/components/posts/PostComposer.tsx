@@ -12,6 +12,7 @@ import { useMediaComplete } from "@/hooks/useMediaComplete";
 import { useCreatePost } from "@/hooks/useCreatePost";
 import PostVisibilitySelector from "@/components/posts/PostVisibilitySelector";
 import type { PostVisibilityValue } from "@/components/posts/PostVisibilitySelector";
+import { Settings } from "lucide-react";
 
 type Props = {
   onPostCreated?: () => void;
@@ -309,17 +310,20 @@ export default function PostComposer({
 
 <div className="flex justify-between items-center pt-1">
   <button
-    type="button"
-    disabled={submitting}
-    onClick={() => setShowVisibility(v => !v)}
-    className="
-      inline-flex items-center gap-1
-      text-[10px] sm:text-[11px]
-      text-gray-600 hover:text-gray-900
-    "
-  >
-    🔒 {visibility.visibility.toLowerCase()}
-  </button>
+  type="button"
+  disabled={submitting}
+  onClick={() => setShowVisibility(v => !v)}
+  className="
+    inline-flex items-center gap-1
+    text-[10px] sm:text-[11px]
+    text-gray-600 hover:text-gray-900
+  "
+  aria-label="Post settings"
+>
+ <Settings className="w-4 h-4" />
+<span>Post settings</span>
+</button>
+
 </div>
 
 

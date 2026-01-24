@@ -8,99 +8,89 @@ import { VisibilityRuleType } from '@prisma/client';
 export class PostsVisibilityRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async loadPostVisibilityContext(params: {
-    postId: string;
-    viewerUserId: string | null;
-  }) {
-    const { postId, viewerUserId } = params;
+ async loadPostVisibilityContext(params: {
+  postId: string;
+  viewerUserId: string | null;
+}) {
+  const { postId, viewerUserId } = params;
 
-    const post = await this.prisma.post.findUnique({
-      where: { id: postId },
-      select: {
-        id: true,
-        authorId: true,
-        isDeleted: true,
-        isHidden: true,
+  const post = await this.prisma.post.findUnique({
+    where: { id: postId },
+    select: {
+      id: true,
+      authorId: true,
+      isDeleted: true,
+      isHidden: true,
 
-        // ✅ NEW: post-level visibility
-        visibility: true,
+      // ===== post-level visibility =====
+      visibility: true,
 
-        // ✅ NEW: custom visibility rules (INCLUDE / EXCLUDE)
-        visibilityRules: viewerUserId
-          ? {
-              where: {
-                userId: viewerUserId,
-              },
-              select: {
-                rule: true,
-              },
-            }
-          : false,
+      // ===== custom visibility rules (viewer-specific) =====
+      visibilityRules: viewerUserId
+        ? {
+            where: { userId: viewerUserId },
+            select: { rule: true },
+          }
+        : false,
+    },
+  });
 
-        author: {
-          select: {
-            isPrivate: true,
-          },
-        },
-      },
-    });
-
-    if (!post) {
-      return {
-        post: null,
-        isFollower: false,
-        isBlockedEitherWay: false,
-        visibilityRule: null as VisibilityRuleType | null,
-      };
-    }
-
-    let isFollower = false;
-    let isBlockedEitherWay = false;
-
-    if (viewerUserId) {
-      const [follow, block] = await Promise.all([
-        this.prisma.follow.findFirst({
-          where: {
-            followerId: viewerUserId,
-            followingId: post.authorId,
-          },
-          select: { followerId: true },
-        }),
-
-        this.prisma.userBlock.findFirst({
-          where: {
-            OR: [
-              { blockerId: viewerUserId, blockedId: post.authorId },
-              { blockerId: post.authorId, blockedId: viewerUserId },
-            ],
-          },
-          select: { blockerId: true },
-        }),
-      ]);
-
-      isFollower = Boolean(follow);
-      isBlockedEitherWay = Boolean(block);
-    }
-
-    const visibilityRule =
-      viewerUserId && Array.isArray(post.visibilityRules)
-        ? post.visibilityRules[0]?.rule ?? null
-        : null;
-
+  if (!post) {
     return {
-      post: {
-        id: post.id,
-        authorId: post.authorId,
-        isDeleted: post.isDeleted,
-        isHidden: post.isHidden,
-        visibility: post.visibility,
-        author: post.author,
-      },
-      isFollower,
-      isBlockedEitherWay,
-      visibilityRule, // INCLUDE | EXCLUDE | null
+      post: null,
+      isFollower: false,
+      isBlockedEitherWay: false,
+      visibilityRule: null as VisibilityRuleType | null,
     };
   }
+
+  let isFollower = false;
+  let isBlockedEitherWay = false;
+
+  if (viewerUserId) {
+    const [follow, block] = await Promise.all([
+      this.prisma.follow.findFirst({
+        where: {
+          followerId: viewerUserId,
+          followingId: post.authorId,
+        },
+        select: { followerId: true },
+      }),
+
+      this.prisma.userBlock.findFirst({
+        where: {
+          OR: [
+            { blockerId: viewerUserId, blockedId: post.authorId },
+            { blockerId: post.authorId, blockedId: viewerUserId },
+          ],
+        },
+        select: { blockerId: true },
+      }),
+    ]);
+
+    isFollower = Boolean(follow);
+    isBlockedEitherWay = Boolean(block);
+  }
+
+  const visibilityRule =
+    viewerUserId && Array.isArray(post.visibilityRules)
+      ? post.visibilityRules[0]?.rule ?? null
+      : null;
+
+  return {
+    post: {
+      id: post.id,
+      authorId: post.authorId,
+      isDeleted: post.isDeleted,
+      isHidden: post.isHidden,
+      visibility: post.visibility,
+    },
+    isFollower,
+    isBlockedEitherWay,
+    visibilityRule, // INCLUDE | EXCLUDE | null
+  };
+}
+
 
     // =================================================
   // Account-level privacy (profile visibility gate)
