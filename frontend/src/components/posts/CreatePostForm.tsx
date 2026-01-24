@@ -5,6 +5,7 @@ import { useMediaUpload } from '@/hooks/useMediaUpload';
 import { useMediaComplete } from '@/hooks/useMediaComplete';
 import { createPost } from '@/lib/api/posts';
 import PostVisibilitySelector from "@/components/posts/PostVisibilitySelector";
+import { Settings } from "lucide-react";
 
 const MAX_FILES = 5;
 
@@ -205,16 +206,19 @@ export default function CreatePostForm() {
     
      <div className="relative">
   <button
-    type="button"
-    disabled={submitting}
-    onClick={() => setShowVisibility(v => !v)}
-    className="
-      inline-flex items-center gap-1
-      text-sm text-gray-600 hover:text-gray-900
-    "
-  >
-    🔒 {visibility.visibility.toLowerCase()}
-  </button>
+  type="button"
+  disabled={submitting}
+  onClick={() => setShowVisibility(v => !v)}
+  className="
+    inline-flex items-center gap-1
+    text-sm text-gray-600 hover:text-gray-900
+  "
+  aria-label="Post settings"
+>
+  <Settings className="w-4 h-4" />
+<span>Post settings</span>
+</button>
+
 
   {showVisibility && (
     <div className="mt-2">

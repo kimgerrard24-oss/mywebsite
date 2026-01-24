@@ -21,9 +21,13 @@ export function useCreatePost() {
 
       try {
         const res = await createPost({
-          content: params.content,
-          mediaIds: params.mediaIds,
-        });
+  content: params.content,
+  mediaIds: params.mediaIds,
+  visibility: params.visibility,
+  includeUserIds: params.includeUserIds,
+  excludeUserIds: params.excludeUserIds,
+});
+
 
         return res;
       } catch (err) {
