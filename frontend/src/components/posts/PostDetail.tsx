@@ -8,6 +8,7 @@ import PostActionMenu from "@/components/posts/PostActionMenu";
 import { renderContentWithHashtags } from "@/utils/renderContentWithHashtags";
 import { usePostLike } from "@/hooks/usePostLike";
 import PostLikeList from "@/components/posts/PostLikeList";
+import PostLikeListModal from "@/components/posts/PostLikeListModal";
 
 type Props = {
   post: PostDetailType;
@@ -34,21 +35,19 @@ export default function PostDetail({ post }: Props) {
     initialLikeCount: post.likeCount ?? 0,
   });
 
-  const [showLikes, setShowLikes] = useState(false);
+  const [isLikeModalOpen, setIsLikeModalOpen] = useState(false);
 
-  const toggleLikes = () => {
-  setShowLikes((prev) => {
-    const next = !prev;
+const openLikes = () => {
+  if (isBlocked) return;
 
-    // โหลด likes เฉพาะตอน "เปิด"
-    if (next && !isBlocked) {
-  loadLikes({ reset: true });
-}
+  setIsLikeModalOpen(true);
+  loadLikes({ reset: true }); // โหลดเฉพาะตอนเปิด
+};
 
+const closeLikes = () => {
+  setIsLikeModalOpen(false);
+};
 
-    return next;
-  });
- };
 
 
   return (
@@ -281,33 +280,25 @@ export default function PostDetail({ post }: Props) {
       >
         <button
   type="button"
-  onClick={() => {
-    if (isBlocked) return;
-    toggleLikes();
-  }}
+  onClick={openLikes}
   disabled={isBlocked}
   aria-disabled={isBlocked}
   className={isBlocked ? "opacity-60 cursor-not-allowed" : undefined}
 >
-
-
-          {showLikes ? "Hide likes" : `${likeCount} likes`}
-
-        </button>
-
-        {showLikes && !isBlocked && (
-  <div className="mt-3">
-    <PostLikeList
-      likes={likes}
-      loading={likesLoading}
-      error={likesError}
-      hasMore={hasMoreLikes}
-      onLoadMore={() => loadLikes()}
-    />
-  </div>
-)}
+  {likeCount} likes
+</button>
 
       </section>
+      <PostLikeListModal
+  open={isLikeModalOpen}
+  onClose={closeLikes}
+  likes={likes}
+  loading={likesLoading}
+  error={likesError}
+  hasMore={hasMoreLikes}
+  onLoadMore={() => loadLikes()}
+/>
+
     </>
   );
 }
