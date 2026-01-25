@@ -16,6 +16,12 @@ export type Comment = {
     hasBlockedViewer?: boolean; // author block viewer
   };
 
+  mentions?: {
+  userId: string;
+  username: string;
+}[];
+
+
   isOwner: boolean;
 
   /**

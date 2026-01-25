@@ -225,13 +225,18 @@ export default function CommentItem({
 {/* ================= Content ================= */}
 {!editing ? (
   <p className="text-gray-900">
-    {renderContentWithMentions(comment.content, isBlocked)}
-    {comment.isEdited && (
-      <span className="ml-1 text-xs text-gray-400">
-        (แก้ไขแล้ว)
-      </span>
-    )}
-  </p>
+  {renderContentWithMentions(
+    comment.content,
+    comment.mentions ?? [],
+    isBlocked,
+  )}
+  {comment.isEdited && (
+    <span className="ml-1 text-xs text-gray-400">
+      (แก้ไขแล้ว)
+    </span>
+  )}
+</p>
+
 ) : (
   <textarea
     className="
@@ -381,29 +386,39 @@ export default function CommentItem({
 
     </article>
   );
-}
+ }
 
 function renderContentWithMentions(
   text: string,
+  mentions: { userId: string; username: string }[],
   disableLinks = false,
 ) {
-
   return text.split(/(@[\w\d_]+|#[\w\d_]+)/g).map((part, i) => {
     // @mention
     if (part.startsWith("@")) {
-  if (disableLinks) return <span key={i}>{part}</span>;
+      if (disableLinks) return <span key={i}>{part}</span>;
 
-  const username = part.slice(1);
-  return (
-    <a
-      key={i}
-      href={`/users/${username}`}
-      className="text-blue-600 hover:underline"
-    >
-      {part}
-    </a>
-  );
-}
+      const username = part.slice(1);
+      const m = mentions.find(
+        (x) => x.username === username,
+      );
+
+      // fallback: render as text if not found
+      if (!m) {
+        return <span key={i}>{part}</span>;
+      }
+
+      return (
+        <a
+          key={i}
+          href={`/users/${m.userId}`}
+          className="text-blue-600 hover:underline"
+        >
+          {part}
+        </a>
+      );
+    }
+
 
 
     // #hashtag ✅ FIX
