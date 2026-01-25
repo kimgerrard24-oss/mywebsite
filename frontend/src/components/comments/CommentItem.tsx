@@ -226,10 +226,11 @@ export default function CommentItem({
 {!editing ? (
   <p className="text-gray-900">
   {renderContentWithMentions(
-    comment.content,
-    comment.mentions ?? [],
-    isBlocked,
-  )}
+  comment.content,
+  comment.mentions ?? [],
+  isBlocked,
+)}
+
   {comment.isEdited && (
     <span className="ml-1 text-xs text-gray-400">
       (แก้ไขแล้ว)
@@ -390,35 +391,33 @@ export default function CommentItem({
 
 function renderContentWithMentions(
   text: string,
-  mentions: { userId: string; username: string }[],
+  mentions: { userId: string; username: string }[] = [],
   disableLinks = false,
 ) {
+
   return text.split(/(@[\w\d_]+|#[\w\d_]+)/g).map((part, i) => {
     // @mention
-    if (part.startsWith("@")) {
-      if (disableLinks) return <span key={i}>{part}</span>;
+   if (part.startsWith("@")) {
+  if (disableLinks) return <span key={i}>{part}</span>;
 
-      const username = part.slice(1);
-      const m = mentions.find(
-        (x) => x.username === username,
-      );
+  const username = part.slice(1);
+  const m = mentions.find(
+    (x) => x.username === username,
+  );
 
-      // fallback: render as text if not found
-      if (!m) {
-        return <span key={i}>{part}</span>;
-      }
+  // fallback: ถ้า backend ไม่ส่ง mention มา
+  if (!m) return <span key={i}>{part}</span>;
 
-      return (
-        <a
-          key={i}
-          href={`/users/${m.userId}`}
-          className="text-blue-600 hover:underline"
-        >
-          {part}
-        </a>
-      );
-    }
-
+  return (
+    <a
+      key={i}
+      href={`/users/${m.userId}`}
+      className="text-blue-600 hover:underline"
+    >
+      {part}
+    </a>
+  );
+}
 
 
     // #hashtag ✅ FIX
