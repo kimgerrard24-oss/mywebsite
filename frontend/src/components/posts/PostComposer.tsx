@@ -169,6 +169,7 @@ setShowExcludePicker(false);
   }, [
     content,
     files,
+    visibility,
     submitting,
     upload,
     complete,
