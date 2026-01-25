@@ -69,6 +69,15 @@ export class CommentMapper {
       Boolean(viewerUserId) &&
       comment.authorId === viewerUserId;
 
+    const mentions = Array.isArray(comment.mentions)
+      ? comment.mentions
+          .filter((m: any) => m.user)
+          .map((m: any) => ({
+            userId: m.user.id,
+            username: m.user.username,
+          }))
+      : [];  
+
     return {
       id: comment.id,
       content: comment.content,
@@ -87,6 +96,8 @@ export class CommentMapper {
         isBlocked,
         hasBlockedViewer,
       },
+      
+       mentions,
 
       isOwner,
 

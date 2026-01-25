@@ -203,6 +203,17 @@ export class CommentsRepository {
   },
 },
 
+ mentions: {
+    include: {
+      user: {
+        select: {
+          id: true,
+          username: true,
+        },
+      },
+    },
+  },
+
 
       likes: {
         select: { userId: true },
@@ -215,6 +226,7 @@ export class CommentsRepository {
     },
   });
 }
+
 
 
  // =========================

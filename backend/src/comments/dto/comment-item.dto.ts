@@ -16,6 +16,12 @@ export class CommentItemDto {
     hasBlockedViewer?: boolean;
   };
 
+  mentions!: {
+  userId: string;
+  username: string;
+}[];
+
+
   isOwner!: boolean;
 
   likeCount!: number;

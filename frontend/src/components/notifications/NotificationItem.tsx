@@ -68,7 +68,9 @@ if (targetType === 'CHAT_MESSAGE')
           : null;
 
       case 'feed_new_post':
-        return null;
+        return item.entityId
+          ? `/posts/${item.entityId}`
+          : null;
 
       case 'comment_mention':
         return item.payload?.postId && item.entityId
@@ -101,14 +103,6 @@ if (targetType === 'CHAT_MESSAGE')
       setIsRead(false);
     }
   }
-
- if (item.type === 'feed_new_post') {
-  invalidateFeed('new-post'); // ใช้ระบบ invalidate กลาง
-  window.scrollTo({ top: 0, behavior: 'smooth' });
-  return;
-}
-
-
 
   const href = resolveHref();
   if (href && !isBlocked) {
