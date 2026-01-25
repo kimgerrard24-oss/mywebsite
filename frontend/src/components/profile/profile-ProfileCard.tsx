@@ -7,6 +7,7 @@ import BlockUserButton from "@/components/users/BlockUserButton";
 import UnblockUserButton from "@/components/users/UnblockUserButton";
 import FollowActionButton from "@/components/follows/FollowActionButton";
 import FollowController from "@/components/follows/FollowController";
+import { useRouter } from "next/router";
 
 export interface ProfileCardProps {
   profile: UserProfile | PublicUserProfile | null;
@@ -34,7 +35,7 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
   isSelf = true,
 }) => {
   if (!profile) return null;
-
+  const router = useRouter();
   const displayName =
     profile.displayName && profile.displayName.trim().length > 0
       ? profile.displayName
@@ -289,9 +290,11 @@ const isPrivateLocked =
         />
       ) : (
         <BlockUserButton
-          targetUserId={profile.id}
-          onBlocked={() => window.location.reload()}
-        />
+  targetUserId={profile.id}
+  onBlocked={() => {
+    router.replace("/feed");
+  }}
+/>
       )}
     </>
   )}
