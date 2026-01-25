@@ -394,30 +394,28 @@ function renderContentWithMentions(
   mentions: { userId: string; username: string }[] = [],
   disableLinks = false,
 ) {
+  let mentionIndex = 0;
 
   return text.split(/(@[\w\d_]+|#[\w\d_]+)/g).map((part, i) => {
-    // @mention
-   if (part.startsWith("@")) {
-  if (disableLinks) return <span key={i}>{part}</span>;
+    // ===== @mention =====
+    if (part.startsWith("@")) {
+      if (disableLinks) return <span key={i}>{part}</span>;
 
-  const username = part.slice(1);
-  const m = mentions.find(
-    (x) => x.username === username,
-  );
+      const m = mentions[mentionIndex];
+      mentionIndex++;
 
-  // fallback: ถ้า backend ไม่ส่ง mention มา
-  if (!m) return <span key={i}>{part}</span>;
+      if (!m) return <span key={i}>{part}</span>;
 
-  return (
-    <a
-      key={i}
-      href={`/users/${m.userId}`}
-      className="text-blue-600 hover:underline"
-    >
-      {part}
-    </a>
-  );
-}
+      return (
+        <a
+          key={i}
+          href={`/users/${m.userId}`}
+          className="text-blue-600 hover:underline"
+        >
+          {part}
+        </a>
+      );
+    }
 
 
     // #hashtag ✅ FIX
