@@ -125,7 +125,6 @@ export default function UserProfilePage({ profile }: Props) {
 export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
   const userId = ctx.params?.userId;
 
-  // ===== invalid route param =====
   if (typeof userId !== "string") {
     return { notFound: true };
   }
@@ -137,42 +136,26 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
         ctx.req.headers.cookie
       );
 
-    /**
-     * ==================================================
-     * 🚨 VIEWER CANNOT SEE PROFILE (blocked / private / revoked)
-     * → redirect to feed (better UX than 404)
-     * ==================================================
-     */
     if (!profile) {
-      return {
-        redirect: {
-          destination: "/feed",
-          permanent: false,
-        },
-      };
+      return { notFound: true };
     }
 
     let posts: PostFeedItem[] = [];
 
-    /**
-     * ==================================================
-     * ✅ Load posts only if viewer can see content
-     * (backend already enforced authority)
-     * ==================================================
-     */
-    if (profile.canViewContent === true) {
-      try {
-        const feed = await getUserPosts({
-          userId,
-          limit: 20,
-          cookie: ctx.req.headers.cookie,
-        });
+if (profile.canViewContent === true) {
+  try {
+    const feed = await getUserPosts({
+      userId,
+      limit: 20,
+      cookie: ctx.req.headers.cookie,
+    });
 
-        posts = feed.items;
-      } catch {
-        // fail-soft: profile still renders even if posts fail
-      }
-    }
+    posts = feed.items;
+  } catch {
+    // fail-soft
+  }
+}
+
 
     return {
       props: {
@@ -181,16 +164,9 @@ export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
       },
     };
   } catch {
-    /**
-     * ==================================================
-     * 🚨 API / NETWORK ERROR
-     * keep as 404 to avoid leaking state
-     * ==================================================
-     */
     return { notFound: true };
   }
 };
-
 
 
 
