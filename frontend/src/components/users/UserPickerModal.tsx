@@ -17,12 +17,14 @@ type Props = {
   title: string;
   onClose: () => void;
   onConfirm: (userIds: string[]) => void;
+  max?: number;
 };
 
 export default function UserPickerModal({
   title,
   onClose,
   onConfirm,
+  max,
 }: Props) {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<UserItem[]>([]);
@@ -106,20 +108,33 @@ export default function UserPickerModal({
   // Toggle select
   // =========================
   function toggle(id: string) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
+  setSelected((prev) => {
+    const next = new Set(prev);
+
+    if (next.has(id)) {
+      next.delete(id);
       return next;
-    });
-  }
+    }
+
+    if (max && next.size >= max) {
+      return prev; // ❌ block selecting more
+    }
+
+    next.add(id);
+    return next;
+  });
+}
+
 
   // =========================
   // Confirm
   // =========================
   function handleConfirm() {
-    onConfirm(Array.from(selected));
-  }
+  const ids = Array.from(selected);
+  const finalIds = max ? ids.slice(0, max) : ids;
+  onConfirm(finalIds);
+}
+
 
   // =========================
   // Render
@@ -236,8 +251,10 @@ export default function UserPickerModal({
         {/* ===== Footer ===== */}
         <footer className="flex items-center justify-between border-t px-4 py-3">
           <span className="text-xs text-gray-500">
-            {selected.size} selected
-          </span>
+  {selected.size}
+  {max ? ` / ${max}` : ''} selected
+</span>
+
 
           <div className="flex gap-2">
             <button

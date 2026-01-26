@@ -31,6 +31,8 @@ export default function CreatePostForm() {
   const [showVisibility, setShowVisibility] = useState(false);
   const [showIncludePicker, setShowIncludePicker] = useState(false);
   const [showExcludePicker, setShowExcludePicker] = useState(false);
+  const [taggedUserIds, setTaggedUserIds] = useState<string[]>([]);
+  const [showTagPicker, setShowTagPicker] = useState(false);
 
   // =========================
   // File selection (UNCHANGED)
@@ -97,10 +99,12 @@ export default function CreatePostForm() {
         visibility: visibility.visibility,
         includeUserIds: visibility.includeUserIds,
         excludeUserIds: visibility.excludeUserIds,
+        taggedUserIds,
       });
-
+      setTaggedUserIds([]);
       setContent('');
       setFiles([]);
+      setShowTagPicker(false);
 
       // ✅ FIX: refresh feed หลังโพสต์สำเร็จ
       router.replace(router.asPath);
@@ -242,6 +246,32 @@ export default function CreatePostForm() {
 <span>Post settings</span>
 </button>
 
+<button
+  type="button"
+  disabled={submitting}
+  onClick={() => setShowTagPicker(true)}
+  className="text-sm text-gray-600 hover:text-gray-900"
+>
+  Tag people
+</button>
+
+{showTagPicker && (
+  <UserPickerModal
+    title="Tag people in this post"
+    onClose={() => setShowTagPicker(false)}
+    onConfirm={(userIds) => {
+      setTaggedUserIds(userIds);
+      setShowTagPicker(false);
+    }}
+  />
+)}
+
+{taggedUserIds.length > 0 && (
+  <p className="text-xs text-gray-500">
+    Tagged {taggedUserIds.length} people
+  </p>
+)}
+
 
   {showVisibility && (
     <div className="mt-2">
@@ -264,6 +294,7 @@ export default function CreatePostForm() {
 {showIncludePicker && (
   <UserPickerModal
     title="Select people who can see this post"
+    max={10}
     onClose={() => setShowIncludePicker(false)}
     onConfirm={(userIds) => {
       setVisibility(v => ({
@@ -280,6 +311,7 @@ export default function CreatePostForm() {
 {showExcludePicker && (
   <UserPickerModal
     title="Exclude people from this post"
+    max={10}
     onClose={() => setShowExcludePicker(false)}
     onConfirm={(userIds) => {
       setVisibility(v => ({

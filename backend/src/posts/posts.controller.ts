@@ -31,6 +31,9 @@ import { PostUnlikeResponseDto } from './dto/post-unlike-response.dto';
 import { RateLimit } from '../common/rate-limit/rate-limit.decorator';
 import { UpdatePostVisibilityDto } from './dto/update-post-visibility.dto';
 import { PostVisibilityRulesDto } from './dto/post-visibility-rules.dto';
+import { UpdatePostTagsDto } from './dto/update-post-tags.dto';
+import { AcceptPostTagParamsDto } from './dto/accept-post-tag.params.dto';
+import { RejectPostTagParamsDto } from './dto/reject-post-tag.params.dto';
 
 @Controller('posts')
 export class PostsController {
@@ -268,4 +271,84 @@ async getPostVisibilityRules(
     actorUserId: user.userId,
   });
 }
+
+@Patch(':postId/tags')
+  @UseGuards(AccessTokenCookieAuthGuard)
+  async updatePostTag(
+    @Param('postId') _postId: string, // not trusted
+    @Body() dto: UpdatePostTagsDto,
+    @Req() req: Request,
+  ) {
+    const actor = req.user as { userId: string };
+
+    return this.postsService.updateTag({
+      actorUserId: actor.userId,
+      dto,
+    });
+  }
+
+   @Delete(':postId/tags/me')
+  @HttpCode(200)
+  @UseGuards(AccessTokenCookieAuthGuard)
+  async removeMyTag(
+    @Param('postId') postId: string,
+    @Req() req: Request,
+  ) {
+    const actor = req.user as { userId: string };
+
+    return this.postsService.removeMyTag({
+      postId,
+      actorUserId: actor.userId,
+    });
+  }
+
+  @Get(':postId/tags')
+@UseGuards(OptionalAuthGuard) // ให้ public ดูได้ถ้า visibility ผ่าน
+async getPostTags(
+  @Param('postId', ParsePostIdPipe) postId: string,
+  @Req() req: Request,
+) {
+  const viewer =
+    req.user && typeof req.user === 'object'
+      ? { userId: (req.user as any).userId }
+      : null;
+
+  return this.postsService.getPostUserTags({
+    postId,
+    viewerUserId: viewer?.userId ?? null,
+  });
+}
+
+@Post(':postId/tags/:tagId/accept')
+@HttpCode(200)
+@UseGuards(AccessTokenCookieAuthGuard)
+async acceptPostTag(
+  @Param() params: AcceptPostTagParamsDto,
+  @Req() req: Request,
+) {
+  const actor = req.user as { userId: string };
+
+  return this.postsService.acceptPostTag({
+    postId: params.postId,
+    tagId: params.tagId,
+    actorUserId: actor.userId,
+  });
+}
+
+@Post(':postId/tags/:tagId/reject')
+@HttpCode(200)
+@UseGuards(AccessTokenCookieAuthGuard)
+async rejectPostTag(
+  @Param() params: RejectPostTagParamsDto,
+  @Req() req: Request,
+) {
+  const actor = req.user as { userId: string };
+
+  return this.postsService.rejectPostTag({
+    postId: params.postId,
+    tagId: params.tagId,
+    actorUserId: actor.userId,
+  });
+}
+
 }

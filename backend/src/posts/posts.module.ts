@@ -17,6 +17,13 @@ import { PostUnlikePolicy } from './policy/post-unlike.policy';
 import { CommentsModule } from '../comments/comments.module';
 import { NotificationsModule } from '../notifications/notifications.module'; // ✅
 import { PostsVisibilityModule } from './visibility/posts-visibility.module';
+import { PostUserTagListener } from './listeners/post-user-tag.listener'
+import { PostUserTagViewPolicy } from './policy/post-user-tag-view.policy';
+import { PostUserTagCreatePolicy } from './policy/post-user-tag-create.policy';
+import { PostUserTagUpdatePolicy } from './policy/post-user-tag-update.policy';
+import { PostUserTagRemovePolicy } from './policy/post-user-tag-remove.policy';
+import { PostUserTagAcceptPolicy } from './policy/post-user-tag-accept.policy';
+import { PostUserTagRejectPolicy } from './policy/post-user-tag-reject.policy';
 
 @Module({
   imports: [
@@ -32,13 +39,21 @@ import { PostsVisibilityModule } from './visibility/posts-visibility.module';
     PostsRepository,
     PostDeletePolicy,
     PostUpdatePolicy,
+    PostUserTagViewPolicy,
     PostAudit,
     PostCreatedEvent,
     PostVisibilityService,
     PostCacheService,
     PostLikePolicy,
+    PostUserTagListener,
     PostLikedEvent,
     PostUnlikePolicy,
+    PostUserTagCreatePolicy,
+    PostUserTagUpdatePolicy,
+    PostUserTagRemovePolicy,
+    PostUserTagAcceptPolicy,
+    PostUserTagRejectPolicy,
+    PostUserTagViewPolicy,
   ],
 exports: [
     PostVisibilityService,

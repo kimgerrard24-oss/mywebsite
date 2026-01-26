@@ -7,6 +7,7 @@ import {
   Length,
   ArrayMaxSize,
   IsEnum,
+  IsUUID,
 } from 'class-validator';
 import { PostVisibility } from '@prisma/client';
 
@@ -44,5 +45,14 @@ export class CreatePostDto {
   @ArrayMaxSize(200)
   @IsString({ each: true })
   excludeUserIds?: string[];
+
+  // =========================
+  // Friend Tagging
+  // =========================
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(10) // production-safe: limit tags per post
+  @IsUUID('4', { each: true })
+  taggedUserIds?: string[];
 }
 
