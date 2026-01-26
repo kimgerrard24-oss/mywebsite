@@ -395,9 +395,55 @@ async findPostById(
             select: { id: true },
           }
         : undefined,
+
+      // ==============================
+      // 🆕 FRIEND TAGS (for PostDetailDto)
+      // ==============================
+      userTags: {
+        select: {
+          id: true,
+          status: true,
+          taggedUserId: true,
+          taggedByUserId: true,
+
+          post: {
+            select: {
+              authorId: true,
+            },
+          },
+
+          taggedUser: {
+            select: {
+              id: true,
+              username: true,
+              displayName: true,
+              avatarUrl: true,
+              isDisabled: true,
+              isBanned: true,
+              active: true,
+
+              ...(viewerUserId
+                ? {
+                    blockedBy: {
+                      where: { blockerId: viewerUserId },
+                      select: { blockerId: true },
+                      take: 1,
+                    },
+                    blockedUsers: {
+                      where: { blockedId: viewerUserId },
+                      select: { blockedId: true },
+                      take: 1,
+                    },
+                  }
+                : {}),
+            },
+          },
+        },
+      },
     },
   });
 }
+
 
 
 
