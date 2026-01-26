@@ -54,6 +54,8 @@ export default function FeedItem({ post, onDeleted }: Props) {
   setIsFollowing(post.author.isFollowing);
   setIsFollowRequested(post.author.isFollowRequested);
 }, [post.author.isFollowing, post.author.isFollowRequested]);
+  
+const taggedUsers = post.taggedUsers ?? [];
 
   return (
     <article
@@ -204,6 +206,21 @@ export default function FeedItem({ post, onDeleted }: Props) {
       >
         {renderContentWithHashtags(post.content)}
       </p>
+
+      {/* ================= Tagged Users ================= */}
+{taggedUsers.length > 0 && (
+  <p className="mt-1 text-xs sm:text-sm text-gray-600">
+    with{" "}
+    {taggedUsers.map((u, i) => (
+      <span key={u.id}>
+        {u.displayName || u.username}
+        {i < taggedUsers.length - 1 && ", "}
+      </span>
+    ))}
+  </p>
+)}
+
+
 
       {/* ================= Media ================= */}
       {Array.isArray(post.media) && post.media.length > 0 && (

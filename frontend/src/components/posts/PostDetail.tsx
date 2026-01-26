@@ -20,6 +20,8 @@ export default function PostDetail({ post }: Props) {
   const isBlocked =
   post.author?.isBlocked === true ||
   post.author?.hasBlockedViewer === true;
+  const acceptedTags =
+  post.userTags?.filter((t) => t.status === "ACCEPTED") ?? [];
 
   const {
     likeCount,
@@ -197,6 +199,20 @@ const closeLikes = () => {
       >
         <p>{renderContentWithHashtags(post.content)}</p>
       </section>
+
+      {/* ================= Tagged Users (Accepted only) ================= */}
+{acceptedTags.length > 0 && (
+  <p className="mt-1 text-xs sm:text-sm text-gray-600">
+    with{" "}
+    {acceptedTags.map((t, i) => (
+      <span key={t.id}>
+        {t.taggedUser.displayName || t.taggedUser.username}
+        {i < acceptedTags.length - 1 && ", "}
+      </span>
+    ))}
+  </p>
+)}
+
 
       {/* ================= Media ================= */}
       {Array.isArray(post.media) && post.media.length > 0 && (

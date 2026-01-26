@@ -32,6 +32,22 @@ export class PostFeedMapper {
       row.isHidden === true ||
       row.isDeleted === true;
 
+        /**
+     * =========================
+     * 👥 Tagged users (ACCEPTED only)
+     * =========================
+     */
+    const taggedUsers = Array.isArray(row.userTags)
+      ? row.userTags
+          .filter((t: any) => t.status === 'ACCEPTED')
+          .map((t: any) => ({
+            id: t.taggedUser.id,
+            displayName: t.taggedUser.displayName,
+            username: t.taggedUser.username,
+          }))
+      : [];
+  
+      
     return {
       id: row.id,
       content: row.content,
@@ -78,6 +94,8 @@ export class PostFeedMapper {
       },
 
       canDelete: isOwner,
+      
+      taggedUsers,
 
       /**
        * =========================
