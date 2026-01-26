@@ -1361,6 +1361,9 @@ async updateTag(params: {
   let result: { id: string; status: string } | null = null;
 
   await this.prisma.$transaction(async (tx) => {
+    // =================================================
+    // 1) Load context (DB authority)
+    // =================================================
     const ctx = await this.repo.loadUpdateContext({
       tagId: dto.tagId,
       actorUserId,
@@ -1372,6 +1375,9 @@ async updateTag(params: {
       throw new NotFoundException('Tag not found');
     }
 
+    // =================================================
+    // 2) Policy decision (FINAL AUTHORITY)
+    // =================================================
     const decision = PostUserTagUpdatePolicy.decide({
       actorUserId,
       postAuthorId: ctx.postAuthorId,
@@ -1380,41 +1386,41 @@ async updateTag(params: {
       isBlockedEitherWay: ctx.isBlockedEitherWay,
     });
 
-    if (
-      !decision.allowed ||
-      !decision.allowedActions.includes(dto.action)
-    ) {
+    if (!decision.allowed) {
       throw new ForbiddenException(
         'Not allowed to update this tag',
       );
     }
 
-    // ✅ use status from policy, not action
+    if (!decision.allowedActions.includes(dto.action)) {
+      throw new ForbiddenException(
+        'Not allowed to update this tag',
+      );
+    }
+
     const nextStatus =
-  PostUserTagUpdatePolicy.resolveNextStatus(
-    dto.action,
-  );
+      PostUserTagUpdatePolicy.resolveNextStatus(
+        dto.action,
+      );
 
-if (!decision.allowedActions.includes(dto.action)) {
-  throw new ForbiddenException(
-    'Not allowed to update this tag',
-  );
-}
+    // =================================================
+    // 3) Update status (DB authority)
+    // =================================================
+    const updated = await tx.postUserTag.update({
+      where: { id: ctx.tagId },
+      data: {
+        status: nextStatus,
+        respondedAt: new Date(),
+      },
+      select: {
+        id: true,
+        status: true,
+      },
+    });
 
-const updated = await tx.postUserTag.update({
-  where: { id: ctx.tagId },
-  data: {
-    status: nextStatus,
-    respondedAt: new Date(),
-  },
-  select: {
-    id: true,
-    status: true,
-  },
-});
-
-
-    // prepare event AFTER commit
+    // =================================================
+    // 4) Prepare domain event (AFTER COMMIT)
+    // =================================================
     event = new PostUserTagUpdatedEvent({
       postId: ctx.postId,
       tagId: ctx.tagId,
@@ -1429,13 +1435,9 @@ const updated = await tx.postUserTag.update({
     };
   });
 
-  /**
-   * =================================================
-   * DOMAIN EVENT (AFTER COMMIT ONLY)
-   * Notification domain handles:
-   * DB → Redis → Realtime
-   * =================================================
-   */
+  // =================================================
+  // DOMAIN EVENT (AFTER COMMIT ONLY)
+  // =================================================
   if (event) {
     try {
       this.eventEmitter.emit('post.tag.updated', event);
@@ -1446,6 +1448,7 @@ const updated = await tx.postUserTag.update({
 
   return result!;
 }
+
 
  async removeMyTag(params: {
     postId: string;

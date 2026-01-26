@@ -16,7 +16,13 @@ export class UpdatePostTagsDto {
   @IsUUID('4')
   tagId!: string;
 
-  @IsEnum(PostUserTagUpdateAction)
+  /**
+   * Allowed client actions only.
+   * Final authority = PostUserTagUpdatePolicy
+   */
+  @IsEnum(PostUserTagUpdateAction, {
+    message:
+      'action must be one of: ACCEPT, REJECT, REMOVE',
+  })
   action!: PostUserTagUpdateAction;
 }
-
