@@ -10,8 +10,9 @@ export type NotificationType =
   | 'chat_message'
   | 'moderation_action'
   | 'appeal_resolved'
-  | string; // ✅ future-proof (backend authority)
-
+  | 'post_tagged_auto_accepted'
+  | 'post_tagged_request'
+  | string; 
 /**
  * Payload map by notification type (type-safe where known)
  */
@@ -52,6 +53,10 @@ export type NotificationPayloadMap = {
     targetId: string;
     reason?: string;
   };
+
+  post_tagged_auto_accepted: { postId: string };
+  post_tagged_request: { postId: string };
+
 
   appeal_resolved: {
     appealId: string;
@@ -109,8 +114,10 @@ export type NotificationItem =
   | BaseNotificationItem<'follow_request_approved'>
   | BaseNotificationItem<'chat_message'>
   | BaseNotificationItem<'moderation_action'>
+  | BaseNotificationItem<'post_tagged_auto_accepted'>
+  | BaseNotificationItem<'post_tagged_request'>
   | BaseNotificationItem<'appeal_resolved'>
-  | BaseNotificationItem<string>; // ✅ unknown types from backend
+  | BaseNotificationItem<string>; 
 
 export type NotificationResponse = {
   items: NotificationItem[];

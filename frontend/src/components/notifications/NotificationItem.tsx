@@ -71,7 +71,15 @@ if (targetType === 'CHAT_MESSAGE')
         return item.entityId
           ? `/posts/${item.entityId}`
           : null;
-
+      
+      case 'post_tagged_auto_accepted':
+      case 'post_tagged_request':
+        return item.payload?.postId
+          ? `/posts/${item.payload.postId}`
+          : item.entityId
+          ? `/posts/${item.entityId}`
+          : null;
+     
       case 'comment_mention':
         return item.payload?.postId && item.entityId
           ? `/posts/${item.payload.postId}#comment-${item.entityId}`
@@ -140,7 +148,13 @@ if (targetType === 'CHAT_MESSAGE')
 
       case 'feed_new_post':
         return 'new post in your feed';
+      
+      case 'post_tagged_auto_accepted':
+         return 'tagged you in a post';
 
+      case 'post_tagged_request':
+         return 'requested to tag you in a post';
+  
       case 'follow':
         return 'started following you';
 
