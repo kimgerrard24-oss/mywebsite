@@ -1,4 +1,5 @@
 // backend/src/users/dto/my-tagged-post-feed-item.dto.ts
+import { PostUserTagStatus } from '@prisma/client';
 
 export class MyTaggedPostFeedItemDto {
   id!: string;
@@ -8,21 +9,39 @@ export class MyTaggedPostFeedItemDto {
   likeCount!: number;
   commentCount!: number;
 
-  static fromEntity(post: {
+  userTags!: {
     id: string;
-    authorId: string;
-    content: string;
-    createdAt: Date;
-    likeCount: number;
-    commentCount: number;
+    status: PostUserTagStatus;
+  }[];
+
+  static fromEntity(row: {
+    id: string;
+    status: PostUserTagStatus;
+    post: {
+      id: string;
+      authorId: string;
+      content: string;
+      createdAt: Date;
+      likeCount: number;
+      commentCount: number;
+    };
   }): MyTaggedPostFeedItemDto {
     return {
-      id: post.id,
-      authorId: post.authorId,
-      content: post.content,
-      createdAt: post.createdAt.toISOString(),
-      likeCount: post.likeCount,
-      commentCount: post.commentCount,
+      id: row.post.id,
+      authorId: row.post.authorId,
+      content: row.post.content,
+      createdAt: row.post.createdAt.toISOString(),
+      likeCount: row.post.likeCount,
+      commentCount: row.post.commentCount,
+
+      userTags: [
+        {
+          id: row.id,
+          status: row.status,
+        },
+      ],
     };
   }
 }
+
+

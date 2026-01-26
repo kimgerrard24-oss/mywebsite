@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type {
   MyTagSettings,
   TagAllowScope,
@@ -20,7 +20,21 @@ export default function TagSettingsForm({ initial }: Props) {
   const [requireApproval, setRequireApproval] =
     useState<boolean>(initial.requireApproval);
 
+  const [success, setSuccess] = useState(false);
+
   const { submit, loading, error } = useUpdateTagSettings();
+
+  // =============================
+  // Sync with parent / backend
+  // =============================
+  useEffect(() => {
+    setAllowTagFrom(initial.allowTagFrom);
+    setRequireApproval(initial.requireApproval);
+  }, [initial.allowTagFrom, initial.requireApproval]);
+
+  const isDirty =
+    allowTagFrom !== initial.allowTagFrom ||
+    requireApproval !== initial.requireApproval;
 
   async function onSave() {
     try {
@@ -28,7 +42,9 @@ export default function TagSettingsForm({ initial }: Props) {
         allowTagFrom,
         requireApproval,
       });
-      alert("Tag settings updated");
+
+      setSuccess(true);
+      setTimeout(() => setSuccess(false), 2000);
     } catch {
       // handled by hook
     }
@@ -85,15 +101,22 @@ export default function TagSettingsForm({ initial }: Props) {
         </label>
       </div>
 
-      {/* ================= Actions ================= */}
+      {/* ================= Feedback ================= */}
       {error && (
         <p className="mt-3 text-sm text-red-600">
           {error}
         </p>
       )}
 
+      {success && (
+        <p className="mt-3 text-sm text-green-600">
+          Settings updated
+        </p>
+      )}
+
+      {/* ================= Actions ================= */}
       <button
-        disabled={loading}
+        disabled={loading || !isDirty}
         onClick={onSave}
         className="mt-5 rounded bg-blue-600 px-4 py-2 text-sm text-white disabled:opacity-60"
       >
@@ -102,3 +125,4 @@ export default function TagSettingsForm({ initial }: Props) {
     </section>
   );
 }
+

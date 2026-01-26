@@ -24,6 +24,18 @@ export default function TaggedPostList({
 
   const [loading, setLoading] = useState(false);
 
+  // =========================
+  // Remove item from list (after reject/remove)
+  // =========================
+  function handleRemoved(postId: string) {
+    setList((prev) =>
+      prev.filter((p) => p.id !== postId),
+    );
+  }
+
+  // =========================
+  // Load more (cursor paging)
+  // =========================
   async function loadMore() {
     if (!cursor || loading) return;
 
@@ -35,7 +47,15 @@ export default function TaggedPostList({
         limit: 20,
       });
 
-      setList((prev) => [...prev, ...res.items]);
+      // ✅ avoid duplicate ids (defensive)
+      setList((prev) => {
+        const existing = new Set(prev.map((p) => p.id));
+        const merged = res.items.filter(
+          (p) => !existing.has(p.id),
+        );
+        return [...prev, ...merged];
+      });
+
       setCursor(res.nextCursor);
     } catch {
       // fail-soft: do not break UX
@@ -49,7 +69,10 @@ export default function TaggedPostList({
       <ul className="divide-y rounded-md border bg-white">
         {list.map((post) => (
           <li key={post.id}>
-            <TaggedPostItem post={post} />
+            <TaggedPostItem
+              post={post}
+              onRemoved={() => handleRemoved(post.id)}
+            />
           </li>
         ))}
       </ul>
@@ -59,7 +82,15 @@ export default function TaggedPostList({
           <button
             disabled={loading}
             onClick={loadMore}
-            className="rounded-md border px-4 py-2 text-sm hover:bg-gray-50 disabled:opacity-50"
+            className="
+              rounded-md
+              border
+              px-4
+              py-2
+              text-sm
+              hover:bg-gray-50
+              disabled:opacity-50
+            "
           >
             {loading ? "Loading..." : "Load more"}
           </button>

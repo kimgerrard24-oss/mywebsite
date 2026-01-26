@@ -11,6 +11,8 @@ type Props = {
 const NAV_ITEMS = [
   { label: "My profile", href: "/settings/profile" },
   { label: "Privacy", href: "/account/privacy" },
+  { label: "Tag settings", href: "/settings/tag-settings" },
+  { label: "Tagged posts", href: "/users/me/tagged-posts" },
   { label: "Reports", href: "/reports/me" },
   { label: "Appeals", href: "/appeals/me" },
   { label: "Blocked users", href: "/users/blocks" },

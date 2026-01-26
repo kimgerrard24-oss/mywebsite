@@ -510,5 +510,18 @@ async updateMyTagSettings(
   });
 }
 
+@Get('me/tag-settings')
+@UseGuards(AccessTokenCookieAuthGuard)
+async getMyTagSettings(
+  @CurrentUser() user: SessionUser,
+) {
+  if (!user?.userId) {
+    throw new UnauthorizedException();
+  }
+
+  return this.usersService.getMyTagSettings({
+    userId: user.userId,
+  });
+}
 
 }

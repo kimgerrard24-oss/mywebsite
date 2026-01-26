@@ -18,6 +18,7 @@ import { Prisma } from '@prisma/client';
 export type MyTaggedPostRow = {
   id: string;
   createdAt: Date;
+  status: PostUserTagStatus;
   post: {
     id: string;
     authorId: string;
@@ -928,6 +929,7 @@ async findMyTaggedPosts(params: {
     select: {
       id: true,
       createdAt: true,
+      status: true,
 
       post: {
         select: {
@@ -1074,6 +1076,11 @@ async upsertUserTagSetting(params: {
   });
 }
 
+async findUserTagSetting(userId: string) {
+  return this.prisma.userTagSetting.findUnique({
+    where: { userId },
+  });
+}
 
 }
 
