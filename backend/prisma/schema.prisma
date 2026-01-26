@@ -23,7 +23,6 @@ model User {
 
   phoneNumber               String?  @unique
   isPhoneVerified           Boolean  @default(false)
-
   // ===== Account Security =====
   isAccountLocked           Boolean  @default(false)
   accountLockedAt           DateTime?
@@ -64,6 +63,10 @@ model User {
   identityVerificationTokens IdentityVerificationToken[]
   securityEvents             SecurityEvent[]
   identityHistory            UserIdentityHistory[]
+
+  taggedInPosts PostUserTag[] @relation("UserTaggedInPosts")
+  taggedOthers  PostUserTag[] @relation("UserTaggingOthers")
+  tagSetting    UserTagSetting?
 
   // ===== Audit =====
   auditLogs AuditLog[]
@@ -119,6 +122,22 @@ model User {
 enum UserRole {
   USER
   ADMIN
+}
+
+model UserTagSetting {
+  userId String @id
+
+  approvalMode UserTagApprovalMode @default(MANUAL)
+
+  allowFromFollowers Boolean @default(true)
+  allowFromFollowing Boolean @default(true)
+  allowFromAnyone Boolean @default(false)
+
+  hideUntilApproved Boolean @default(true)
+
+  updatedAt DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 enum DeleteSource {
@@ -222,7 +241,7 @@ model Post {
 
   authorId      String
   deletedById   String?
-
+  userTags      PostUserTag[]
   content       String
   isPublished   Boolean        @default(true)
   publishedAt   DateTime       @default(now())
@@ -445,6 +464,46 @@ model CommentMention {
   @@index([userId])
 }
 
+model PostUserTag {
+  id String @id @default(uuid())
+
+  postId String
+  taggedUserId String
+  taggedByUserId String
+  removedByUserId String?
+  removedByAdminId String?
+  removedAt DateTime?
+
+  status PostUserTagStatus @default(PENDING)
+
+  createdAt DateTime @default(now())
+  respondedAt DateTime?
+
+  // ===== relations =====
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  taggedUser User @relation("UserTaggedInPosts", fields: [taggedUserId], references: [id], onDelete: Cascade)
+
+  taggedBy User @relation("UserTaggingOthers", fields: [taggedByUserId], references: [id], onDelete: Cascade)
+
+  // ===== constraints =====
+
+  /// คนเดียวกันถูก tag ใน post เดียวได้ครั้งเดียว
+  @@unique([postId, taggedUserId])
+
+  /// query tagged posts of user
+  @@index([taggedUserId, createdAt])
+
+  /// post detail → list tags
+  @@index([postId])
+
+  /// moderation / audit
+  @@index([status])
+  @@index([taggedUserId, status, createdAt])
+  @@index([postId, status])
+  @@index([taggedByUserId, createdAt])
+}
+
 model Tag {
   id        String    @id @default(uuid())
   name      String    @unique
@@ -453,6 +512,19 @@ model Tag {
   posts     PostTag[]
   comments  CommentTag[]
   @@index([name])
+}
+
+enum PostUserTagStatus {
+  PENDING     // รอเจ้าตัว accept
+  ACCEPTED
+  REJECTED
+  REMOVED     // เจ้าของ post หรือ tagged user ลบ
+}
+
+enum UserTagApprovalMode {
+  AUTO        // accept ทันที
+  MANUAL      // ต้องกด accept
+  DISABLED    // ไม่รับ tag เลย
 }
 
 model PostTag {
@@ -555,7 +627,7 @@ model Notification {
   @@index([userId, isRead])
 
   /// audit / debug / analytics
-  @@index([type])
+  @@index([userId, type, createdAt])
 }
 
 model Chat {
@@ -815,6 +887,7 @@ enum ReportTargetType {
   USER
   CHAT_MESSAGE
   FOLLOW_REQUEST
+  POST_USER_TAG
 }
 
 enum ModerationTargetType {

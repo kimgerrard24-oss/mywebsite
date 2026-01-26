@@ -14,4 +14,6 @@ export type CreatePostPayload = {
   visibility?: PostVisibility;
   includeUserIds?: string[];
   excludeUserIds?: string[];
+
+  taggedUserIds?: string[];
 };

@@ -58,6 +58,8 @@ export default function PostComposer({
   const [showVisibility, setShowVisibility] = useState(false);
   const [showIncludePicker, setShowIncludePicker] = useState(false);
   const [showExcludePicker, setShowExcludePicker] = useState(false);
+  const [taggedUserIds, setTaggedUserIds] = useState<string[]>([]);
+  const [showTagPicker, setShowTagPicker] = useState(false);
 
   // =========================
   // File selection (safe)
@@ -144,12 +146,15 @@ export default function PostComposer({
         visibility: visibility.visibility,
         includeUserIds: visibility.includeUserIds,
         excludeUserIds: visibility.excludeUserIds,
+        taggedUserIds,
       });
        
       // reset state
       setContent("");
       setFiles([]);
       setPreviews([]);
+      setTaggedUserIds([]);
+      setShowTagPicker(false);
 
       onPostCreated?.();
       onPosted?.();
@@ -389,6 +394,32 @@ setShowExcludePicker(false);
 </button>
 
 </div>
+
+<button
+  type="button"
+  disabled={submitting}
+  onClick={() => setShowTagPicker(true)}
+  className="text-sm text-gray-600 hover:text-gray-900"
+>
+  Tag people
+</button>
+
+{showTagPicker && (
+  <UserPickerModal
+    title="Tag people in this post"
+    onClose={() => setShowTagPicker(false)}
+    onConfirm={(userIds) => {
+      setTaggedUserIds(userIds);
+      setShowTagPicker(false);
+    }}
+  />
+)}
+
+{taggedUserIds.length > 0 && (
+  <p className="text-xs text-gray-500">
+    Tagged {taggedUserIds.length} people
+  </p>
+)}
 
 
       {/* ===== Action ===== */}

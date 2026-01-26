@@ -43,6 +43,11 @@ import { ConfirmPhoneChangeDto } from './dto/confirm-phone-change.dto';
 import { ConfirmPhoneChangePolicy } from './policies/confirm-phone-change.policy';
 import { createHash } from 'node:crypto';
 import { MailService } from '../mail/mail.service';
+import { UserTaggedPostsViewPolicy } from './policies/user-tagged-posts-view.policy';
+import { MyTaggedPostFeedItemDto } from './dto/my-tagged-post-feed-item.dto';
+import { UserTagSettingsUpdatePolicy } from './policies/user-tag-settings-update.policy';
+import { TagSettingsResponseDto } from './dto/tag-settings.response.dto';
+import { UserTagSettingsAudit } from './audit/user-tag-settings.audit';
 
 @Injectable()
 export class UsersService {
@@ -58,6 +63,7 @@ export class UsersService {
               private readonly identityAudit: UserIdentityAudit,
               private readonly phoneVerify: PhoneVerificationService,
               private readonly mailService: MailService,
+              private readonly tagSettingsAudit: UserTagSettingsAudit,
   ) {}
 
   async findByEmail(email: string) {
@@ -1284,6 +1290,149 @@ async confirmEmailChangeByToken(
   } catch {}
 
   return { success: true };
+}
+
+async getMyTaggedPosts(params: {
+  userId: string;
+  limit?: number;
+  cursor?: string;
+}) {
+  const { userId } = params;
+
+  // =========================
+  // 1) Load user state
+  // =========================
+  const user =
+    await this.repo.findUserStateForTaggedPosts(userId);
+
+  if (!user) {
+    throw new BadRequestException('User not found');
+  }
+
+  // =========================
+  // 2) Policy
+  // =========================
+  UserTaggedPostsViewPolicy.assertCanView({
+    isDisabled: user.isDisabled,
+    isBanned: user.isBanned,
+  });
+
+  const limit =
+    UserTaggedPostsViewPolicy.normalizeLimit(
+      params.limit,
+    );
+
+  // =========================
+  // 3) Decode cursor (keyset)
+  // =========================
+  let cursorObj:
+    | { createdAt: Date; id: string }
+    | undefined = undefined;
+
+  if (params.cursor) {
+    try {
+      const decoded = JSON.parse(
+        Buffer.from(params.cursor, 'base64').toString(
+          'utf8',
+        ),
+      );
+
+      if (
+        typeof decoded?.createdAt === 'string' &&
+        typeof decoded?.id === 'string'
+      ) {
+        cursorObj = {
+          createdAt: new Date(decoded.createdAt),
+          id: decoded.id,
+        };
+      }
+    } catch {
+      throw new BadRequestException('Invalid cursor');
+    }
+  }
+
+  // =========================
+  // 4) DB authority query
+  // =========================
+  const rows = await this.repo.findMyTaggedPosts({
+    userId,
+    limit: limit + 1,
+    cursor: cursorObj,
+  });
+
+  const hasNext = rows.length > limit;
+  const sliced = hasNext ? rows.slice(0, limit) : rows;
+
+  const nextCursor = hasNext
+    ? Buffer.from(
+        JSON.stringify({
+          createdAt:
+            sliced[sliced.length - 1].createdAt.toISOString(),
+          id: sliced[sliced.length - 1].id,
+        }),
+      ).toString('base64')
+    : null;
+
+  return {
+    items: sliced.map((r) =>
+      MyTaggedPostFeedItemDto.fromEntity(r.post),
+    ),
+    nextCursor,
+  };
+}
+
+
+async updateMyTagSettings(params: {
+  userId: string;
+  dto: {
+    allowTagFrom?: any;
+    requireApproval?: boolean;
+  };
+}) {
+  const { userId, dto } = params;
+
+  // =========================
+  // 1) Load user state (DB authority)
+  // =========================
+  const user =
+    await this.repo.findUserStateForTagSettings(userId);
+
+  if (!user) {
+    throw new BadRequestException('User not found');
+  }
+
+  // =========================
+  // 2) Policy
+  // =========================
+  UserTagSettingsUpdatePolicy.assertCanUpdate({
+    isDisabled: user.isDisabled,
+    isBanned: user.isBanned,
+    isAccountLocked: user.isAccountLocked,
+  });
+
+  const sanitized =
+    UserTagSettingsUpdatePolicy.sanitize(dto);
+
+  // =========================
+  // 3) Persist (authority)
+  // =========================
+ const updated =
+  await this.repo.upsertUserTagSetting({
+    userId,
+    allowTagFrom: sanitized.allowTagFrom,
+    requireApproval: sanitized.requireApproval,
+  });
+
+
+  // =========================
+  // 4) Audit (fail-soft)
+  // =========================
+  this.tagSettingsAudit.logUpdated({
+    userId,
+    fields: Object.keys(sanitized),
+  });
+
+  return TagSettingsResponseDto.fromEntity(updated);
 }
 
 }

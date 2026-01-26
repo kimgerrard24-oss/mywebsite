@@ -24,6 +24,9 @@ import { MailModule } from '../mail/mail.module';
 import { UsersPrivacyModule } from './privacy/users-privacy.module';
 import { FollowsModule } from '../follows/follows.module';
 import { FollowingModule } from '../following/following.module';
+import { UserTaggedPostsViewPolicy } from './policies/user-tagged-posts-view.policy';
+import { UserTagSettingsAudit } from './audit/user-tag-settings.audit';
+import { UserTagSettingsUpdatePolicy } from './policies/user-tag-settings-update.policy';
 
 @Module({
   imports: [
@@ -45,8 +48,11 @@ import { FollowingModule } from '../following/following.module';
     UsersRepository,
     AvatarService,
     CoverService,
+    UserTagSettingsAudit,
+    UserTagSettingsUpdatePolicy,
     MentionService,
     UserSearchPolicy,
+    UserTaggedPostsViewPolicy,
     UserBlockService,
     UserBlockRepository,
     UserBlockPolicy,

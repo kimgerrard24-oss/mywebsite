@@ -15,6 +15,7 @@ export function useCreatePost() {
       visibility?: "PUBLIC" | "FOLLOWERS" | "PRIVATE" | "CUSTOM";
       includeUserIds?: string[];
       excludeUserIds?: string[];
+      taggedUserIds?: string[];
     }) => {
       setLoading(true);
       setError(null);
@@ -26,6 +27,7 @@ export function useCreatePost() {
   visibility: params.visibility,
   includeUserIds: params.includeUserIds,
   excludeUserIds: params.excludeUserIds,
+  taggedUserIds: params.taggedUserIds,
 });
 
 

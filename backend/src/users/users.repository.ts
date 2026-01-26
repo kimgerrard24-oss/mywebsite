@@ -4,9 +4,29 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import type { User } from '@prisma/client';
 import { UpdateUserDto } from './dto/update-user.dto';
-import { VerificationType,SecurityEventType,VerificationScope } from '@prisma/client';
+import { 
+  VerificationType,
+  SecurityEventType,
+  VerificationScope,
+  VisibilityRuleType,
+  PostVisibility,
+  PostUserTagStatus,
+ } from '@prisma/client';
 import { createHash } from 'crypto';
 import { Prisma } from '@prisma/client';
+
+export type MyTaggedPostRow = {
+  id: string;
+  createdAt: Date;
+  post: {
+    id: string;
+    authorId: string;
+    content: string;
+    createdAt: Date;
+    likeCount: number;
+    commentCount: number;
+  };
+};
 
 const publicUserSelect =
   Prisma.validator<Prisma.UserSelect>()({
@@ -822,6 +842,239 @@ async findUserForPolicyCheck(userId: string) {
     },
   });
 }
+
+async findMyTaggedPosts(params: {
+  userId: string;
+  limit: number;
+  cursor?: { id: string };
+}): Promise<MyTaggedPostRow[]> {
+  const { userId, limit, cursor } = params;
+
+  return this.prisma.postUserTag.findMany({
+    where: {
+      taggedUserId: userId,
+      status: PostUserTagStatus.ACCEPTED,
+
+      post: {
+        isDeleted: false,
+        isHidden: false,
+
+        // ===== BLOCK ENFORCEMENT =====
+        author: {
+          blockedBy: {
+            none: { blockerId: userId },
+          },
+          blockedUsers: {
+            none: { blockedId: userId },
+          },
+        },
+
+        // ===== VISIBILITY ENFORCEMENT =====
+        OR: [
+          // owner
+          { authorId: userId },
+
+          // PUBLIC
+          { visibility: PostVisibility.PUBLIC },
+
+          // FOLLOWERS
+          {
+            visibility: PostVisibility.FOLLOWERS,
+            author: {
+              followers: {
+                some: { followerId: userId },
+              },
+            },
+          },
+
+          // CUSTOM
+          {
+            visibility: PostVisibility.CUSTOM,
+            visibilityRules: {
+              none: {
+                userId,
+                rule: VisibilityRuleType.EXCLUDE,
+              },
+            },
+            OR: [
+              {
+                visibilityRules: {
+                  some: {
+                    userId,
+                    rule: VisibilityRuleType.INCLUDE,
+                  },
+                },
+              },
+              { authorId: userId },
+            ],
+          },
+        ],
+      },
+    },
+
+    take: limit,
+
+    ...(cursor
+      ? {
+          skip: 1,
+          cursor: { id: cursor.id },
+        }
+      : {}),
+
+    orderBy: {
+      id: 'desc', 
+    },
+
+    select: {
+      id: true,
+      createdAt: true,
+
+      post: {
+        select: {
+          id: true,
+          authorId: true,
+          content: true,
+          createdAt: true,
+          likeCount: true,
+          commentCount: true,
+        },
+      },
+    },
+  });
+}
+
+
+  async findUserStateForTaggedPosts(userId: string) {
+    return this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        isDisabled: true,
+        isBanned: true,
+      },
+    });
+  }
+
+  async findUserStateForTagSettings(userId: string) {
+  return this.prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      isDisabled: true,
+      isBanned: true,
+      isAccountLocked: true,
+
+      tagSetting: {
+        select: {
+          approvalMode: true,
+          allowFromAnyone: true,
+          allowFromFollowers: true,
+          allowFromFollowing: true,
+          hideUntilApproved: true,
+        },
+      },
+    },
+  });
+}
+
+
+async upsertUserTagSetting(params: {
+  userId: string;
+  allowTagFrom?: 'ANYONE' | 'FOLLOWERS' | 'NO_ONE';
+  requireApproval?: boolean;
+}) {
+  const { userId, allowTagFrom, requireApproval } = params;
+
+  // -------------------------------
+  // Map API scope → DB fields
+  // -------------------------------
+  let allowFromAnyone: boolean | undefined;
+  let allowFromFollowers: boolean | undefined;
+  let allowFromFollowing: boolean | undefined;
+  let approvalMode: 'AUTO' | 'MANUAL' | 'DISABLED' | undefined;
+  let hideUntilApproved: boolean | undefined;
+
+  if (allowTagFrom !== undefined) {
+    if (allowTagFrom === 'ANYONE') {
+      allowFromAnyone = true;
+      allowFromFollowers = true;
+      allowFromFollowing = true;
+      approvalMode = 'AUTO';
+    }
+
+    if (allowTagFrom === 'FOLLOWERS') {
+      allowFromAnyone = false;
+      allowFromFollowers = true;
+      allowFromFollowing = true;
+    }
+
+    if (allowTagFrom === 'NO_ONE') {
+      approvalMode = 'DISABLED';
+      allowFromAnyone = false;
+      allowFromFollowers = false;
+      allowFromFollowing = false;
+    }
+  }
+
+  if (requireApproval !== undefined) {
+    if (requireApproval === true) {
+      approvalMode = 'MANUAL';
+      hideUntilApproved = true;
+    } else {
+      approvalMode = 'AUTO';
+      hideUntilApproved = false;
+    }
+  }
+
+  return this.prisma.userTagSetting.upsert({
+    where: { userId },
+
+    create: {
+      userId,
+
+      approvalMode: approvalMode ?? 'MANUAL',
+
+      allowFromAnyone: allowFromAnyone ?? false,
+      allowFromFollowers: allowFromFollowers ?? true,
+      allowFromFollowing: allowFromFollowing ?? true,
+
+      hideUntilApproved:
+        hideUntilApproved ?? true,
+    },
+
+    update: {
+      ...(approvalMode !== undefined && {
+        approvalMode,
+      }),
+
+      ...(allowFromAnyone !== undefined && {
+        allowFromAnyone,
+      }),
+
+      ...(allowFromFollowers !== undefined && {
+        allowFromFollowers,
+      }),
+
+      ...(allowFromFollowing !== undefined && {
+        allowFromFollowing,
+      }),
+
+      ...(hideUntilApproved !== undefined && {
+        hideUntilApproved,
+      }),
+    },
+
+    select: {
+      approvalMode: true,
+      allowFromAnyone: true,
+      allowFromFollowers: true,
+      allowFromFollowing: true,
+      hideUntilApproved: true,
+    },
+  });
+}
+
+
 }
 
 

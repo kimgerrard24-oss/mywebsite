@@ -1,5 +1,10 @@
 // backend/src/posts/posts.service.ts
-import { Injectable, NotFoundException,BadRequestException } from '@nestjs/common';
+import { 
+  Injectable, 
+  NotFoundException,
+  BadRequestException,
+  ForbiddenException,
+ } from '@nestjs/common';
 import { PostsRepository } from './posts.repository';
 import { PostCreatePolicy } from './policy/post-create.policy';
 import { PostAudit } from './audit/post.audit';
@@ -24,9 +29,18 @@ import { PostUnlikeResponseDto } from './dto/post-unlike-response.dto';
 import { PostLikeDto } from './dto/post-like.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 import { EventEmitter2 } from '@nestjs/event-emitter';
-import { PostVisibility, VisibilityRuleType } from '@prisma/client';
+import { PostVisibility, VisibilityRuleType, PostUserTagStatus } from '@prisma/client';
 import { UpdatePostVisibilityDto } from './dto/update-post-visibility.dto';
 import { PostVisibilityRulesDto } from './dto/post-visibility-rules.dto';
+import { PostUserTagUpdatePolicy } from './policy/post-user-tag-update.policy';
+import { UpdatePostTagsDto } from './dto/update-post-tags.dto';
+import { PostUserTagUpdatedEvent } from './events/post-user-tag.events';
+import { PostUserTagRemovePolicy } from './policy/post-user-tag-remove.policy';
+import { PostUserTagDto } from './dto/post-user-tag.dto';
+import { PostUserTagViewPolicy } from './policy/post-user-tag-view.policy';
+import { PostUserTagAcceptPolicy } from './policy/post-user-tag-accept.policy';
+import { PostUserTagRejectPolicy } from './policy/post-user-tag-reject.policy';
+import { PostUserTagCreatePolicy } from './policy/post-user-tag-create.policy';
 
 @Injectable()
 export class PostsService {
@@ -69,11 +83,21 @@ async createPost(params: {
   const excludeUserIds =
     params.dto?.excludeUserIds ?? [];
 
+  const taggedUserIds =
+    params.dto?.taggedUserIds ?? [];
+
+  // =========================
+  // Policy: capability + payload
+  // =========================
   PostCreatePolicy.assertCanCreatePost();
 
   PostCreatePolicy.assertValid({
     content,
     mediaCount: mediaIds.length,
+  });
+
+  PostCreatePolicy.assertValidTaggedUsers({
+    taggedUserCount: taggedUserIds.length,
   });
 
   // =========================
@@ -113,7 +137,7 @@ async createPost(params: {
         data: {
           authorId,
           content,
-          visibility, // ✅ production visibility support
+          visibility,
         },
         select: {
           id: true,
@@ -160,7 +184,7 @@ async createPost(params: {
       }
 
       // -------------------------
-      // 4) Tags (fail-soft)
+      // 4) Hashtags (fail-soft)
       // -------------------------
       try {
         const tags = parseHashtags(content);
@@ -184,9 +208,87 @@ async createPost(params: {
             })),
             skipDuplicates: true,
           });
+
+          // ✅ ensure Tag.postCount consistency
+          await tx.tag.updateMany({
+            where: {
+              id: { in: tagRows.map((t) => t.id) },
+            },
+            data: {
+              postCount: { increment: 1 },
+            },
+          });
         }
       } catch {
-        // ❗ tag system must never break post creation
+        // ❗ hashtag must never break post creation
+      }
+
+      // -------------------------
+      // 5) Friend Tags (fail-soft, policy-based)
+      // -------------------------
+      if (taggedUserIds.length > 0) {
+        try {
+          // sanitize: remove self + duplicates
+          const uniqueTaggedUserIds = Array.from(
+            new Set(
+              taggedUserIds.filter(
+                (uid) => uid && uid !== authorId,
+              ),
+            ),
+          );
+
+          if (uniqueTaggedUserIds.length > 0) {
+            // DB authority: load all contexts in one query
+            const contexts =
+              await this.repo
+                .loadCreatePostUserTagContexts({
+                  actorUserId: authorId,
+                  taggedUserIds: uniqueTaggedUserIds,
+                  tx,
+                });
+
+            const creates: {
+              postId: string;
+              taggedUserId: string;
+              taggedByUserId: string;
+              status: PostUserTagStatus;
+            }[] = [];
+
+            for (const ctx of contexts) {
+              const decision =
+  PostUserTagCreatePolicy.decideCreateTag({
+    actorUserId: authorId,
+    taggedUserId: ctx.taggedUserId,
+    isBlockedEitherWay: ctx.isBlockedEitherWay,
+    isFollower: ctx.isFollower,
+    isFollowing: ctx.isFollowing,
+    isPrivateAccount: ctx.isPrivateAccount,
+    setting: ctx.setting,
+  });
+
+
+              if (!decision.allowed) continue;
+
+              creates.push({
+                postId: createdPost.id,
+                taggedUserId: ctx.taggedUserId,
+                taggedByUserId: authorId,
+                status: decision.autoAccept
+                  ? PostUserTagStatus.ACCEPTED
+                  : PostUserTagStatus.PENDING,
+              });
+            }
+
+            if (creates.length > 0) {
+              await tx.postUserTag.createMany({
+                data: creates,
+                skipDuplicates: true,
+              });
+            }
+          }
+        } catch {
+          // ❗ friend tag system must never break post creation
+        }
       }
 
       return createdPost;
@@ -218,7 +320,52 @@ async createPost(params: {
       mediaIds,
     });
   } catch {
-    // ❗ realtime / feed must never break post creation
+    // ❗ feed / realtime must never break post creation
+  }
+
+  /**
+   * =================================================
+   * NOTIFICATION (LOGICAL EVENT ONLY)
+   * Notification domain handles:
+   * DB → Redis → Realtime
+   * =================================================
+   */
+  if (taggedUserIds.length > 0) {
+    try {
+      // DB authority: notify only actual created tags
+      const tags = await this.prisma.postUserTag.findMany({
+        where: {
+          postId: post.id,
+          status: {
+            in: [
+              PostUserTagStatus.PENDING,
+              PostUserTagStatus.ACCEPTED,
+            ],
+          },
+        },
+        select: {
+          taggedUserId: true,
+          status: true,
+        },
+      });
+
+      for (const t of tags) {
+        await this.notifications.createNotification({
+          userId: t.taggedUserId,
+          actorUserId: authorId,
+          type:
+            t.status === PostUserTagStatus.ACCEPTED
+              ? 'post_tagged_auto_accepted'
+              : 'post_tagged_request',
+          entityId: post.id,
+          payload: {
+            postId: post.id,
+          },
+        });
+      }
+    } catch {
+      // ❗ notification must never break post creation
+    }
   }
 
   return {
@@ -226,8 +373,6 @@ async createPost(params: {
     createdAt: post.createdAt,
   };
 }
-
-
 
  
 async getPublicFeed(params: {
@@ -402,23 +547,65 @@ async deletePost(params: { postId: string; actorUserId: string }) {
     ownerUserId: post.authorId,
   });
 
-  // ✅ 1) mark media.deletedAt
-  await this.prisma.media.updateMany({
-    where: {
-      posts: {
-        some: { postId },
-      },
-      deletedAt: null,
-    },
-    data: {
-      deletedAt: new Date(),
-      cleanupAt: new Date(
-        Date.now() + 3 * 24 * 60 * 60 * 1000,
-      ),
-    },
-  });
+  // =========================
+  // Load tag ids (before tx)
+  // =========================
+  let tagIds: string[] = [];
 
-  await this.repo.softDelete(postId);
+  try {
+    const rows = await this.prisma.postTag.findMany({
+      where: { postId },
+      select: { tagId: true },
+    });
+
+    tagIds = rows.map((r) => r.tagId);
+  } catch {
+    // ❗ tag cleanup must never block delete
+  }
+
+  // =========================
+  // DB Transaction (authority)
+  // =========================
+  await this.prisma.$transaction(async (tx) => {
+    // ✅ 1) mark media.deletedAt
+    await tx.media.updateMany({
+      where: {
+        posts: {
+          some: { postId },
+        },
+        deletedAt: null,
+      },
+      data: {
+        deletedAt: new Date(),
+        cleanupAt: new Date(
+          Date.now() + 3 * 24 * 60 * 60 * 1000,
+        ),
+      },
+    });
+
+    // -------------------------
+    // 2) soft delete post (via repo, tx-safe)
+    // -------------------------
+    await this.repo.softDeleteTx(postId, tx);
+
+    // -------------------------
+    // 3) remove postTag + decrement counter
+    // -------------------------
+    if (tagIds.length > 0) {
+      await tx.postTag.deleteMany({
+        where: { postId },
+      });
+
+      await tx.tag.updateMany({
+        where: {
+          id: { in: tagIds },
+        },
+        data: {
+          postCount: { decrement: 1 },
+        },
+      });
+    }
+  });
 
   await this.audit.logDeleted({
     postId,
@@ -427,11 +614,13 @@ async deletePost(params: { postId: string; actorUserId: string }) {
 }
 
 
-  async updatePost(params: {
+
+
+async updatePost(params: {
   postId: string;
   actorUserId: string;
   content: string;
- }) {
+}) {
   const { postId, actorUserId, content } = params;
 
   const post = await this.repo.findById(postId);
@@ -444,9 +633,109 @@ async deletePost(params: { postId: string; actorUserId: string }) {
     ownerUserId: post.authorId,
   });
 
-  const updated = await this.repo.updateContent({
-    postId,
-    content,
+  // =========================
+  // Hashtag diff (before tx)
+  // =========================
+  let toAdd: string[] = [];
+  let toRemove: string[] = [];
+
+  try {
+    const nextTags = parseHashtags(content);
+
+    const existing = await this.prisma.postTag.findMany({
+      where: { postId },
+      select: {
+        tag: { select: { id: true, name: true } },
+      },
+    });
+
+    const prevNames = new Set(existing.map((t) => t.tag.name));
+    const nextNames = new Set(nextTags);
+
+    toAdd = nextTags.filter((n) => !prevNames.has(n));
+    toRemove = existing
+      .filter((t) => !nextNames.has(t.tag.name))
+      .map((t) => t.tag.id);
+  } catch {
+    // ❗ hashtag diff must never block update
+  }
+
+  // =========================
+  // DB Transaction (authority)
+  // =========================
+  const updated = await this.prisma.$transaction(async (tx) => {
+    // -------------------------
+    // 1) Update post content
+    // -------------------------
+    const u = await tx.post.update({
+      where: { id: postId },
+      data: {
+        content,
+        isEdited: true,
+        editedAt: new Date(),
+      },
+      select: {
+        id: true,
+        content: true,
+        editedAt: true,
+      },
+    });
+
+    // -------------------------
+    // 2) Remove old tags
+    // -------------------------
+    if (toRemove.length > 0) {
+      await tx.postTag.deleteMany({
+        where: {
+          postId,
+          tagId: { in: toRemove },
+        },
+      });
+
+      await tx.tag.updateMany({
+        where: {
+          id: { in: toRemove },
+        },
+        data: {
+          postCount: { decrement: 1 },
+        },
+      });
+    }
+
+    // -------------------------
+    // 3) Add new tags
+    // -------------------------
+    if (toAdd.length > 0) {
+      const tagRows = await Promise.all(
+        toAdd.map((name) =>
+          tx.tag.upsert({
+            where: { name },
+            update: {},
+            create: { name },
+            select: { id: true },
+          }),
+        ),
+      );
+
+      await tx.postTag.createMany({
+        data: tagRows.map((t) => ({
+          postId,
+          tagId: t.id,
+        })),
+        skipDuplicates: true,
+      });
+
+      await tx.tag.updateMany({
+        where: {
+          id: { in: tagRows.map((t) => t.id) },
+        },
+        data: {
+          postCount: { increment: 1 },
+        },
+      });
+    }
+
+    return u;
   });
 
   await this.audit.logUpdated({
@@ -461,7 +750,8 @@ async deletePost(params: { postId: string; actorUserId: string }) {
     content: updated.content,
     editedAt: updated.editedAt,
   };
- }
+}
+
  
 
 async getUserPostFeed(params: {
@@ -857,7 +1147,7 @@ if (!decision.canView) {
   // 2) Ownership policy
   // =================================================
   if (post.authorId !== actorUserId) {
-    throw new BadRequestException('Not allowed');
+    throw new NotFoundException('Post not found');
   }
 
   const visibility = dto.visibility;
@@ -1060,4 +1350,396 @@ async getPostVisibilityRules(params: {
     excludeUserIds,
   };
 }
+
+async updateTag(params: {
+  actorUserId: string;
+  dto: UpdatePostTagsDto;
+}) {
+  const { actorUserId, dto } = params;
+
+  let event: PostUserTagUpdatedEvent | null = null;
+  let result: { id: string; status: string } | null = null;
+
+  await this.prisma.$transaction(async (tx) => {
+    const ctx = await this.repo.loadUpdateContext({
+      tagId: dto.tagId,
+      actorUserId,
+      tx,
+    });
+
+    if (!ctx) {
+      // production behavior: do not reveal existence
+      throw new NotFoundException('Tag not found');
+    }
+
+    const decision = PostUserTagUpdatePolicy.decide({
+      actorUserId,
+      postAuthorId: ctx.postAuthorId,
+      taggedUserId: ctx.taggedUserId,
+      currentStatus: ctx.currentStatus,
+      isBlockedEitherWay: ctx.isBlockedEitherWay,
+    });
+
+    if (
+      !decision.allowed ||
+      !decision.allowedActions.includes(dto.action)
+    ) {
+      throw new ForbiddenException(
+        'Not allowed to update this tag',
+      );
+    }
+
+    // ✅ use status from policy, not action
+    const nextStatus =
+  PostUserTagUpdatePolicy.resolveNextStatus(
+    dto.action,
+  );
+
+if (!decision.allowedActions.includes(dto.action)) {
+  throw new ForbiddenException(
+    'Not allowed to update this tag',
+  );
+}
+
+const updated = await tx.postUserTag.update({
+  where: { id: ctx.tagId },
+  data: {
+    status: nextStatus,
+    respondedAt: new Date(),
+  },
+  select: {
+    id: true,
+    status: true,
+  },
+});
+
+
+    // prepare event AFTER commit
+    event = new PostUserTagUpdatedEvent({
+      postId: ctx.postId,
+      tagId: ctx.tagId,
+      status: updated.status,
+      taggedUserId: ctx.taggedUserId,
+      taggedByUserId: ctx.taggedByUserId,
+    });
+
+    result = {
+      id: updated.id,
+      status: updated.status,
+    };
+  });
+
+  /**
+   * =================================================
+   * DOMAIN EVENT (AFTER COMMIT ONLY)
+   * Notification domain handles:
+   * DB → Redis → Realtime
+   * =================================================
+   */
+  if (event) {
+    try {
+      this.eventEmitter.emit('post.tag.updated', event);
+    } catch {
+      // ❗ realtime / fan-out must never break response
+    }
+  }
+
+  return result!;
+}
+
+ async removeMyTag(params: {
+    postId: string;
+    actorUserId: string;
+  }) {
+    const { postId, actorUserId } = params;
+
+    return this.prisma.$transaction(async (tx) => {
+      // -------------------------
+      // 1) Load context (DB authority)
+      // -------------------------
+      const ctx =
+        await this.repo.loadMyTagContext({
+          postId,
+          actorUserId,
+          tx,
+        });
+
+      if (!ctx) {
+        // production behavior: do not reveal existence
+        throw new NotFoundException('Tag not found');
+      }
+
+      // -------------------------
+      // 2) Policy decision (final)
+      // -------------------------
+      const decision =
+        PostUserTagRemovePolicy.decide({
+          actorUserId,
+          taggedUserId: ctx.taggedUserId,
+          taggedByUserId: ctx.taggedByUserId,
+          postAuthorId: ctx.postAuthorId,
+          currentStatus: ctx.status,
+          isBlockedEitherWay: ctx.isBlockedEitherWay,
+        });
+
+      if (!decision.allowed) {
+        throw new ForbiddenException(
+          'Not allowed to remove this tag',
+        );
+      }
+
+      // -------------------------
+      // 3) Update status
+      // -------------------------
+      await tx.postUserTag.update({
+        where: { id: ctx.tagId },
+        data: {
+          status: 'REMOVED',
+          respondedAt: new Date(),
+        },
+      });
+
+      // -------------------------
+      // 4) Domain event (after commit)
+      // -------------------------
+      this.eventEmitter.emit(
+        'post.tag.updated',
+        new PostUserTagUpdatedEvent({
+          postId,
+          tagId: ctx.tagId,
+          status: 'REMOVED',
+          taggedUserId: ctx.taggedUserId,
+          taggedByUserId: ctx.taggedByUserId,
+        }),
+      );
+
+      return { success: true };
+    });
+  }
+
+  async getPostUserTags(params: {
+  postId: string;
+  viewerUserId: string | null;
+}): Promise<PostUserTagDto[]> {
+  const { postId, viewerUserId } = params;
+
+  // =================================================
+  // 1) Enforce Post Visibility (FINAL AUTHORITY)
+  // =================================================
+  const decision =
+    await this.visibility.validateVisibility({
+      postId,
+      viewerUserId,
+    });
+
+  if (!decision.canView) {
+    throw new NotFoundException('Post not found');
+  }
+
+  // =================================================
+  // 2) Load tag contexts
+  // =================================================
+  const rows = await this.repo.findPostUserTags({
+    postId,
+    viewerUserId,
+  });
+
+  // =================================================
+  // 3) Policy filtering + mapping
+  // =================================================
+  const result: PostUserTagDto[] = [];
+
+  for (const r of rows) {
+    if (
+      r.taggedUser.isDisabled ||
+      r.taggedUser.isBanned ||
+      !r.taggedUser.active
+    ) {
+      continue;
+    }
+
+    const isTaggedUser =
+      viewerUserId === r.taggedUserId;
+
+    const isPostOwner =
+      viewerUserId === r.post.authorId;
+
+    const blocked =
+      (r.taggedUser.blockedBy?.length ?? 0) > 0 ||
+      (r.taggedUser.blockedUsers?.length ?? 0) > 0;
+
+    if (blocked) continue;
+
+    const allowed =
+      PostUserTagViewPolicy.canView({
+        status: r.status,
+        isPostOwner,
+        isTaggedUser,
+      });
+
+    if (!allowed) continue;
+
+    result.push({
+      id: r.id,
+      status: r.status,
+      isTaggedUser,
+      isPostOwner,
+      taggedUser: {
+        id: r.taggedUser.id,
+        username: r.taggedUser.username,
+        displayName: r.taggedUser.displayName,
+        avatarUrl: r.taggedUser.avatarUrl,
+      },
+    });
+  }
+
+  return result;
+}
+
+async acceptPostTag(params: {
+  postId: string;
+  tagId: string;
+  actorUserId: string;
+}) {
+  const { postId, tagId, actorUserId } = params;
+
+  let event: PostUserTagUpdatedEvent | null = null;
+
+  await this.prisma.$transaction(async (tx) => {
+    // =================================================
+    // 1) Load context (DB authority)
+    // =================================================
+    const ctx = await this.repo.loadAcceptTagContext({
+      postId,
+      tagId,
+      actorUserId,
+      tx,
+    });
+
+    if (!ctx) {
+      throw new NotFoundException('Tag not found');
+    }
+
+    // =================================================
+    // 2) Policy decision (FINAL)
+    // =================================================
+    const decision = PostUserTagAcceptPolicy.decide({
+      actorUserId,
+      taggedUserId: ctx.taggedUserId,
+      currentStatus: ctx.status,
+      isBlockedEitherWay: ctx.isBlockedEitherWay,
+    });
+
+    if (!decision.allowed) {
+      throw new ForbiddenException('Not allowed to accept this tag');
+    }
+
+    // =================================================
+    // 3) Update status
+    // =================================================
+    await tx.postUserTag.update({
+      where: { id: ctx.tagId },
+      data: {
+        status: 'ACCEPTED',
+        respondedAt: new Date(),
+      },
+    });
+
+    // prepare event after commit
+    event = new PostUserTagUpdatedEvent({
+      postId: ctx.postId,
+      tagId: ctx.tagId,
+      status: 'ACCEPTED',
+      taggedUserId: ctx.taggedUserId,
+      taggedByUserId: ctx.taggedByUserId,
+    });
+  });
+
+  // =================================================
+  // 4) Domain Event (after commit only)
+  // =================================================
+  if (event) {
+    try {
+      this.eventEmitter.emit('post.tag.updated', event);
+    } catch {}
+  }
+
+  return { success: true };
+}
+
+
+async rejectPostTag(params: {
+  postId: string;
+  tagId: string;
+  actorUserId: string;
+}) {
+  const { postId, tagId, actorUserId } = params;
+
+  let event: PostUserTagUpdatedEvent | null = null;
+
+  await this.prisma.$transaction(async (tx) => {
+    // =================================================
+    // 1) Load context (DB authority)
+    // =================================================
+    const ctx = await this.repo.loadRejectTagContext({
+      postId,
+      tagId,
+      actorUserId,
+      tx,
+    });
+
+    if (!ctx) {
+      throw new NotFoundException('Tag not found');
+    }
+
+    // =================================================
+    // 2) Policy decision (FINAL)
+    // =================================================
+    const decision = PostUserTagRejectPolicy.decide({
+      actorUserId,
+      taggedUserId: ctx.taggedUserId,
+      postAuthorId: ctx.postAuthorId,
+      currentStatus: ctx.status,
+      isBlockedEitherWay: ctx.isBlockedEitherWay,
+    });
+
+    if (!decision.allowed) {
+      throw new ForbiddenException('Not allowed to reject this tag');
+    }
+
+    // =================================================
+    // 3) Update status
+    // =================================================
+    await tx.postUserTag.update({
+      where: { id: ctx.tagId },
+      data: {
+        status: 'REJECTED',
+        respondedAt: new Date(),
+      },
+    });
+
+    // prepare event AFTER COMMIT
+    event = new PostUserTagUpdatedEvent({
+      postId: ctx.postId,
+      tagId: ctx.tagId,
+      status: 'REJECTED',
+      taggedUserId: ctx.taggedUserId,
+      taggedByUserId: ctx.taggedByUserId,
+    });
+  });
+
+  // =================================================
+  // 4) Domain Event (after commit only)
+  // =================================================
+  if (event) {
+    try {
+      this.eventEmitter.emit('post.tag.updated', event);
+    } catch {
+      // ❗ realtime / fan-out must never break response
+    }
+  }
+
+  return { success: true };
+}
+
 }

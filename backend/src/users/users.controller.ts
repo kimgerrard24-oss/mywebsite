@@ -51,6 +51,8 @@ import { GetFollowersParams } from '../follows/dto/get-followers.params';
 import { GetFollowersQuery } from '../follows/dto/get-followers.query';
 import { FollowingService } from '../following/following.service';
 import { GetFollowingQuery } from '../following/dto/get-following.query';
+import { GetMyTaggedPostsQueryDto } from './dto/get-my-tagged-posts.query.dto';
+import { UpdateTagSettingsDto } from './dto/update-tag-settings.dto';
 
 @Controller('users')
 export class UsersController {
@@ -474,5 +476,39 @@ async getFollowing(
     limit: query.limit,
   });
 }
+
+@Get('me/tagged-posts')
+@UseGuards(AccessTokenCookieAuthGuard)
+async getMyTaggedPosts(
+  @CurrentUser() user: SessionUser,
+  @Query() query: GetMyTaggedPostsQueryDto,
+) {
+  if (!user?.userId) {
+    throw new UnauthorizedException();
+  }
+
+  return this.usersService.getMyTaggedPosts({
+    userId: user.userId,
+    limit: query.limit,
+    cursor: query.cursor,
+  });
+}
+
+@UseGuards(AccessTokenCookieAuthGuard)
+@Patch('me/tag-settings')
+async updateMyTagSettings(
+  @CurrentUser() user: SessionUser,
+  @Body() dto: UpdateTagSettingsDto,
+) {
+  if (!user?.userId) {
+    throw new UnauthorizedException();
+  }
+
+  return this.usersService.updateMyTagSettings({
+    userId: user.userId,
+    dto,
+  });
+}
+
 
 }

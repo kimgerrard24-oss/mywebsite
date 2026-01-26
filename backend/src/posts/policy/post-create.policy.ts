@@ -6,21 +6,8 @@ export class PostCreatePolicy {
    * ==============================
    * Authorization / Capability
    * ==============================
-   * NOTE:
-   * - ใช้กับ session-based auth
-   * - ตอนนี้ "ผ่าน" ทุก user ที่ session valid
-   * - future: ban / trust score / rate escalation
    */
   static assertCanCreatePost() {
-    /**
-     * ตอนนี้:
-     * - Session valid = ผ่าน
-     * - ไม่เช็ค profile (fail-soft)
-     *
-     * Future:
-     * - ban
-     * - rate-limit escalation
-     */
     return true;
   }
 
@@ -51,4 +38,26 @@ export class PostCreatePolicy {
       );
     }
   }
+
+  /**
+   * ==============================
+   * Friend tag payload validation
+   * ==============================
+   * ❗ NOT authorization
+   * ❗ NOT relationship check
+   * Only payload sanity check
+   */
+  static assertValidTaggedUsers(params: {
+    taggedUserCount: number;
+  }) {
+    const { taggedUserCount } = params;
+
+    // ❌ กัน spam / abuse
+    if (taggedUserCount > 20) {
+      throw new BadRequestException(
+        'Too many tagged users',
+      );
+    }
+  }
 }
+

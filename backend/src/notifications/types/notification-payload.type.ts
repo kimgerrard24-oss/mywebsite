@@ -67,5 +67,18 @@ export type NotificationPayloadMap = {
   feed_mention_in_post: {
     postId: string;
   };
+
+   post_tagged_auto_accepted: {
+    postId: string;
+  };
+
+  post_tagged_request: {
+    postId: string;
+  };
+
+  // (optional future)
+  post_tagged_rejected: {
+    postId: string;
+  };
   
 };

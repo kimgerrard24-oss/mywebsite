@@ -2,13 +2,16 @@
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { useState } from "react";
-
+import PostTagList from "@/components/posts/PostTagList";
 import type { PostDetail as PostDetailType } from "@/types/post-detail";
 import PostActionMenu from "@/components/posts/PostActionMenu";
 import { renderContentWithHashtags } from "@/utils/renderContentWithHashtags";
 import { usePostLike } from "@/hooks/usePostLike";
 import PostLikeList from "@/components/posts/PostLikeList";
 import PostLikeListModal from "@/components/posts/PostLikeListModal";
+import PostRemoveMyTagButton from "@/components/posts/PostRemoveMyTagButton";
+import PostTagListAcceptOnly from "./PostTagListAcceptOnly";
+import PostTagListRejectOnly from "./PostTagListRejectOnly";
 
 type Props = {
   post: PostDetailType;
@@ -21,6 +24,10 @@ export default function PostDetail({ post }: Props) {
   post.author?.isBlocked === true ||
   post.author?.hasBlockedViewer === true;
 
+  const pendingForMe =
+  post.userTags?.filter(
+    (t) => t.isTaggedUser && t.status === "PENDING",
+  ) ?? [];
 
   const {
     likeCount,
@@ -269,6 +276,44 @@ const closeLikes = () => {
           })}
         </section>
       )}
+
+      
+{post.userTags && post.userTags.length > 0 && (
+  <>
+    <PostTagList postId={post.id} tags={post.userTags} />
+
+    {/* ===== ACCEPT / REJECT FLOW ===== */}
+    {pendingForMe.length > 0 && (
+      <div className="mt-3 space-y-2">
+        <PostTagListAcceptOnly
+          postId={post.id}
+          tags={pendingForMe}
+        />
+        <PostTagListRejectOnly
+          postId={post.id}
+          tags={pendingForMe}
+        />
+      </div>
+    )}
+
+    {/* ===== REMOVE MY TAG ===== */}
+    {post.userTags.some(
+      (t) =>
+        t.isTaggedUser &&
+        t.status === "ACCEPTED",
+    ) && (
+      <div className="mt-2">
+        <PostRemoveMyTagButton
+          postId={post.id}
+          onRemoved={() => {
+            router.replace(router.asPath);
+          }}
+        />
+      </div>
+    )}
+  </>
+)}
+
 
       {/* ================= Likes ================= */}
       <section

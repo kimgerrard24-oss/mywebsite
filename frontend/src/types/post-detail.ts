@@ -1,4 +1,5 @@
 // frontend/src/types/post-detail.ts
+import type { PostUserTagItem } from "@/types/post-user-tag";
 
 export type PostVisibility =
   | "PUBLIC"
@@ -26,7 +27,9 @@ export type PostDetail = {
     cdnUrl: string;
     url?: string; // optional for backward compatibility
   }[];
-
+  
+  userTags?: PostUserTagItem[];
+  
   likeCount: number;
   commentCount: number;
   isLikedByViewer: boolean;

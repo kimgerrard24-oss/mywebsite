@@ -16,6 +16,12 @@ CREATE TYPE "VisibilityRuleType" AS ENUM ('INCLUDE', 'EXCLUDE');
 CREATE TYPE "MediaType" AS ENUM ('IMAGE', 'VIDEO', 'AUDIO');
 
 -- CreateEnum
+CREATE TYPE "PostUserTagStatus" AS ENUM ('PENDING', 'ACCEPTED', 'REJECTED', 'REMOVED');
+
+-- CreateEnum
+CREATE TYPE "UserTagApprovalMode" AS ENUM ('AUTO', 'MANUAL', 'DISABLED');
+
+-- CreateEnum
 CREATE TYPE "PostVisibility" AS ENUM ('PUBLIC', 'FOLLOWERS', 'PRIVATE', 'CUSTOM');
 
 -- CreateEnum
@@ -28,7 +34,7 @@ CREATE TYPE "ReportStatus" AS ENUM ('PENDING', 'REVIEWED', 'ACTION_TAKEN', 'REJE
 CREATE TYPE "ReportReason" AS ENUM ('SPAM', 'HARASSMENT', 'HATE_SPEECH', 'SCAM', 'NSFW', 'MISINFORMATION', 'OTHER');
 
 -- CreateEnum
-CREATE TYPE "ReportTargetType" AS ENUM ('POST', 'COMMENT', 'USER', 'CHAT_MESSAGE', 'FOLLOW_REQUEST');
+CREATE TYPE "ReportTargetType" AS ENUM ('POST', 'COMMENT', 'USER', 'CHAT_MESSAGE', 'FOLLOW_REQUEST', 'POST_USER_TAG');
 
 -- CreateEnum
 CREATE TYPE "ModerationTargetType" AS ENUM ('USER', 'POST', 'COMMENT', 'CHAT_MESSAGE', 'FOLLOW');
@@ -89,6 +95,19 @@ CREATE TABLE "User" (
     "bannedByAdminId" TEXT,
 
     CONSTRAINT "User_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "UserTagSetting" (
+    "userId" TEXT NOT NULL,
+    "approvalMode" "UserTagApprovalMode" NOT NULL DEFAULT 'MANUAL',
+    "allowFromFollowers" BOOLEAN NOT NULL DEFAULT true,
+    "allowFromFollowing" BOOLEAN NOT NULL DEFAULT true,
+    "allowFromAnyone" BOOLEAN NOT NULL DEFAULT false,
+    "hideUntilApproved" BOOLEAN NOT NULL DEFAULT true,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "UserTagSetting_pkey" PRIMARY KEY ("userId")
 );
 
 -- CreateTable
@@ -344,6 +363,22 @@ CREATE TABLE "CommentMention" (
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "CommentMention_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "PostUserTag" (
+    "id" TEXT NOT NULL,
+    "postId" TEXT NOT NULL,
+    "taggedUserId" TEXT NOT NULL,
+    "taggedByUserId" TEXT NOT NULL,
+    "removedByUserId" TEXT,
+    "removedByAdminId" TEXT,
+    "removedAt" TIMESTAMP(3),
+    "status" "PostUserTagStatus" NOT NULL DEFAULT 'PENDING',
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "respondedAt" TIMESTAMP(3),
+
+    CONSTRAINT "PostUserTag_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -762,6 +797,27 @@ CREATE INDEX "CommentMention_userId_idx" ON "CommentMention"("userId");
 CREATE UNIQUE INDEX "CommentMention_commentId_userId_key" ON "CommentMention"("commentId", "userId");
 
 -- CreateIndex
+CREATE INDEX "PostUserTag_taggedUserId_createdAt_idx" ON "PostUserTag"("taggedUserId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "PostUserTag_postId_idx" ON "PostUserTag"("postId");
+
+-- CreateIndex
+CREATE INDEX "PostUserTag_status_idx" ON "PostUserTag"("status");
+
+-- CreateIndex
+CREATE INDEX "PostUserTag_taggedUserId_status_createdAt_idx" ON "PostUserTag"("taggedUserId", "status", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "PostUserTag_postId_status_idx" ON "PostUserTag"("postId", "status");
+
+-- CreateIndex
+CREATE INDEX "PostUserTag_taggedByUserId_createdAt_idx" ON "PostUserTag"("taggedByUserId", "createdAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "PostUserTag_postId_taggedUserId_key" ON "PostUserTag"("postId", "taggedUserId");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "Tag_name_key" ON "Tag"("name");
 
 -- CreateIndex
@@ -792,7 +848,7 @@ CREATE INDEX "Notification_userId_createdAt_idx" ON "Notification"("userId", "cr
 CREATE INDEX "Notification_userId_isRead_idx" ON "Notification"("userId", "isRead");
 
 -- CreateIndex
-CREATE INDEX "Notification_type_idx" ON "Notification"("type");
+CREATE INDEX "Notification_userId_type_createdAt_idx" ON "Notification"("userId", "type", "createdAt");
 
 -- CreateIndex
 CREATE INDEX "Chat_isGroup_idx" ON "Chat"("isGroup");
@@ -933,6 +989,9 @@ CREATE INDEX "UserIdentityHistory_field_idx" ON "UserIdentityHistory"("field");
 ALTER TABLE "User" ADD CONSTRAINT "User_bannedByAdminId_fkey" FOREIGN KEY ("bannedByAdminId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "UserTagSetting" ADD CONSTRAINT "UserTagSetting_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "Session" ADD CONSTRAINT "Session_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -1009,6 +1068,15 @@ ALTER TABLE "CommentMention" ADD CONSTRAINT "CommentMention_commentId_fkey" FORE
 
 -- AddForeignKey
 ALTER TABLE "CommentMention" ADD CONSTRAINT "CommentMention_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PostUserTag" ADD CONSTRAINT "PostUserTag_postId_fkey" FOREIGN KEY ("postId") REFERENCES "Post"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PostUserTag" ADD CONSTRAINT "PostUserTag_taggedUserId_fkey" FOREIGN KEY ("taggedUserId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PostUserTag" ADD CONSTRAINT "PostUserTag_taggedByUserId_fkey" FOREIGN KEY ("taggedByUserId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "PostTag" ADD CONSTRAINT "PostTag_postId_fkey" FOREIGN KEY ("postId") REFERENCES "Post"("id") ON DELETE CASCADE ON UPDATE CASCADE;

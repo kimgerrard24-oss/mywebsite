@@ -1,7 +1,14 @@
 // backend/src/posts/posts.repository.ts
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { VisibilityRuleType, PostVisibility } from '@prisma/client';
+import { 
+  VisibilityRuleType, 
+  PostVisibility,
+  UserTagSetting,
+  Prisma,
+  PostUserTagStatus,
+ } from '@prisma/client';
+ 
 
 @Injectable()
 export class PostsRepository {
@@ -1488,6 +1495,442 @@ async findPostVisibilityRules(params: { postId: string }) {
     select: {
       userId: true,
       rule: true,
+    },
+  });
+}
+
+async loadCreatePostUserTagContexts(params: {
+  actorUserId: string;
+  taggedUserIds: string[];
+  tx: Prisma.TransactionClient;
+}): Promise<
+  Array<{
+    taggedUserId: string;
+
+    // relations
+    isFollower: boolean;        // actor → target
+    isFollowing: boolean;      // target → actor
+
+    // privacy
+    isPrivateAccount: boolean;
+
+    // block
+    isBlockedEitherWay: boolean;
+
+    // tag setting
+    setting: UserTagSetting | null;
+  }>
+> {
+  const { actorUserId, taggedUserIds, tx } = params;
+
+  if (taggedUserIds.length === 0) return [];
+
+  /**
+   * =================================================
+   * Typed SELECT (Prisma validator)
+   * =================================================
+   */
+  const selectUserTagContext =
+    Prisma.validator<Prisma.UserSelect>()({
+      id: true,
+      isPrivate: true,
+
+      tagSetting: true,
+
+      // actor → target
+      followers: {
+        where: { followerId: actorUserId },
+        select: { followerId: true },
+        take: 1,
+      },
+
+      // target → actor
+      following: {
+        where: { followingId: actorUserId },
+        select: { followingId: true },
+        take: 1,
+      },
+
+      // block checks
+      blockedBy: {
+        where: { blockerId: actorUserId },
+        select: { blockerId: true },
+        take: 1,
+      },
+
+      blockedUsers: {
+        where: { blockedId: actorUserId },
+        select: { blockedId: true },
+        take: 1,
+      },
+    });
+
+  type UserTagContextRow = Prisma.UserGetPayload<{
+    select: typeof selectUserTagContext;
+  }>;
+
+  /**
+   * =================================================
+   * Load users + relations in ONE query
+   * =================================================
+   */
+  const users = await tx.user.findMany({
+    where: {
+      id: { in: taggedUserIds },
+      isDisabled: false,
+      isBanned: false,
+      active: true,
+    },
+    select: selectUserTagContext,
+  });
+
+  /**
+   * =================================================
+   * Normalize to policy context
+   * =================================================
+   */
+  return (users as UserTagContextRow[]).map((u) => {
+    const isBlockedEitherWay =
+      u.blockedBy.length > 0 || u.blockedUsers.length > 0;
+
+    return {
+      taggedUserId: u.id,
+      isFollower: u.followers.length > 0,
+      isFollowing: u.following.length > 0,
+      isPrivateAccount: u.isPrivate,
+      isBlockedEitherWay,
+      setting: u.tagSetting ?? null,
+    };
+  });
+}
+
+ async loadUpdateContext(params: {
+    tagId: string;
+    actorUserId: string;
+    tx: Prisma.TransactionClient;
+  }) {
+    const { tagId, actorUserId, tx } = params;
+
+    const tag = await tx.postUserTag.findUnique({
+      where: { id: tagId },
+      select: {
+        id: true,
+        status: true,
+        taggedUserId: true,
+        taggedByUserId: true,
+        post: {
+          select: {
+            id: true,
+            authorId: true,
+          },
+        },
+      },
+    });
+
+    if (!tag) return null;
+
+    const block = await tx.userBlock.findFirst({
+      where: {
+        OR: [
+          {
+            blockerId: actorUserId,
+            blockedId: tag.taggedUserId,
+          },
+          {
+            blockerId: tag.taggedUserId,
+            blockedId: actorUserId,
+          },
+        ],
+      },
+      select: { blockerId: true },
+    });
+
+    return {
+      tagId: tag.id,
+      currentStatus: tag.status,
+      taggedUserId: tag.taggedUserId,
+      taggedByUserId: tag.taggedByUserId,
+      postId: tag.post.id,
+      postAuthorId: tag.post.authorId,
+      isBlockedEitherWay: !!block,
+    };
+  }
+
+   async loadMyTagContext(params: {
+    postId: string;
+    actorUserId: string;
+    tx: Prisma.TransactionClient;
+  }): Promise<{
+    tagId: string;
+    status: PostUserTagStatus;
+    taggedUserId: string;
+    taggedByUserId: string;
+    postAuthorId: string;
+    isBlockedEitherWay: boolean;
+  } | null> {
+    const { postId, actorUserId, tx } = params;
+
+    const tag = await tx.postUserTag.findFirst({
+      where: {
+        postId,
+        taggedUserId: actorUserId,
+        status: {
+          in: ['PENDING', 'ACCEPTED'],
+        },
+      },
+      select: {
+        id: true,
+        status: true,
+        taggedUserId: true,
+        taggedByUserId: true,
+        post: {
+          select: {
+            authorId: true,
+          },
+        },
+      },
+    });
+
+    if (!tag) return null;
+
+    const block = await tx.userBlock.findFirst({
+      where: {
+        OR: [
+          {
+            blockerId: actorUserId,
+            blockedId: tag.taggedByUserId,
+          },
+          {
+            blockerId: tag.taggedByUserId,
+            blockedId: actorUserId,
+          },
+        ],
+      },
+      select: { blockerId: true },
+    });
+
+    return {
+      tagId: tag.id,
+      status: tag.status,
+      taggedUserId: tag.taggedUserId,
+      taggedByUserId: tag.taggedByUserId,
+      postAuthorId: tag.post.authorId,
+      isBlockedEitherWay: !!block,
+    };
+  }
+
+  async findPostUserTags(params: {
+  postId: string;
+  viewerUserId: string | null;
+}) {
+  const { postId, viewerUserId } = params;
+
+  return this.prisma.postUserTag.findMany({
+    where: {
+      postId,
+      post: {
+        isDeleted: false,
+        isHidden: false,
+
+        ...(viewerUserId
+          ? {
+              author: {
+                AND: [
+                  {
+                    blockedBy: {
+                      none: { blockerId: viewerUserId },
+                    },
+                  },
+                  {
+                    blockedUsers: {
+                      none: { blockedId: viewerUserId },
+                    },
+                  },
+                ],
+              },
+            }
+          : {}),
+      },
+    },
+
+    select: {
+      id: true,
+      status: true,
+      taggedUserId: true,
+      taggedByUserId: true,
+
+      post: {
+        select: {
+          authorId: true,
+        },
+      },
+
+      taggedUser: {
+        select: {
+          id: true,
+          username: true,
+          displayName: true,
+          avatarUrl: true,
+          isDisabled: true,
+          isBanned: true,
+          active: true,
+
+          ...(viewerUserId
+            ? {
+                blockedBy: {
+                  where: { blockerId: viewerUserId },
+                  select: { blockerId: true },
+                  take: 1,
+                },
+                blockedUsers: {
+                  where: { blockedId: viewerUserId },
+                  select: { blockedId: true },
+                  take: 1,
+                },
+              }
+            : {}),
+        },
+      },
+    },
+  });
+}
+
+async loadAcceptTagContext(params: {
+  postId: string;
+  tagId: string;
+  actorUserId: string;
+  tx: Prisma.TransactionClient;
+}): Promise<{
+  tagId: string;
+  postId: string;
+  status: PostUserTagStatus;
+  taggedUserId: string;
+  taggedByUserId: string;
+  isBlockedEitherWay: boolean;
+} | null> {
+  const { postId, tagId, actorUserId, tx } = params;
+
+  const row = await tx.postUserTag.findFirst({
+    where: {
+      id: tagId,
+      postId,
+    },
+    select: {
+      id: true,
+      postId: true,
+      status: true,
+      taggedUserId: true,
+      taggedByUserId: true,
+      taggedUser: {
+        select: {
+          blockedBy: {
+            where: { blockerId: actorUserId },
+            select: { blockerId: true },
+            take: 1,
+          },
+          blockedUsers: {
+            where: { blockedId: actorUserId },
+            select: { blockedId: true },
+            take: 1,
+          },
+        },
+      },
+    },
+  });
+
+  if (!row) return null;
+
+  const isBlockedEitherWay =
+    row.taggedUser.blockedBy.length > 0 ||
+    row.taggedUser.blockedUsers.length > 0;
+
+  return {
+    tagId: row.id,
+    postId: row.postId,
+    status: row.status,
+    taggedUserId: row.taggedUserId,
+    taggedByUserId: row.taggedByUserId,
+    isBlockedEitherWay,
+  };
+}
+
+async loadRejectTagContext(params: {
+  postId: string;
+  tagId: string;
+  actorUserId: string;
+  tx: Prisma.TransactionClient;
+}): Promise<{
+  tagId: string;
+  postId: string;
+  status: PostUserTagStatus;
+  taggedUserId: string;
+  taggedByUserId: string;
+  postAuthorId: string;
+  isBlockedEitherWay: boolean;
+} | null> {
+  const { postId, tagId, actorUserId, tx } = params;
+
+  const row = await tx.postUserTag.findFirst({
+    where: {
+      id: tagId,
+      postId,
+    },
+    select: {
+      id: true,
+      status: true,
+      taggedUserId: true,
+      taggedByUserId: true,
+      postId: true,
+
+      post: {
+        select: {
+          authorId: true,
+        },
+      },
+
+      taggedUser: {
+        select: {
+          blockedBy: {
+            where: { blockerId: actorUserId },
+            select: { blockerId: true },
+            take: 1,
+          },
+          blockedUsers: {
+            where: { blockedId: actorUserId },
+            select: { blockedId: true },
+            take: 1,
+          },
+        },
+      },
+    },
+  });
+
+  if (!row) return null;
+
+  const isBlockedEitherWay =
+    row.taggedUser.blockedBy.length > 0 ||
+    row.taggedUser.blockedUsers.length > 0;
+
+  return {
+    tagId: row.id,
+    postId: row.postId,
+    status: row.status,
+    taggedUserId: row.taggedUserId,
+    taggedByUserId: row.taggedByUserId,
+    postAuthorId: row.post.authorId,
+    isBlockedEitherWay,
+  };
+}
+
+async softDeleteTx(
+  postId: string,
+  tx: Prisma.TransactionClient,
+) {
+  await tx.post.update({
+    where: { id: postId },
+    data: {
+      isDeleted: true,
+      deletedAt: new Date(),
     },
   });
 }
