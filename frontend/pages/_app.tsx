@@ -3,6 +3,7 @@ import "../styles/globals.css";
 import type { AppProps } from "next/app";
 import "../sentry.client.config";
 import "../sentry.server.config";
+import { Toaster } from "react-hot-toast";
 
 import { useEffect, useRef } from "react";
 import { getFirebaseAuth } from "firebase/client";
@@ -45,13 +46,22 @@ export default function App({ Component, pageProps }: AppProps) {
   }, []);
 
   return (
-    <AuthProvider>
-      <UserProvider>
-        {/* 🔔 Global Notification Realtime */}
-        <NotificationRealtimeBridge />
+  <AuthProvider>
+    <UserProvider>
+      {/* 🔔 Global Notification Realtime */}
+      <NotificationRealtimeBridge />
 
-        <Component {...pageProps} />
-      </UserProvider>
-    </AuthProvider>
-  );
+      <Component {...pageProps} />
+
+      {/* 🔔 Global Toast */}
+      <Toaster
+        position="top-center"
+        toastOptions={{
+          duration: 3000,
+        }}
+      />
+    </UserProvider>
+  </AuthProvider>
+);
+
 }

@@ -1375,7 +1375,7 @@ async getMyTaggedPosts(params: {
 
   return {
     items: sliced.map((r) =>
-      MyTaggedPostFeedItemDto.fromEntity(r.post),
+      MyTaggedPostFeedItemDto.fromEntity(r),
     ),
     nextCursor,
   };
@@ -1433,6 +1433,44 @@ async updateMyTagSettings(params: {
   });
 
   return TagSettingsResponseDto.fromEntity(updated);
+}
+
+async getMyTagSettings(params: { userId: string }) {
+  const { userId } = params;
+
+  // =========================
+  // 1) Load user state
+  // =========================
+  const user =
+    await this.repo.findUserStateForTagSettings(userId);
+
+  if (!user) {
+    throw new BadRequestException('User not found');
+  }
+
+  // =========================
+  // 2) Policy
+  // =========================
+  UserTaggedPostsViewPolicy.assertCanView({
+    isDisabled: user.isDisabled,
+    isBanned: user.isBanned,
+  });
+
+  // =========================
+  // 3) Load settings (DB authority)
+  // =========================
+  const setting =
+    await this.repo.findUserTagSetting(userId);
+
+  if (!setting) {
+    // default behavior (same as upsert default)
+    return {
+      allowTagFrom: 'ANYONE',
+      requireApproval: false,
+    };
+  }
+
+  return TagSettingsResponseDto.fromEntity(setting);
 }
 
 }

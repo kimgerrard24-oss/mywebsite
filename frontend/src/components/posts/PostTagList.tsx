@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { PostUserTagItem } from "@/types/post-user-tag";
 import { useUpdatePostTag } from "@/hooks/useUpdatePostTag";
 
@@ -14,6 +14,9 @@ type Props = {
 export default function PostTagList({ postId, tags }: Props) {
   const { submit, loading } = useUpdatePostTag();
   const [local, setLocal] = useState(tags);
+  useEffect(() => {
+    setLocal(tags);
+  }, [tags]);
 
   async function act(
     tagId: string,
@@ -43,10 +46,10 @@ export default function PostTagList({ postId, tags }: Props) {
           const canAcceptReject =
             t.isTaggedUser && t.status === "PENDING";
 
-          const canRemove =
-            (t.isTaggedUser || t.isPostOwner) &&
-            (t.status === "PENDING" ||
-              t.status === "ACCEPTED");
+         const canRemove =
+  (t.isTaggedUser || t.isPostOwner) &&
+  t.status === "ACCEPTED";
+
 
           return (
             <li
