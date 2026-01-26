@@ -854,7 +854,6 @@ async findMyTaggedPosts(params: {
   return this.prisma.postUserTag.findMany({
     where: {
       taggedUserId: userId,
-      status: PostUserTagStatus.ACCEPTED,
 
       post: {
         isDeleted: false,

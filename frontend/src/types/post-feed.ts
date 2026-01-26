@@ -2,6 +2,13 @@
 export type PostFeedItem = {
   id: string;
   content: string;
+
+    taggedUsers?: {
+    id: string;
+    displayName: string | null;
+    username: string;
+  }[];
+
   createdAt: string;
 
   author: {

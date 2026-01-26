@@ -19,10 +19,10 @@ export async function updatePostTag(params: {
   );
 
   return res.data as {
-    id: string;
     status: "PENDING" | "ACCEPTED" | "REJECTED" | "REMOVED";
   };
 }
+
 
 export async function getPostTags(params: {
   postId: string;

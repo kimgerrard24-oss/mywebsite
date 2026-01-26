@@ -1358,7 +1358,8 @@ async updateTag(params: {
   const { actorUserId, dto } = params;
 
   let event: PostUserTagUpdatedEvent | null = null;
-  let result: { id: string; status: string } | null = null;
+  let result: { status: PostUserTagStatus } | null = null;
+  let postId: string | null = null;
 
   await this.prisma.$transaction(async (tx) => {
     // =================================================
@@ -1374,6 +1375,8 @@ async updateTag(params: {
       // production behavior: do not reveal existence
       throw new NotFoundException('Tag not found');
     }
+
+    postId = ctx.postId;
 
     // =================================================
     // 2) Policy decision (FINAL AUTHORITY)
@@ -1413,7 +1416,6 @@ async updateTag(params: {
         respondedAt: new Date(),
       },
       select: {
-        id: true,
         status: true,
       },
     });
@@ -1430,7 +1432,6 @@ async updateTag(params: {
     });
 
     result = {
-      id: updated.id,
       status: updated.status,
     };
   });
@@ -1446,8 +1447,20 @@ async updateTag(params: {
     }
   }
 
+  // =================================================
+  // CACHE INVALIDATE (Post Detail + Tags)
+  // =================================================
+  if (postId) {
+    try {
+      await this.cache.invalidate(postId);
+    } catch {
+      // ❗ cache must never break response
+    }
+  }
+
   return result!;
 }
+
 
 
  async removeMyTag(params: {

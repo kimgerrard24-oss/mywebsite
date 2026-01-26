@@ -35,6 +35,11 @@ export class PostFeedItemDto {
 
   canDelete!: boolean;
 
+  taggedUsers!: {
+    id: string;
+    displayName: string | null;
+    username: string;
+  }[];
   /**
    * 📨 Appeal (UX guard only)
    * backend authority อยู่ที่ POST /appeals

@@ -235,6 +235,27 @@ async findPublicFeed(params: {
           },
         },
       },
+
+      userTags: {
+        where: {
+          status: PostUserTagStatus.ACCEPTED,
+        },
+        select: {
+          id: true,
+          status: true,
+          taggedUser: {
+            select: {
+              id: true,
+              username: true,
+              displayName: true,
+              avatarUrl: true,
+              isDisabled: true,
+              isBanned: true,
+              active: true,
+            },
+          },
+        },
+      },
     },
   });
 }
@@ -400,46 +421,69 @@ async findPostById(
       // 🆕 FRIEND TAGS (for PostDetailDto)
       // ==============================
       userTags: {
-        select: {
-          id: true,
-          status: true,
-          taggedUserId: true,
-          taggedByUserId: true,
+  where: viewerUserId
+    ? {
+        OR: [
+          // เจ้าของโพสต์เห็นหมด
+          { post: { authorId: viewerUserId } },
 
-          post: {
-            select: {
-              authorId: true,
-            },
-          },
+          // คนที่ถูก tag เห็นของตัวเอง
+          { taggedUserId: viewerUserId },
 
-          taggedUser: {
-            select: {
-              id: true,
-              username: true,
-              displayName: true,
-              avatarUrl: true,
-              isDisabled: true,
-              isBanned: true,
-              active: true,
-
-              ...(viewerUserId
-                ? {
-                    blockedBy: {
-                      where: { blockerId: viewerUserId },
-                      select: { blockerId: true },
-                      take: 1,
-                    },
-                    blockedUsers: {
-                      where: { blockedId: viewerUserId },
-                      select: { blockedId: true },
-                      take: 1,
-                    },
-                  }
-                : {}),
-            },
-          },
-        },
+          // คนอื่นเห็นเฉพาะ ACCEPTED
+          { status: { in: [PostUserTagStatus.ACCEPTED] } },
+        ],
+      }
+    : {
+        status: { in: [PostUserTagStatus.ACCEPTED] },
       },
+
+  // ✅ stable order for UX
+  orderBy: {
+    createdAt: 'asc',
+  },
+
+  select: {
+    id: true,
+    status: true,
+    taggedUserId: true,
+    taggedByUserId: true,
+
+    post: {
+      select: {
+        authorId: true,
+      },
+    },
+
+    taggedUser: {
+      select: {
+        id: true,
+        username: true,
+        displayName: true,
+        avatarUrl: true,
+        isDisabled: true,
+        isBanned: true,
+        active: true,
+
+        ...(viewerUserId
+          ? {
+              blockedBy: {
+                where: { blockerId: viewerUserId },
+                select: { blockerId: true },
+                take: 1,
+              },
+              blockedUsers: {
+                where: { blockedId: viewerUserId },
+                select: { blockedId: true },
+                take: 1,
+              },
+            }
+          : {}),
+      },
+    },
+  },
+},
+
     },
   });
 }
@@ -725,6 +769,29 @@ async findUserPosts(params: {
           },
         },
       },
+
+            // ✅ NEW: accepted user tags for feed display
+      userTags: {
+        where: {
+          status: PostUserTagStatus.ACCEPTED,
+        },
+        select: {
+          id: true,
+          status: true,
+          taggedUser: {
+            select: {
+              id: true,
+              username: true,
+              displayName: true,
+              avatarUrl: true,
+              isDisabled: true,
+              isBanned: true,
+              active: true,
+            },
+          },
+        },
+      },
+
     },
   });
 }
@@ -932,6 +999,29 @@ async findPostsByTag(params: {
           },
         },
       },
+
+            // ✅ NEW: accepted user tags for feed display
+      userTags: {
+        where: {
+          status: PostUserTagStatus.ACCEPTED,
+        },
+        select: {
+          id: true,
+          status: true,
+          taggedUser: {
+            select: {
+              id: true,
+              username: true,
+              displayName: true,
+              avatarUrl: true,
+              isDisabled: true,
+              isBanned: true,
+              active: true,
+            },
+          },
+        },
+      },
+
     },
   });
 }
