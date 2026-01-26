@@ -66,34 +66,44 @@ export class PostDetailDto {
       post.isDeleted === true;
 
     // ==============================
-    // 🆕 Map friend tags (fail-soft)
-    // ==============================
-    const userTags = Array.isArray(post.postUserTags)
-      ? post.postUserTags.map((t: any) => {
-          const isTaggedUser =
-            Boolean(viewerUserId) &&
-            t.taggedUserId === viewerUserId;
+// 🆕 Map friend tags (fail-soft)
+// ==============================
+const userTags = Array.isArray(post.userTags)
+  ? post.userTags
+      .filter((t: any) => {
+        const u = t.taggedUser;
+        if (!u) return false;
+        if (u.isDisabled) return false;
+        if (u.isBanned) return false;
+        if (u.active === false) return false;
+        return true;
+      })
+      .map((t: any) => {
+        const isTaggedUser =
+          Boolean(viewerUserId) &&
+          t.taggedUserId === viewerUserId;
 
-          const isPostOwner =
-            Boolean(viewerUserId) &&
-            post.author?.id === viewerUserId;
+        const isPostOwner =
+          Boolean(viewerUserId) &&
+          post.author?.id === viewerUserId;
 
-          return {
-            id: t.id,
-            status: t.status,
+        return {
+          id: t.id,
+          status: t.status,
 
-            isTaggedUser,
-            isPostOwner,
+          isTaggedUser,
+          isPostOwner,
 
-            taggedUser: {
-              id: t.taggedUser.id,
-              username: t.taggedUser.username,
-              displayName: t.taggedUser.displayName,
-              avatarUrl: t.taggedUser.avatarUrl,
-            },
-          };
-        })
-      : [];
+          taggedUser: {
+            id: t.taggedUser.id,
+            username: t.taggedUser.username,
+            displayName: t.taggedUser.displayName,
+            avatarUrl: t.taggedUser.avatarUrl,
+          },
+        };
+      })
+  : [];
+
 
     return {
       id: post.id,
