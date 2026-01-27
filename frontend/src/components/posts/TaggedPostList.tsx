@@ -12,30 +12,33 @@ type Props = {
   nextCursor?: string | null;
 };
 
+function sortByNewest(list: MyTaggedPostItem[]) {
+  return [...list].sort(
+    (a, b) =>
+      new Date(b.createdAt).getTime() -
+      new Date(a.createdAt).getTime(),
+  );
+}
+
 export default function TaggedPostList({
   items,
   nextCursor,
 }: Props) {
-  const [list, setList] =
-    useState<MyTaggedPostItem[]>(items);
+  const [list, setList] = useState<MyTaggedPostItem[]>(
+    () => sortByNewest(items),
+  );
 
   const [cursor, setCursor] =
     useState<string | null>(nextCursor ?? null);
 
   const [loading, setLoading] = useState(false);
 
-  // =========================
-  // Remove item from list (after reject/remove)
-  // =========================
   function handleRemoved(postId: string) {
     setList((prev) =>
       prev.filter((p) => p.id !== postId),
     );
   }
 
-  // =========================
-  // Load more (cursor paging)
-  // =========================
   async function loadMore() {
     if (!cursor || loading) return;
 
@@ -47,18 +50,22 @@ export default function TaggedPostList({
         limit: 20,
       });
 
-      // ✅ avoid duplicate ids (defensive)
       setList((prev) => {
         const existing = new Set(prev.map((p) => p.id));
-        const merged = res.items.filter(
-          (p) => !existing.has(p.id),
-        );
-        return [...prev, ...merged];
+
+        const merged = [
+          ...prev,
+          ...res.items.filter(
+            (p) => !existing.has(p.id),
+          ),
+        ];
+
+        return sortByNewest(merged);
       });
 
       setCursor(res.nextCursor);
     } catch {
-      // fail-soft: do not break UX
+      
     } finally {
       setLoading(false);
     }
@@ -99,3 +106,4 @@ export default function TaggedPostList({
     </div>
   );
 }
+

@@ -74,12 +74,13 @@ if (targetType === 'CHAT_MESSAGE')
       
       case 'post_tagged_auto_accepted':
       case 'post_tagged_request':
+      case 'post_tagged_rejected':
         return item.payload?.postId
           ? `/posts/${item.payload.postId}`
           : item.entityId
           ? `/posts/${item.entityId}`
           : null;
-     
+
       case 'comment_mention':
         return item.payload?.postId && item.entityId
           ? `/posts/${item.payload.postId}#comment-${item.entityId}`
@@ -118,7 +119,6 @@ if (targetType === 'CHAT_MESSAGE')
   }
 }
 
-
   const actorName =
     item.actor?.displayName ??
     (item.type === 'moderation_action' ||
@@ -154,7 +154,10 @@ if (targetType === 'CHAT_MESSAGE')
 
       case 'post_tagged_request':
          return 'requested to tag you in a post';
-  
+      
+      case 'post_tagged_rejected':
+         return 'rejected your tag in a post'; 
+
       case 'follow':
         return 'started following you';
 
@@ -189,6 +192,35 @@ if (targetType === 'CHAT_MESSAGE')
         return 'You have a new notification';
     }
   })();
+
+    const tagBadge = (() => {
+    switch (item.type) {
+      case 'post_tagged_auto_accepted':
+        return {
+          text: 'Accepted',
+          className:
+            'bg-green-100 text-green-700 border border-green-200',
+        };
+
+      case 'post_tagged_rejected':
+        return {
+          text: 'Rejected',
+          className:
+            'bg-red-100 text-red-700 border border-red-200',
+        };
+
+      case 'post_tagged_request':
+        return {
+          text: 'Request',
+          className:
+            'bg-yellow-100 text-yellow-800 border border-yellow-200',
+        };
+
+      default:
+        return null;
+    }
+  })();
+
 
   return (
     <li
@@ -230,7 +262,8 @@ if (targetType === 'CHAT_MESSAGE')
       </div>
 
       <div className="flex flex-col gap-1 min-w-0">
-        <span className="text-sm text-gray-800">
+        <span className="text-sm text-gray-800 flex flex-wrap items-center gap-1">
+
           {isBlocked && (
             <span className="mr-2 text-xs text-gray-400">
               ไม่สามารถโต้ตอบกับผู้ใช้นี้ได้
@@ -238,9 +271,28 @@ if (targetType === 'CHAT_MESSAGE')
           )}
 
           <strong className="font-medium">
-            {actorName}
-          </strong>{' '}
-          {message}
+  {actorName}
+</strong>{' '}
+{message}
+
+{!isBlocked && tagBadge && (
+  <span
+    className={`
+      ml-1
+      inline-flex
+      items-center
+      rounded-full
+      px-2
+      py-0.5
+      text-[10px]
+      font-semibold
+      ${tagBadge.className}
+    `}
+  >
+    {tagBadge.text}
+  </span>
+)}
+
         </span>
 
         <time
