@@ -1461,9 +1461,9 @@ async updateMyTagSettings(params: {
  const updated =
   await this.repo.upsertUserTagSetting({
     userId,
-    allowTagFrom: sanitized.allowTagFrom,
-    requireApproval: sanitized.requireApproval,
+    ...sanitized,
   });
+
 
 
   // =========================
