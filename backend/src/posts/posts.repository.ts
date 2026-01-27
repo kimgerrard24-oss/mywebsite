@@ -1673,21 +1673,29 @@ async loadCreatePostUserTagContexts(params: {
 
       tagSetting: true,
 
-      // actor → target
+      // =================================================
+      // actor → target (actor follows target)
+      // target.followers where followerId = actor
+      // =================================================
       followers: {
         where: { followerId: actorUserId },
         select: { followerId: true },
         take: 1,
       },
 
-      // target → actor
+      // =================================================
+      // target → actor (target follows actor)
+      // target.following where followingId = actor
+      // =================================================
       following: {
         where: { followingId: actorUserId },
         select: { followingId: true },
         take: 1,
       },
 
-      // block checks
+      // =================================================
+      // block checks (2-way)
+      // =================================================
       blockedBy: {
         where: { blockerId: actorUserId },
         select: { blockerId: true },
@@ -1731,14 +1739,22 @@ async loadCreatePostUserTagContexts(params: {
 
     return {
       taggedUserId: u.id,
+
+      // actor → target
       isFollower: u.followers.length > 0,
+
+      // target → actor
       isFollowing: u.following.length > 0,
+
       isPrivateAccount: u.isPrivate,
+
       isBlockedEitherWay,
+
       setting: u.tagSetting ?? null,
     };
   });
 }
+
 
  async loadUpdateContext(params: {
     tagId: string;
