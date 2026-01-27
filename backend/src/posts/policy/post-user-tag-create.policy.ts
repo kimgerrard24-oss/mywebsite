@@ -34,7 +34,6 @@ export class PostUserTagCreatePolicy {
       isBlockedEitherWay,
       isFollower,
       isFollowing,
-      isPrivateAccount,
       setting,
     } = params;
 
@@ -48,18 +47,18 @@ export class PostUserTagCreatePolicy {
     // =================================================
     // 2) DEFAULT BEHAVIOR (no custom setting)
     // =================================================
-    // Production social behavior:
+    // Production rule (PhlyPhant):
     // - allow tag
-    // - private account => require approval
+    // - ALWAYS require manual approval
     if (!setting) {
       return {
         allowed: true,
-        autoAccept: !isPrivateAccount,
+        autoAccept: false,
       };
     }
 
     // =================================================
-    // 3) SETTING-BASED PERMISSION
+    // 3) SETTING-BASED PERMISSION (who can tag)
     // =================================================
     let allowed = false;
 
@@ -80,18 +79,14 @@ export class PostUserTagCreatePolicy {
     // =================================================
     // 4) AUTO ACCEPT RULE
     // =================================================
-    // Even if allowed:
-    // - private account should still require approval
-    // - unless user explicitly set AUTO and account is public
-    let autoAccept = false;
-
-    if (
-      setting.approvalMode === 'AUTO' &&
-      !isPrivateAccount
-    ) {
-      autoAccept = true;
-    }
-
-    return { allowed: true, autoAccept };
+    // PhlyPhant production rule:
+    // - tag must NOT be visible until tagged user accepts
+    // - even if approvalMode === 'AUTO'
+    // - autoAccept is disabled to enforce backend authority
+    return {
+      allowed: true,
+      autoAccept: false,
+    };
   }
 }
+

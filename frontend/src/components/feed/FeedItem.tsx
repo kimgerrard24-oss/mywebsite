@@ -210,15 +210,21 @@ const taggedUsers = post.taggedUsers ?? [];
       {/* ================= Tagged Users ================= */}
 {taggedUsers.length > 0 && (
   <p className="mt-1 text-xs sm:text-sm text-gray-600">
-    with{" "}
+    <span>with – </span>
     {taggedUsers.map((u, i) => (
       <span key={u.id}>
-        {u.displayName || u.username}
+        <Link
+          href={`/users/${u.id}`}
+          className="text-blue-600 hover:underline font-medium"
+        >
+          {u.displayName || u.username}
+        </Link>
         {i < taggedUsers.length - 1 && ", "}
       </span>
     ))}
   </p>
 )}
+
 
 
 

@@ -203,15 +203,21 @@ const closeLikes = () => {
       {/* ================= Tagged Users (Accepted only) ================= */}
 {acceptedTags.length > 0 && (
   <p className="mt-1 text-xs sm:text-sm text-gray-600">
-    with{" "}
+    <span>with – </span>
     {acceptedTags.map((t, i) => (
       <span key={t.id}>
-        {t.taggedUser.displayName || t.taggedUser.username}
+        <Link
+          href={`/users/${t.taggedUser.id}`}
+          className="text-blue-600 hover:underline font-medium"
+        >
+          {t.taggedUser.displayName || t.taggedUser.username}
+        </Link>
         {i < acceptedTags.length - 1 && ", "}
       </span>
     ))}
   </p>
 )}
+
 
 
       {/* ================= Media ================= */}
