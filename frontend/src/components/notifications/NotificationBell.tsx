@@ -22,11 +22,8 @@ export default function NotificationBell() {
 
   // ===== store (single source of truth) =====
   const storeItems = useNotificationStore((s) => s.items);
-  const unreadCount = useNotificationStore((s) =>
-  s.items.filter(
-    (n) => !n.isRead && n.type !== 'feed_new_post',
-  ).length,
-);
+  const unreadCount = useNotificationStore((s) => s.unreadCount);
+
 
   const hydrate = useNotificationStore((s) => s.hydrate);
   const clearUnread = useNotificationStore(
@@ -49,48 +46,50 @@ export default function NotificationBell() {
 
 
   // ===== toggle bell (open = read all) =====
-  function handleToggle() {
-    setOpen((prev) => {
-      const next = !prev;
+  async function handleToggle() {
+  const next = !open;
+  setOpen(next);
 
-      // เปิด dropdown = ถือว่าอ่านแล้ว
-      if (next && unreadCount > 0) {
-        clearUnread();   // optimistic (store)
-        markAllRead();   // backend (fire-and-forget)
-      }
+  // เปิด dropdown = ถือว่าอ่านทั้งหมด
+  if (next && unreadCount > 0) {
+    clearUnread(); // optimistic (store)
 
-      return next;
-    });
+    try {
+      await markAllRead(); // backend authority
+    } catch {
+      // fail-soft: ไม่ rollback UX
+    }
   }
+}
+
 
   // ===== load notifications เมื่อเปิด dropdown =====
   useEffect(() => {
-    if (!open) return;
+  if (!open) return;
+  if (storeItems.length > 0) return;
 
-    let cancelled = false;
+  let cancelled = false;
 
-    async function load() {
-      setLoading(true);
-      try {
-        const res = await getNotifications({ limit: 20 });
-        if (!cancelled) {
-          hydrate(res.items ?? []);
-        }
-      } catch {
-        // fail-soft
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
+  async function load() {
+    setLoading(true);
+    try {
+      const res = await getNotifications({ limit: 20 });
+      if (!cancelled) {
+        hydrate(res.items ?? []);
       }
+    } catch {
+    } finally {
+      if (!cancelled) setLoading(false);
     }
+  }
 
-    load();
+  load();
 
-    return () => {
-      cancelled = true;
-    };
-  }, [open, hydrate]);
+  return () => {
+    cancelled = true;
+  };
+}, [open, hydrate, storeItems.length]);
+
 
   // ===== click outside เพื่อปิด dropdown =====
   useEffect(() => {
