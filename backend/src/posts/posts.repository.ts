@@ -1681,10 +1681,6 @@ async loadCreatePostUserTagContexts(params: {
       isBanned: false,
       active: true,
 
-      // 🔥 must have tag setting row
-      tagSetting: {
-        isNot: null,
-      },
     },
     select: {
       id: true,
