@@ -12,6 +12,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import { NotificationsService } from './notifications.service';
 import { GetNotificationsQueryDto } from './dto/get-notifications.query.dto';
 import { MarkNotificationReadParams } from './dto/mark-notification-read.params';
+import { RateLimit } from '../common/rate-limit/rate-limit.decorator';
 
 @Controller('notifications')
 export class NotificationsController {
@@ -50,6 +51,7 @@ export class NotificationsController {
    * - Owner-only
    */
   @Put(':id/read')
+  @RateLimit('notificationRead')
   @UseGuards(AccessTokenCookieAuthGuard)
   async markRead(
     @Param() params: MarkNotificationReadParams,

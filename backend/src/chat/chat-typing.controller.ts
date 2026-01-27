@@ -11,6 +11,7 @@ import { AccessTokenCookieAuthGuard } from '../auth/guards/access-token-cookie.g
 import { ChatTypingService } from './chat-typing.service';
 import { ChatRepository } from './chat.repository';
 import { ChatPermissionService } from './chat-permission.service';
+import { RateLimit } from '../common/rate-limit/rate-limit.decorator';
 
 @Controller('chat')
 export class ChatTypingController {
@@ -21,6 +22,7 @@ export class ChatTypingController {
   ) {}
 
   @Post(':chatId/typing')
+  @RateLimit('chatTyping')
   @UseGuards(AccessTokenCookieAuthGuard)
   async typing(
     @Param('chatId') chatId: string,

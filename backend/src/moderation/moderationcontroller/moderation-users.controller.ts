@@ -18,6 +18,7 @@ import { AdminUpdateIdentityService } from '../../admin/admin-update-identity.se
 import { AdminUpdateIdentityDto } from '../../admin/dto/admin-update-identity.dto';
 import { CurrentUser } from '../../auth/decorators/current-user.decorator';
 import type { SessionUser } from '../../auth/services/validate-session.service';
+import { RateLimit } from '../../common/rate-limit/rate-limit.decorator';
 
 @Controller('moderation/users')
 export class ModerationUsersController {
@@ -30,6 +31,7 @@ export class ModerationUsersController {
     AdminRoleGuard,
   )
   @Post(':id/update-identity')
+  @RateLimit('adminUpdateIdentity')
   @HttpCode(HttpStatus.OK)
   async updateIdentity(
     @Param('id') targetUserId: string,

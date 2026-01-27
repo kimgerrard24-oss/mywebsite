@@ -108,6 +108,7 @@ export class ReportsController {
 // POST /api/reports/follow-requests/:id
 // ================================
 @Post('follow-requests/:id')
+@RateLimit('reportFollowRequest')
 @HttpCode(204)
 async reportFollowRequest(
   @Param('id') id: string,

@@ -11,12 +11,14 @@ import { Request } from 'express';
 import { UsersPrivacyService } from './users-privacy.service';
 import { UpdatePostPrivacyDto } from './dto/update-post-privacy.dto';
 import { AccessTokenCookieAuthGuard } from '../../auth/guards/access-token-cookie.guard';
+import { RateLimit } from '../../common/rate-limit/rate-limit.decorator';
 
 @Controller('/api/users/me')
 export class PrivacyController {
   constructor(private readonly service: UsersPrivacyService) {}
 
   @Patch('/post-privacy')
+  @RateLimit('updatePrivacy')
   @UseGuards(AccessTokenCookieAuthGuard)
   async updatePostPrivacy(
     @Req() req: Request & { user: { userId: string } },

@@ -124,6 +124,7 @@ export class PostsController {
 
 
   @Delete(':id')
+  @RateLimit('postDelete')
  @HttpCode(204)
  @UseGuards(AccessTokenCookieAuthGuard)
 
@@ -141,6 +142,7 @@ export class PostsController {
 
    @Put(':id')
  @HttpCode(200)
+ @RateLimit('postUpdate')
  @UseGuards(AccessTokenCookieAuthGuard)
  async updatePost(
   @Param('id', ParsePostIdPipe) postId: string,
@@ -161,6 +163,7 @@ export class PostsController {
   // PATCH /api/posts/:id/visibility
   // =================================================
   @Patch(':id/visibility')
+  @RateLimit('postUpdateVisibility')
   @HttpCode(HttpStatus.OK)
   @UseGuards(AccessTokenCookieAuthGuard)
   async updatePostVisibility(
@@ -209,6 +212,7 @@ export class PostsController {
   }
   
  @Post(':id/like')
+ @RateLimit('postLike')
   @HttpCode(HttpStatus.OK)
   @UseGuards(AccessTokenCookieAuthGuard)
   async likePost(
@@ -225,6 +229,7 @@ export class PostsController {
   
 
   @Delete(':id/unlike')
+  @RateLimit('postLike')
   @HttpCode(HttpStatus.OK)
   @UseGuards(AccessTokenCookieAuthGuard)
   async unlikePost(
@@ -273,6 +278,7 @@ async getPostVisibilityRules(
 }
 
 @Patch(':postId/tags')
+@RateLimit('postUpdateTags')
   @UseGuards(AccessTokenCookieAuthGuard)
   async updatePostTag(
     @Param('postId') _postId: string, // not trusted
@@ -288,6 +294,7 @@ async getPostVisibilityRules(
   }
 
    @Delete(':postId/tags/me')
+   @RateLimit('postUpdateTags')
   @HttpCode(200)
   @UseGuards(AccessTokenCookieAuthGuard)
   async removeMyTag(
@@ -320,6 +327,7 @@ async getPostTags(
 }
 
 @Post(':postId/tags/:tagId/accept')
+@RateLimit('postTagDecision')
 @HttpCode(200)
 @UseGuards(AccessTokenCookieAuthGuard)
 async acceptPostTag(
@@ -336,6 +344,7 @@ async acceptPostTag(
 }
 
 @Post(':postId/tags/:tagId/reject')
+@RateLimit('postTagDecision')
 @HttpCode(200)
 @UseGuards(AccessTokenCookieAuthGuard)
 async rejectPostTag(

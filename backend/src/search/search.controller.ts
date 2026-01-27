@@ -13,6 +13,7 @@ import { SearchPostsQueryDto } from './dto/search-posts.query.dto';
 import { AccessTokenCookieAuthGuard } from '../auth/guards/access-token-cookie.guard';
 import { SearchUsersQueryDto } from './dto/search-users.query.dto';
 import { SearchTagsQueryDto } from './dto/search-tags.query.dto';
+import { RateLimit } from '../common/rate-limit/rate-limit.decorator';
 
 @Controller('search')
 export class SearchController {
@@ -22,6 +23,7 @@ export class SearchController {
    * GET /search/posts?q=
    */
   @Get('posts')
+  @RateLimit('mentionSearch')
   @UseGuards(AccessTokenCookieAuthGuard)
   async searchPosts(
     @Query() query: SearchPostsQueryDto,
@@ -39,6 +41,7 @@ export class SearchController {
    * GET /search/users?q=
    */
   @Get('users')
+  @RateLimit('mentionSearch')
   @UseGuards(AccessTokenCookieAuthGuard)
   async searchUsers(
     @Query() query: SearchUsersQueryDto,
@@ -56,6 +59,7 @@ export class SearchController {
    * GET /search/tags?q=
    */
   @Get('tags')
+  @RateLimit('mentionSearch')
   @UseGuards(AccessTokenCookieAuthGuard)
   async searchTags(
     @Query() query: SearchTagsQueryDto,

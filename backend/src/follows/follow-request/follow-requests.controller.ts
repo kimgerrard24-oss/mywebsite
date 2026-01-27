@@ -18,6 +18,7 @@ import { CreateFollowRequestParams } from './dto/create-follow-request.params';
 import { CancelFollowRequestParams } from './dto/cancel-follow-request.params';
 import { GetIncomingFollowRequestsQuery } from './dto/get-incoming-follow-requests.query';
 import { ApproveFollowRequestParams } from './dto/approve-follow-request.params';
+import { RateLimit } from '../../common/rate-limit/rate-limit.decorator';
 
 @Controller('follows/requests')
 export class FollowRequestsController {
@@ -26,6 +27,7 @@ export class FollowRequestsController {
   ) {}
 
   @Post(':targetUserId')
+  @RateLimit('followRequestCreate')
   @HttpCode(204)
   @UseGuards(AccessTokenCookieAuthGuard)
   async createRequest(
@@ -45,6 +47,7 @@ export class FollowRequestsController {
   // DELETE /api/follows/requests/:targetUserId
   // ================================
   @Delete(':targetUserId')
+  @RateLimit('followRequestCancel')
   @HttpCode(204)
   @UseGuards(AccessTokenCookieAuthGuard)
   async cancelRequest(
@@ -79,6 +82,7 @@ export class FollowRequestsController {
   }
 
   @Post(':requestId/approve')
+  @RateLimit('followRequestApprove')
   @HttpCode(204)
   @UseGuards(AccessTokenCookieAuthGuard)
   async approve(
@@ -102,6 +106,7 @@ export class FollowRequestsController {
   // POST /api/follows/requests/:requestId/reject
   // ================================
   @UseGuards(AccessTokenCookieAuthGuard)
+  @RateLimit('followRequestReject')
   @Post(':requestId/reject')
   @HttpCode(204)
   async reject(

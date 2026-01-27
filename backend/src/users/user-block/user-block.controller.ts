@@ -18,6 +18,7 @@ import { BlockUserParamsDto } from './dto/block-user.params.dto';
 import { UserBlockService } from './user-block.service';
 import { UnblockUserParamsDto } from './dto/unblock-user.params.dto';
 import { GetMyBlocksQueryDto } from './dto/get-my-blocks.query.dto';
+import { RateLimit } from '../../common/rate-limit/rate-limit.decorator';
 
 @Controller('users')
 export class UserBlockController {
@@ -26,6 +27,7 @@ export class UserBlockController {
   ) {}
 
   @Post(':id/block')
+  @RateLimit('userBlock')
   @UseGuards(AccessTokenCookieAuthGuard)
   @HttpCode(HttpStatus.NO_CONTENT)
   async blockUser(
@@ -46,6 +48,7 @@ export class UserBlockController {
 
     // ===== DELETE /users/:id/block =====
   @Delete(':id/block')
+  @RateLimit('userUnblock')
   @UseGuards(AccessTokenCookieAuthGuard)
   @HttpCode(HttpStatus.NO_CONTENT)
   async unblockUser(

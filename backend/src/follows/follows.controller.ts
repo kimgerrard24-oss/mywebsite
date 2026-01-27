@@ -13,12 +13,14 @@ import { FollowsService } from './follows.service';
 import { FollowUserParams } from './dto/follow-user.params';
 import { AccessTokenCookieAuthGuard } from '../auth/guards/access-token-cookie.guard';
 import { UnfollowUserParams } from './dto/unfollow-user.params';
+import { RateLimit } from '../common/rate-limit/rate-limit.decorator';
 
 @Controller('follows')
 export class FollowsController {
   constructor(private readonly service: FollowsService) {}
 
   @Post(':userId')
+  @RateLimit('followUser')
   @HttpCode(204)
   @UseGuards(AccessTokenCookieAuthGuard)
   async followUser(
@@ -34,6 +36,7 @@ export class FollowsController {
   }
 
   @Delete(':userId')
+  @RateLimit('unfollowUser')
   @HttpCode(204)
   @UseGuards(AccessTokenCookieAuthGuard)
   async unfollowUser(
