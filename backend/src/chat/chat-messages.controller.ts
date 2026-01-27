@@ -18,8 +18,10 @@ import { ChatMessagesService } from './chat-messages.service';
 import { EditChatMessageDto } from './dto/edit-chat-message.dto';
 import { DeleteChatMessageDto } from './dto/delete-chat-message.dto';
 import { ChatMessageDto } from './dto/chat-message.dto';
+import { RateLimit } from '../common/rate-limit/rate-limit.decorator';
 
 @Controller('chat')
+@RateLimit('chatMessageEdit')
 @UseGuards(AccessTokenCookieAuthGuard)
 export class ChatMessagesController {
   constructor(
@@ -44,6 +46,7 @@ export class ChatMessagesController {
   }
 
   @Delete(':chatId/messages/:messageId')
+  @RateLimit('commentDelete')
   async deleteMessage(
     @Param('chatId') chatId: string,
     @Param('messageId') messageId: string,

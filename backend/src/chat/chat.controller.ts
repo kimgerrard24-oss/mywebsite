@@ -19,6 +19,7 @@ import { ChatMessageListDto } from './dto/chat-message-list.dto';
 import { CreateChatMessageDto } from './dto/create-chat-message.dto';
 import { ChatMessageDto } from './dto/chat-message.dto';
 import { ChatRealtimeService } from './realtime/chat-realtime.service';
+import { RateLimit } from '../common/rate-limit/rate-limit.decorator';
 
 @Controller('chat')
 export class ChatController {
@@ -74,6 +75,7 @@ export class ChatController {
    */
   @UseGuards(AccessTokenCookieAuthGuard)
   @Get(':chatId/messages')
+  @RateLimit('messagingSend')
   async getMessages(
     @Req() req: Request,
     @Param('chatId') chatId: string,

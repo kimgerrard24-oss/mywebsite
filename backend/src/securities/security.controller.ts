@@ -10,6 +10,7 @@ import {
 import { SecurityService } from './security.service';
 import { AccessTokenCookieAuthGuard } from '../auth/guards/access-token-cookie.guard';
 import type { Request } from 'express';
+import { RateLimit } from '../common/rate-limit/rate-limit.decorator';
 
 @Controller('api/security')
 export class SecurityController {
@@ -30,6 +31,7 @@ export class SecurityController {
    * - DB = source of truth for account lock
    */
   @Post('account-lock')
+  @RateLimit('accountLock')
   @UseGuards(AccessTokenCookieAuthGuard)
   async lockMyAccount(
     @Req()

@@ -64,6 +64,7 @@ export class UsersController {
   ) {}
 
   @Post()
+  @RateLimit('register')
   @UseGuards(AccessTokenCookieAuthGuard)
   async create(
     @Body() dto: CreateUserDto,
@@ -122,6 +123,7 @@ async getMe(
 
 
     @Get('search')
+    @RateLimit('mentionSearch')
 @UseGuards(AccessTokenCookieAuthGuard)
 async searchUsers(
   @Query() query: SearchUsersQueryDto,
@@ -172,6 +174,7 @@ async getPublicProfile(
 
 
   @Put('update')
+  @RateLimit('updateProfile')
   @UseGuards(AccessTokenCookieAuthGuard)
   async updateProfile(
     @Req() req: Request,
@@ -511,6 +514,7 @@ async updateMyTagSettings(
 }
 
 @Get('me/tag-settings')
+@RateLimit('updatePrivacy')
 @UseGuards(AccessTokenCookieAuthGuard)
 async getMyTagSettings(
   @CurrentUser() user: SessionUser,

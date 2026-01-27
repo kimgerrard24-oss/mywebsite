@@ -16,6 +16,7 @@ import { PresignValidateDto } from './dto/presign-validate.dto';
 import { MediaCompleteDto } from './dto/media-complete.dto';
 import { AccessTokenCookieAuthGuard } from '../auth/guards/access-token-cookie.guard';
 import { OptionalAuthGuard } from '../posts/guards/optional-auth.guard';
+import { RateLimit } from '../common/rate-limit/rate-limit.decorator';
 
 @Controller('media')
 export class MediaController {
@@ -27,6 +28,7 @@ export class MediaController {
    * - Returns presigned upload URL
    */
   @Post('presign/validate')
+  @RateLimit('mediaPresign')
   @HttpCode(200)
   @UseGuards(AccessTokenCookieAuthGuard)
   async validatePresign(
@@ -42,6 +44,7 @@ export class MediaController {
   }
 
   @Post('complete')
+  @RateLimit('mediaComplete')
   @HttpCode(201)
   @UseGuards(AccessTokenCookieAuthGuard)
   async completeUpload(

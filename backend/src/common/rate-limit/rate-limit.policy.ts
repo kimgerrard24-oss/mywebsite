@@ -16,31 +16,54 @@ export type RateLimitAction =
   | 'commentUpdate'   
   | 'commentDelete'
   | 'messagingSend'
+  | 'chatMessageEdit'
+  | 'chatTyping'
   | 'oauth'
   | 'logout'
   | 'adminUsersList'
   | 'adminUserBan'
+  | 'adminUpdateIdentity'
   | 'adminDeleteComment'
   | 'adminPostDelete'
+  | 'reportFollowRequest'
   | 'reportCreate'
   | 'reportRead'
   | 'reportReadDetail'
   | 'reportWithdraw'
+  | 'userBlock'
+  | 'userUnblock'
   | 'mentionSearch'
   | 'verifyCredential'
   | 'usernameCheck'
   | 'phoneChangeRequest'
+  | 'followRequestCreate'
+  | 'followRequestCancel'
+  | 'followRequestApprove'
+  | 'followRequestReject'
   | 'phoneChangeConfirm'
   | 'updateUsername'
   | 'emailChangeRequest'
   | 'emailChangeConfirm'
   | 'resendEmailVerify'
   | 'profileExport'
+  | 'postLike'
+  | 'userModerationRead'
+  | 'mediaComplete'
+  | 'mediaPresign'
+  | 'postUpdate'
+  | 'postDelete'
+  | 'postUpdateTags'
+  | 'postTagDecision'
+  | 'postUpdateVisibility'
+  | 'updateProfile'
+  | 'notificationRead'
   | 'requestSetPassword'
   | 'confirmSetPassword'
   | 'requestPasswordReset'  
   | 'confirmPasswordReset'
   | 'emailVerify'
+  | 'messagingSend'
+  | 'accountLock'
   | 'updatePrivacy';
 
 export type RateLimitEscalationConfig = {
@@ -479,12 +502,12 @@ mentionSearch: {
    * - high frequency (typing)
    * - must protect against scraping
    */
-  points: 120,
+  points: 100,
   duration: 60,
   blockDuration: 300,
 
   windowSec: 60,
-  max: 120,               // allow 120 searches / minute
+  max: 100,               // allow 120 searches / minute
   blockDurationSec: 300,  // block 5 minutes
 
   escalation: {
@@ -746,6 +769,365 @@ updatePrivacy: {
     maxViolations: 3,
     windowSec: 86400,     // ภายใน 24 ชม.
     longBlockSec: 21600,  // block 6 ชม.
+  },
+},
+
+postLike: {
+  windowSec: 60,
+  max: 60,
+  blockDurationSec: 120,
+
+  points: 60,
+  duration: 60,
+  blockDuration: 120,
+
+  escalation: {
+    maxViolations: 3,
+    windowSec: 86400,
+    longBlockSec: 86400,
+  },
+},
+
+postUpdate: {
+  windowSec: 60,
+  max: 20,
+  blockDurationSec: 120,
+
+  points: 20,
+  duration: 60,
+  blockDuration: 120,
+
+  escalation: {
+    maxViolations: 3,
+    windowSec: 86400,
+    longBlockSec: 86400,
+  },
+},
+
+postDelete: {
+  windowSec: 60,
+  max: 15,
+  blockDurationSec: 300,
+
+  points: 15,
+  duration: 60,
+  blockDuration: 300,
+
+  escalation: {
+    maxViolations: 3,
+    windowSec: 86400,
+    longBlockSec: 21600,
+  },
+},
+
+postUpdateVisibility: {
+  windowSec: 300,
+  max: 5,
+  blockDurationSec: 900,
+
+  points: 5,
+  duration: 300,
+  blockDuration: 900,
+
+  escalation: {
+    maxViolations: 3,
+    windowSec: 86400,
+    longBlockSec: 21600,
+  },
+},
+
+postUpdateTags: {
+  windowSec: 60,
+  max: 20,
+  blockDurationSec: 300,
+
+  points: 20,
+  duration: 60,
+  blockDuration: 300,
+
+  escalation: {
+    maxViolations: 3,
+    windowSec: 86400,
+    longBlockSec: 21600,
+  },
+},
+
+postTagDecision: {
+  windowSec: 60,
+  max: 30,
+  blockDurationSec: 300,
+
+  points: 30,
+  duration: 60,
+  blockDuration: 300,
+
+  escalation: {
+    maxViolations: 3,
+    windowSec: 86400,
+    longBlockSec: 21600,
+  },
+},
+
+updateProfile: {
+  windowSec: 300,
+  max: 10,
+  blockDurationSec: 900,
+
+  points: 10,
+  duration: 300,
+  blockDuration: 900,
+
+  escalation: {
+    maxViolations: 3,
+    windowSec: 86400,
+    longBlockSec: 21600,
+  },
+},
+
+chatTyping: {
+  windowSec: 10,         // window สั้น
+  max: 30,               // 30 ครั้ง / 10 วิ (≈ 3 ครั้งต่อวิ)
+  blockDurationSec: 60,  // block 1 นาทีถ้าเกิน
+
+  // legacy (ยังใช้ใน service)
+  points: 30,
+  duration: 10,
+  blockDuration: 60,
+
+  escalation: {
+    maxViolations: 5,    // ต้อง abuse ต่อเนื่องจริง ๆ
+    windowSec: 86400,    // ภายใน 24 ชม.
+    longBlockSec: 3600,  // block 1 ชม.
+  },
+},
+
+chatMessageEdit: {
+  windowSec: 60,
+  max: 20,
+  blockDurationSec: 120,
+
+  points: 20,
+  duration: 60,
+  blockDuration: 120,
+
+  escalation: {
+    maxViolations: 3,
+    windowSec: 86400,
+    longBlockSec: 86400,
+  },
+},
+
+followRequestCreate: {
+  windowSec: 3600,        // 1 ชั่วโมง
+  max: 30,                // ขอ follow request ได้ 30 คน / ชม.
+  blockDurationSec: 3600, // block 1 ชม.
+
+  points: 30,
+  duration: 3600,
+  blockDuration: 3600,
+
+  escalation: {
+    maxViolations: 3,
+    windowSec: 86400,     // ภายใน 24 ชม.
+    longBlockSec: 86400,  // block 24 ชม.
+  },
+},
+
+followRequestCancel: {
+  windowSec: 3600,
+  max: 50,
+  blockDurationSec: 1800,
+
+  points: 50,
+  duration: 3600,
+  blockDuration: 1800,
+
+  escalation: {
+    maxViolations: 3,
+    windowSec: 86400,
+    longBlockSec: 21600, // 6 ชม.
+  },
+},
+
+followRequestApprove: {
+  windowSec: 3600,
+  max: 50,
+  blockDurationSec: 1800,
+
+  points: 50,
+  duration: 3600,
+  blockDuration: 1800,
+
+  escalation: {
+    maxViolations: 3,
+    windowSec: 86400,
+    longBlockSec: 21600,
+  },
+},
+
+followRequestReject: {
+  windowSec: 3600,
+  max: 50,
+  blockDurationSec: 1800,
+
+  points: 50,
+  duration: 3600,
+  blockDuration: 1800,
+
+  escalation: {
+    maxViolations: 3,
+    windowSec: 86400,
+    longBlockSec: 21600,
+  },
+},
+
+notificationRead: {
+  windowSec: 60,
+  max: 100,              // mark many as read when scrolling
+  blockDurationSec: 300,
+
+  points: 100,
+  duration: 60,
+  blockDuration: 300,
+
+  escalation: {
+    maxViolations: 3,
+    windowSec: 86400,
+    longBlockSec: 21600, // 6 ชม.
+  },
+},
+
+accountLock: {
+  // low frequency, very sensitive
+  windowSec: 3600,        // 1 ชั่วโมง
+  max: 3,                 // กดได้แค่ 2 ครั้ง / ชม
+  blockDurationSec: 86400, // block 24 ชม
+
+  // legacy
+  points: 3,
+  duration: 3600,
+  blockDuration: 86400,
+
+  escalation: {
+    maxViolations: 2,     // ถ้าโดน block 2 ครั้ง
+    windowSec: 86400,     // ภายใน 24 ชม
+    longBlockSec: 604800, // block 7 วัน
+  },
+},
+
+mediaPresign: {
+  windowSec: 60,
+  max: 10,                // ขอได้ 10 ครั้ง/นาที
+  blockDurationSec: 300, // block 5 นาที
+
+  points: 10,
+  duration: 60,
+  blockDuration: 300,
+
+  escalation: {
+    maxViolations: 3,
+    windowSec: 86400,
+    longBlockSec: 21600, // 6 ชม.
+  },
+},
+
+mediaComplete: {
+  windowSec: 60,
+  max: 15,
+  blockDurationSec: 300,
+
+  points: 15,
+  duration: 60,
+  blockDuration: 300,
+
+  escalation: {
+    maxViolations: 3,
+    windowSec: 86400,
+    longBlockSec: 21600,
+  },
+},
+
+userModerationRead: {
+  windowSec: 60,
+  max: 30,                // เปิดดูได้ 30 ครั้ง/นาที
+  blockDurationSec: 300, // block 5 นาที
+
+  points: 30,
+  duration: 60,
+  blockDuration: 300,
+
+  escalation: {
+    maxViolations: 3,
+    windowSec: 86400,
+    longBlockSec: 21600, // block 6 ชม.
+  },
+},
+
+adminUpdateIdentity: {
+  /**
+   * Admin: update user identity
+   * Extremely sensitive action
+   */
+  windowSec: 60,
+  max: 5,                 // ได้ไม่เกิน 5 ครั้ง/นาที
+  blockDurationSec: 600,  // block 10 นาที
+
+  points: 5,
+  duration: 60,
+  blockDuration: 600,
+
+  escalation: {
+    maxViolations: 3,
+    windowSec: 86400,     // ภายใน 24 ชม.
+    longBlockSec: 21600,  // block 6 ชม.
+  },
+},
+
+reportFollowRequest: {
+  windowSec: 60,
+  max: 10,
+  blockDurationSec: 300,
+
+  points: 10,
+  duration: 60,
+  blockDuration: 300,
+
+  escalation: {
+    maxViolations: 3,
+    windowSec: 86400,
+    longBlockSec: 21600,
+  },
+},
+
+userBlock: {
+  windowSec: 300,        // 5 นาที
+  max: 15,               // block ได้ไม่เกิน 10 คน
+  blockDurationSec: 900, // block 15 นาที
+
+  points: 15,
+  duration: 300,
+  blockDuration: 900,
+
+  escalation: {
+    maxViolations: 3,
+    windowSec: 86400,
+    longBlockSec: 21600, // 6 ชม.
+  },
+},
+
+userUnblock: {
+  windowSec: 300,
+  max: 15,
+  blockDurationSec: 900,
+
+  points: 15,
+  duration: 300,
+  blockDuration: 900,
+
+  escalation: {
+    maxViolations: 3,
+    windowSec: 86400,
+    longBlockSec: 21600,
   },
 },
 

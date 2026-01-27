@@ -410,6 +410,7 @@ const customToken = await this.auth.createFirebaseCustomToken(
  * Social Login Final Step
  * ================================================================ */
  @Public() 
+ @RateLimit('oauth')
  @UseGuards(FirebaseAuthGuard)
 @Post('complete')
   async complete(
