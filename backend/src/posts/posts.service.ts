@@ -1663,7 +1663,7 @@ async acceptPostTag(params: {
       });
 
       // =================================================
-      // 4) Return data for after-commit actions
+      // 4) Prepare domain event (AFTER COMMIT)
       // =================================================
       return {
         event: new PostUserTagUpdatedEvent({
@@ -1673,12 +1673,6 @@ async acceptPostTag(params: {
           taggedUserId: ctx.taggedUserId,
           taggedByUserId: ctx.taggedByUserId,
         }),
-
-        notify: {
-          postId: ctx.postId,
-          taggedByUserId: ctx.taggedByUserId,
-          taggedUserId: ctx.taggedUserId,
-        },
       };
     },
   );
@@ -1695,24 +1689,9 @@ async acceptPostTag(params: {
     // ❗ realtime / fan-out must never break response
   }
 
-  // =================================================
-  // 6) Notify tag creator (AFTER COMMIT ONLY)
-  // =================================================
-  try {
-    await this.notifications.createNotification({
-      userId: txResult.notify.taggedByUserId, // คนที่เป็นคน tag
-      actorUserId: txResult.notify.taggedUserId, // คนที่กด accept
-      type: 'post_tagged_accepted',
-      entityId: txResult.notify.postId,
-      payload: {
-        postId: txResult.notify.postId,
-      },
-    });
-  } catch {
-  }
-
   return { success: true };
 }
+
 
 
 
@@ -1778,12 +1757,6 @@ async rejectPostTag(params: {
           taggedUserId: ctx.taggedUserId,
           taggedByUserId: ctx.taggedByUserId,
         }),
-
-        notify: {
-          postId: ctx.postId,
-          taggedByUserId: ctx.taggedByUserId,
-          taggedUserId: ctx.taggedUserId,
-        },
       };
     },
   );
@@ -1797,26 +1770,12 @@ async rejectPostTag(params: {
       txResult.event,
     );
   } catch {
-  }
-
-  // =================================================
-  // 6) Notify tag creator (AFTER COMMIT ONLY)
-  // =================================================
-  try {
-    await this.notifications.createNotification({
-      userId: txResult.notify.taggedByUserId, // คนที่เป็นคน tag
-      actorUserId: txResult.notify.taggedUserId, // คนที่กด reject
-      type: 'post_tagged_rejected',
-      entityId: txResult.notify.postId,
-      payload: {
-        postId: txResult.notify.postId,
-      },
-    });
-  } catch {
+    // ❗ realtime / fan-out must never break response
   }
 
   return { success: true };
 }
+
 
 
 }
