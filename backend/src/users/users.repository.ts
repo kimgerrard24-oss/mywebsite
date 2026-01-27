@@ -1081,6 +1081,132 @@ async findUserTagSetting(userId: string) {
   });
 }
 
+// =====================================================
+// Search users with TAG permission context (for tagging UX)
+// =====================================================
+async searchUsersWithTagContext(params: {
+  query: string;
+  limit: number;
+  viewerUserId: string;
+}) {
+  const { query, limit, viewerUserId } = params;
+
+  const rows = await this.prisma.user.findMany({
+    where: {
+      AND: [
+        { isDisabled: false },
+
+        // =========================
+        // 🔒 BLOCK FILTER (2-way)
+        // =========================
+        {
+          blockedBy: {
+            none: { blockerId: viewerUserId },
+          },
+        },
+        {
+          blockedUsers: {
+            none: { blockedId: viewerUserId },
+          },
+        },
+
+        // =========================
+        // 🔍 SEARCH QUERY
+        // =========================
+        {
+          OR: [
+            {
+              username: {
+                contains: query,
+                mode: 'insensitive',
+              },
+            },
+            {
+              displayName: {
+                contains: query,
+                mode: 'insensitive',
+              },
+            },
+          ],
+        },
+      ],
+    },
+
+    take: limit,
+    orderBy: { createdAt: 'desc' },
+
+    select: {
+      id: true,
+      username: true,
+      displayName: true,
+      avatarUrl: true,
+      isPrivate: true,
+      isDisabled: true,
+
+      // =========================
+      // relations for policy
+      // =========================
+
+      // viewer -> target
+      followers: {
+        where: { followerId: viewerUserId },
+        select: { followerId: true },
+        take: 1,
+      },
+
+      // target -> viewer
+      following: {
+        where: { followingId: viewerUserId },
+        select: { followingId: true },
+        take: 1,
+      },
+
+      blockedBy: {
+        where: { blockerId: viewerUserId },
+        select: { blockerId: true },
+        take: 1,
+      },
+
+      blockedUsers: {
+        where: { blockedId: viewerUserId },
+        select: { blockedId: true },
+        take: 1,
+      },
+
+      tagSetting: {
+        select: {
+          approvalMode: true,
+          allowFromAnyone: true,
+          allowFromFollowers: true,
+          allowFromFollowing: true,
+          hideUntilApproved: true,
+        },
+      },
+    },
+  });
+
+  return rows.map((u) => ({
+    id: u.id,
+    username: u.username,
+    displayName: u.displayName,
+    avatarUrl: u.avatarUrl,
+    isPrivate: u.isPrivate,
+    isDisabled: u.isDisabled,
+
+    // ===== relations =====
+    isFollower: u.followers.length > 0,
+    isFollowing: u.following.length > 0,
+
+    isBlockedByViewer: u.blockedBy.length > 0,
+    hasBlockedViewer: u.blockedUsers.length > 0,
+    isBlockedEitherWay:
+      u.blockedBy.length > 0 || u.blockedUsers.length > 0,
+
+    tagSetting: u.tagSetting,
+  }));
+}
+
+
 }
 
 

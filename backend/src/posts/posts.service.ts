@@ -128,7 +128,7 @@ async createPost(params: {
    * DB TRANSACTION (AUTHORITY)
    * =================================================
    */
-  const post = await this.prisma.$transaction(
+  const txResult = await this.prisma.$transaction(
     async (tx) => {
       // -------------------------
       // 1) Create post
@@ -209,7 +209,6 @@ async createPost(params: {
             skipDuplicates: true,
           });
 
-          // ✅ ensure Tag.postCount consistency
           await tx.tag.updateMany({
             where: {
               id: { in: tagRows.map((t) => t.id) },
@@ -224,11 +223,15 @@ async createPost(params: {
       }
 
       // -------------------------
-      // 5) Friend Tags (fail-soft, policy-based)
+      // 5) Friend Tags (policy + UX feedback)
       // -------------------------
+      const failedTags: Array<{
+        userId: string;
+        reason: string;
+      }> = [];
+
       if (taggedUserIds.length > 0) {
         try {
-          // sanitize: remove self + duplicates
           const uniqueTaggedUserIds = Array.from(
             new Set(
               taggedUserIds.filter(
@@ -238,7 +241,6 @@ async createPost(params: {
           );
 
           if (uniqueTaggedUserIds.length > 0) {
-            // DB authority: load all contexts in one query
             const contexts =
               await this.repo
                 .loadCreatePostUserTagContexts({
@@ -256,26 +258,31 @@ async createPost(params: {
 
             for (const ctx of contexts) {
               const decision =
-  PostUserTagCreatePolicy.decideCreateTag({
-    actorUserId: authorId,
-    taggedUserId: ctx.taggedUserId,
-    isBlockedEitherWay: ctx.isBlockedEitherWay,
-    isFollower: ctx.isFollower,
-    isFollowing: ctx.isFollowing,
-    isPrivateAccount: ctx.isPrivateAccount,
-    setting: ctx.setting,
-  });
+                PostUserTagCreatePolicy.decideCreateTag({
+                  actorUserId: authorId,
+                  taggedUserId: ctx.taggedUserId,
+                  isBlockedEitherWay: ctx.isBlockedEitherWay,
+                  isFollower: ctx.isFollower,
+                  isFollowing: ctx.isFollowing,
+                  isPrivateAccount: ctx.isPrivateAccount,
+                  setting: ctx.setting,
+                });
 
-
-              if (!decision.allowed) continue;
+              if (!decision.allowed) {
+                failedTags.push({
+                  userId: ctx.taggedUserId,
+                  reason:
+                    decision.reason ??
+                    'TAG_NOT_ALLOWED',
+                });
+                continue;
+              }
 
               creates.push({
                 postId: createdPost.id,
                 taggedUserId: ctx.taggedUserId,
                 taggedByUserId: authorId,
-                status: decision.autoAccept
-                  ? PostUserTagStatus.ACCEPTED
-                  : PostUserTagStatus.PENDING,
+                status: PostUserTagStatus.PENDING, // always require approval
               });
             }
 
@@ -291,9 +298,15 @@ async createPost(params: {
         }
       }
 
-      return createdPost;
+      return {
+        post: createdPost,
+        failedTags,
+      };
     },
   );
+
+  const post = txResult.post;
+  const failedTags = txResult.failedTags;
 
   /**
    * =================================================
@@ -325,27 +338,20 @@ async createPost(params: {
 
   /**
    * =================================================
-   * NOTIFICATION (LOGICAL EVENT ONLY)
-   * Notification domain handles:
-   * DB → Redis → Realtime
+   * NOTIFICATION
+   * - notify only PENDING tag requests
+   * - no accepted / rejected notify (UX decision)
    * =================================================
    */
   if (taggedUserIds.length > 0) {
     try {
-      // DB authority: notify only actual created tags
       const tags = await this.prisma.postUserTag.findMany({
         where: {
           postId: post.id,
-          status: {
-            in: [
-              PostUserTagStatus.PENDING,
-              PostUserTagStatus.ACCEPTED,
-            ],
-          },
+          status: PostUserTagStatus.PENDING,
         },
         select: {
           taggedUserId: true,
-          status: true,
         },
       });
 
@@ -353,10 +359,7 @@ async createPost(params: {
         await this.notifications.createNotification({
           userId: t.taggedUserId,
           actorUserId: authorId,
-          type:
-            t.status === PostUserTagStatus.ACCEPTED
-              ? 'post_tagged_auto_accepted'
-              : 'post_tagged_request',
+          type: 'post_tagged_request',
           entityId: post.id,
           payload: {
             postId: post.id,
@@ -371,8 +374,10 @@ async createPost(params: {
   return {
     id: post.id,
     createdAt: post.createdAt,
+    failedTags, // 🔥 frontend ใช้แสดงเหตุผลว่าทำไม tag ไม่ได้
   };
 }
+
 
  
 async getPublicFeed(params: {

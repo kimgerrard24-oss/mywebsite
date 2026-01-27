@@ -48,6 +48,7 @@ import { MyTaggedPostFeedItemDto } from './dto/my-tagged-post-feed-item.dto';
 import { UserTagSettingsUpdatePolicy } from './policies/user-tag-settings-update.policy';
 import { TagSettingsResponseDto } from './dto/tag-settings.response.dto';
 import { UserTagSettingsAudit } from './audit/user-tag-settings.audit';
+import { PostUserTagCreatePolicy } from '../posts/policy/post-user-tag-create.policy';
 
 @Injectable()
 export class UsersService {
@@ -457,30 +458,71 @@ async updateAvatar(params: {
  }
 
 
-  async searchUsers(params: {
+ async searchUsers(params: {
   query: string;
   limit: number;
   viewerUserId: string;
 }): Promise<PublicUserSearchDto[]> {
   const { query, limit, viewerUserId } = params;
 
-  // ✅ ให้ repo กรอง block ตั้งแต่ระดับ DB
-  const users = await this.repo.searchUsers({
-    query,
-    limit,
-    viewerUserId, // ✅ สำคัญมาก
-  });
+  // =================================================
+  // 1) Load users with tag permission context (DB authority)
+  // =================================================
+  const users =
+    await this.repo.searchUsersWithTagContext({
+      query,
+      limit,
+      viewerUserId,
+    });
 
-  // ✅ policy layer ยังเก็บไว้ได้ (defense-in-depth)
-  const visibleUsers = users.filter(user =>
+  // =================================================
+  // 2) Visibility policy (defense-in-depth)
+  // =================================================
+  const visibleUsers = users.filter((user) =>
     UserSearchPolicy.canView({
-      target: user,
+      target: {
+        isDisabled: user.isDisabled,
+        isBlockedByViewer: user.isBlockedByViewer,
+        hasBlockedViewer: user.hasBlockedViewer,
+      },
       viewerUserId,
     }),
   );
 
-  return visibleUsers.map(PublicUserSearchDto.fromEntity);
- }
+  // =================================================
+  // 3) Tag permission hint (UX only)
+  // =================================================
+  return visibleUsers.map((user) => {
+    const decision = PostUserTagCreatePolicy.decideCreateTag({
+      actorUserId: viewerUserId,
+      taggedUserId: user.id,
+
+      // relations
+      isBlockedEitherWay: user.isBlockedEitherWay,
+      isFollower: user.isFollower,     // viewer -> target
+      isFollowing: user.isFollowing,   // target -> viewer
+
+      // privacy
+      isPrivateAccount: user.isPrivate,
+
+      // tag setting
+      setting: user.tagSetting,
+    });
+
+    return PublicUserSearchDto.fromEntity({
+      id: user.id,
+      username: user.username,
+      displayName: user.displayName,
+      avatarUrl: user.avatarUrl,
+
+      // 🔥 UX hint
+      canBeTagged: decision.allowed,
+      tagBlockReason: decision.reason,
+    });
+  });
+}
+
+
 
  async verifyCredential(
   userId: string,

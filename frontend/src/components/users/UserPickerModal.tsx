@@ -11,7 +11,16 @@ type UserItem = {
   username: string;
   displayName: string | null;
   avatarUrl: string | null;
+
+  // 🔥 tag permission hint
+  canBeTagged?: boolean;
+  tagBlockReason?:
+    | "FOLLOWERS_ONLY"
+    | "FOLLOWING_ONLY"
+    | "TAG_DISABLED"
+    | "BLOCKED";
 };
+
 
 type Props = {
   title: string;
@@ -35,7 +44,7 @@ export default function UserPickerModal({
 
   const inputRef = useRef<HTMLInputElement | null>(null);
   const abortRef = useRef<AbortController | null>(null);
-
+  
   // =========================
   // Autofocus
   // =========================
@@ -111,10 +120,12 @@ export default function UserPickerModal({
   setSelected((prev) => {
     const next = new Set(prev);
 
-    if (next.has(id)) {
-      next.delete(id);
-      return next;
-    }
+    const user = results.find((u) => u.id === id);
+
+if (user?.canBeTagged === false) {
+  return prev; // ❌ blocked by policy
+}
+
 
     if (max && next.size >= max) {
       return prev; // ❌ block selecting more
@@ -135,6 +146,21 @@ export default function UserPickerModal({
   onConfirm(finalIds);
 }
 
+
+function getTagBlockMessage(reason?: UserItem["tagBlockReason"]) {
+  switch (reason) {
+    case "FOLLOWERS_ONLY":
+      return "แท็กได้เฉพาะผู้ติดตาม";
+    case "FOLLOWING_ONLY":
+      return "แท็กได้เฉพาะคนที่เขาติดตาม";
+    case "TAG_DISABLED":
+      return "ไม่อนุญาตให้แท็ก";
+    case "BLOCKED":
+      return "ไม่สามารถแท็กผู้ใช้นี้ได้";
+    default:
+      return null;
+  }
+}
 
   // =========================
   // Render
@@ -203,18 +229,23 @@ export default function UserPickerModal({
           <ul className="flex flex-col gap-1">
             {results.map((u) => {
               const checked = selected.has(u.id);
+const disabled = u.canBeTagged === false;
+const reasonMsg = getTagBlockMessage(u.tagBlockReason);
+
 
               return (
                 <li key={u.id}>
                   <button
                     type="button"
+                    aria-disabled={disabled}
                     onClick={() => toggle(u.id)}
                     className={clsx(
-                      'w-full flex items-center gap-3 rounded-lg px-3 py-2 text-left',
-                      checked
-                        ? 'bg-blue-50 border border-blue-400'
-                        : 'hover:bg-gray-50 border border-transparent',
-                    )}
+  'w-full flex items-center gap-3 rounded-lg px-3 py-2 text-left border',
+  checked && 'bg-blue-50 border-blue-400',
+  !checked && !disabled && 'hover:bg-gray-50 border-transparent',
+  disabled && 'opacity-50 cursor-not-allowed border-transparent',
+)}
+
                   >
                     {/* Avatar */}
                     <div className="h-8 w-8 overflow-hidden rounded-full bg-gray-200">
@@ -233,8 +264,15 @@ export default function UserPickerModal({
                         {u.displayName || u.username}
                       </span>
                       <span className="text-xs text-gray-500">
-                        @{u.username}
-                      </span>
+  @{u.username}
+</span>
+
+{disabled && reasonMsg && (
+  <span className="text-[10px] text-red-500">
+    {reasonMsg}
+  </span>
+)}
+
                     </div>
 
                     {/* Check */}

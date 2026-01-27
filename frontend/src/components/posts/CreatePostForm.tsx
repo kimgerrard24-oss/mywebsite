@@ -93,20 +93,44 @@ export default function CreatePostForm() {
       }
 
       // create post (UNCHANGED)
-      await createPost({
-        content,
-        mediaIds: mediaIds.length > 0 ? mediaIds : undefined,
-        visibility: visibility.visibility,
-        includeUserIds: visibility.includeUserIds,
-        excludeUserIds: visibility.excludeUserIds,
-        taggedUserIds,
-      });
+      const res = await createPost({
+  content,
+  mediaIds: mediaIds.length > 0 ? mediaIds : undefined,
+  visibility: visibility.visibility,
+  includeUserIds: visibility.includeUserIds,
+  excludeUserIds: visibility.excludeUserIds,
+  taggedUserIds,
+});
+
+if (res.failedTags && res.failedTags.length > 0) {
+  const r = res.failedTags[0].reason;
+
+  let msg = "Some people cannot be tagged";
+
+  switch (r) {
+    case "FOLLOWERS_ONLY":
+      msg = "User allows tagging from followers only";
+      break;
+    case "FOLLOWING_ONLY":
+      msg = "User allows tagging only from people they follow";
+      break;
+    case "TAG_DISABLED":
+      msg = "User has disabled tagging";
+      break;
+    case "BLOCKED":
+      msg = "You cannot tag this user";
+      break;
+  }
+
+  setError(msg);
+}
+
+
       setTaggedUserIds([]);
       setContent('');
       setFiles([]);
       setShowTagPicker(false);
 
-      // ✅ FIX: refresh feed หลังโพสต์สำเร็จ
       router.replace(router.asPath);
     } catch (err) {
       console.error(err);

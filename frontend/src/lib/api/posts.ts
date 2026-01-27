@@ -131,27 +131,38 @@ export async function getUserPosts(params: {
   return res.json();
  }
 
- export async function createPost(
+ 
+export async function createPost(
   payload: CreatePostPayload,
- ): Promise<CreatePostResponse> {
+): Promise<CreatePostResponse> {
   const res = await api.post<CreatePostResponse>(
     "/posts",
     payload,
     {
-      withCredentials: true, // cookie-based auth (production)
+      withCredentials: true,
     },
   );
 
-  return res.data as {
-    id: string;
-    createdAt: string;
-  };
- }
+  return res.data; // ❗ do NOT narrow type
+}
 
  export type CreatePostResponse = {
   id: string;
   createdAt: string;
- };
+
+  /**
+   * users that cannot be tagged due to privacy / settings
+   */
+  failedTags?: {
+    userId: string;
+    reason:
+      | "NOT_ALLOWED"
+      | "BLOCKED"
+      | "FOLLOWERS_ONLY"
+      | "FOLLOWING_ONLY"
+      | string;
+  }[];
+};
 
  export async function getPublicFeed(params: {
   cookie: string;
