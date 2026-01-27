@@ -75,6 +75,7 @@ if (targetType === 'CHAT_MESSAGE')
       case 'post_tagged_auto_accepted':
       case 'post_tagged_request':
       case 'post_tagged_rejected':
+      case 'post_tagged_accepted':
         return item.payload?.postId
           ? `/posts/${item.payload.postId}`
           : item.entityId
@@ -158,6 +159,9 @@ if (targetType === 'CHAT_MESSAGE')
       case 'post_tagged_rejected':
          return 'rejected your tag in a post'; 
 
+      case 'post_tagged_accepted':
+         return 'accepted your tag in a post';
+   
       case 'follow':
         return 'started following you';
 
@@ -195,6 +199,7 @@ if (targetType === 'CHAT_MESSAGE')
 
     const tagBadge = (() => {
     switch (item.type) {
+      case 'post_tagged_accepted':
       case 'post_tagged_auto_accepted':
         return {
           text: 'Accepted',

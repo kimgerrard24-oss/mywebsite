@@ -81,4 +81,8 @@ export type NotificationPayloadMap = {
     postId: string;
   };
   
+  post_tagged_accepted: {
+    postId: string;
+  };
+
 };

@@ -13,6 +13,7 @@ export type NotificationType =
   | 'post_tagged_auto_accepted'
   | 'post_tagged_request'
   | 'post_tagged_rejected'
+  | 'post_tagged_accepted'
   | string; 
 /**
  * Payload map by notification type (type-safe where known)
@@ -58,6 +59,7 @@ export type NotificationPayloadMap = {
   post_tagged_auto_accepted: { postId: string };
   post_tagged_request: { postId: string };
   post_tagged_rejected: { postId: string };
+  post_tagged_accepted: { postId: string };
 
   appeal_resolved: {
     appealId: string;
@@ -118,6 +120,7 @@ export type NotificationItem =
   | BaseNotificationItem<'post_tagged_auto_accepted'>
   | BaseNotificationItem<'post_tagged_request'>
   | BaseNotificationItem<'post_tagged_rejected'>
+  | BaseNotificationItem<'post_tagged_accepted'>
   | BaseNotificationItem<'appeal_resolved'>
   | BaseNotificationItem<string>; 
 

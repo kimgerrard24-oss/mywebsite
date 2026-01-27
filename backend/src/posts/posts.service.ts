@@ -1702,7 +1702,7 @@ async acceptPostTag(params: {
     await this.notifications.createNotification({
       userId: txResult.notify.taggedByUserId, // คนที่เป็นคน tag
       actorUserId: txResult.notify.taggedUserId, // คนที่กด accept
-      type: 'post_tagged_auto_accepted',
+      type: 'post_tagged_accepted',
       entityId: txResult.notify.postId,
       payload: {
         postId: txResult.notify.postId,
