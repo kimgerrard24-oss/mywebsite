@@ -1619,69 +1619,101 @@ async acceptPostTag(params: {
 }) {
   const { postId, tagId, actorUserId } = params;
 
-  let event: PostUserTagUpdatedEvent | null = null;
+  const txResult = await this.prisma.$transaction(
+    async (tx) => {
+      // =================================================
+      // 1) Load context (DB authority)
+      // =================================================
+      const ctx = await this.repo.loadAcceptTagContext({
+        postId,
+        tagId,
+        actorUserId,
+        tx,
+      });
 
-  await this.prisma.$transaction(async (tx) => {
-    // =================================================
-    // 1) Load context (DB authority)
-    // =================================================
-    const ctx = await this.repo.loadAcceptTagContext({
-      postId,
-      tagId,
-      actorUserId,
-      tx,
-    });
+      if (!ctx) {
+        throw new NotFoundException('Tag not found');
+      }
 
-    if (!ctx) {
-      throw new NotFoundException('Tag not found');
-    }
+      // =================================================
+      // 2) Policy decision (FINAL)
+      // =================================================
+      const decision = PostUserTagAcceptPolicy.decide({
+        actorUserId,
+        taggedUserId: ctx.taggedUserId,
+        currentStatus: ctx.status,
+        isBlockedEitherWay: ctx.isBlockedEitherWay,
+      });
 
-    // =================================================
-    // 2) Policy decision (FINAL)
-    // =================================================
-    const decision = PostUserTagAcceptPolicy.decide({
-      actorUserId,
-      taggedUserId: ctx.taggedUserId,
-      currentStatus: ctx.status,
-      isBlockedEitherWay: ctx.isBlockedEitherWay,
-    });
+      if (!decision.allowed) {
+        throw new ForbiddenException(
+          'Not allowed to accept this tag',
+        );
+      }
 
-    if (!decision.allowed) {
-      throw new ForbiddenException('Not allowed to accept this tag');
-    }
+      // =================================================
+      // 3) Update status (DB authority)
+      // =================================================
+      await tx.postUserTag.update({
+        where: { id: ctx.tagId },
+        data: {
+          status: 'ACCEPTED',
+          respondedAt: new Date(),
+        },
+      });
 
-    // =================================================
-    // 3) Update status
-    // =================================================
-    await tx.postUserTag.update({
-      where: { id: ctx.tagId },
-      data: {
-        status: 'ACCEPTED',
-        respondedAt: new Date(),
+      // =================================================
+      // 4) Return data for after-commit actions
+      // =================================================
+      return {
+        event: new PostUserTagUpdatedEvent({
+          postId: ctx.postId,
+          tagId: ctx.tagId,
+          status: 'ACCEPTED',
+          taggedUserId: ctx.taggedUserId,
+          taggedByUserId: ctx.taggedByUserId,
+        }),
+
+        notify: {
+          postId: ctx.postId,
+          taggedByUserId: ctx.taggedByUserId,
+          taggedUserId: ctx.taggedUserId,
+        },
+      };
+    },
+  );
+
+  // =================================================
+  // 5) Domain Event (after commit only)
+  // =================================================
+  try {
+    this.eventEmitter.emit(
+      'post.tag.updated',
+      txResult.event,
+    );
+  } catch {
+    // ❗ realtime / fan-out must never break response
+  }
+
+  // =================================================
+  // 6) Notify tag creator (AFTER COMMIT ONLY)
+  // =================================================
+  try {
+    await this.notifications.createNotification({
+      userId: txResult.notify.taggedByUserId, // คนที่เป็นคน tag
+      actorUserId: txResult.notify.taggedUserId, // คนที่กด accept
+      type: 'post_tagged_auto_accepted',
+      entityId: txResult.notify.postId,
+      payload: {
+        postId: txResult.notify.postId,
       },
     });
-
-    // prepare event after commit
-    event = new PostUserTagUpdatedEvent({
-      postId: ctx.postId,
-      tagId: ctx.tagId,
-      status: 'ACCEPTED',
-      taggedUserId: ctx.taggedUserId,
-      taggedByUserId: ctx.taggedByUserId,
-    });
-  });
-
-  // =================================================
-  // 4) Domain Event (after commit only)
-  // =================================================
-  if (event) {
-    try {
-      this.eventEmitter.emit('post.tag.updated', event);
-    } catch {}
+  } catch {
   }
 
   return { success: true };
 }
+
 
 
 async rejectPostTag(params: {
@@ -1691,71 +1723,100 @@ async rejectPostTag(params: {
 }) {
   const { postId, tagId, actorUserId } = params;
 
-  let event: PostUserTagUpdatedEvent | null = null;
+  const txResult = await this.prisma.$transaction(
+    async (tx) => {
+      // =================================================
+      // 1) Load context (DB authority)
+      // =================================================
+      const ctx = await this.repo.loadRejectTagContext({
+        postId,
+        tagId,
+        actorUserId,
+        tx,
+      });
 
-  await this.prisma.$transaction(async (tx) => {
-    // =================================================
-    // 1) Load context (DB authority)
-    // =================================================
-    const ctx = await this.repo.loadRejectTagContext({
-      postId,
-      tagId,
-      actorUserId,
-      tx,
-    });
+      if (!ctx) {
+        throw new NotFoundException('Tag not found');
+      }
 
-    if (!ctx) {
-      throw new NotFoundException('Tag not found');
-    }
+      // =================================================
+      // 2) Policy decision (FINAL)
+      // =================================================
+      const decision = PostUserTagRejectPolicy.decide({
+        actorUserId,
+        taggedUserId: ctx.taggedUserId,
+        postAuthorId: ctx.postAuthorId,
+        currentStatus: ctx.status,
+        isBlockedEitherWay: ctx.isBlockedEitherWay,
+      });
 
-    // =================================================
-    // 2) Policy decision (FINAL)
-    // =================================================
-    const decision = PostUserTagRejectPolicy.decide({
-      actorUserId,
-      taggedUserId: ctx.taggedUserId,
-      postAuthorId: ctx.postAuthorId,
-      currentStatus: ctx.status,
-      isBlockedEitherWay: ctx.isBlockedEitherWay,
-    });
+      if (!decision.allowed) {
+        throw new ForbiddenException(
+          'Not allowed to reject this tag',
+        );
+      }
 
-    if (!decision.allowed) {
-      throw new ForbiddenException('Not allowed to reject this tag');
-    }
+      // =================================================
+      // 3) Update status (DB authority)
+      // =================================================
+      await tx.postUserTag.update({
+        where: { id: ctx.tagId },
+        data: {
+          status: 'REJECTED',
+          respondedAt: new Date(),
+        },
+      });
 
-    // =================================================
-    // 3) Update status
-    // =================================================
-    await tx.postUserTag.update({
-      where: { id: ctx.tagId },
-      data: {
-        status: 'REJECTED',
-        respondedAt: new Date(),
+      // =================================================
+      // 4) Return data for after-commit actions
+      // =================================================
+      return {
+        event: new PostUserTagUpdatedEvent({
+          postId: ctx.postId,
+          tagId: ctx.tagId,
+          status: 'REJECTED',
+          taggedUserId: ctx.taggedUserId,
+          taggedByUserId: ctx.taggedByUserId,
+        }),
+
+        notify: {
+          postId: ctx.postId,
+          taggedByUserId: ctx.taggedByUserId,
+          taggedUserId: ctx.taggedUserId,
+        },
+      };
+    },
+  );
+
+  // =================================================
+  // 5) Domain Event (after commit only)
+  // =================================================
+  try {
+    this.eventEmitter.emit(
+      'post.tag.updated',
+      txResult.event,
+    );
+  } catch {
+  }
+
+  // =================================================
+  // 6) Notify tag creator (AFTER COMMIT ONLY)
+  // =================================================
+  try {
+    await this.notifications.createNotification({
+      userId: txResult.notify.taggedByUserId, // คนที่เป็นคน tag
+      actorUserId: txResult.notify.taggedUserId, // คนที่กด reject
+      type: 'post_tagged_rejected',
+      entityId: txResult.notify.postId,
+      payload: {
+        postId: txResult.notify.postId,
       },
     });
-
-    // prepare event AFTER COMMIT
-    event = new PostUserTagUpdatedEvent({
-      postId: ctx.postId,
-      tagId: ctx.tagId,
-      status: 'REJECTED',
-      taggedUserId: ctx.taggedUserId,
-      taggedByUserId: ctx.taggedByUserId,
-    });
-  });
-
-  // =================================================
-  // 4) Domain Event (after commit only)
-  // =================================================
-  if (event) {
-    try {
-      this.eventEmitter.emit('post.tag.updated', event);
-    } catch {
-      // ❗ realtime / fan-out must never break response
-    }
+  } catch {
   }
 
   return { success: true };
 }
+
 
 }
