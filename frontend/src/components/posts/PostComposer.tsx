@@ -140,14 +140,39 @@ export default function PostComposer({
       }
 
       // 2️⃣ create post
-      await submit({
-        content,
-        mediaIds: mediaIds.length > 0 ? mediaIds : undefined,
-        visibility: visibility.visibility,
-        includeUserIds: visibility.includeUserIds,
-        excludeUserIds: visibility.excludeUserIds,
-        taggedUserIds,
-      });
+      const res = await submit({
+  content,
+  mediaIds: mediaIds.length > 0 ? mediaIds : undefined,
+  visibility: visibility.visibility,
+  includeUserIds: visibility.includeUserIds,
+  excludeUserIds: visibility.excludeUserIds,
+  taggedUserIds,
+});
+
+if (res?.failedTags?.length) {
+  const r = res.failedTags[0].reason;
+
+  let msg = "ไม่สามารถแท็กผู้ใช้บางคนได้";
+
+  switch (r) {
+    case "FOLLOWERS_ONLY":
+      msg = "ผู้ใช้อนุญาตให้แท็กเฉพาะผู้ติดตาม";
+      break;
+    case "FOLLOWING_ONLY":
+      msg = "ผู้ใช้อนุญาตให้แท็กเฉพาะคนที่เขาติดตาม";
+      break;
+    case "TAG_DISABLED":
+      msg = "ผู้ใช้ไม่อนุญาตให้แท็ก";
+      break;
+    case "BLOCKED":
+      msg = "ไม่สามารถแท็กผู้ใช้นี้ได้";
+      break;
+  }
+
+  setError(msg);
+}
+
+
        
       // reset state
       setContent("");

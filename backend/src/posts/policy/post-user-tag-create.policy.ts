@@ -2,6 +2,12 @@
 
 import { UserTagApprovalMode } from '@prisma/client';
 
+export type PostUserTagCreateDecisionReason =
+  | 'BLOCKED'
+  | 'TAG_DISABLED'
+  | 'FOLLOWERS_ONLY'
+  | 'FOLLOWING_ONLY';
+
 export class PostUserTagCreatePolicy {
   static decideCreateTag(params: {
     actorUserId: string;
@@ -29,6 +35,12 @@ export class PostUserTagCreatePolicy {
   }): {
     allowed: boolean;
     autoAccept: boolean;
+
+    /**
+     * ❗ UX reason (for frontend feedback only)
+     * backend authority still based on allowed flag
+     */
+    reason?: PostUserTagCreateDecisionReason;
   } {
     const {
       isBlockedEitherWay,
@@ -41,7 +53,11 @@ export class PostUserTagCreatePolicy {
     // 1) HARD BLOCK (absolute deny)
     // =================================================
     if (isBlockedEitherWay) {
-      return { allowed: false, autoAccept: false };
+      return {
+        allowed: false,
+        autoAccept: false,
+        reason: 'BLOCKED',
+      };
     }
 
     // =================================================
@@ -61,6 +77,7 @@ export class PostUserTagCreatePolicy {
     // 3) SETTING-BASED PERMISSION (who can tag)
     // =================================================
     let allowed = false;
+    let denyReason: PostUserTagCreateDecisionReason | undefined;
 
     if (setting.allowFromAnyone) {
       allowed = true;
@@ -70,10 +87,29 @@ export class PostUserTagCreatePolicy {
     } else if (setting.allowFromFollowing && isFollowing) {
       // target follows actor
       allowed = true;
+    } else {
+      // ❗ not allowed by setting
+      if (
+        !setting.allowFromAnyone &&
+        !setting.allowFromFollowers &&
+        !setting.allowFromFollowing
+      ) {
+        denyReason = 'TAG_DISABLED';
+      } else if (setting.allowFromFollowers && !isFollower) {
+        denyReason = 'FOLLOWERS_ONLY';
+      } else if (setting.allowFromFollowing && !isFollowing) {
+        denyReason = 'FOLLOWING_ONLY';
+      } else {
+        denyReason = 'TAG_DISABLED';
+      }
     }
 
     if (!allowed) {
-      return { allowed: false, autoAccept: false };
+      return {
+        allowed: false,
+        autoAccept: false,
+        reason: denyReason,
+      };
     }
 
     // =================================================
@@ -89,4 +125,3 @@ export class PostUserTagCreatePolicy {
     };
   }
 }
-
