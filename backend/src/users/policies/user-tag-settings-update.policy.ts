@@ -19,10 +19,20 @@ export class UserTagSettingsUpdatePolicy {
     }
   }
 
+  /**
+   * =================================================
+   * Sanitize & validate DTO
+   * - DO NOT map to DB fields here
+   * - Repository is the only place that maps API → DB
+   * =================================================
+   */
   static sanitize(dto: {
     allowTagFrom?: TagAllowScope;
     requireApproval?: boolean;
-  }) {
+  }): {
+    allowTagFrom?: TagAllowScope;
+    requireApproval?: boolean;
+  } {
     if (
       dto.allowTagFrom === undefined &&
       dto.requireApproval === undefined
@@ -32,7 +42,38 @@ export class UserTagSettingsUpdatePolicy {
       );
     }
 
-    return dto;
+    const update: {
+      allowTagFrom?: TagAllowScope;
+      requireApproval?: boolean;
+    } = {};
+
+    // =========================
+    // TAG SCOPE (pass-through)
+    // =========================
+    if (dto.allowTagFrom !== undefined) {
+      switch (dto.allowTagFrom) {
+        case 'ANYONE':
+        case 'FOLLOWERS':
+        case 'NO_ONE':
+          update.allowTagFrom = dto.allowTagFrom;
+          break;
+
+        default:
+          throw new BadRequestException(
+            'Invalid allowTagFrom value',
+          );
+      }
+    }
+
+    // =========================
+    // APPROVAL MODE (pass-through)
+    // =========================
+    if (dto.requireApproval !== undefined) {
+      update.requireApproval = dto.requireApproval;
+    }
+
+    return update;
   }
 }
+
 

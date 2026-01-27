@@ -986,37 +986,38 @@ async upsertUserTagSetting(params: {
 }) {
   const { userId, allowTagFrom, requireApproval } = params;
 
-  // -------------------------------
-  // Map API scope → DB fields
-  // -------------------------------
   let allowFromAnyone: boolean | undefined;
   let allowFromFollowers: boolean | undefined;
   let allowFromFollowing: boolean | undefined;
-  let approvalMode: 'AUTO' | 'MANUAL' | 'DISABLED' | undefined;
+  let approvalMode: 'AUTO' | 'MANUAL' | undefined;
   let hideUntilApproved: boolean | undefined;
 
+  // -------------------------------
+  // Map API scope → DB fields
+  // -------------------------------
   if (allowTagFrom !== undefined) {
     if (allowTagFrom === 'ANYONE') {
       allowFromAnyone = true;
-      allowFromFollowers = true;
-      allowFromFollowing = true;
-      approvalMode = 'AUTO';
+      allowFromFollowers = false;
+      allowFromFollowing = false;
     }
 
     if (allowTagFrom === 'FOLLOWERS') {
       allowFromAnyone = false;
       allowFromFollowers = true;
-      allowFromFollowing = true;
+      allowFromFollowing = false;
     }
 
     if (allowTagFrom === 'NO_ONE') {
-      approvalMode = 'DISABLED';
       allowFromAnyone = false;
       allowFromFollowers = false;
       allowFromFollowing = false;
     }
   }
 
+  // -------------------------------
+  // Approval mode
+  // -------------------------------
   if (requireApproval !== undefined) {
     if (requireApproval === true) {
       approvalMode = 'MANUAL';
@@ -1032,37 +1033,21 @@ async upsertUserTagSetting(params: {
 
     create: {
       userId,
-
       approvalMode: approvalMode ?? 'MANUAL',
 
       allowFromAnyone: allowFromAnyone ?? false,
       allowFromFollowers: allowFromFollowers ?? true,
       allowFromFollowing: allowFromFollowing ?? true,
 
-      hideUntilApproved:
-        hideUntilApproved ?? true,
+      hideUntilApproved: hideUntilApproved ?? true,
     },
 
     update: {
-      ...(approvalMode !== undefined && {
-        approvalMode,
-      }),
-
-      ...(allowFromAnyone !== undefined && {
-        allowFromAnyone,
-      }),
-
-      ...(allowFromFollowers !== undefined && {
-        allowFromFollowers,
-      }),
-
-      ...(allowFromFollowing !== undefined && {
-        allowFromFollowing,
-      }),
-
-      ...(hideUntilApproved !== undefined && {
-        hideUntilApproved,
-      }),
+      ...(approvalMode !== undefined && { approvalMode }),
+      ...(allowFromAnyone !== undefined && { allowFromAnyone }),
+      ...(allowFromFollowers !== undefined && { allowFromFollowers }),
+      ...(allowFromFollowing !== undefined && { allowFromFollowing }),
+      ...(hideUntilApproved !== undefined && { hideUntilApproved }),
     },
 
     select: {
@@ -1074,6 +1059,7 @@ async upsertUserTagSetting(params: {
     },
   });
 }
+
 
 async findUserTagSetting(userId: string) {
   return this.prisma.userTagSetting.findUnique({
@@ -1091,10 +1077,17 @@ async searchUsersWithTagContext(params: {
 }) {
   const { query, limit, viewerUserId } = params;
 
-  const rows = await this.prisma.user.findMany({
+  /**
+   * =================================================
+   * 1) Load users (profile + block + tag setting)
+   * =================================================
+   */
+  const users = await this.prisma.user.findMany({
     where: {
       AND: [
         { isDisabled: false },
+        { isBanned: false },
+        { active: true },
 
         // =========================
         // 🔒 BLOCK FILTER (2-way)
@@ -1143,36 +1136,6 @@ async searchUsersWithTagContext(params: {
       isPrivate: true,
       isDisabled: true,
 
-      // =========================
-      // relations for policy
-      // =========================
-
-      // viewer -> target
-      followers: {
-        where: { followerId: viewerUserId },
-        select: { followerId: true },
-        take: 1,
-      },
-
-      // target -> viewer
-      following: {
-        where: { followingId: viewerUserId },
-        select: { followingId: true },
-        take: 1,
-      },
-
-      blockedBy: {
-        where: { blockerId: viewerUserId },
-        select: { blockerId: true },
-        take: 1,
-      },
-
-      blockedUsers: {
-        where: { blockedId: viewerUserId },
-        select: { blockedId: true },
-        take: 1,
-      },
-
       tagSetting: {
         select: {
           approvalMode: true,
@@ -1185,7 +1148,48 @@ async searchUsersWithTagContext(params: {
     },
   });
 
-  return rows.map((u) => ({
+  if (users.length === 0) return [];
+
+  const userIds = users.map((u) => u.id);
+
+  /**
+   * =================================================
+   * 2) Load follow relations explicitly (authority)
+   * =================================================
+   */
+
+  // viewer → target
+  const viewerFollows = await this.prisma.follow.findMany({
+    where: {
+      followerId: viewerUserId,
+      followingId: { in: userIds },
+    },
+    select: { followingId: true },
+  });
+
+  // target → viewer
+  const targetsFollowViewer = await this.prisma.follow.findMany({
+    where: {
+      followingId: viewerUserId,
+      followerId: { in: userIds },
+    },
+    select: { followerId: true },
+  });
+
+  const viewerFollowSet = new Set(
+    viewerFollows.map((f) => f.followingId),
+  );
+
+  const targetFollowSet = new Set(
+    targetsFollowViewer.map((f) => f.followerId),
+  );
+
+  /**
+   * =================================================
+   * 3) Map to tag context
+   * =================================================
+   */
+  return users.map((u) => ({
     id: u.id,
     username: u.username,
     displayName: u.displayName,
@@ -1193,18 +1197,18 @@ async searchUsersWithTagContext(params: {
     isPrivate: u.isPrivate,
     isDisabled: u.isDisabled,
 
-    // ===== relations =====
-    isFollower: u.followers.length > 0,
-    isFollowing: u.following.length > 0,
+    // ===== relations (authority) =====
+    isFollower: viewerFollowSet.has(u.id),   // viewer → target
+    isFollowing: targetFollowSet.has(u.id),  // target → viewer
 
-    isBlockedByViewer: u.blockedBy.length > 0,
-    hasBlockedViewer: u.blockedUsers.length > 0,
-    isBlockedEitherWay:
-      u.blockedBy.length > 0 || u.blockedUsers.length > 0,
+    isBlockedByViewer: false, // already filtered by query
+    hasBlockedViewer: false,  // already filtered by query
+    isBlockedEitherWay: false,
 
     tagSetting: u.tagSetting,
   }));
 }
+
 
 
 }

@@ -60,18 +60,18 @@ export class PostUserTagCreatePolicy {
       };
     }
 
-    // =================================================
-    // 2) DEFAULT BEHAVIOR (no custom setting)
-    // =================================================
-    // Production rule (PhlyPhant):
-    // - allow tag
-    // - ALWAYS require manual approval
-    if (!setting) {
-      return {
-        allowed: true,
-        autoAccept: false,
-      };
-    }
+   // =================================================
+// 2) DEFAULT BEHAVIOR (no custom setting)
+// =================================================
+// 🔥 HARDEN: no setting = no permission to tag
+if (!setting) {
+  return {
+    allowed: false,
+    autoAccept: false,
+    reason: 'TAG_DISABLED',
+  };
+}
+
 
     // =================================================
     // 3) SETTING-BASED PERMISSION (who can tag)

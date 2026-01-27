@@ -5,6 +5,7 @@ import {
   VisibilityRuleType, 
   PostVisibility,
   UserTagSetting,
+  UserTagApprovalMode,
   Prisma,
   PostUserTagStatus,
  } from '@prisma/client';
@@ -1653,8 +1654,14 @@ async loadCreatePostUserTagContexts(params: {
     // block
     isBlockedEitherWay: boolean;
 
-    // tag setting
-    setting: UserTagSetting | null;
+    // tag setting (policy shape only)
+    setting: {
+      approvalMode: UserTagApprovalMode;
+      allowFromAnyone: boolean;
+      allowFromFollowers: boolean;
+      allowFromFollowing: boolean;
+      hideUntilApproved: boolean;
+    } | null;
   }>
 > {
   const { actorUserId, taggedUserIds, tx } = params;
@@ -1663,39 +1670,36 @@ async loadCreatePostUserTagContexts(params: {
 
   /**
    * =================================================
-   * Typed SELECT (Prisma validator)
+   * 1) Load users + settings + block (single query)
+   *    🔥 REQUIRE tagSetting to exist (authority)
    * =================================================
    */
-  const selectUserTagContext =
-    Prisma.validator<Prisma.UserSelect>()({
+  const users = await tx.user.findMany({
+    where: {
+      id: { in: taggedUserIds },
+      isDisabled: false,
+      isBanned: false,
+      active: true,
+
+      // 🔥 must have tag setting row
+      tagSetting: {
+        isNot: null,
+      },
+    },
+    select: {
       id: true,
       isPrivate: true,
 
-      tagSetting: true,
-
-      // =================================================
-      // actor → target (actor follows target)
-      // target.followers where followerId = actor
-      // =================================================
-      followers: {
-        where: { followerId: actorUserId },
-        select: { followerId: true },
-        take: 1,
+      tagSetting: {
+        select: {
+          approvalMode: true,
+          allowFromAnyone: true,
+          allowFromFollowers: true,
+          allowFromFollowing: true,
+          hideUntilApproved: true,
+        },
       },
 
-      // =================================================
-      // target → actor (target follows actor)
-      // target.following where followingId = actor
-      // =================================================
-      following: {
-        where: { followingId: actorUserId },
-        select: { followingId: true },
-        take: 1,
-      },
-
-      // =================================================
-      // block checks (2-way)
-      // =================================================
       blockedBy: {
         where: { blockerId: actorUserId },
         select: { blockerId: true },
@@ -1707,33 +1711,51 @@ async loadCreatePostUserTagContexts(params: {
         select: { blockedId: true },
         take: 1,
       },
-    });
-
-  type UserTagContextRow = Prisma.UserGetPayload<{
-    select: typeof selectUserTagContext;
-  }>;
-
-  /**
-   * =================================================
-   * Load users + relations in ONE query
-   * =================================================
-   */
-  const users = await tx.user.findMany({
-    where: {
-      id: { in: taggedUserIds },
-      isDisabled: false,
-      isBanned: false,
-      active: true,
     },
-    select: selectUserTagContext,
   });
 
+  if (users.length === 0) return [];
+
+  const userIds = users.map((u) => u.id);
+
   /**
    * =================================================
-   * Normalize to policy context
+   * 2) Load follow relations explicitly (authority)
    * =================================================
    */
-  return (users as UserTagContextRow[]).map((u) => {
+
+  // actor → target
+  const actorFollows = await tx.follow.findMany({
+    where: {
+      followerId: actorUserId,
+      followingId: { in: userIds },
+    },
+    select: { followingId: true },
+  });
+
+  // target → actor
+  const targetFollowsActor = await tx.follow.findMany({
+    where: {
+      followingId: actorUserId,
+      followerId: { in: userIds },
+    },
+    select: { followerId: true },
+  });
+
+  const actorFollowSet = new Set(
+    actorFollows.map((f) => f.followingId),
+  );
+
+  const targetFollowSet = new Set(
+    targetFollowsActor.map((f) => f.followerId),
+  );
+
+  /**
+   * =================================================
+   * 3) Normalize to policy context
+   * =================================================
+   */
+  return users.map((u) => {
     const isBlockedEitherWay =
       u.blockedBy.length > 0 || u.blockedUsers.length > 0;
 
@@ -1741,19 +1763,22 @@ async loadCreatePostUserTagContexts(params: {
       taggedUserId: u.id,
 
       // actor → target
-      isFollower: u.followers.length > 0,
+      isFollower: actorFollowSet.has(u.id),
 
       // target → actor
-      isFollowing: u.following.length > 0,
+      isFollowing: targetFollowSet.has(u.id),
 
       isPrivateAccount: u.isPrivate,
 
       isBlockedEitherWay,
 
+      // guaranteed by where, but keep null-safe
       setting: u.tagSetting ?? null,
     };
   });
 }
+
+
 
 
  async loadUpdateContext(params: {
