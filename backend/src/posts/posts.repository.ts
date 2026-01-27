@@ -1946,6 +1946,9 @@ async loadAcceptTagContext(params: {
 } | null> {
   const { postId, tagId, actorUserId, tx } = params;
 
+  // =================================================
+  // 1) Load tag row (DB authority)
+  // =================================================
   const row = await tx.postUserTag.findFirst({
     where: {
       id: tagId,
@@ -1957,28 +1960,48 @@ async loadAcceptTagContext(params: {
       status: true,
       taggedUserId: true,
       taggedByUserId: true,
-      taggedUser: {
-        select: {
-          blockedBy: {
-            where: { blockerId: actorUserId },
-            select: { blockerId: true },
-            take: 1,
-          },
-          blockedUsers: {
-            where: { blockedId: actorUserId },
-            select: { blockedId: true },
-            take: 1,
-          },
-        },
-      },
     },
   });
 
   if (!row) return null;
 
-  const isBlockedEitherWay =
-    row.taggedUser.blockedBy.length > 0 ||
-    row.taggedUser.blockedUsers.length > 0;
+  // =================================================
+  // 2) Block check (actor ↔ taggedUser OR taggedByUser)
+  // =================================================
+  const block = await tx.userBlock.findFirst({
+    where: {
+      OR: [
+        // actor ↔ tagged user
+        {
+          AND: [
+            { blockerId: actorUserId },
+            { blockedId: row.taggedUserId },
+          ],
+        },
+        {
+          AND: [
+            { blockerId: row.taggedUserId },
+            { blockedId: actorUserId },
+          ],
+        },
+
+        // actor ↔ tag creator
+        {
+          AND: [
+            { blockerId: actorUserId },
+            { blockedId: row.taggedByUserId },
+          ],
+        },
+        {
+          AND: [
+            { blockerId: row.taggedByUserId },
+            { blockedId: actorUserId },
+          ],
+        },
+      ],
+    },
+    select: { blockerId: true },
+  });
 
   return {
     tagId: row.id,
@@ -1986,9 +2009,11 @@ async loadAcceptTagContext(params: {
     status: row.status,
     taggedUserId: row.taggedUserId,
     taggedByUserId: row.taggedByUserId,
-    isBlockedEitherWay,
+    isBlockedEitherWay: !!block,
   };
 }
+
+
 
 async loadRejectTagContext(params: {
   postId: string;
