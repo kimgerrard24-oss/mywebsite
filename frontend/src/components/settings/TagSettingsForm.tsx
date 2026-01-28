@@ -2,7 +2,7 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import type {
   MyTagSettings,
   TagAllowScope,
@@ -14,44 +14,85 @@ type Props = {
 };
 
 export default function TagSettingsForm({ initial }: Props) {
+  /**
+   * =================================================
+   * Local form state (editable)
+   * =================================================
+   */
   const [allowTagFrom, setAllowTagFrom] =
     useState<TagAllowScope>(initial.allowTagFrom);
 
   const [requireApproval, setRequireApproval] =
     useState<boolean>(initial.requireApproval);
 
+  /**
+   * =================================================
+   * Last confirmed state (backend authority snapshot)
+   * ใช้แทน initial หลัง save สำเร็จ
+   * =================================================
+   */
+  const lastConfirmedRef = useRef<MyTagSettings>(initial);
+
+  /**
+   * =================================================
+   * UI feedback
+   * =================================================
+   */
   const [success, setSuccess] = useState(false);
 
   const { submit, loading, error } = useUpdateTagSettings();
 
-  // =============================
-  // Sync with parent / backend
-  // =============================
+  /**
+   * =================================================
+   * Sync when parent provides new initial (SSR / refetch)
+   * =================================================
+   */
   useEffect(() => {
+    lastConfirmedRef.current = initial;
     setAllowTagFrom(initial.allowTagFrom);
     setRequireApproval(initial.requireApproval);
   }, [initial.allowTagFrom, initial.requireApproval]);
 
+  /**
+   * =================================================
+   * Dirty check vs last confirmed (not raw initial)
+   * =================================================
+   */
   const isDirty =
-    allowTagFrom !== initial.allowTagFrom ||
-    requireApproval !== initial.requireApproval;
+    allowTagFrom !==
+      lastConfirmedRef.current.allowTagFrom ||
+    requireApproval !==
+      lastConfirmedRef.current.requireApproval;
 
+  /**
+   * =================================================
+   * Save handler
+   * =================================================
+   */
   async function onSave() {
+    if (loading || !isDirty) return;
+
     try {
       await submit({
         allowTagFrom,
         requireApproval,
       });
 
+      // ✅ treat current value as backend-confirmed snapshot
+      lastConfirmedRef.current = {
+        allowTagFrom,
+        requireApproval,
+      };
+
       setSuccess(true);
       setTimeout(() => setSuccess(false), 2000);
     } catch {
-      // handled by hook
+      // error handled by hook
     }
   }
 
   return (
-    <section className="rounded-xl border p-5">
+    <section className="rounded-xl border p-5 bg-white">
       <h2 className="text-lg font-semibold">
         Tag settings
       </h2>
@@ -62,18 +103,33 @@ export default function TagSettingsForm({ initial }: Props) {
 
       {/* ================= Allow From ================= */}
       <div className="mt-5">
-        <label className="block text-sm font-medium">
+        <label
+          htmlFor="allowTagFrom"
+          className="block text-sm font-medium"
+        >
           Who can tag you
         </label>
 
         <select
+          id="allowTagFrom"
           value={allowTagFrom}
+          disabled={loading}
           onChange={(e) =>
             setAllowTagFrom(
               e.target.value as TagAllowScope,
             )
           }
-          className="mt-2 w-full rounded-md border px-3 py-2 text-sm"
+          className="
+            mt-2
+            w-full
+            rounded-md
+            border
+            px-3
+            py-2
+            text-sm
+            disabled:bg-gray-100
+            disabled:cursor-not-allowed
+          "
         >
           <option value="ANYONE">Anyone</option>
           <option value="FOLLOWERS">Followers only</option>
@@ -87,15 +143,16 @@ export default function TagSettingsForm({ initial }: Props) {
           id="requireApproval"
           type="checkbox"
           checked={requireApproval}
+          disabled={loading}
           onChange={(e) =>
             setRequireApproval(e.target.checked)
           }
-          className="h-4 w-4"
+          className="h-4 w-4 disabled:cursor-not-allowed"
         />
 
         <label
           htmlFor="requireApproval"
-          className="text-sm"
+          className="text-sm select-none"
         >
           Require approval before tag appears
         </label>
@@ -110,19 +167,36 @@ export default function TagSettingsForm({ initial }: Props) {
 
       {success && (
         <p className="mt-3 text-sm text-green-600">
-          Settings updated
+          Settings updated successfully
         </p>
       )}
 
       {/* ================= Actions ================= */}
-      <button
-        disabled={loading || !isDirty}
-        onClick={onSave}
-        className="mt-5 rounded bg-blue-600 px-4 py-2 text-sm text-white disabled:opacity-60"
-      >
-        {loading ? "Saving..." : "Save changes"}
-      </button>
+      <div className="mt-5 flex items-center gap-3">
+        <button
+          disabled={loading || !isDirty}
+          onClick={onSave}
+          className="
+            rounded
+            bg-blue-600
+            px-4
+            py-2
+            text-sm
+            text-white
+            hover:bg-blue-700
+            disabled:opacity-60
+            disabled:cursor-not-allowed
+          "
+        >
+          {loading ? "Saving..." : "Save changes"}
+        </button>
+
+        {!isDirty && !loading && (
+          <span className="text-xs text-gray-500">
+            All changes saved
+          </span>
+        )}
+      </div>
     </section>
   );
 }
-

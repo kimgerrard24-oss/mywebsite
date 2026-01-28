@@ -22,6 +22,7 @@ export default function TagSettingsPage({
           name="description"
           content="Control who can tag you in posts"
         />
+        <meta name="robots" content="noindex,nofollow" />
       </Head>
 
       <main className="mx-auto max-w-xl px-4 py-8">
@@ -42,7 +43,7 @@ export default function TagSettingsPage({
 }
 
 /* ================================
-   SSR AUTH CHECK (STANDARD)
+   SSR AUTH + DATA LOAD (AUTHORITY)
    ================================ */
 export const getServerSideProps: GetServerSideProps<
   Props
@@ -63,21 +64,43 @@ export const getServerSideProps: GetServerSideProps<
     process.env.NEXT_PUBLIC_BACKEND_URL ??
     "https://api.phlyphant.com";
 
-  // ---- session check ----
-  const sessionRes = await fetch(
-    `${base}/auth/session-check`,
-    {
-      method: "GET",
-      headers: {
-        Accept: "application/json",
-        Cookie: cookieHeader,
+  // =========================
+  // 1) Session check
+  // =========================
+  try {
+    const sessionRes = await fetch(
+      `${base}/auth/session-check`,
+      {
+        method: "GET",
+        headers: {
+          Accept: "application/json",
+          Cookie: cookieHeader,
+        },
+        credentials: "include",
+        cache: "no-store",
       },
-      credentials: "include",
-      cache: "no-store",
-    },
-  );
+    );
 
-  if (!sessionRes.ok) {
+    if (!sessionRes.ok) {
+      return {
+        redirect: {
+          destination: "/feed",
+          permanent: false,
+        },
+      };
+    }
+
+    const session = await sessionRes.json().catch(() => null);
+
+    if (!session || session.valid !== true) {
+      return {
+        redirect: {
+          destination: "/feed",
+          permanent: false,
+        },
+      };
+    }
+  } catch {
     return {
       redirect: {
         destination: "/feed",
@@ -86,18 +109,9 @@ export const getServerSideProps: GetServerSideProps<
     };
   }
 
-  const session = await sessionRes.json().catch(() => null);
-
-  if (!session || session.valid !== true) {
-    return {
-      redirect: {
-        destination: "/feed",
-        permanent: false,
-      },
-    };
-  }
-
-  // ---- load tag settings ----
+  // =========================
+  // 2) Load tag settings
+  // =========================
   try {
     const res = await fetch(
       `${base}/users/me/tag-settings`,
@@ -112,7 +126,9 @@ export const getServerSideProps: GetServerSideProps<
       },
     );
 
-    if (!res.ok) throw new Error();
+    if (!res.ok) {
+      throw new Error("Failed to load tag settings");
+    }
 
     const settings =
       (await res.json()) as MyTagSettings;
@@ -122,15 +138,16 @@ export const getServerSideProps: GetServerSideProps<
         settings,
       },
     };
-  } catch {
-    // production-safe fallback
+  } catch (err) {
+    /**
+     * ❗ IMPORTANT
+     * Do NOT fallback to default settings here.
+     * Backend is authority — returning defaults causes UI
+     * to overwrite real user intent and creates data confusion.
+     */
+
     return {
-      props: {
-        settings: {
-          allowTagFrom: "ANYONE",
-          requireApproval: false,
-        },
-      },
+      notFound: true,
     };
   }
 };

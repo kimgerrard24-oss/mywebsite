@@ -757,11 +757,11 @@ confirmPasswordReset: {
 
 updatePrivacy: {
   windowSec: 300,        // 5 นาที
-  max: 5,                // เปลี่ยนได้ 5 ครั้ง
+  max: 10,                // เปลี่ยนได้ 5 ครั้ง
   blockDurationSec: 900, // block 15 นาที
 
   // legacy fields (ยังใช้ใน service)
-  points: 5,
+  points: 10,
   duration: 300,
   blockDuration: 900,
 
