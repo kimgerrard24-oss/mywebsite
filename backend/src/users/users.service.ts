@@ -1481,7 +1481,7 @@ async getMyTagSettings(params: { userId: string }) {
   const { userId } = params;
 
   // =========================
-  // 1) Load user state
+  // 1) Load user state (DB authority)
   // =========================
   const user =
     await this.repo.findUserStateForTagSettings(userId);
@@ -1491,29 +1491,33 @@ async getMyTagSettings(params: { userId: string }) {
   }
 
   // =========================
-  // 2) Policy
+  // 2) Policy (same as update — sensitive user control)
   // =========================
-  UserTaggedPostsViewPolicy.assertCanView({
+  UserTagSettingsUpdatePolicy.assertCanUpdate({
     isDisabled: user.isDisabled,
     isBanned: user.isBanned,
+    isAccountLocked: user.isAccountLocked,
   });
 
   // =========================
-  // 3) Load settings (DB authority)
+  // 3) Use loaded setting (authority)
   // =========================
-  const setting =
-    await this.repo.findUserTagSetting(userId);
+  const setting = user.tagSetting;
 
+  // =========================
+  // 4) Default (MUST match upsert default)
+  // =========================
   if (!setting) {
-    // default behavior (same as upsert default)
     return {
-      allowTagFrom: 'ANYONE',
-      requireApproval: false,
+      allowTagFrom: 'FOLLOWERS',
+      requireApproval: true,
     };
   }
 
   return TagSettingsResponseDto.fromEntity(setting);
 }
+
+
 
 }
 
