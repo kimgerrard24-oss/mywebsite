@@ -6,6 +6,7 @@
 # FRONTEND (Next.js)
 # ======================================
 phlyphant.com, www.phlyphant.com {
+
     encode gzip
 
     tls /etc/caddy/cloudflare.crt /etc/caddy/cloudflare.key {
@@ -56,14 +57,42 @@ phlyphant.com, www.phlyphant.com {
     }
 }
 
+
 # ======================================
 # BACKEND (NestJS + Socket.IO)
 # ======================================
 api.phlyphant.com {
+
     encode gzip
 
     tls /etc/caddy/cloudflare.crt /etc/caddy/cloudflare.key {
         protocols tls1.2 tls1.3
+    }
+
+    # --------------------------------------------------
+    # BLOCK DANGEROUS HTTP METHODS
+    # --------------------------------------------------
+    @invalid_methods {
+        method TRACE CONNECT
+    }
+    respond @invalid_methods 405
+
+
+    # --------------------------------------------------
+    # PROTECT HEALTH & SYSTEM CHECK (SECRET HEADER)
+    # --------------------------------------------------
+    @health_protected {
+        path /health* /system-check*
+        not header X-Health-Token REPLACE_WITH_LONG_RANDOM_SECRET
+    }
+    respond @health_protected 403
+
+
+    # --------------------------------------------------
+    # BASIC REQUEST HARDENING
+    # --------------------------------------------------
+    request_body {
+        max_size 10MB
     }
 
     header {
@@ -74,10 +103,7 @@ api.phlyphant.com {
         Permissions-Policy "geolocation=(), microphone=(), camera=()"
 
         Content-Security-Policy "
-            default-src 'self';
-            script-src 'self';
-            worker-src 'self' blob:;
-            img-src 'self' data:;
+            default-src 'none';
             frame-ancestors 'none';
             connect-src
                 'self'
@@ -95,8 +121,9 @@ api.phlyphant.com {
         "
     }
 
+
     # ===============================
-    # Socket.IO (IMPORTANT)
+    # Socket.IO
     # ===============================
     @socketio {
         path /socket.io*
@@ -118,6 +145,10 @@ api.phlyphant.com {
         }
     }
 
+
+    # ===============================
+    # NORMAL API TRAFFIC
+    # ===============================
     handle {
         reverse_proxy phlyphant-backend:4001 {
             transport http {

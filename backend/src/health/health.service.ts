@@ -6,8 +6,11 @@ import { Injectable, Inject } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import Redis from 'ioredis';
 
-// เพิ่ม AWS Secrets Manager (ใช้ method เดียวกับ SecretsModule)
-import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-secrets-manager';
+// AWS Secrets Manager
+import {
+  SecretsManagerClient,
+  GetSecretValueCommand,
+} from '@aws-sdk/client-secrets-manager';
 
 @Injectable()
 export class HealthService {
@@ -15,6 +18,13 @@ export class HealthService {
     private readonly prisma: PrismaService,
     @Inject('REDIS_CLIENT') private readonly redis: Redis,
   ) {}
+
+  // =========================
+  // In-memory cache (secrets)
+  // =========================
+  private lastSecretsCheckAt = 0;
+  private lastSecretsOk = false;
+  private readonly SECRETS_CACHE_MS = 60_000; // 60s
 
   async apiCheck() {
     return { ok: true, timestamp: new Date().toISOString() };
@@ -26,7 +36,11 @@ export class HealthService {
         setTimeout(() => reject(new Error('DB timeout')), 2000),
       );
 
-      await Promise.race([this.prisma.$queryRaw`SELECT 1`, timeout]);
+      await Promise.race([
+        this.prisma.$queryRaw`SELECT 1`,
+        timeout,
+      ]);
+
       return { ok: true };
     } catch {
       return { ok: false };
@@ -39,7 +53,11 @@ export class HealthService {
         setTimeout(() => reject(new Error('Redis timeout')), 1500),
       );
 
-      const pong = await Promise.race([this.redis.ping(), timeout]);
+      const pong = await Promise.race([
+        this.redis.ping(),
+        timeout,
+      ]);
+
       return { ok: pong === 'PONG' };
     } catch {
       return { ok: false };
@@ -47,17 +65,27 @@ export class HealthService {
   }
 
   // ==========================================
-  // FIXED: REAL AWS SECRETS MANAGER CHECK
+  // AWS Secrets Manager check (with cache)
   // ==========================================
   async secretsCheck() {
+    const now = Date.now();
+
+    // ---- cache hit ----
+    if (now - this.lastSecretsCheckAt < this.SECRETS_CACHE_MS) {
+      return { ok: this.lastSecretsOk };
+    }
+
     try {
-      // ดึงชื่อ secret ที่ backend ใช้จริง
       const secretName =
-        process.env.OAUTH_CLIENT_ID_SECRET_SOCIAL_LOGIN_URL_REDIRECT ||
+        process.env
+          .OAUTH_CLIENT_ID_SECRET_SOCIAL_LOGIN_URL_REDIRECT ||
         process.env.AWS_OAUTH_SECRET_NAME ||
         null;
 
-      if (!secretName) return { ok: false };
+      if (!secretName) {
+        this.lastSecretsOk = false;
+        return { ok: false };
+      }
 
       const client = new SecretsManagerClient({
         region: process.env.AWS_REGION,
@@ -69,9 +97,13 @@ export class HealthService {
         }),
       );
 
+      this.lastSecretsOk = true;
       return { ok: true };
     } catch {
+      this.lastSecretsOk = false;
       return { ok: false };
+    } finally {
+      this.lastSecretsCheckAt = now;
     }
   }
 
@@ -95,7 +127,11 @@ export class HealthService {
         setTimeout(() => reject(new Error('Queue timeout')), 1500),
       );
 
-      const pong = await Promise.race([this.redis.ping(), timeout]);
+      const pong = await Promise.race([
+        this.redis.ping(),
+        timeout,
+      ]);
+
       return { ok: pong === 'PONG' };
     } catch {
       return { ok: false };
@@ -107,19 +143,30 @@ export class HealthService {
       const base =
         process.env.BACKEND_PUBLIC_URL ||
         process.env.API_PUBLIC_URL ||
-        process.env.PRODUCTION_BACKEND_URL;
+        process.env.PRODUCTION_BACKEND_URL ||
+        null;
 
-      return { ok: Boolean(base) };
+      if (!base) return { ok: false };
+
+      try {
+        new URL(base);
+      } catch {
+        return { ok: false };
+      }
+
+      return { ok: true };
     } catch {
       return { ok: false };
     }
   }
 
+  // ==========================================
+  // Reduced fingerprinting (no node version)
+  // ==========================================
   async systemInfo() {
     return {
       ok: true,
       uptime: process.uptime(),
-      node: process.version,
       env: process.env.NODE_ENV,
       timestamp: new Date().toISOString(),
     };
@@ -151,10 +198,14 @@ export class HealthService {
       ),
     );
 
-    const result: any = await Promise.race([checks, globalTimeout]);
+    const result: any = await Promise.race([
+      checks,
+      globalTimeout,
+    ]);
 
     if (Array.isArray(result)) {
-      const [db, redis, secrets, r2, queue, socket] = result;
+      const [db, redis, secrets, r2, queue, socket] =
+        result;
 
       return {
         backend: true,
