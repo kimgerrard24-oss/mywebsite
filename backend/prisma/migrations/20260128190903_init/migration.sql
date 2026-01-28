@@ -646,6 +646,51 @@ CREATE TABLE "UserIdentityHistory" (
     CONSTRAINT "UserIdentityHistory_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "Share" (
+    "id" TEXT NOT NULL,
+    "postId" TEXT NOT NULL,
+    "senderId" TEXT NOT NULL,
+    "targetUserId" TEXT,
+    "targetChatId" TEXT,
+    "isDisabled" BOOLEAN NOT NULL DEFAULT false,
+    "disabledAt" TIMESTAMP(3),
+    "disabledByAdminId" TEXT,
+    "disabledReason" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "Share_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "ShareLink" (
+    "id" TEXT NOT NULL,
+    "code" TEXT NOT NULL,
+    "postId" TEXT NOT NULL,
+    "creatorId" TEXT,
+    "isDisabled" BOOLEAN NOT NULL DEFAULT false,
+    "disabledAt" TIMESTAMP(3),
+    "disabledByAdminId" TEXT,
+    "disabledReason" TEXT,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "lastAccessedAt" TIMESTAMP(3),
+    "accessCount" INTEGER NOT NULL DEFAULT 0,
+    "expiresAt" TIMESTAMP(3),
+
+    CONSTRAINT "ShareLink_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "PostShareStat" (
+    "postId" TEXT NOT NULL,
+    "internalShareCount" INTEGER NOT NULL DEFAULT 0,
+    "externalShareCount" INTEGER NOT NULL DEFAULT 0,
+    "lastSharedAt" TIMESTAMP(3),
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+
+    CONSTRAINT "PostShareStat_pkey" PRIMARY KEY ("postId")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 
@@ -985,6 +1030,39 @@ CREATE INDEX "UserIdentityHistory_userId_createdAt_idx" ON "UserIdentityHistory"
 -- CreateIndex
 CREATE INDEX "UserIdentityHistory_field_idx" ON "UserIdentityHistory"("field");
 
+-- CreateIndex
+CREATE INDEX "Share_postId_createdAt_idx" ON "Share"("postId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "Share_senderId_createdAt_idx" ON "Share"("senderId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "Share_targetUserId_createdAt_idx" ON "Share"("targetUserId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "Share_targetChatId_createdAt_idx" ON "Share"("targetChatId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "Share_isDisabled_disabledAt_idx" ON "Share"("isDisabled", "disabledAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ShareLink_code_key" ON "ShareLink"("code");
+
+-- CreateIndex
+CREATE INDEX "ShareLink_postId_idx" ON "ShareLink"("postId");
+
+-- CreateIndex
+CREATE INDEX "ShareLink_creatorId_createdAt_idx" ON "ShareLink"("creatorId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "ShareLink_isDisabled_idx" ON "ShareLink"("isDisabled");
+
+-- CreateIndex
+CREATE INDEX "ShareLink_postId_createdAt_idx" ON "ShareLink"("postId", "createdAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ShareLink_postId_creatorId_key" ON "ShareLink"("postId", "creatorId");
+
 -- AddForeignKey
 ALTER TABLE "User" ADD CONSTRAINT "User_bannedByAdminId_fkey" FOREIGN KEY ("bannedByAdminId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
@@ -1188,3 +1266,30 @@ ALTER TABLE "SecurityEvent" ADD CONSTRAINT "SecurityEvent_userId_fkey" FOREIGN K
 
 -- AddForeignKey
 ALTER TABLE "UserIdentityHistory" ADD CONSTRAINT "UserIdentityHistory_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Share" ADD CONSTRAINT "Share_postId_fkey" FOREIGN KEY ("postId") REFERENCES "Post"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Share" ADD CONSTRAINT "Share_senderId_fkey" FOREIGN KEY ("senderId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Share" ADD CONSTRAINT "Share_targetUserId_fkey" FOREIGN KEY ("targetUserId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Share" ADD CONSTRAINT "Share_targetChatId_fkey" FOREIGN KEY ("targetChatId") REFERENCES "Chat"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Share" ADD CONSTRAINT "Share_disabledByAdminId_fkey" FOREIGN KEY ("disabledByAdminId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ShareLink" ADD CONSTRAINT "ShareLink_postId_fkey" FOREIGN KEY ("postId") REFERENCES "Post"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ShareLink" ADD CONSTRAINT "ShareLink_creatorId_fkey" FOREIGN KEY ("creatorId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ShareLink" ADD CONSTRAINT "ShareLink_disabledByAdminId_fkey" FOREIGN KEY ("disabledByAdminId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "PostShareStat" ADD CONSTRAINT "PostShareStat_postId_fkey" FOREIGN KEY ("postId") REFERENCES "Post"("id") ON DELETE CASCADE ON UPDATE CASCADE;

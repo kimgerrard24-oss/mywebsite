@@ -41,6 +41,7 @@ import { UserModerationModule } from './moderation/user/user-moderation.module';
 import { SecuritiesModule } from './securities/securities.module';
 import { FeedModule } from './feed/feed.module';
 import { EventsModule } from './core/events/events.module';
+import { SharesModule } from './shares/shares.module';
 
 @Module({
   imports: [
@@ -55,6 +56,7 @@ import { EventsModule } from './core/events/events.module';
     ScheduleModule.forRoot(),
     AlertModule,
     UserModerationModule,
+    SharesModule,
     FeedModule,
     EventsModule,
     ChatModule,

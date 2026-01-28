@@ -110,6 +110,14 @@ model User {
   chatMessageReports ChatMessageReport[]
   chatTypingStates   ChatTypingState[]
   loginHistories     LoginHistory[] 
+
+  sentShares       Share[] @relation("ShareSender")
+  receivedShares   Share[] @relation("ShareTargetUser")
+  disabledShares   Share[] @relation("ShareDisabledByAdmin")
+  
+  shareLinksCreated   ShareLink[] @relation("ShareLinkCreator")
+  shareLinksDisabled  ShareLink[] @relation("ShareLinkDisabledByAdmin")
+
   // ===== Blocking =====
   blockedUsers UserBlock[] @relation("UserBlocker")
   blockedBy    UserBlock[] @relation("UserBlocked")
@@ -260,6 +268,10 @@ model Post {
   deleteReason  String?
   visibilityRules PostVisibilityRule[]
   author User @relation("PostAuthor",fields: [authorId],references: [id])
+  
+  shares        Share[]
+  shareLinks    ShareLink[]
+  shareStat     PostShareStat?
 
   deletedBy User? @relation("PostDeletedBy",fields: [deletedById],references: [id],onDelete: SetNull)
   
@@ -636,6 +648,8 @@ model Chat {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  
+  shares Share[]
 
   // relations
   participants ChatParticipant[]
@@ -1078,6 +1092,86 @@ model UserIdentityHistory {
 
   @@index([userId, createdAt])
   @@index([field])
+}
+
+model Share {
+  id        String   @id @default(uuid())
+
+  postId    String
+  senderId  String
+
+  /// target (share ไปไหน)
+  targetUserId String?
+  targetChatId String?
+
+  /// flags
+  isDisabled Boolean @default(false)
+  disabledAt DateTime?
+  disabledByAdminId String?
+  disabledReason String?
+
+  createdAt DateTime @default(now())
+
+  /// relations
+  post   Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+  sender User @relation("ShareSender",fields: [senderId],references: [id],onDelete: Cascade)
+  
+  targetUser User? @relation("ShareTargetUser",fields: [targetUserId],references: [id],onDelete: Cascade)  
+  targetChat Chat? @relation(fields: [targetChatId],references: [id],onDelete: Cascade)
+  
+  disabledByAdmin User? @relation("ShareDisabledByAdmin",fields: [disabledByAdminId],references: [id],onDelete: SetNull)
+ 
+  /// constraints
+  @@index([postId, createdAt])
+  @@index([senderId, createdAt])
+  @@index([targetUserId, createdAt])
+  @@index([targetChatId, createdAt])
+  @@index([isDisabled, disabledAt])
+}
+
+model ShareLink {
+  id      String @id @default(uuid())
+
+  code    String @unique
+
+  postId  String
+  creatorId String?
+
+  isDisabled Boolean @default(false)
+  disabledAt DateTime?
+  disabledByAdminId String?
+  disabledReason String?
+
+  createdAt DateTime @default(now())
+  lastAccessedAt DateTime?
+  accessCount Int @default(0)
+  expiresAt DateTime?
+
+  /// relations
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
+
+  creator User? @relation("ShareLinkCreator",fields: [creatorId],references: [id],onDelete: SetNull)
+  
+  disabledByAdmin User? @relation("ShareLinkDisabledByAdmin",fields: [disabledByAdminId],references: [id],onDelete: SetNull)
+  
+  /// indexes
+  @@index([postId])
+  @@index([creatorId, createdAt])
+  @@index([isDisabled])
+  @@unique([postId, creatorId]) 
+  @@index([postId, createdAt])
+}
+
+model PostShareStat {
+  postId String @id
+
+  internalShareCount Int @default(0)
+  externalShareCount Int @default(0)
+  
+  lastSharedAt DateTime?
+  updatedAt DateTime @updatedAt
+
+  post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
 }
 
 

@@ -65,7 +65,12 @@ export type RateLimitAction =
   | 'confirmPasswordReset'
   | 'emailVerify'
   | 'messagingSend'
+  | 'shareIntent'
+  | 'shareCreate'
+  | 'shareExternal'
   | 'accountLock'
+  | 'adminDisableShare'
+  | 'postShareStatsRead'
   | 'updatePrivacy';
 
 export type RateLimitEscalationConfig = {
@@ -1165,6 +1170,91 @@ postsVisibilityValidate: {
     maxViolations: 5,     // ต้อง spam ต่อเนื่องจริง ๆ
     windowSec: 86400,     // within 24h
     longBlockSec: 3600,   // block 1 hour
+  },
+},
+
+shareIntent: {
+  windowSec: 60,
+  max: 60,                // UI อาจกดหลายครั้ง
+  blockDurationSec: 120,  // block 2 นาทีถ้า spam
+
+  // legacy
+  points: 60,
+  duration: 60,
+  blockDuration: 120,
+
+  escalation: {
+    maxViolations: 5,
+    windowSec: 86400,
+    longBlockSec: 3600,   // block 1 ชม. ถ้า abuse ต่อเนื่อง
+  },
+},
+
+shareCreate: {
+  windowSec: 60,
+  max: 20,                // ส่งแชร์ได้ 20 ครั้ง/นาที
+  blockDurationSec: 300,  // block 5 นาที
+
+  // legacy
+  points: 20,
+  duration: 60,
+  blockDuration: 300,
+
+  escalation: {
+    maxViolations: 3,
+    windowSec: 86400,
+    longBlockSec: 21600,  // block 6 ชม.
+  },
+},
+
+shareExternal: {
+  windowSec: 300,         // 5 นาที
+  max: 5,                 // สร้างได้ 5 ลิงก์ / 5 นาที
+  blockDurationSec: 900,  // block 15 นาที
+
+  // legacy
+  points: 5,
+  duration: 300,
+  blockDuration: 900,
+
+  escalation: {
+    maxViolations: 3,
+    windowSec: 86400,
+    longBlockSec: 86400,  // block 24 ชม. ถ้า abuse
+  },
+},
+
+postShareStatsRead: {
+  windowSec: 60,
+  max: 60,                // เปิดดูได้ 60 ครั้ง/นาที
+  blockDurationSec: 120,  // block 2 นาทีถ้า spam
+
+  // legacy (ยังใช้ใน service)
+  points: 60,
+  duration: 60,
+  blockDuration: 120,
+
+  escalation: {
+    maxViolations: 5,
+    windowSec: 86400,     // ภายใน 24 ชม.
+    longBlockSec: 3600,   // block 1 ชม. ถ้า abuse ต่อเนื่อง
+  },
+},
+
+adminDisableShare: {
+  windowSec: 60,
+  max: 10,                // admin ทำได้ไม่เกิน 10 ครั้ง/นาที
+  blockDurationSec: 600,  // block 10 นาทีถ้าเกิน
+
+  // legacy (ยังใช้ใน service)
+  points: 10,
+  duration: 60,
+  blockDuration: 600,
+
+  escalation: {
+    maxViolations: 3,
+    windowSec: 86400,     // ภายใน 24 ชม.
+    longBlockSec: 21600,  // block 6 ชม. ถ้า abuse ซ้ำ
   },
 },
 

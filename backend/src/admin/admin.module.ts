@@ -10,11 +10,13 @@ import { AdminDashboardModule } from './dashboard/admin-dashboard.module';
 import { AdminModerationModule } from './moderation/admin-moderation.module';
 import { AdminActionsModule } from './actions/admin-actions.module';
 import { AdminAppealsModule } from './appeals/admin-appeals.module';
+import { AdminSharesModule } from './shares/admin-shares.module';
 
 @Module({
   imports: [
     AdminReportsModule,
     AdminAppealsModule,
+    AdminSharesModule,
     AdminPostsModule,
     AdminCommentsModule,
     AdminUsersModule,

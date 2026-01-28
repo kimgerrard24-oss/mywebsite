@@ -9,6 +9,9 @@ import { renderContentWithHashtags } from "@/utils/renderContentWithHashtags";
 import { usePostLike } from "@/hooks/usePostLike";
 import PostLikeList from "@/components/posts/PostLikeList";
 import PostLikeListModal from "@/components/posts/PostLikeListModal";
+import PostShareButton from "@/components/posts/PostShareButton";
+import PostShareStats from "@/components/posts/PostShareStats";
+
 
 type Props = {
   post: PostDetailType;
@@ -296,6 +299,13 @@ const closeLikes = () => {
   <PostTagList postId={post.id} tags={post.userTags} />
 )}
 
+
+<PostShareButton
+  postId={post.id}
+  disabled={isBlocked}
+/>
+
+<PostShareStats postId={post.id} />
 
 
       {/* ================= Likes ================= */}
