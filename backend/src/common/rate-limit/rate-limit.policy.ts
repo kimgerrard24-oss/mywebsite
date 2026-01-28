@@ -50,6 +50,7 @@ export type RateLimitAction =
   | 'userModerationRead'
   | 'mediaComplete'
   | 'mediaPresign'
+  | 'postsVisibilityValidate'
   | 'postUpdate'
   | 'postDelete'
   | 'postUpdateTags'
@@ -1148,6 +1149,25 @@ getTagSettings: {
     longBlockSec: 21600,  // block 6 ชม.
   },
 },
+
+postsVisibilityValidate: {
+  // soft protection (UI calls often)
+  windowSec: 60,        // 1 minute window
+  max: 60,              // allow 60 checks / minute
+  blockDurationSec: 120, // block 2 minutes if abused
+
+  // legacy fields (still used)
+  points: 60,
+  duration: 60,
+  blockDuration: 120,
+
+  escalation: {
+    maxViolations: 5,     // ต้อง spam ต่อเนื่องจริง ๆ
+    windowSec: 86400,     // within 24h
+    longBlockSec: 3600,   // block 1 hour
+  },
+},
+
 };
 
 
