@@ -138,16 +138,13 @@ export const getServerSideProps: GetServerSideProps<
         settings,
       },
     };
-  } catch (err) {
-    /**
-     * ❗ IMPORTANT
-     * Do NOT fallback to default settings here.
-     * Backend is authority — returning defaults causes UI
-     * to overwrite real user intent and creates data confusion.
-     */
+  }catch (err) {
+  return {
+    redirect: {
+      destination: "/settings/profile?error=tag-settings",
+      permanent: false,
+    },
+  };
+}
 
-    return {
-      notFound: true,
-    };
-  }
 };
