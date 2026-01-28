@@ -11,6 +11,8 @@ import CommentList from "@/components/comments/CommentList";
 import FollowActionButton from '@/components/follows/FollowActionButton';
 import Avatar from "@/components/ui/Avatar";
 import FollowController from "@/components/follows/FollowController";
+import PostShareButton from "@/components/posts/PostShareButton";
+import PostShareStats from "@/components/posts/PostShareStats";
 
 type Props = {
   post: PostFeedItem;
@@ -300,41 +302,51 @@ const taggedUsers = post.taggedUsers ?? [];
 
       {/* ================= Footer ================= */}
       <footer
-        className="
-          mt-3
-          sm:mt-4
-          flex
-          gap-4
-          text-xs
-          sm:text-sm
-          text-gray-600
-        "
-      >
-        {/* 🆕 Like button (แทน span เดิมอย่างเดียว) */}
-        <div className={isBlocked ? "opacity-50 pointer-events-none" : ""}>
-  <PostLikeButton
-    liked={liked}
-    likeCount={likeCount}
-    loading={likeLoading}
-    onClick={() => {
-      if (isBlocked) return;
-      toggleLike();
-    }}
-  />
-</div>
-
-        <button
-  type="button"
-  disabled={isBlocked}
-  onClick={() => setShowCommentBox((v) => !v)}
-  className={`hover:underline ${isBlocked ? "opacity-50 cursor-not-allowed" : ""}`}
-  aria-disabled={isBlocked}
+  className="
+    mt-3
+    sm:mt-4
+    flex
+    items-center
+    justify-between
+    text-xs
+    sm:text-sm
+    text-gray-600
+  "
 >
+  {/* ===== Left: Like + Comment ===== */}
+  <div className="flex items-center gap-4">
+    <div className={isBlocked ? "opacity-50 pointer-events-none" : ""}>
+      <PostLikeButton
+        liked={liked}
+        likeCount={likeCount}
+        loading={likeLoading}
+        onClick={() => {
+          if (isBlocked) return;
+          toggleLike();
+        }}
+      />
+    </div>
 
-        💬 {commentCount}
-        </button>
+    <button
+      type="button"
+      disabled={isBlocked}
+      onClick={() => setShowCommentBox((v) => !v)}
+      className={`hover:underline ${
+        isBlocked ? "opacity-50 cursor-not-allowed" : ""
+      }`}
+      aria-disabled={isBlocked}
+    >
+      💬 {commentCount}
+    </button>
+  </div>
 
-      </footer>
+  {/* ===== Right: Share ===== */}
+  <div className="flex items-center gap-2">
+    <PostShareStats postId={post.id} />
+    <PostShareButton postId={post.id} disabled={isBlocked} />
+  </div>
+</footer>
+
 
        {showCommentBox && !isBlocked && (
   <section

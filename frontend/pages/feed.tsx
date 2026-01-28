@@ -1,6 +1,4 @@
-// ==============================
-// file: pages/feed.tsx
-// ==============================
+// frontend/pages/feed.tsx
 
 import Head from "next/head";
 import type { GetServerSideProps } from "next";
@@ -22,6 +20,7 @@ import NotificationBell from '@/components/notifications/NotificationBell';
 import FeedRealtimeBridge from "@/components/feed/FeedRealtimeBridge";
 import { useFeedStore } from "@/stores/feed.store";
 import FeedActivityDropdown from '@/components/notifications/FeedActivityDropdown'; 
+import Avatar from "@/components/ui/Avatar";
 
 type FeedProps = {
   user: any | null;
@@ -217,33 +216,23 @@ export default function FeedPage({
 
   {/* 👤 Avatar */}
   <Link
-    href="/profile"
-    aria-label="Go to profile"
+  href="/profile"
+  aria-label="Go to profile"
+  className="focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded-full"
+>
+  <Avatar
+    avatarUrl={user?.avatarUrl}
+    name={user?.displayName || user?.email || "U"}
+    size={36}
     className="
-      focus:outline-none
-      focus-visible:ring-2
-      focus-visible:ring-blue-500
-      rounded-full
+      cursor-pointer
+      transition
+      hover:ring-2
+      hover:ring-blue-500
     "
-  >
-    <img
-      src={user?.avatarUrl || "/images/default-avatar.png"}
-      alt="User avatar"
-      className="
-        h-8
-        w-8
-        sm:h-9
-        sm:w-9
-        rounded-full
-        border
-        object-cover
-        cursor-pointer
-        transition
-        hover:ring-2
-        hover:ring-blue-500
-      "
-    />
-  </Link>
+  />
+</Link>
+
 
   {/* ⚙️ Menu Button */}
   <button
