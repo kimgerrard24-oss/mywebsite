@@ -136,6 +136,16 @@ export class UsersRepository {
         firebaseUid: true,
         createdAt: true,
         updatedAt: true,
+
+         tagSetting: {
+        select: {
+          approvalMode: true,
+          allowFromAnyone: true,
+          allowFromFollowers: true,
+          allowFromFollowing: true,
+          hideUntilApproved: true,
+        },
+      },
       },
     });
   }
@@ -1088,7 +1098,7 @@ async searchUsersWithTagContext(params: {
         { isDisabled: false },
         { isBanned: false },
         { active: true },
-
+         
         // =========================
         // 🔒 BLOCK FILTER (2-way)
         // =========================
