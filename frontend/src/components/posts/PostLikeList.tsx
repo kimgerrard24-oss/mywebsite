@@ -1,6 +1,7 @@
 // frontend/src/components/posts/PostLikeList.tsx
 import Link from "next/link";
 import type { PostLike } from "@/types/post-like";
+import Avatar from "@/components/ui/Avatar";
 
 type Props = {
   likes: PostLike[];
@@ -59,34 +60,30 @@ export default function PostLikeList({
 
       {/* ===== Like list ===== */}
       {likes.length > 0 && (
-        <ul className="space-y-3">
-          {likes.map((like) => (
-            <li key={like.userId}>
-              <article className="flex items-center gap-3">
-                <Link
-                  href={`/users/${like.userId}`}
-                  className="flex items-center gap-3 hover:underline"
-                >
-                  <img
-                    src={
-                      like.avatarUrl ??
-                      "/avatar-placeholder.png"
-                    }
-                    alt=""
-                    className="w-8 h-8 rounded-full object-cover bg-gray-200"
-                    loading="lazy"
-                    referrerPolicy="no-referrer"
-                  />
+  <ul className="space-y-3">
+    {likes.map((like) => (
+      <li key={like.userId}>
+        <article className="flex items-center gap-3">
+          <Link
+            href={`/users/${like.userId}`}
+            className="flex items-center gap-3 hover:underline"
+          >
+            <Avatar
+              avatarUrl={like.avatarUrl}
+              name={like.displayName}
+              size={32}
+            />
 
-                  <span className="text-sm text-gray-800">
-                    {like.displayName ?? "Unknown user"}
-                  </span>
-                </Link>
-              </article>
-            </li>
-          ))}
-        </ul>
-      )}
+            <span className="text-sm text-gray-800">
+              {like.displayName ?? "Unknown user"}
+            </span>
+          </Link>
+        </article>
+      </li>
+    ))}
+  </ul>
+)}
+
 
       {/* ===== Load more ===== */}
       {hasMore && (
