@@ -11,6 +11,7 @@ import PostLikeList from "@/components/posts/PostLikeList";
 import PostLikeListModal from "@/components/posts/PostLikeListModal";
 import PostShareButton from "@/components/posts/PostShareButton";
 import PostShareStats from "@/components/posts/PostShareStats";
+import Avatar from "@/components/ui/Avatar";
 
 
 type Props = {
@@ -83,23 +84,12 @@ const closeLikes = () => {
       "
       aria-label="Blocked user"
     >
-      <img
-        src={
-          post.author.avatarUrl ??
-          "/images/avatar-placeholder.png"
-        }
-        alt=""
-        className="
-          h-8
-          w-8
-          sm:h-10
-          sm:w-10
-          rounded-full
-          object-cover
-          flex-shrink-0
-        "
-        loading="lazy"
-      />
+      <Avatar
+  avatarUrl={post.author.avatarUrl}
+  name={post.author.displayName}
+  size={40} // ใกล้ sm:h-10 w-10
+/>
+
       <span
         className="
           font-medium
@@ -123,23 +113,12 @@ const closeLikes = () => {
         min-w-0
       "
     >
-      <img
-        src={
-          post.author.avatarUrl ??
-          "/images/avatar-placeholder.png"
-        }
-        alt={`${post.author.displayName} profile`}
-        className="
-          h-8
-          w-8
-          sm:h-10
-          sm:w-10
-          rounded-full
-          object-cover
-          flex-shrink-0
-        "
-        loading="lazy"
-      />
+      <Avatar
+  avatarUrl={post.author.avatarUrl}
+  name={post.author.displayName}
+  size={40}
+/>
+
       <span
         className="
           font-medium
