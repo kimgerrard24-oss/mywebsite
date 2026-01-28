@@ -7,8 +7,11 @@ import { PrismaService } from '../prisma/prisma.service';
 import Redis from 'ioredis';
 import { R2Service } from '../r2/r2.service';
 
-// เพิ่ม: ใช้ AWS Secrets Manager แบบเดียวกับ SecretsModule
-import { SecretsManagerClient, GetSecretValueCommand } from '@aws-sdk/client-secrets-manager';
+// AWS Secrets Manager
+import {
+  SecretsManagerClient,
+  GetSecretValueCommand,
+} from '@aws-sdk/client-secrets-manager';
 
 @Injectable()
 export class SystemCheckService {
@@ -17,6 +20,13 @@ export class SystemCheckService {
     @Inject('REDIS_CLIENT') private readonly redis: Redis,
     private readonly r2: R2Service,
   ) {}
+
+  // =========================
+  // In-memory cache (secrets)
+  // =========================
+  private lastSecretsCheckAt = 0;
+  private lastSecretsOk = false;
+  private readonly SECRETS_CACHE_MS = 60_000; // 60s
 
   // ------------------------------------------
   // Backend is always ok if service is alive
@@ -54,7 +64,10 @@ export class SystemCheckService {
         setTimeout(() => reject(new Error('Redis timeout')), 1500),
       );
 
-      const pong = await Promise.race([this.redis.ping(), timeout]);
+      const pong = await Promise.race([
+        this.redis.ping(),
+        timeout,
+      ]);
 
       return pong === 'PONG';
     } catch {
@@ -68,16 +81,27 @@ export class SystemCheckService {
   }
 
   // ------------------------------------------
-  // FIXED: Real AWS Secrets Manager check
+  // AWS Secrets Manager check (with cache)
   // ------------------------------------------
   async checkSecrets() {
+    const now = Date.now();
+
+    // ---- cache hit ----
+    if (now - this.lastSecretsCheckAt < this.SECRETS_CACHE_MS) {
+      return this.lastSecretsOk;
+    }
+
     try {
       const secretName =
-        process.env.OAUTH_CLIENT_ID_SECRET_SOCIAL_LOGIN_URL_REDIRECT ||
+        process.env
+          .OAUTH_CLIENT_ID_SECRET_SOCIAL_LOGIN_URL_REDIRECT ||
         process.env.AWS_OAUTH_SECRET_NAME ||
         null;
 
-      if (!secretName) return false;
+      if (!secretName) {
+        this.lastSecretsOk = false;
+        return false;
+      }
 
       const client = new SecretsManagerClient({
         region: process.env.AWS_REGION,
@@ -89,14 +113,18 @@ export class SystemCheckService {
         }),
       );
 
+      this.lastSecretsOk = true;
       return true;
     } catch {
+      this.lastSecretsOk = false;
       return false;
+    } finally {
+      this.lastSecretsCheckAt = now;
     }
   }
 
   // ------------------------------------------
-  // FIXED: R2 config validation + r2.healthCheck()
+  // R2 config validation + r2.healthCheck()
   // ------------------------------------------
   async checkR2() {
     try {

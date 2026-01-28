@@ -758,11 +758,11 @@ confirmPasswordReset: {
 
 updatePrivacy: {
   windowSec: 300,        // 5 นาที
-  max: 10,                // เปลี่ยนได้ 5 ครั้ง
+  max: 15,                // เปลี่ยนได้ 5 ครั้ง
   blockDurationSec: 900, // block 15 นาที
 
   // legacy fields (ยังใช้ใน service)
-  points: 10,
+  points: 15,
   duration: 300,
   blockDuration: 900,
 
@@ -1133,12 +1133,12 @@ userUnblock: {
 },
 
 getTagSettings: {
-  windowSec: 120,       
-  max: 60,                
+  windowSec: 60,       
+  max: 20,                
   blockDurationSec: 900, 
 
   // legacy fields (ยังใช้ใน service)
-  points: 60,
+  points: 20,
   duration: 300,
   blockDuration: 900,
 
