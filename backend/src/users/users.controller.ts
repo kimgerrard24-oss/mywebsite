@@ -514,7 +514,7 @@ async updateMyTagSettings(
 }
 
 @Get('me/tag-settings')
-@RateLimit('updatePrivacy')
+@RateLimit('getTagSettings')
 @UseGuards(AccessTokenCookieAuthGuard)
 async getMyTagSettings(
   @CurrentUser() user: SessionUser,

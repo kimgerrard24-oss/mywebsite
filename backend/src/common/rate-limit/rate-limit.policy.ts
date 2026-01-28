@@ -56,6 +56,7 @@ export type RateLimitAction =
   | 'postTagDecision'
   | 'postUpdateVisibility'
   | 'updateProfile'
+  | 'getTagSettings'
   | 'notificationRead'
   | 'requestSetPassword'
   | 'confirmSetPassword'
@@ -1131,6 +1132,22 @@ userUnblock: {
   },
 },
 
+getTagSettings: {
+  windowSec: 120,       
+  max: 60,                
+  blockDurationSec: 900, 
+
+  // legacy fields (ยังใช้ใน service)
+  points: 60,
+  duration: 300,
+  blockDuration: 900,
+
+  escalation: {
+    maxViolations: 3,
+    windowSec: 86400,     // ภายใน 24 ชม.
+    longBlockSec: 21600,  // block 6 ชม.
+  },
+},
 };
 
 
