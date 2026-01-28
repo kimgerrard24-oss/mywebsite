@@ -300,33 +300,40 @@ const closeLikes = () => {
 )}
 
 
-<PostShareButton
-  postId={post.id}
-  disabled={isBlocked}
-/>
-
-<PostShareStats postId={post.id} />
-
-
       {/* ================= Likes ================= */}
-      <section
-        className="
-          mt-4
-          sm:mt-5
-        "
-        aria-label="Post likes"
-      >
-        <button
-  type="button"
-  onClick={openLikes}
-  disabled={isBlocked}
-  aria-disabled={isBlocked}
-  className={isBlocked ? "opacity-60 cursor-not-allowed" : undefined}
+<section
+  className="
+    mt-4
+    sm:mt-5
+    flex
+    items-center
+    justify-between
+    gap-3
+  "
+  aria-label="Post actions"
 >
-  {likeCount} likes
-</button>
+  {/* 👍 Likes (left) */}
+  <button
+    type="button"
+    onClick={openLikes}
+    disabled={isBlocked}
+    aria-disabled={isBlocked}
+    className={isBlocked ? "opacity-60 cursor-not-allowed" : undefined}
+  >
+    {likeCount} likes
+  </button>
 
-      </section>
+  {/* 🔗 Share (right) */}
+  <div className="flex items-center gap-2">
+    <PostShareStats postId={post.id} />
+
+    <PostShareButton
+      postId={post.id}
+      disabled={isBlocked}
+    />
+  </div>
+</section>
+
       <PostLikeListModal
   open={isLikeModalOpen}
   onClose={closeLikes}
