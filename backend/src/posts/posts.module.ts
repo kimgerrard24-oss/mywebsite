@@ -15,7 +15,7 @@ import { PostLikePolicy } from './policy/post-like.policy';
 import { PostLikedEvent } from './events/post-liked.event';
 import { PostUnlikePolicy } from './policy/post-unlike.policy';
 import { CommentsModule } from '../comments/comments.module';
-import { NotificationsModule } from '../notifications/notifications.module'; // ✅
+import { NotificationsModule } from '../notifications/notifications.module';
 import { PostsVisibilityModule } from './visibility/posts-visibility.module';
 import { PostUserTagListener } from './listeners/post-user-tag.listener'
 import { PostUserTagViewPolicy } from './policy/post-user-tag-view.policy';
@@ -24,10 +24,14 @@ import { PostUserTagUpdatePolicy } from './policy/post-user-tag-update.policy';
 import { PostUserTagRemovePolicy } from './policy/post-user-tag-remove.policy';
 import { PostUserTagAcceptPolicy } from './policy/post-user-tag-accept.policy';
 import { PostUserTagRejectPolicy } from './policy/post-user-tag-reject.policy';
+import { PostsPublicModule } from './public/posts-public.module';
+import { PostsShareStatsModule } from './psots-share-stats/posts-share-stats.module';
 
 @Module({
   imports: [
-    PrismaModule, 
+    PrismaModule,
+    PostsPublicModule, 
+    PostsShareStatsModule,
     AuthModule, 
     PostsVisibilityModule,
     NotificationsModule, 
