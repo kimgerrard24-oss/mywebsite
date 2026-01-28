@@ -12,6 +12,7 @@ import { Request } from 'express';
 import { PostsVisibilityService } from './posts-visibility.service';
 import { ValidatePostVisibilityDto } from './dto/validate-post-visibility.dto';
 import { AccessTokenCookieAuthGuard } from '../../auth/guards/access-token-cookie.guard';
+import { RateLimit } from '../../common/rate-limit/rate-limit.decorator';
 
 @Controller('posts/visibility')
 export class PostsVisibilityController {
@@ -24,6 +25,7 @@ export class PostsVisibilityController {
    * Backend authority
    */
   @Post('validate')
+  @RateLimit('postsVisibilityValidate')
   @UseGuards(AccessTokenCookieAuthGuard)
   async validate(
     @Req() req: Request & { user?: { userId: string } },
