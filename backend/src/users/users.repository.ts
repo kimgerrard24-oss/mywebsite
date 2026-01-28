@@ -1219,6 +1219,38 @@ async searchUsersWithTagContext(params: {
   }));
 }
 
+async createDefaultUserTagSetting(userId: string) {
+  try {
+    return await this.prisma.userTagSetting.create({
+      data: {
+        userId,
+        approvalMode: 'AUTO',
+        allowFromAnyone: false,
+        allowFromFollowers: true,
+        allowFromFollowing: false,
+        hideUntilApproved: true,
+      },
+    });
+  } catch (e: any) {
+    if (e?.code === 'P2002') {
+      const existing =
+        await this.prisma.userTagSetting.findUnique({
+          where: { userId },
+        });
+
+      if (!existing) {
+        // defensive — should never happen, but DB safety
+        throw new Error(
+          'Tag setting unique constraint hit but record not found',
+        );
+      }
+
+      return existing;
+    }
+
+    throw e;
+  }
+}
 
 
 }

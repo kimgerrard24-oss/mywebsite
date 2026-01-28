@@ -1500,24 +1500,20 @@ async getMyTagSettings(params: { userId: string }) {
   });
 
   // =========================
-  // 3) Use loaded setting (authority)
+  // 3) Load setting (DB authority)
   // =========================
-  const setting = user.tagSetting;
+  let setting = user.tagSetting;
 
   // =========================
-  // 4) Default (MUST match upsert default)
+  // 4) Auto-create default (single source of truth)
   // =========================
   if (!setting) {
-    return {
-      allowTagFrom: 'FOLLOWERS',
-      requireApproval: true,
-    };
+    setting =
+      await this.repo.createDefaultUserTagSetting(userId);
   }
 
   return TagSettingsResponseDto.fromEntity(setting);
 }
-
-
 
 }
 
