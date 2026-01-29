@@ -25,7 +25,7 @@ import { PostUserTagRemovePolicy } from './policy/post-user-tag-remove.policy';
 import { PostUserTagAcceptPolicy } from './policy/post-user-tag-accept.policy';
 import { PostUserTagRejectPolicy } from './policy/post-user-tag-reject.policy';
 import { PostsPublicModule } from './public/posts-public.module';
-import { PostsShareStatsModule } from './psots-share-stats/posts-share-stats.module';
+import { PostsShareStatsModule } from './posts-share-stats/posts-share-stats.module';
 
 @Module({
   imports: [

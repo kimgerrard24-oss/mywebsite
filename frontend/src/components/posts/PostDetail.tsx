@@ -9,7 +9,7 @@ import { renderContentWithHashtags } from "@/utils/renderContentWithHashtags";
 import { usePostLike } from "@/hooks/usePostLike";
 import PostLikeList from "@/components/posts/PostLikeList";
 import PostLikeListModal from "@/components/posts/PostLikeListModal";
-import PostShareButton from "@/components/posts/PostShareButton";
+import ShareButton from "@/components/share/ShareButton";
 import PostShareStats from "@/components/posts/PostShareStats";
 import Avatar from "@/components/ui/Avatar";
 
@@ -306,10 +306,8 @@ const closeLikes = () => {
   <div className="flex items-center gap-2">
     <PostShareStats postId={post.id} />
 
-    <PostShareButton
-      postId={post.id}
-      disabled={isBlocked}
-    />
+    {!isBlocked && <ShareButton postId={post.id} />}
+
   </div>
 </section>
 
