@@ -238,9 +238,8 @@ export default function ShareSheet({
     postId={postId}
     onClose={() => setShowChatPicker(false)}
     onSuccess={() => {
-      setShowChatPicker(false);
-      onClose(); // ปิด ShareSheet ด้วย
-    }}
+  setShowChatPicker(false);
+  }}
   />
 )}
 
