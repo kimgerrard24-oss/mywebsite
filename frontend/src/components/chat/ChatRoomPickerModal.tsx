@@ -1,17 +1,18 @@
 // frontend/src/components/chat/ChatRoomPickerModal.tsx
 
+// frontend/src/components/chat/ChatRoomPickerModal.tsx
+
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
 import clsx from 'clsx';
 import { api } from '@/lib/api/api';
+import { useAuth } from '@/hooks/useAuth';
 
 type ChatRoomItem = {
   id: string;
   isGroup: boolean;
-
   title: string | null;
-
   participants: {
     userId: string;
     user: {
@@ -33,6 +34,9 @@ export default function ChatRoomPickerModal({
   onClose,
   onSuccess,
 }: Props) {
+  const { user } = useAuth();
+  const viewerUserId = user?.id;
+
   const [rooms, setRooms] = useState<ChatRoomItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
@@ -70,7 +74,7 @@ export default function ChatRoomPickerModal({
         );
 
         if (!mounted) return;
-        setRooms(res.data);
+        setRooms(Array.isArray(res.data) ? res.data : []);
       } catch (e) {
         console.error('[ChatRoomPickerModal] load rooms failed', e);
         if (!mounted) return;
@@ -93,6 +97,7 @@ export default function ChatRoomPickerModal({
 
     try {
       setSending(true);
+      setError(null);
 
       await api.post(
         '/shares',
@@ -104,7 +109,6 @@ export default function ChatRoomPickerModal({
       );
 
       onSuccess?.();
-      onClose();
     } catch (e) {
       console.error('[ChatRoomPickerModal] share failed', e);
       setError('Unable to share to chat');
@@ -116,27 +120,27 @@ export default function ChatRoomPickerModal({
   // =========================
   // Helpers
   // =========================
+  function getOtherParticipant(room: ChatRoomItem) {
+    if (!viewerUserId) return null;
+
+    return room.participants.find(
+      (p) => p.user?.id && p.user.id !== viewerUserId,
+    )?.user ?? null;
+  }
+
   function getRoomTitle(room: ChatRoomItem) {
     if (room.isGroup) {
       return room.title || 'Group chat';
     }
 
-    const other =
-      room.participants.find(
-        (p) => p.user?.id,
-      )?.user;
-
+    const other = getOtherParticipant(room);
     return other?.displayName || 'Direct message';
   }
 
   function getRoomAvatar(room: ChatRoomItem) {
     if (room.isGroup) return null;
 
-    const other =
-      room.participants.find(
-        (p) => p.user?.id,
-      )?.user;
-
+    const other = getOtherParticipant(room);
     return other?.avatarUrl ?? null;
   }
 
@@ -181,13 +185,13 @@ export default function ChatRoomPickerModal({
             </p>
           )}
 
-          {error && (
+          {!loading && error && (
             <p className="px-2 py-2 text-xs text-red-600">
               {error}
             </p>
           )}
 
-          {!loading && rooms.length === 0 && (
+          {!loading && !error && rooms.length === 0 && (
             <p className="px-2 py-2 text-xs text-gray-500">
               No chat rooms available
             </p>
@@ -203,6 +207,7 @@ export default function ChatRoomPickerModal({
                 <li key={room.id}>
                   <button
                     type="button"
+                    disabled={sending}
                     onClick={() => setSelectedId(room.id)}
                     className={clsx(
                       'w-full flex items-center gap-3 rounded-lg px-3 py-2 text-left border',
@@ -210,6 +215,7 @@ export default function ChatRoomPickerModal({
                         'bg-blue-50 border-blue-400',
                       !checked &&
                         'hover:bg-gray-50 border-transparent',
+                      sending && 'opacity-60 cursor-not-allowed',
                     )}
                   >
                     {/* Avatar */}
@@ -220,6 +226,7 @@ export default function ChatRoomPickerModal({
                           alt=""
                           className="h-full w-full object-cover"
                           loading="lazy"
+                          referrerPolicy="no-referrer"
                         />
                       ) : (
                         <span className="text-[10px] font-semibold text-gray-600">
@@ -284,3 +291,4 @@ export default function ChatRoomPickerModal({
     </div>
   );
 }
+

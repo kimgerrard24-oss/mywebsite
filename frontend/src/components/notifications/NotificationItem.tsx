@@ -73,11 +73,12 @@ if (targetType === 'CHAT_MESSAGE')
           : null;
        
       case 'feed_repost':
-        return item.payload?.postId
-          ? `/p/${item.payload.postId}`
-          : item.entityId
-          ? `/p/${item.entityId}`
-          : null;
+  return item.payload?.postId
+    ? `/posts/${item.payload.postId}`
+    : item.entityId
+    ? `/posts/${item.entityId}`
+    : null;
+
       
       case 'post_tagged_auto_accepted':
       case 'post_tagged_request':
