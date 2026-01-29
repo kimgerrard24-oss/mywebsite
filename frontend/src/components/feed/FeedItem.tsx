@@ -11,7 +11,7 @@ import CommentList from "@/components/comments/CommentList";
 import FollowActionButton from '@/components/follows/FollowActionButton';
 import Avatar from "@/components/ui/Avatar";
 import FollowController from "@/components/follows/FollowController";
-import PostShareButton from "@/components/posts/PostShareButton";
+import ShareButton from "@/components/share/ShareButton";
 import PostShareStats from "@/components/posts/PostShareStats";
 
 type Props = {
@@ -343,7 +343,8 @@ const taggedUsers = post.taggedUsers ?? [];
   {/* ===== Right: Share ===== */}
   <div className="flex items-center gap-2">
     <PostShareStats postId={post.id} />
-    <PostShareButton postId={post.id} disabled={isBlocked} />
+    {!isBlocked && <ShareButton postId={post.id} />}
+
   </div>
 </footer>
 
