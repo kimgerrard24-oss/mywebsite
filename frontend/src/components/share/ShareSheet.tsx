@@ -3,6 +3,8 @@
 import { useState } from "react";
 import type { ShareIntentResult } from "@/lib/api/shares";
 import ExternalShareButton from "./ExternalShareButton";
+import UserPickerModal from "@/components/users/UserPickerModal";
+import { api } from "@/lib/api/api";
 
 type Props = {
   open: boolean;
@@ -26,6 +28,8 @@ export default function ShareSheet({
     typeof window !== "undefined"
       ? `${window.location.origin}/p/${postId}`
       : "";
+  const [showPicker, setShowPicker] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
   /* =========================
      Fallback: copy / native share
@@ -66,6 +70,8 @@ export default function ShareSheet({
   };
 
   return (
+  <>
+    {/* ===== Share Sheet Modal ===== */}
     <div
       className="
         fixed
@@ -99,11 +105,9 @@ export default function ShareSheet({
         </h3>
 
         <div className="space-y-2">
-          {/* =========================
-              Internal Share (future)
-             ========================= */}
           {intent.canShareInternal && (
             <button
+              disabled={submitting}
               className="
                 w-full
                 text-left
@@ -112,19 +116,14 @@ export default function ShareSheet({
                 border
                 rounded-md
                 hover:bg-gray-50
+                disabled:opacity-60
               "
-              onClick={() => {
-                // 🔥 future: open friend picker / chat picker
-                alert("แชร์ให้เพื่อน (internal) – TODO");
-              }}
+              onClick={() => setShowPicker(true)}
             >
               ส่งให้เพื่อนใน PhlyPhant
             </button>
           )}
 
-          {/* =========================
-              External Share (NEW - authority link)
-             ========================= */}
           {intent.canShareExternal && (
             <ExternalShareButton
               postId={postId}
@@ -132,9 +131,6 @@ export default function ShareSheet({
             />
           )}
 
-          {/* =========================
-              Fallback External Share
-             ========================= */}
           {intent.canShareExternal && (
             <button
               className="
@@ -157,9 +153,6 @@ export default function ShareSheet({
             </button>
           )}
 
-          {/* =========================
-              Not Shareable
-             ========================= */}
           {!intent.canShareInternal &&
             !intent.canShareExternal && (
               <p className="text-sm text-gray-500">
@@ -182,5 +175,38 @@ export default function ShareSheet({
         </button>
       </div>
     </div>
-  );
+
+    {/* ===== User Picker Modal (Internal Share) ===== */}
+    {showPicker && (
+      <UserPickerModal
+        title="เลือกเพื่อนเพื่อส่งโพสต์"
+        max={1}
+        onClose={() => setShowPicker(false)}
+        onConfirm={async ([userId]) => {
+          try {
+            setSubmitting(true);
+
+            await api.post(
+              "/shares",
+              {
+                postId,
+                targetUserId: userId,
+              },
+              { withCredentials: true },
+            );
+
+            setShowPicker(false);
+            onClose(); // ปิด ShareSheet ด้วย
+          } catch (e) {
+            console.error("Internal share failed", e);
+            alert("ไม่สามารถแชร์โพสต์ให้เพื่อนได้");
+          } finally {
+            setSubmitting(false);
+          }
+        }}
+      />
+    )}
+  </>
+);
+
 }
