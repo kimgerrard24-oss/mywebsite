@@ -185,6 +185,9 @@ async findMessageById(params: {
           media: true,
         },
       },
+      sharedPost: {
+    select: { id: true },
+  },
     },
   });
 }
@@ -242,6 +245,36 @@ async attachMediaToMessage(params: {
     skipDuplicates: true,
   });
 }
+
+  /**
+   * Create chat message (TEXT or POST_SHARE)
+   * Backend authority
+   */
+  async createMessage(params: {
+    chatId: string;
+    senderUserId: string;
+    content: string | null;
+    type?: 'TEXT' | 'POST_SHARE';
+    sharedPostId?: string | null;
+  }) {
+    const {
+      chatId,
+      senderUserId,
+      content,
+      type = 'TEXT',
+      sharedPostId = null,
+    } = params;
+
+    return this.prisma.chatMessage.create({
+      data: {
+        chatId,
+        senderId: senderUserId,
+        content,
+        type,
+        sharedPostId,
+      },
+    });
+  }
 
 
 async findChatById(chatId: string) {

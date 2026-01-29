@@ -272,7 +272,7 @@ model Post {
   shares        Share[]
   shareLinks    ShareLink[]
   shareStat     PostShareStat?
-
+  sharedInMessages ChatMessage[]
   deletedBy User? @relation("PostDeletedBy",fields: [deletedById],references: [id],onDelete: SetNull)
   
   commentCount Int @default(0)
@@ -661,6 +661,11 @@ model Chat {
   @@index([updatedAt])
 }
 
+enum ChatMessageType {
+  TEXT
+  POST_SHARE
+}
+
 model ChatParticipant {
   chatId  String
   userId  String
@@ -689,7 +694,11 @@ model ChatMessage {
   editedAt  DateTime?
   isDeleted Boolean   @default(false)
   deletedAt DateTime?
+  
+  type     ChatMessageType @default(TEXT)
 
+  sharedPostId String?
+  shares Share[]
   createdAt DateTime @default(now())
 
   // relations
@@ -697,10 +706,13 @@ model ChatMessage {
   sender User @relation("ChatMessageSender", fields: [senderId], references: [id], onDelete: Cascade)
   reports ChatMessageReport[]
   
+  sharedPost Post? @relation(fields: [sharedPostId], references: [id], onDelete: Cascade)
+
   media ChatMessageMedia[]
 
   @@index([chatId, createdAt])
   @@index([senderId])
+  @@index([sharedPostId])
 }
 
 model ChatMessageMedia {
@@ -1109,7 +1121,10 @@ model Share {
   disabledAt DateTime?
   disabledByAdminId String?
   disabledReason String?
-
+  
+  chatMessageId String?
+  chatMessage ChatMessage? @relation(fields: [chatMessageId], references: [id], onDelete: SetNull)
+  
   createdAt DateTime @default(now())
 
   /// relations
@@ -1127,6 +1142,7 @@ model Share {
   @@index([targetUserId, createdAt])
   @@index([targetChatId, createdAt])
   @@index([isDisabled, disabledAt])
+  @@index([chatMessageId])
 }
 
 model ShareLink {

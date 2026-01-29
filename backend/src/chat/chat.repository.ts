@@ -235,6 +235,7 @@ async findChatRoomsByUser(userId: string) {
           media: true,
         },
       },
+      sharedPost: { select: { id: true } },
     },
   });
 }

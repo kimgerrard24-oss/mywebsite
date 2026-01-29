@@ -25,6 +25,9 @@ CREATE TYPE "UserTagApprovalMode" AS ENUM ('AUTO', 'MANUAL', 'DISABLED');
 CREATE TYPE "PostVisibility" AS ENUM ('PUBLIC', 'FOLLOWERS', 'PRIVATE', 'CUSTOM');
 
 -- CreateEnum
+CREATE TYPE "ChatMessageType" AS ENUM ('TEXT', 'POST_SHARE');
+
+-- CreateEnum
 CREATE TYPE "ChatReportReason" AS ENUM ('SPAM', 'HARASSMENT', 'HATE_SPEECH', 'SCAM', 'SEXUAL_CONTENT', 'OTHER');
 
 -- CreateEnum
@@ -463,6 +466,8 @@ CREATE TABLE "ChatMessage" (
     "editedAt" TIMESTAMP(3),
     "isDeleted" BOOLEAN NOT NULL DEFAULT false,
     "deletedAt" TIMESTAMP(3),
+    "type" "ChatMessageType" NOT NULL DEFAULT 'TEXT',
+    "sharedPostId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "ChatMessage_pkey" PRIMARY KEY ("id")
@@ -657,6 +662,7 @@ CREATE TABLE "Share" (
     "disabledAt" TIMESTAMP(3),
     "disabledByAdminId" TEXT,
     "disabledReason" TEXT,
+    "chatMessageId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "Share_pkey" PRIMARY KEY ("id")
@@ -914,6 +920,9 @@ CREATE INDEX "ChatMessage_chatId_createdAt_idx" ON "ChatMessage"("chatId", "crea
 CREATE INDEX "ChatMessage_senderId_idx" ON "ChatMessage"("senderId");
 
 -- CreateIndex
+CREATE INDEX "ChatMessage_sharedPostId_idx" ON "ChatMessage"("sharedPostId");
+
+-- CreateIndex
 CREATE INDEX "ChatMessageMedia_messageId_idx" ON "ChatMessageMedia"("messageId");
 
 -- CreateIndex
@@ -1044,6 +1053,9 @@ CREATE INDEX "Share_targetChatId_createdAt_idx" ON "Share"("targetChatId", "crea
 
 -- CreateIndex
 CREATE INDEX "Share_isDisabled_disabledAt_idx" ON "Share"("isDisabled", "disabledAt");
+
+-- CreateIndex
+CREATE INDEX "Share_chatMessageId_idx" ON "Share"("chatMessageId");
 
 -- CreateIndex
 CREATE UNIQUE INDEX "ShareLink_code_key" ON "ShareLink"("code");
@@ -1193,6 +1205,9 @@ ALTER TABLE "ChatMessage" ADD CONSTRAINT "ChatMessage_chatId_fkey" FOREIGN KEY (
 ALTER TABLE "ChatMessage" ADD CONSTRAINT "ChatMessage_senderId_fkey" FOREIGN KEY ("senderId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
+ALTER TABLE "ChatMessage" ADD CONSTRAINT "ChatMessage_sharedPostId_fkey" FOREIGN KEY ("sharedPostId") REFERENCES "Post"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
 ALTER TABLE "ChatMessageMedia" ADD CONSTRAINT "ChatMessageMedia_messageId_fkey" FOREIGN KEY ("messageId") REFERENCES "ChatMessage"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -1266,6 +1281,9 @@ ALTER TABLE "SecurityEvent" ADD CONSTRAINT "SecurityEvent_userId_fkey" FOREIGN K
 
 -- AddForeignKey
 ALTER TABLE "UserIdentityHistory" ADD CONSTRAINT "UserIdentityHistory_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Share" ADD CONSTRAINT "Share_chatMessageId_fkey" FOREIGN KEY ("chatMessageId") REFERENCES "ChatMessage"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Share" ADD CONSTRAINT "Share_postId_fkey" FOREIGN KEY ("postId") REFERENCES "Post"("id") ON DELETE CASCADE ON UPDATE CASCADE;

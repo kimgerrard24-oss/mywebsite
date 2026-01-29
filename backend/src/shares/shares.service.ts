@@ -9,12 +9,14 @@ import {
 import { SharesRepository } from './shares.repository';
 import { ShareCreatePolicy } from './policy/share-create.policy';
 import { NotificationsService } from '../notifications/notifications.service';
+import { ChatMessagesService } from '../chat/chat-messages.service';
 
 @Injectable()
 export class SharesService {
   constructor(
     private readonly repo: SharesRepository,
     private readonly notifications: NotificationsService,
+    private readonly chatMessages: ChatMessagesService,
   ) {}
 
   /**
@@ -57,6 +59,30 @@ export class SharesService {
         targetUserId: params.targetUserId,
         targetChatId: params.targetChatId,
       });
+
+      /**
+ * 1.5️⃣ If share to chat → create chat message (POST_SHARE)
+ * fail-soft: must not break share record
+ */
+if (params.targetChatId) {
+  try {
+    const msg =
+      await this.chatMessages.createPostShareMessage({
+        chatId: params.targetChatId,
+        senderId: params.actorUserId,
+        postId: params.postId,
+      });
+
+    // link message → share (authority)
+    await this.repo.attachChatMessage({
+      shareId: row.id,
+      chatMessageId: msg.id,
+    });
+  } catch (e) {
+    // must not break share flow
+    // optional: log later
+  }
+}
 
     // 2️⃣ Notification (only if share to user)
     if (params.targetUserId) {

@@ -71,6 +71,13 @@ if (targetType === 'CHAT_MESSAGE')
         return item.entityId
           ? `/posts/${item.entityId}`
           : null;
+       
+      case 'feed_repost':
+        return item.payload?.postId
+          ? `/p/${item.payload.postId}`
+          : item.entityId
+          ? `/p/${item.entityId}`
+          : null;
       
       case 'post_tagged_auto_accepted':
       case 'post_tagged_request':
@@ -149,7 +156,10 @@ if (targetType === 'CHAT_MESSAGE')
 
       case 'feed_new_post':
         return 'new post in your feed';
-      
+
+      case 'feed_repost':
+        return 'shared a post with you';
+
       case 'post_tagged_auto_accepted':
          return 'tagged you in a post';
 

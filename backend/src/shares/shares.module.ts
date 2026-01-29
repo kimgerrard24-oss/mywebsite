@@ -14,6 +14,7 @@ import { SharesExternalService } from './shares-external.service';
 import { SharesExternalRepository } from './shares-external.repository';
 import { ShareLinksModule } from '../shares/share-links/share-links.module';
 import { AuthModule } from '../auth/auth.module';
+import { ChatModule } from '../chat/chat.module';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { AuthModule } from '../auth/auth.module';
     AuthModule,
     NotificationsModule,
     ShareLinksModule,
+    ChatModule,
   ],
   controllers: [SharesController],
   providers: [
