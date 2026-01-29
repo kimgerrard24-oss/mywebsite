@@ -235,12 +235,23 @@ export default function ShareSheet({
     {/* ===== Chat Room Picker Modal ===== */}
 {showChatPicker && (
   <ChatRoomPickerModal
-    postId={postId}
-    onClose={() => setShowChatPicker(false)}
-    onSuccess={() => {
-  setShowChatPicker(false);
+  postId={postId}
+  onClose={() => setShowChatPicker(false)}
+  onSuccess={(chatMessage) => {
+    setShowChatPicker(false);
+    onClose(); // ปิด ShareSheet
+
+    if (chatMessage) {
+      // ✅ push เข้า chat state (ผู้ส่ง)
+      window.dispatchEvent(
+        new CustomEvent('chat:append-message', {
+          detail: chatMessage,
+        }),
+      );
+    }
   }}
-  />
+/>
+
 )}
 
   </>

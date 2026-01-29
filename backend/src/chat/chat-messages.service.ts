@@ -243,6 +243,11 @@ try {
     messageId: message.id,
   });
 
+  const dto = ChatMessageDto.fromRow(
+    full ?? message,
+    senderId,
+  );
+
 
     // 6) Realtime emit (fail-soft)
     try {
@@ -255,7 +260,7 @@ try {
       });
     } catch {}
 
-    return { id: message.id };
+    return dto;
   }
 
 }

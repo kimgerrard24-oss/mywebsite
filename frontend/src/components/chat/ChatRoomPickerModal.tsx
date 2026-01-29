@@ -25,8 +25,9 @@ type ChatRoomItem = {
 type Props = {
   postId: string;
   onClose: () => void;
-  onSuccess?: () => void;
+  onSuccess?: (chatMessage: any | null) => void;
 };
+
 
 export default function ChatRoomPickerModal({
   postId,
@@ -116,20 +117,17 @@ export default function ChatRoomPickerModal({
         setError(null);
       }
 
-      await api.post(
-        '/shares',
-        {
-          postId,
-          targetChatId: selectedId,
-        },
-        { withCredentials: true },
-      );
+      const res = await api.post(
+  '/shares',
+  {
+    postId,
+    targetChatId: selectedId,
+  },
+  { withCredentials: true },
+);
 
-      /**
-       * ⚠️ onSuccess จะทำให้ parent ปิด modal
-       * ห้าม setState หลังจากนี้โดยไม่เช็ค mounted
-       */
-      onSuccess?.();
+onSuccess?.(res.data?.chatMessage ?? null);
+
     } catch (e) {
       console.error('[ChatRoomPickerModal] share failed', e);
       if (mountedRef.current) {

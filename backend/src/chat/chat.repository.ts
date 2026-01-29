@@ -210,17 +210,16 @@ async findChatRoomsByUser(userId: string) {
         }
       : {}),
 
-    // ✅ ใช้ select อย่างเดียว
     select: {
       id: true,
+      type: true,
       content: true,
       createdAt: true,
 
-      // ===== delete state (for appeal UX guard) =====
       isDeleted: true,
       deletedAt: true,
 
-      senderId: true, // ✅ owner check
+      senderId: true, 
 
       sender: {
         select: {
