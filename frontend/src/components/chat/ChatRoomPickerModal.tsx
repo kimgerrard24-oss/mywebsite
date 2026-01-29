@@ -1,7 +1,5 @@
 // frontend/src/components/chat/ChatRoomPickerModal.tsx
 
-// frontend/src/components/chat/ChatRoomPickerModal.tsx
-
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
@@ -46,6 +44,17 @@ export default function ChatRoomPickerModal({
 
   const containerRef = useRef<HTMLDivElement | null>(null);
 
+  /**
+   * ✅ prevent setState after unmount
+   */
+  const mountedRef = useRef(true);
+
+  useEffect(() => {
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
   // =========================
   // ESC to close
   // =========================
@@ -61,31 +70,36 @@ export default function ChatRoomPickerModal({
   // Load chat rooms
   // =========================
   useEffect(() => {
-    let mounted = true;
+    let active = true;
 
     (async () => {
       try {
-        setLoading(true);
-        setError(null);
+        if (mountedRef.current) {
+          setLoading(true);
+          setError(null);
+        }
 
         const res = await api.get<ChatRoomItem[]>(
           '/chat/rooms',
           { withCredentials: true },
         );
 
-        if (!mounted) return;
+        if (!active || !mountedRef.current) return;
+
         setRooms(Array.isArray(res.data) ? res.data : []);
       } catch (e) {
         console.error('[ChatRoomPickerModal] load rooms failed', e);
-        if (!mounted) return;
+        if (!active || !mountedRef.current) return;
         setError('Unable to load chat rooms');
       } finally {
-        if (mounted) setLoading(false);
+        if (active && mountedRef.current) {
+          setLoading(false);
+        }
       }
     })();
 
     return () => {
-      mounted = false;
+      active = false;
     };
   }, []);
 
@@ -96,8 +110,10 @@ export default function ChatRoomPickerModal({
     if (!selectedId || sending) return;
 
     try {
-      setSending(true);
-      setError(null);
+      if (mountedRef.current) {
+        setSending(true);
+        setError(null);
+      }
 
       await api.post(
         '/shares',
@@ -108,12 +124,20 @@ export default function ChatRoomPickerModal({
         { withCredentials: true },
       );
 
+      /**
+       * ⚠️ onSuccess จะทำให้ parent ปิด modal
+       * ห้าม setState หลังจากนี้โดยไม่เช็ค mounted
+       */
       onSuccess?.();
     } catch (e) {
       console.error('[ChatRoomPickerModal] share failed', e);
-      setError('Unable to share to chat');
+      if (mountedRef.current) {
+        setError('Unable to share to chat');
+      }
     } finally {
-      setSending(false);
+      if (mountedRef.current) {
+        setSending(false);
+      }
     }
   }
 
@@ -123,9 +147,11 @@ export default function ChatRoomPickerModal({
   function getOtherParticipant(room: ChatRoomItem) {
     if (!viewerUserId) return null;
 
-    return room.participants.find(
-      (p) => p.user?.id && p.user.id !== viewerUserId,
-    )?.user ?? null;
+    return (
+      room.participants.find(
+        (p) => p.user?.id && p.user.id !== viewerUserId,
+      )?.user ?? null
+    );
   }
 
   function getRoomTitle(room: ChatRoomItem) {
@@ -211,8 +237,7 @@ export default function ChatRoomPickerModal({
                     onClick={() => setSelectedId(room.id)}
                     className={clsx(
                       'w-full flex items-center gap-3 rounded-lg px-3 py-2 text-left border',
-                      checked &&
-                        'bg-blue-50 border-blue-400',
+                      checked && 'bg-blue-50 border-blue-400',
                       !checked &&
                         'hover:bg-gray-50 border-transparent',
                       sending && 'opacity-60 cursor-not-allowed',
@@ -291,4 +316,6 @@ export default function ChatRoomPickerModal({
     </div>
   );
 }
+
+
 
