@@ -66,8 +66,19 @@ if (message.isDeleted || message.deletedAt) {
       )
     : "";
   
-  const isPostShare = message.type === "POST_SHARE";
-  const hasSharedPost = !!message.sharedPost;
+ const isPostShare =
+  message.type === "POST_SHARE";
+
+const sharedPostId =
+  message.sharedPost?.id ?? null;
+
+  if (isPostShare && !sharedPostId) {
+  console.warn(
+    "[ChatMessageItem] POST_SHARE without sharedPost",
+    message,
+  );
+}
+
   
   const hasText =
     typeof message.content === "string" &&
@@ -230,9 +241,8 @@ if (message.isDeleted || message.deletedAt) {
      
            {/* ===== Shared Post Bubble ===== */}
 {isPostShare && (
-  hasSharedPost ? (
-    <Link
-      href={`/p/${message.sharedPost!.id}`}
+  sharedPostId ? (
+    <Link href={`/posts/${sharedPostId}`}
       className={`
         mb-1
         max-w-[260px]
@@ -271,6 +281,7 @@ if (message.isDeleted || message.deletedAt) {
     </div>
   )
 )}
+
 
 
       {/* ===== Bubble (TEXT ONLY) ===== */}
