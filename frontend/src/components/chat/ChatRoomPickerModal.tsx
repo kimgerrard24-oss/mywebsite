@@ -11,14 +11,15 @@ type ChatRoomItem = {
   id: string;
   isGroup: boolean;
   title: string | null;
-  participants: {
-    userId: string;
-    user: {
-      id: string;
-      displayName: string | null;
-      avatarUrl: string | null;
-    };
-  }[];
+  participants?: {
+  userId: string;
+  user: {
+    id: string;
+    displayName: string | null;
+    avatarUrl: string | null;
+  };
+}[];
+
 };
 
 type Props = {
@@ -145,14 +146,21 @@ export default function ChatRoomPickerModal({
   // Helpers
   // =========================
   function getOtherParticipant(room: ChatRoomItem) {
-    if (!viewerUserId) return null;
+  if (!viewerUserId) return null;
 
-    return (
-      room.participants.find(
-        (p) => p.user?.id && p.user.id !== viewerUserId,
-      )?.user ?? null
-    );
+  if (!Array.isArray(room.participants)) {
+    return null;
   }
+
+  return (
+    room.participants.find(
+      (p) =>
+        p?.user?.id &&
+        p.user.id !== viewerUserId,
+    )?.user ?? null
+  );
+}
+
 
   function getRoomTitle(room: ChatRoomItem) {
     if (room.isGroup) {
@@ -224,10 +232,14 @@ export default function ChatRoomPickerModal({
           )}
 
           <ul className="flex flex-col gap-1">
-            {rooms.map((room) => {
-              const checked = selectedId === room.id;
-              const avatar = getRoomAvatar(room);
-              const title = getRoomTitle(room);
+  {rooms.map((room) => {
+  if (!room) return null;
+
+  const checked = selectedId === room.id;
+  const avatar = getRoomAvatar(room); 
+  const title = getRoomTitle(room);   
+
+
 
               return (
                 <li key={room.id}>
