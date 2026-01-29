@@ -5,6 +5,7 @@ import type { ShareIntentResult } from "@/lib/api/shares";
 import ExternalShareButton from "./ExternalShareButton";
 import UserPickerModal from "@/components/users/UserPickerModal";
 import { api } from "@/lib/api/api";
+import ChatRoomPickerModal from "@/components/chat/ChatRoomPickerModal";
 
 type Props = {
   open: boolean;
@@ -30,6 +31,8 @@ export default function ShareSheet({
       : "";
   const [showPicker, setShowPicker] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [showChatPicker, setShowChatPicker] =
+  useState(false);
 
   /* =========================
      Fallback: copy / native share
@@ -106,23 +109,45 @@ export default function ShareSheet({
 
         <div className="space-y-2">
           {intent.canShareInternal && (
-            <button
-              disabled={submitting}
-              className="
-                w-full
-                text-left
-                px-3
-                py-2
-                border
-                rounded-md
-                hover:bg-gray-50
-                disabled:opacity-60
-              "
-              onClick={() => setShowPicker(true)}
-            >
-              ส่งให้เพื่อนใน PhlyPhant
-            </button>
-          )}
+  <>
+    {/* Share to user */}
+    <button
+      disabled={submitting}
+      className="
+        w-full
+        text-left
+        px-3
+        py-2
+        border
+        rounded-md
+        hover:bg-gray-50
+        disabled:opacity-60
+      "
+      onClick={() => setShowPicker(true)}
+    >
+      ส่งให้เพื่อนใน PhlyPhant
+    </button>
+
+    {/* Share to chat room */}
+    <button
+      disabled={submitting}
+      className="
+        w-full
+        text-left
+        px-3
+        py-2
+        border
+        rounded-md
+        hover:bg-gray-50
+        disabled:opacity-60
+      "
+      onClick={() => setShowChatPicker(true)}
+    >
+      ส่งไปที่ห้องแชท
+    </button>
+  </>
+)}
+
 
           {intent.canShareExternal && (
             <ExternalShareButton
@@ -206,6 +231,19 @@ export default function ShareSheet({
         }}
       />
     )}
+
+    {/* ===== Chat Room Picker Modal ===== */}
+{showChatPicker && (
+  <ChatRoomPickerModal
+    postId={postId}
+    onClose={() => setShowChatPicker(false)}
+    onSuccess={() => {
+      setShowChatPicker(false);
+      onClose(); // ปิด ShareSheet ด้วย
+    }}
+  />
+)}
+
   </>
 );
 

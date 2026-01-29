@@ -8,6 +8,7 @@ export type NotificationType =
   | 'follow'
   | 'follow_request_approved'
   | 'chat_message'
+  | 'feed_repost' 
   | 'moderation_action'
   | 'appeal_resolved'
   | 'post_tagged_auto_accepted'
@@ -56,6 +57,16 @@ export type NotificationPayloadMap = {
 
   post_tagged_auto_accepted: { postId: string };
   post_tagged_request: { postId: string };
+  
+   feed_repost: {
+    postId: string;
+    actorUserId: string;
+  };
+
+   feed_new_post: {
+    postId: string;
+    authorId: string;
+  };
 
   appeal_resolved: {
     appealId: string;
@@ -107,6 +118,8 @@ type BaseNotificationItem<T extends NotificationType> = {
 export type NotificationItem =
   | BaseNotificationItem<'comment'>
   | BaseNotificationItem<'comment_mention'>
+  | BaseNotificationItem<'feed_repost'>   
+  | BaseNotificationItem<'feed_new_post'>
   | BaseNotificationItem<'like'>
   | BaseNotificationItem<'follow_request'>
   | BaseNotificationItem<'follow'>

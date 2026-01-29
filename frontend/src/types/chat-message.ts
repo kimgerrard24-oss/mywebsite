@@ -8,6 +8,17 @@ export type ChatMessage = {
    * null when message contains only media
    */
   content: string | null;
+    /**
+   * message type
+   */
+  type: "TEXT" | "POST_SHARE";
+
+  /**
+   * shared post (when POST_SHARE)
+   */
+  sharedPost?: {
+    id: string;
+  } | null;
 
   senderId?: string;
 

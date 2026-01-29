@@ -65,7 +65,10 @@ if (message.isDeleted || message.deletedAt) {
         { hour: "2-digit", minute: "2-digit" },
       )
     : "";
-
+  
+  const isPostShare = message.type === "POST_SHARE";
+  const hasSharedPost = !!message.sharedPost;
+  
   const hasText =
     typeof message.content === "string" &&
     message.content.trim().length > 0;
@@ -224,9 +227,54 @@ if (message.isDeleted || message.deletedAt) {
           })}
         </div>
       )}
+     
+           {/* ===== Shared Post Bubble ===== */}
+{isPostShare && (
+  hasSharedPost ? (
+    <Link
+      href={`/p/${message.sharedPost!.id}`}
+      className={`
+        mb-1
+        max-w-[260px]
+        rounded-xl
+        border
+        bg-white
+        p-3
+        shadow-sm
+        hover:bg-gray-50
+        ${isBlocked ? "pointer-events-none opacity-60" : ""}
+      `}
+    >
+      <div className="text-xs text-gray-500 mb-1">
+        Shared a post
+      </div>
+
+      <div className="text-sm font-medium text-blue-600">
+        View post
+      </div>
+    </Link>
+  ) : (
+    <div
+      className={`
+        mb-1
+        max-w-[260px]
+        rounded-xl
+        border
+        bg-gray-50
+        p-3
+        text-sm
+        text-gray-400
+        ${isBlocked ? "opacity-60" : ""}
+      `}
+    >
+      Post unavailable
+    </div>
+  )
+)}
+
 
       {/* ===== Bubble (TEXT ONLY) ===== */}
-      {hasText && (
+      {hasText && !isPostShare &&  (
         <div
         aria-disabled={isBlocked} 
         className={`relative rounded-lg px-3 py-2 text-sm ${

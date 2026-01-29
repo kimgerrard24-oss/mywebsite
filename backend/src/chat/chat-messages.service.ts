@@ -202,4 +202,60 @@ try {
   return ChatMessageDto.fromRow(message);
 }
 
+  /**
+   * =========================
+   * CREATE POST SHARE MESSAGE
+   * Used by SharesService only
+   * =========================
+   */
+  async createPostShareMessage(params: {
+    chatId: string;
+    senderId: string;
+    postId: string;
+  }): Promise<{ id: string }> {
+    const { chatId, senderId, postId } = params;
+
+    // 1) Load chat (existence)
+    const chat = await this.repo.findChatById(chatId);
+    if (!chat) {
+      throw new NotFoundException('Chat not found');
+    }
+
+    // 2) Permission (participant + active + block)
+    await this.permission.assertCanAccessChat({
+      chat,
+      viewerUserId: senderId,
+    });
+
+    // 3) Create message (POST_SHARE)
+    const message = await this.repo.createMessage({
+      chatId,
+      senderUserId: senderId,
+      content: null,
+      type: 'POST_SHARE',
+      sharedPostId: postId,
+    });
+
+    // 5) Reload full snapshot (authoritative)
+   const full =
+  await this.repo.findMessageById({
+    chatId,
+    messageId: message.id,
+  });
+
+
+    // 6) Realtime emit (fail-soft)
+    try {
+      this.chatRealtime.emitNewMessage({
+        chatId,
+        message: ChatMessageDto.fromRow(
+          full ?? message,
+          senderId,
+        ),
+      });
+    } catch {}
+
+    return { id: message.id };
+  }
+
 }

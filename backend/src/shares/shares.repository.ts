@@ -111,4 +111,15 @@ export class SharesRepository {
       },
     });
   }
+
+  attachChatMessage(params: {
+  shareId: string;
+  chatMessageId: string;
+}) {
+  return this.prisma.share.update({
+    where: { id: params.shareId },
+    data: { chatMessageId: params.chatMessageId },
+  });
+}
+
 }

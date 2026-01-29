@@ -6,6 +6,18 @@ export class ChatMessageDto {
   id!: string;
   content!: string | null;
   createdAt!: string;
+  
+    /**
+   * message type
+   */
+  type!: 'TEXT' | 'POST_SHARE';
+
+  /**
+   * shared post (only when POST_SHARE)
+   */
+  sharedPost?: {
+    id: string;
+  } | null;
 
   isDeleted!: boolean;
   deletedAt!: string | null;
@@ -56,6 +68,7 @@ export class ChatMessageDto {
 
     return {
       id: row.id,
+      type: row.type ?? 'TEXT',
       content: row.content ?? null,
       createdAt: row.createdAt.toISOString(),
 
@@ -76,6 +89,11 @@ export class ChatMessageDto {
         hasBlockedViewer:
           row.sender?.hasBlockedViewer === true,
       },
+
+      sharedPost:
+        row.type === 'POST_SHARE' && row.sharedPost
+          ? { id: row.sharedPost.id }
+          : null,
 
       media: Array.isArray(row.media)
         ? row.media

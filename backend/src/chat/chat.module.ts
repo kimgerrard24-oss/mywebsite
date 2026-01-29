@@ -38,5 +38,8 @@ import { ChatReportRepository } from './chat-report.repository';
     ChatPermissionService,
     ChatMessageAuditService,
   ],
+   exports: [
+    ChatMessagesService, 
+  ],
 })
 export class ChatModule {}
