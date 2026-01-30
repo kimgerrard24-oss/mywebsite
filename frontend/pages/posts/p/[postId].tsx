@@ -6,7 +6,6 @@ import { useEffect } from "react";
 
 import PostPublicDetail from "@/components/posts/PostPublicDetail";
 import { getPublicPostById } from "@/lib/api/public-posts";
-import { requireSessionSSR } from "@/lib/auth/require-session-ssr";
 import type { PublicPostDetail } from "@/types/public-post-detail";
 
 type Props = {
@@ -23,6 +22,7 @@ export default function PublicPostPage({ post }: Props) {
   const ogVideo =
     firstMedia?.type === "video" ? mediaSrc : undefined;
 
+  // Scroll to comment anchor (client-only)
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -128,14 +128,17 @@ export const getServerSideProps: GetServerSideProps<Props> =
       return { notFound: true };
     }
 
-    // optional auth (SEO-safe)
-    await requireSessionSSR(ctx, { optional: true });
-
     try {
+      /**
+       * ❗ Public page
+       * - ไม่มี auth check
+       * - ส่ง cookie ไป backend เฉพาะเพื่อ context (ถ้ามี)
+       * - backend เป็นผู้ตัดสิน visibility
+       */
       const post = await getPublicPostById(postId, ctx);
 
       if (!post) {
-        // 👉 fallback ไปหน้า posts (internal canonical)
+        // fallback ไป internal canonical (authenticated view)
         return {
           redirect: {
             destination: `/posts/${postId}`,
@@ -147,7 +150,6 @@ export const getServerSideProps: GetServerSideProps<Props> =
       return {
         props: { post },
       };
-      
     } catch {
       return {
         redirect: {
