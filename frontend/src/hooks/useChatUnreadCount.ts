@@ -1,6 +1,6 @@
 // frontend/src/hooks/useChatUnreadCount.ts
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { getChatUnreadCountClient } from "@/lib/api/chat-unread";
 
 export function useChatUnreadCount(chatId: string) {
@@ -8,13 +8,28 @@ export function useChatUnreadCount(chatId: string) {
     useState<number>(0);
   const [loading, setLoading] = useState(true);
 
+  const activeChatIdRef = useRef<string | null>(null);
+
   async function refresh() {
+    if (!chatId) return;
+
+    const currentChatId = chatId;
+    activeChatIdRef.current = currentChatId;
+
+    setLoading(true);
+
     try {
       const res =
-        await getChatUnreadCountClient(chatId);
-      setUnreadCount(res.unreadCount);
+        await getChatUnreadCountClient(currentChatId);
+
+      // prevent stale response overwrite
+      if (activeChatIdRef.current === currentChatId) {
+        setUnreadCount(res.unreadCount);
+      }
     } finally {
-      setLoading(false);
+      if (activeChatIdRef.current === currentChatId) {
+        setLoading(false);
+      }
     }
   }
 
@@ -25,6 +40,6 @@ export function useChatUnreadCount(chatId: string) {
   return {
     unreadCount,
     loading,
-    refresh, // เผื่อ socket / manual refresh
+    refresh,
   };
 }
