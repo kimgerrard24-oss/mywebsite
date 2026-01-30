@@ -24,6 +24,45 @@ type Props = {
   onDeleted?: (id: string) => void;
 };
 
+function MessageFooter({
+  isOwn,
+  timeLabel,
+  onDelete,
+  onReport,
+  isBlocked,
+}: {
+  isOwn: boolean;
+  timeLabel: string;
+  onDelete: () => void;
+  onReport: () => void;
+  isBlocked: boolean;
+}) {
+  return (
+    <div
+      className={`mt-1 flex items-center justify-end gap-2 text-[10px] ${
+        isOwn ? "text-blue-200" : "text-gray-400"
+      }`}
+    >
+      <span>{timeLabel}</span>
+
+      {isOwn && (
+        <ChatMessageActions onDelete={onDelete} />
+      )}
+
+      {!isOwn && !isBlocked && (
+        <button
+          type="button"
+          onClick={onReport}
+          className="text-red-500 hover:underline"
+        >
+          Report
+        </button>
+      )}
+    </div>
+  );
+}
+
+
 export default function ChatMessageItem({
   chatId,
   message,
@@ -242,7 +281,7 @@ const sharedPostId =
            {/* ===== Shared Post Bubble ===== */}
 {isPostShare && (
   sharedPostId ? (
-    <Link href={`/posts/${sharedPostId}`}
+    <div
       className={`
         mb-1
         max-w-[260px]
@@ -251,19 +290,29 @@ const sharedPostId =
         bg-white
         p-3
         shadow-sm
-        hover:bg-gray-50
-        ${isBlocked ? "pointer-events-none opacity-60" : ""}
+        ${isBlocked ? "opacity-60 pointer-events-none" : ""}
       `}
     >
-      <div className="text-xs text-gray-500 mb-1">
-        Shared a post
-      </div>
+      <Link href={`/posts/${sharedPostId}`}>
+        <div className="text-xs text-gray-500 mb-1">
+          Shared a post
+        </div>
+        <div className="text-sm font-medium text-blue-600">
+          View post
+        </div>
+      </Link>
 
-      <div className="text-sm font-medium text-blue-600">
-        View post
-      </div>
-    </Link>
+      {/* ✅ Footer ที่เพิ่ม */}
+      <MessageFooter
+        isOwn={isOwn}
+        timeLabel={timeLabel}
+        isBlocked={isBlocked}
+        onDelete={() => setConfirmDelete(true)}
+        onReport={() => setReportOpen(true)}
+      />
+    </div>
   ) : (
+
     <div
       className={`
         mb-1
@@ -311,34 +360,15 @@ const sharedPostId =
           </div>
 
           {/* ===== Footer ===== */}
-          <div
-            className={`mt-1 flex items-center justify-end gap-2 text-[10px] ${
-              isOwn
-                ? "text-blue-200"
-                : "text-gray-400"
-            }`}
-          >
-            <span>{timeLabel}</span>
+      {/* ===== Footer ===== */}
+<MessageFooter
+  isOwn={isOwn}
+  timeLabel={timeLabel}
+  isBlocked={isBlocked}
+  onDelete={() => setConfirmDelete(true)}
+  onReport={() => setReportOpen(true)}
+/>
 
-            {isOwn && (
-              <ChatMessageActions
-                onDelete={() =>
-                  setConfirmDelete(true)
-                }
-              />
-            )}
-            {!isOwn && !isBlocked && (
-  <button
-    type="button"
-    onClick={() => setReportOpen(true)}
-    className="text-[10px] text-red-500 hover:underline"
-  >
-    Report
-  </button>
-)}
-
-
-          </div>
 
           <ChatConfirmDeleteModal
             open={confirmDelete}

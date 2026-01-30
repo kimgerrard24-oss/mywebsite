@@ -1,32 +1,37 @@
 // frontend/src/hooks/useChatRead.ts
-import { useCallback, useRef } from 'react';
-import { markChatAsRead } from '@/lib/api/chat-read';
+import { useCallback, useRef, useEffect } from "react";
+import { markChatAsRead } from "@/lib/api/chat-read";
 
 /**
  * =====================================================
  * useChatRead
- * - debounce กันยิงซ้ำ
- * - fail-soft (ไม่พัง UI)
+ * - debounce per chatId
+ * - fail-soft
+ * - backend is authority
  * =====================================================
  */
 export function useChatRead(chatId: string) {
-  const calledRef = useRef(false);
+  const calledChatIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    // reset debounce when chatId changes
+    calledChatIdRef.current = null;
+  }, [chatId]);
 
   const markRead = useCallback(async () => {
-    if (calledRef.current) return;
+    if (!chatId) return;
 
-    calledRef.current = true;
+    if (calledChatIdRef.current === chatId) return;
+
+    calledChatIdRef.current = chatId;
 
     try {
       await markChatAsRead(chatId);
     } catch {
-      /**
-       * fail-soft:
-       * - backend อาจ reject
-       * - ไม่ต้อง rollback UI
-       */
+      // fail-soft
     }
   }, [chatId]);
 
   return { markRead };
 }
+

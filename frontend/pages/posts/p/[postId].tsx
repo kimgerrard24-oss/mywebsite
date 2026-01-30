@@ -128,20 +128,31 @@ export const getServerSideProps: GetServerSideProps<Props> =
       return { notFound: true };
     }
 
-    // optional auth (SEO safe)
+    // optional auth (SEO-safe)
     await requireSessionSSR(ctx, { optional: true });
 
     try {
       const post = await getPublicPostById(postId, ctx);
 
       if (!post) {
-        return { notFound: true };
+        // 👉 fallback ไปหน้า posts (internal canonical)
+        return {
+          redirect: {
+            destination: `/posts/${postId}`,
+            permanent: false,
+          },
+        };
       }
 
       return {
         props: { post },
       };
     } catch {
-      return { notFound: true };
+      return {
+        redirect: {
+          destination: `/posts/${postId}`,
+          permanent: false,
+        },
+      };
     }
   };
