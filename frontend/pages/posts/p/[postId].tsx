@@ -147,6 +147,7 @@ export const getServerSideProps: GetServerSideProps<Props> =
       return {
         props: { post },
       };
+      
     } catch {
       return {
         redirect: {
