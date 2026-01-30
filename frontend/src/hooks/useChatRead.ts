@@ -27,6 +27,16 @@ export function useChatRead(chatId: string) {
 
     try {
       await markChatAsRead(chatId);
+
+// notify frontend that this chat is read
+if (typeof window !== "undefined") {
+  window.dispatchEvent(
+    new CustomEvent("chat:read", {
+      detail: { chatId },
+    }),
+  );
+}
+
     } catch {
       // fail-soft
     }

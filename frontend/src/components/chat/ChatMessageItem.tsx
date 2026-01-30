@@ -38,11 +38,12 @@ function MessageFooter({
   isBlocked: boolean;
 }) {
   return (
-    <div
-      className={`mt-1 flex items-center justify-end gap-2 text-[10px] ${
-        isOwn ? "text-blue-200" : "text-gray-400"
-      }`}
-    >
+  <div
+    className={`mt-1 flex items-center justify-end gap-2 text-[10px] pointer-events-auto ${
+      isOwn ? "text-blue-200" : "text-gray-400"
+    }`}
+  >
+
       <span>{timeLabel}</span>
 
       {isOwn && (
@@ -282,25 +283,30 @@ const sharedPostId =
 {isPostShare && (
   sharedPostId ? (
     <div
-      className={`
-        mb-1
-        max-w-[260px]
-        rounded-xl
-        border
-        bg-white
-        p-3
-        shadow-sm
-        ${isBlocked ? "opacity-60 pointer-events-none" : ""}
-      `}
-    >
-      <Link href={`/posts/${sharedPostId}`}>
-        <div className="text-xs text-gray-500 mb-1">
-          Shared a post
-        </div>
-        <div className="text-sm font-medium text-blue-600">
-          View post
-        </div>
-      </Link>
+  className={`
+    mb-1
+    max-w-[260px]
+    rounded-xl
+    border
+    bg-white
+    p-3
+    shadow-sm
+    ${isBlocked ? "opacity-60" : ""}
+  `}
+>
+
+      <Link
+  href={`/posts/${sharedPostId}`}
+  className={isBlocked ? "pointer-events-none" : ""}
+>
+  <div className="text-xs text-gray-500 mb-1">
+    Shared a post
+  </div>
+  <div className="text-sm font-medium text-blue-600">
+    View post
+  </div>
+</Link>
+
 
       {/* ✅ Footer ที่เพิ่ม */}
       <MessageFooter
@@ -359,7 +365,6 @@ const sharedPostId =
             {message.content}
           </div>
 
-          {/* ===== Footer ===== */}
       {/* ===== Footer ===== */}
 <MessageFooter
   isOwn={isOwn}
