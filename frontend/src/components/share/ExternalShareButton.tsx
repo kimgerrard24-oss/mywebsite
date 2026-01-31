@@ -27,6 +27,12 @@ export default function ExternalShareButton({
       const res =
         await createExternalShare(postId);
 
+        window.dispatchEvent(
+  new CustomEvent('post:share-updated', {
+    detail: { postId },
+  }),
+);
+
       await shareExternally(res.url);
 
       setCopied(true);

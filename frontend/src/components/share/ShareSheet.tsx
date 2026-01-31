@@ -224,6 +224,12 @@ export default function ShareSheet({
           { withCredentials: true },
         );
 
+        window.dispatchEvent(
+  new CustomEvent('post:share-updated', {
+    detail: { postId },
+  }),
+);
+
         setShowPicker(false);
         onClose(); // ปิด ShareSheet ด้วย
       } catch (e) {
