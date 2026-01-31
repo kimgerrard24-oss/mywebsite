@@ -29,6 +29,7 @@ export type PostFeedItem = {
     id: string;
     type: 'image' | 'video';
     url: string;
+    thumbnailUrl?: string | null;
     objectKey: string;
   }[];
 

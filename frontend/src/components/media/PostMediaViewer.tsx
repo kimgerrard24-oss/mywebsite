@@ -5,10 +5,18 @@ type MediaItem = {
   type: "image" | "video";
   url: string;
   cdnUrl?: string | null;
+
+  /**
+   * 🔹 NEW
+   * backend-generated video thumbnail
+   */
+  thumbnailUrl?: string | null;
+
   width?: number | null;
   height?: number | null;
   duration?: number | null;
 };
+
 
 type Props = {
   media: MediaItem[];
@@ -64,15 +72,20 @@ export default function PostMediaViewer({ media }: Props) {
               {/* Video keeps 16:9 */}
               <div className="w-full aspect-video">
                 <video
-                  src={src}
-                  controls
-                  preload="metadata"
-                  className="
-                    h-full
-                    w-full
-                    object-contain
-                  "
-                />
+  src={src}
+  poster={m.thumbnailUrl ?? undefined} 
+  playsInline   
+  controlsList="nodownload"
+  disablePictureInPicture
+  controls
+  preload="metadata"
+  className="
+    h-full
+    w-full
+    object-contain
+  "
+/>
+
               </div>
             </figure>
           );

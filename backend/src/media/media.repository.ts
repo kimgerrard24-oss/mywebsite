@@ -72,4 +72,34 @@ export class MediaRepository {
   });
  }
 
+  async update(
+    mediaId: string,
+    data: {
+      thumbnailObjectKey?: string | null;
+      width?: number | null;
+      height?: number | null;
+      duration?: number | null;
+    },
+  ) {
+    return this.prisma.media.update({
+      where: { id: mediaId },
+      data: {
+        ...(data.thumbnailObjectKey !== undefined
+          ? { thumbnailObjectKey: data.thumbnailObjectKey }
+          : {}),
+
+        ...(data.width !== undefined
+          ? { width: data.width }
+          : {}),
+
+        ...(data.height !== undefined
+          ? { height: data.height }
+          : {}),
+
+        ...(data.duration !== undefined
+          ? { duration: data.duration }
+          : {}),
+      },
+    });
+  }
 }

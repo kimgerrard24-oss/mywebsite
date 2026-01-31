@@ -35,6 +35,7 @@ export type PublicPostShareResponse = {
   media: {
     type: 'image' | 'video';
     cdnUrl: string;
+    thumbnailUrl?: string;
     width: number;
     height: number;
   }[];

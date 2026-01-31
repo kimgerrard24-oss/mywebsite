@@ -266,35 +266,44 @@ const taggedUsers = post.taggedUsers ?? [];
                 />
               )}
 
-              {m.type === "video" && (
-                <div
-                  className="
-                    relative
-                    w-full
-                    aspect-video
-                    bg-black
-                    rounded-lg
-                    sm:rounded-xl
-                    overflow-hidden
-                  "
-                >
-                  <video
-  src={m.url}
-  controls
-  preload="metadata"
-  playsInline
-  muted={false}
-  className="
-    absolute
-    inset-0
-    h-full
-    w-full
-    object-contain
-  "
-/>
+            {m.type === "video" && (
+  <div
+    className="
+      relative
+      w-full
+      aspect-video
+      bg-black
+      rounded-lg
+      sm:rounded-xl
+      overflow-hidden
+    "
+  >
+    <video
+      src={m.url}
+      poster={m.thumbnailUrl ?? undefined}
+      controls
+      preload="metadata"
+      playsInline
+      controlsList="nodownload"
+      disablePictureInPicture
+      className="
+        absolute
+        inset-0
+        h-full
+        w-full
+        object-contain
+      "
+    />
 
-                </div>
-              )}
+    {/* 🔹 UX: thumbnail async ยังไม่มา */}
+    {!m.thumbnailUrl && (
+      <p className="absolute bottom-1 w-full text-center text-xs text-gray-300">
+        กำลังเตรียมภาพตัวอย่าง…
+      </p>
+    )}
+  </div>
+)}
+
             </figure>
           ))}
         </section>

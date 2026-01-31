@@ -6,17 +6,17 @@ export class MediaMetadataDto {
   url!: string;
   objectKey!: string;
 
-  ownerUserId!: string;
-
-  postId!: string | null;
-
-  createdAt!: string;
-
-  isOwner!: boolean;
-
   /**
-   * ✅ UX guard only
-   * backend authority is enforced in POST /appeals
+   * 🔹 NEW
+   * - CDN URL ของ video thumbnail
+   * - undefined สำหรับ image
    */
+  thumbnailUrl?: string;
+
+  ownerUserId!: string;
+  postId!: string | null;
+  createdAt!: string;
+  isOwner!: boolean;
   canAppeal?: boolean;
 }
+

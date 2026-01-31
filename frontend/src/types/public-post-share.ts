@@ -48,7 +48,7 @@ export type PublicPostShare = {
      * - backend เป็นคนสร้างให้
      */
     cdnUrl: string;
-
+    thumbnailUrl?: string;
     /**
      * Media dimension
      * - backend normalize เป็น number แล้ว

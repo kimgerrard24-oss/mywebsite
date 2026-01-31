@@ -16,6 +16,7 @@ export type PublicPostDetail = {
     type: "image" | "video";
     url: string;
     cdnUrl?: string | null;
+    thumbnailUrl?: string | null;
     width?: number | null;
     height?: number | null;
     duration?: number | null;
