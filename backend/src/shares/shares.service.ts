@@ -102,6 +102,11 @@ async createShare(params: {
     } catch {}
   }
 
+  await this.repo.incrementInternalShareCount({
+  postId: params.postId,
+});
+
+
   /**
    * 3️⃣ Response (authoritative for sender)
    */

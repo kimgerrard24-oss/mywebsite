@@ -73,6 +73,12 @@ export class SharesExternalService {
       code,
     });
 
+    await this.repo.incrementExternalShareCount({
+  postId: params.postId,
+});
+
+    
+
   return {
     id: row.id,
     code: row.code,

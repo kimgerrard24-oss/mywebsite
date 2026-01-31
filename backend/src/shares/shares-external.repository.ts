@@ -120,4 +120,20 @@ export class SharesExternalRepository {
   });
 }
 
+async incrementExternalShareCount(params: { postId: string }) {
+  await this.prisma.postShareStat.upsert({
+    where: { postId: params.postId },
+    update: {
+      externalShareCount: { increment: 1 },
+      lastSharedAt: new Date(),
+    },
+    create: {
+      postId: params.postId,
+      internalShareCount: 0,
+      externalShareCount: 1,
+      lastSharedAt: new Date(),
+    },
+  });
+}
+
 }
