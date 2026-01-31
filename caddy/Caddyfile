@@ -50,13 +50,10 @@ phlyphant.com, www.phlyphant.com {
 
     # ==================================================
     # SHARE LINK ENTRY (BACKEND AUTHORITY)
+    # GET /s/:code  → NestJS (strip /s)
     # ==================================================
-    @share_links {
-        path /s/*
-    }
-
-    handle @share_links {
-        reverse_proxy api.phlyphant.com {
+    handle_path /s/* {
+        reverse_proxy phlyphant-backend:4001 {
             header_up Host {host}
             header_up X-Forwarded-For {remote}
             header_up X-Real-IP {remote}
