@@ -21,24 +21,27 @@ export default function ExternalShareButton({
   const [copied, setCopied] = useState(false);
 
   const onClick = async () => {
-    if (disabled || loading) return;
+  if (disabled || loading) return;
 
-    try {
-      const res =
-        await createExternalShare(postId);
+  try {
+    const res = await createExternalShare(postId);
 
-        window.dispatchEvent(
-  new CustomEvent('post:share-updated', {
-    detail: { postId },
-  }),
-);
+    await shareExternally(res.url);
 
-      await shareExternally(res.url);
+    // ✅ defer event ออกนอก React cycle
+    setTimeout(() => {
+      window.dispatchEvent(
+        new CustomEvent('post:share-updated', {
+          detail: { postId },
+        }),
+      );
+    }, 0);
 
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {}
-  };
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  } catch {}
+};
+
 
   return (
     <button
