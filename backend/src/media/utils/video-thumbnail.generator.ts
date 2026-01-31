@@ -1,29 +1,28 @@
 // backend/src/media/utils/video-thumbnail.generator.ts
 
-import execa from 'execa';
+import { spawn } from 'child_process';
 import { randomUUID } from 'crypto';
 import { promises as fs } from 'fs';
 import path from 'path';
 import os from 'os';
-
 
 /**
  * =========================================
  * Video Thumbnail Generator (FFmpeg)
  * =========================================
  *
- * - Production safe
- * - No shell injection (execa args array)
+ * - Production safe (no external deps)
+ * - No shell injection (spawn args array)
  * - Temp file isolation
  * - Deterministic output
- * - Fail-soft (caller decides retry / fallback)
+ * - Fail-soft (throw sanitized error only)
  *
  * ⚠️ Lifecycle note:
  * - This function DOES NOT delete temp files
- * - Caller MUST cleanup thumbnailPath when done
+ * - Caller MUST cleanup thumbnailPath
  *
  * Runtime requirements:
- * - ffmpeg must be installed in runtime (Docker / host)
+ * - ffmpeg must be installed in runtime
  */
 export type GenerateVideoThumbnailOptions = {
   /**
@@ -43,7 +42,6 @@ export type GenerateVideoThumbnailOptions = {
 
   /**
    * Seek time in seconds (default: 1s)
-   * Will be clamped to >= 0
    */
   seekSeconds?: number;
 
@@ -110,22 +108,60 @@ export async function generateVideoThumbnail(
     `${randomUUID()}.jpg`,
   );
 
+  // -----------------------------
+  // Run FFmpeg (spawn)
+  // -----------------------------
   try {
-    /**
-     * FFmpeg command explanation:
-     *
-     * -ss           : seek to timestamp (fast seek)
-     * -i            : input file
-     * -frames:v 1   : extract 1 frame
-     * -vf           : scale + pad to exact OG size
-     * -q:v 2        : high quality JPEG
-     * -y            : overwrite output
-     */
-    await execa(
+    await runFfmpeg({
+      inputVideoPath,
+      outputFile,
+      width,
+      height,
+      seekSeconds: safeSeek,
+      timeoutMs,
+    });
+
+    await assertFileExists(outputFile);
+
+    return {
+      thumbnailPath: outputFile,
+      mimeType: 'image/jpeg',
+    };
+  } catch {
+    // ❗ sanitize internal error details
+    throw new Error('Failed to generate video thumbnail');
+  }
+}
+
+/**
+ * =========================================
+ * Helpers
+ * =========================================
+ */
+
+async function runFfmpeg(params: {
+  inputVideoPath: string;
+  outputFile: string;
+  width: number;
+  height: number;
+  seekSeconds: number;
+  timeoutMs: number;
+}): Promise<void> {
+  const {
+    inputVideoPath,
+    outputFile,
+    width,
+    height,
+    seekSeconds,
+    timeoutMs,
+  } = params;
+
+  return new Promise((resolve, reject) => {
+    const ffmpeg = spawn(
       'ffmpeg',
       [
         '-ss',
-        String(safeSeek),
+        String(seekSeconds),
         '-i',
         inputVideoPath,
         '-frames:v',
@@ -138,30 +174,28 @@ export async function generateVideoThumbnail(
         outputFile,
       ],
       {
-        stdio: 'ignore', // 🔒 prevent log spam / info leak
-        timeout: timeoutMs,
+        stdio: 'ignore', // 🔒 no log spam
       },
     );
 
-    await assertFileExists(outputFile);
+    const timer = setTimeout(() => {
+      ffmpeg.kill('SIGKILL');
+      reject(new Error('ffmpeg timeout'));
+    }, timeoutMs);
 
-    return {
-      thumbnailPath: outputFile,
-      mimeType: 'image/jpeg',
-    };
-  } catch {
-    // sanitize all internal details
-    throw new Error(
-      'Failed to generate video thumbnail',
-    );
-  }
+    ffmpeg.on('error', (err) => {
+      clearTimeout(timer);
+      reject(err);
+    });
+
+    ffmpeg.on('exit', (code) => {
+      clearTimeout(timer);
+      code === 0
+        ? resolve()
+        : reject(new Error('ffmpeg failed'));
+    });
+  });
 }
-
-/**
- * =========================================
- * Helpers
- * =========================================
- */
 
 async function assertFileExists(filePath: string) {
   try {
@@ -173,8 +207,14 @@ async function assertFileExists(filePath: string) {
 
 async function assertFfmpegAvailable() {
   try {
-    await execa('ffmpeg', ['-version'], {
-      stdio: 'ignore',
+    await new Promise<void>((resolve, reject) => {
+      const p = spawn('ffmpeg', ['-version'], {
+        stdio: 'ignore',
+      });
+      p.on('exit', (code) =>
+        code === 0 ? resolve() : reject(),
+      );
+      p.on('error', reject);
     });
   } catch {
     throw new Error(
