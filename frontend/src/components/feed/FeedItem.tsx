@@ -295,12 +295,6 @@ const taggedUsers = post.taggedUsers ?? [];
       "
     />
 
-    {/* 🔹 UX: thumbnail async ยังไม่มา */}
-    {!m.thumbnailUrl && (
-      <p className="absolute bottom-1 w-full text-center text-xs text-gray-300">
-        กำลังเตรียมภาพตัวอย่าง…
-      </p>
-    )}
   </div>
 )}
 

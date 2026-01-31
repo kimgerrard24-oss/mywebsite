@@ -136,25 +136,27 @@ export default function VideoItem({ post, onLike }: Props) {
           overflow-hidden
         "
       >
-        <video
-          key={post.id} // 🔥 force remount
-          ref={videoRef}
-          data-video
-          src={video.url}
-          muted={muted}
-          autoPlay
-          loop
-          playsInline
-          preload="auto"
-          onClick={handleTap}
-          className="
-            absolute
-            inset-0
-            h-full
-            w-full
-            object-contain
-          "
-        />
+      <video
+    key={post.id}
+    ref={videoRef}
+    data-video
+    src={video.url}
+    poster={video.thumbnailUrl ?? undefined} 
+    muted={muted}
+    autoPlay
+    loop
+    playsInline
+    preload="metadata"
+    onClick={handleTap}
+    className="
+      absolute
+      inset-0
+      h-full
+      w-full
+      object-contain
+    "
+  />
+
 
         {/* ===== Controls ===== */}
         <div
