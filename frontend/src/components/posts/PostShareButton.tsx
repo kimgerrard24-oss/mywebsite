@@ -1,7 +1,7 @@
 // frontend/src/components/posts/PostShareButton.tsx
 
 import { useState } from "react";
-import SharePostModal from "@/components/share/SharePostModal";
+import ShareButton from "@/components/share/ShareButton";
 
 type Props = {
   postId: string;
@@ -30,11 +30,8 @@ export default function PostShareButton({
         Share
       </button>
 
-      <SharePostModal
-        postId={postId}
-        open={open}
-        onClose={() => setOpen(false)}
-      />
+      <ShareButton postId={postId} />
+
     </>
   );
 }

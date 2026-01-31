@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { ShareIntentResult } from "@/lib/api/shares";
 import ExternalShareButton from "./ExternalShareButton";
-import UserPickerModal from "@/components/users/UserPickerModal";
+import ShareUserPicker from "@/components/share/ShareUserPicker";
 import { api } from "@/lib/api/api";
 import ChatRoomPickerModal from "@/components/chat/ChatRoomPickerModal";
 
@@ -111,22 +111,26 @@ export default function ShareSheet({
           {intent.canShareInternal && (
   <>
     {/* Share to user */}
-    <button
-      disabled={submitting}
-      className="
-        w-full
-        text-left
-        px-3
-        py-2
-        border
-        rounded-md
-        hover:bg-gray-50
-        disabled:opacity-60
-      "
-      onClick={() => setShowPicker(true)}
-    >
-      ส่งให้เพื่อนใน PhlyPhant
-    </button>
+<button
+  disabled={submitting}
+  className="
+    w-full
+    text-left
+    px-3
+    py-2
+    border
+    rounded-md
+    hover:bg-gray-50
+    disabled:opacity-60
+  "
+  onClick={() => {
+    if (submitting) return; // 🛑 guard
+    setShowPicker(true);
+  }}
+>
+  ส่งให้เพื่อนใน PhlyPhant
+</button>
+
 
     {/* Share to chat room */}
     <button
@@ -203,34 +207,35 @@ export default function ShareSheet({
 
     {/* ===== User Picker Modal (Internal Share) ===== */}
     {showPicker && (
-      <UserPickerModal
-        title="เลือกเพื่อนเพื่อส่งโพสต์"
-        max={1}
-        onClose={() => setShowPicker(false)}
-        onConfirm={async ([userId]) => {
-          try {
-            setSubmitting(true);
+  <ShareUserPicker
+    title="เลือกเพื่อนเพื่อส่งโพสต์"
+    max={1}
+    onClose={() => setShowPicker(false)}
+    onConfirm={async ([userId]) => {
+      try {
+        setSubmitting(true);
 
-            await api.post(
-              "/shares",
-              {
-                postId,
-                targetUserId: userId,
-              },
-              { withCredentials: true },
-            );
+        await api.post(
+          "/shares",
+          {
+            postId,
+            targetUserId: userId,
+          },
+          { withCredentials: true },
+        );
 
-            setShowPicker(false);
-            onClose(); // ปิด ShareSheet ด้วย
-          } catch (e) {
-            console.error("Internal share failed", e);
-            alert("ไม่สามารถแชร์โพสต์ให้เพื่อนได้");
-          } finally {
-            setSubmitting(false);
-          }
-        }}
-      />
-    )}
+        setShowPicker(false);
+        onClose(); // ปิด ShareSheet ด้วย
+      } catch (e) {
+        console.error("Internal share failed", e);
+        alert("ไม่สามารถแชร์โพสต์ให้เพื่อนได้");
+      } finally {
+        setSubmitting(false);
+      }
+    }}
+  />
+)}
+
 
     {/* ===== Chat Room Picker Modal ===== */}
 {showChatPicker && (
