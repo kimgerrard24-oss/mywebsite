@@ -6,11 +6,41 @@ import { useEffect } from "react";
 
 import PostPublicDetail from "@/components/posts/PostPublicDetail";
 import { getPublicPostById } from "@/lib/api/public-posts";
+import { getPublicPostShareById } from "@/lib/api/public-posts-share";
 import type { PublicPostDetail } from "@/types/public-post-detail";
+import type { PublicPostShare } from "@/types/public-post-share";
 
 type Props = {
   post: PublicPostDetail;
 };
+
+function mapShareToPublicPostDetail(
+  share: PublicPostShare
+): PublicPostDetail {
+  return {
+    id: share.id,
+    content: share.content,
+    createdAt: share.createdAt,
+
+    author: {
+      id: "public", // dummy id (UI ใช้แค่ displayName + avatarUrl)
+      displayName: share.author.displayName,
+      avatarUrl: null,
+    },
+
+    media: share.media.map((m, index) => ({
+      id: `public-${index}`, // dummy id
+      type: m.type,
+      url: m.cdnUrl,         // fallback ให้ PostMediaViewer ใช้ได้
+      cdnUrl: m.cdnUrl,
+      width: m.width,
+      height: m.height,
+      duration: null,
+    })),
+  };
+}
+
+
 
 export default function PublicPostPage({ post }: Props) {
   const firstMedia = post.media?.[0];
@@ -22,7 +52,6 @@ export default function PublicPostPage({ post }: Props) {
   const ogVideo =
     firstMedia?.type === "video" ? mediaSrc : undefined;
 
-  // Scroll to comment anchor (client-only)
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -97,19 +126,7 @@ export default function PublicPostPage({ post }: Props) {
         )}
       </Head>
 
-      <main
-        className="
-          mx-auto
-          w-full
-          max-w-sm
-          sm:max-w-md
-          md:max-w-2xl
-          px-4
-          sm:px-6
-          py-6
-          sm:py-8
-        "
-      >
+      <main className="mx-auto w-full max-w-sm sm:max-w-md md:max-w-2xl px-4 sm:px-6 py-6 sm:py-8">
         <article aria-label="Public post content">
           <PostPublicDetail post={post} />
         </article>
@@ -129,34 +146,20 @@ export const getServerSideProps: GetServerSideProps<Props> =
     }
 
     try {
-      const post = await getPublicPostById(postId, ctx);
+      // ✅ ALWAYS load public version first
+      const share = await getPublicPostShareById(postId, ctx);
 
-      if (!post) {
-        // ❗ public route ต้องจบที่นี่
-        return {
-          notFound: true,
-        };
+      if (!share) {
+        return { notFound: true };
       }
+
+      // ✅ map to UI contract
+      const post = mapShareToPublicPostDetail(share);
 
       return {
         props: { post },
       };
-    } catch (err: any) {
-      const status = err?.response?.status ?? null;
-
-      if (status === 403) {
-        return {
-          notFound: true,
-        };
-      }
-
-      if (status === 404) {
-        return {
-          notFound: true,
-        };
-      }
-
-      throw err; // ให้ Next.js handle 500
+    } catch {
+      return { notFound: true };
     }
   };
-
