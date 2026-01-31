@@ -20,6 +20,7 @@ export default function PostMediaViewer({ media }: Props) {
       {media.map((m) => {
         const src = m.cdnUrl ?? m.url;
 
+        // ================= Image =================
         if (m.type === "image") {
           return (
             <figure
@@ -28,24 +29,27 @@ export default function PostMediaViewer({ media }: Props) {
                 overflow-hidden
                 rounded-lg
                 sm:rounded-xl
+                bg-black/5
               "
             >
-              <img
-                src={src}
-                alt=""
-                loading="lazy"
-                className="
-                  w-full
-                  max-h-[60vh]
-                  sm:max-h-[70vh]
-                  object-contain
-                  bg-black/5
-                "
-              />
+              {/* Aspect-ratio box: social-friendly */}
+              <div className="w-full aspect-square">
+                <img
+                  src={src}
+                  alt=""
+                  loading="lazy"
+                  className="
+                    h-full
+                    w-full
+                    object-contain
+                  "
+                />
+              </div>
             </figure>
           );
         }
 
+        // ================= Video =================
         if (m.type === "video") {
           return (
             <figure
@@ -57,17 +61,19 @@ export default function PostMediaViewer({ media }: Props) {
                 bg-black
               "
             >
-              <video
-                src={src}
-                controls
-                preload="metadata"
-                className="
-                  w-full
-                  max-h-[60vh]
-                  sm:max-h-[70vh]
-                  object-contain
-                "
-              />
+              {/* Video keeps 16:9 */}
+              <div className="w-full aspect-video">
+                <video
+                  src={src}
+                  controls
+                  preload="metadata"
+                  className="
+                    h-full
+                    w-full
+                    object-contain
+                  "
+                />
+              </div>
             </figure>
           );
         }
