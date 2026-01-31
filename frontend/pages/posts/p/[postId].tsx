@@ -146,15 +146,28 @@ export const getServerSideProps: GetServerSideProps<Props> =
     }
 
     try {
-      // ✅ ALWAYS load public version first
+      /**
+       * 1) Try external share (OG / crawler-safe)
+       */
       const share = await getPublicPostShareById(postId, ctx);
 
-      if (!share) {
-        return { notFound: true };
+      if (share) {
+        return {
+          props: {
+            post: mapShareToPublicPostDetail(share),
+          },
+        };
       }
 
-      // ✅ map to UI contract
-      const post = mapShareToPublicPostDetail(share);
+      /**
+       * 2) Fallback to normal public post
+       *    (may include auth / cookie / visibility)
+       */
+      const post = await getPublicPostById(postId, ctx);
+
+      if (!post) {
+        return { notFound: true };
+      }
 
       return {
         props: { post },
