@@ -2133,4 +2133,43 @@ async softDeleteTx(
   });
 }
 
+async findPostForPublicShare(postId: string) {
+  return this.prisma.post.findFirst({
+    where: {
+      id: postId,
+      isDeleted: false,
+      isHidden: false,
+      isPublished: true,
+    },
+    select: {
+      id: true,
+      content: true,
+      visibility: true,
+      createdAt: true,
+
+      author: {
+        select: {
+          displayName: true,
+        },
+      },
+
+      media: {
+        take: 1,
+        orderBy: {
+          createdAt: 'asc',
+        },
+        select: {
+          media: {
+            select: {
+              mediaType: true,
+              objectKey: true,
+              width: true,
+              height: true,
+            },
+          },
+        },
+      },
+    },
+  });
+}
 }

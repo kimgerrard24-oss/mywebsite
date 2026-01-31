@@ -55,6 +55,7 @@ export type RateLimitAction =
   | 'postUpdate'
   | 'publicPostRead'
   | 'postDelete'
+  | 'publicPostShareRead'
   | 'postUpdateTags'
   | 'postTagDecision'
   | 'postUpdateVisibility'
@@ -1293,6 +1294,24 @@ publicPostRead: {
     maxViolations: 10,     // ต้อง abuse ต่อเนื่องจริง
     windowSec: 86400,      // 24 ชม.
     longBlockSec: 3600,    // block 1 ชม.
+  },
+},
+
+publicPostShareRead: {
+  // ===== main =====
+  windowSec: 60,            // 1 นาที
+  max: 600,                 // รองรับ crawler + social bot
+  blockDurationSec: 300,    // block 5 นาทีถ้า abuse
+
+  // ===== legacy =====
+  points: 600,
+  duration: 60,
+  blockDuration: 300,
+
+  escalation: {
+    maxViolations: 10,      // ต้อง spam หนักจริง
+    windowSec: 86400,       // 24 ชม.
+    longBlockSec: 3600,     // block 1 ชม.
   },
 },
 

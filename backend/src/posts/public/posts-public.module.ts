@@ -4,7 +4,12 @@ import { Module } from '@nestjs/common';
 
 import { PostsPublicController } from './posts-public.controller';
 import { PostsPublicService } from './posts-public.service';
-import { PostsPublicRepository } from './posts-public.repository';
+
+import { PostsPublicShareController } from './posts-public-share.controller';
+import { PostsPublicShareService } from './posts-public-share.service';
+
+import { PostsRepository } from '../posts.repository';
+
 import { AuthModule } from '../../auth/auth.module';
 import { PrismaModule } from '../../prisma/prisma.module';
 
@@ -13,15 +18,30 @@ import { PostsVisibilityRepository } from '../visibility/posts-visibility.reposi
 
 @Module({
   imports: [
-      AuthModule,
-      PrismaModule,
-    ],
-  controllers: [PostsPublicController],
-  providers: [
-    PostsPublicService,
-    PostsPublicRepository,
+    // ยังจำเป็นสำหรับ OptionalAuthGuard (user-facing route)
+    AuthModule,
 
-    // visibility authority
+    // Prisma client
+    PrismaModule,
+  ],
+  controllers: [
+    // user-facing public post
+    PostsPublicController,
+
+    // external share / SEO / OG
+    PostsPublicShareController,
+  ],
+  providers: [
+    // user-facing
+    PostsPublicService,
+
+    // external share
+    PostsPublicShareService,
+
+    // shared repository
+    PostsRepository,
+
+    // visibility authority (ใช้เฉพาะ user-facing)
     PostsVisibilityService,
     PostsVisibilityRepository,
   ],
