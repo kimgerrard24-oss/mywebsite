@@ -76,50 +76,53 @@ export class PostVisibilityPolicy {
     }
 
     // =================================================
-    // Post-level visibility authority
-    // =================================================
+// Post-level visibility authority
+// =================================================
 
-    const visibility =
-      postVisibility ?? PostVisibility.PUBLIC;
+const visibility =
+  postVisibility ?? PostVisibility.PUBLIC;
 
-    switch (visibility) {
-      case PostVisibility.PUBLIC: {
-        return { canView: true, reason: 'OK' };
-      }
+// 🔐 PUBLIC = final allow for everyone (anonymous included)
+// EXCLUDE already handled above
+if (visibility === PostVisibility.PUBLIC) {
+  return { canView: true, reason: 'OK' };
+}
 
-      case PostVisibility.FOLLOWERS: {
-        if (!isFollower) {
-          return {
-            canView: false,
-            reason: 'NOT_FOLLOWER',
-          };
-        }
-        return { canView: true, reason: 'OK' };
-      }
-
-      case PostVisibility.PRIVATE: {
-        // owner already handled above
-        return {
-          canView: false,
-          reason: 'PRIVATE_POST',
-        };
-      }
-
-      case PostVisibility.CUSTOM: {
-        // no rule matched → deny
-        return {
-          canView: false,
-          reason: 'NOT_IN_CUSTOM_LIST',
-        };
-      }
-
-      default: {
-        // fail-safe
-        return {
-          canView: false,
-          reason: 'VISIBILITY_DENIED',
-        };
-      }
+switch (visibility) {
+  case PostVisibility.FOLLOWERS: {
+    if (!isFollower) {
+      return {
+        canView: false,
+        reason: 'NOT_FOLLOWER',
+      };
     }
+    return { canView: true, reason: 'OK' };
+  }
+
+  case PostVisibility.PRIVATE: {
+    // owner already handled above
+    return {
+      canView: false,
+      reason: 'PRIVATE_POST',
+    };
+  }
+
+  case PostVisibility.CUSTOM: {
+    // no rule matched → deny
+    return {
+      canView: false,
+      reason: 'NOT_IN_CUSTOM_LIST',
+    };
+  }
+
+  default: {
+    // fail-safe
+    return {
+      canView: false,
+      reason: 'VISIBILITY_DENIED',
+    };
+  }
+}
+
   }
 }
