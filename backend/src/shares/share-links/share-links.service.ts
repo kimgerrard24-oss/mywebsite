@@ -92,9 +92,10 @@ export class ShareLinksService {
       .catch(() => {});
 
     return {
-      postId: ctx.post.id,
-      redirectUrl: `/p/${ctx.post.id}`,
-    };
+  postId: ctx.post.id,
+  redirectUrl: `/share/${ctx.post.id}`,
+};
+
   }
 }
 
