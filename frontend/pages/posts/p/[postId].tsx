@@ -129,33 +129,34 @@ export const getServerSideProps: GetServerSideProps<Props> =
     }
 
     try {
-      /**
-       * ❗ Public page
-       * - ไม่มี auth check
-       * - ส่ง cookie ไป backend เฉพาะเพื่อ context (ถ้ามี)
-       * - backend เป็นผู้ตัดสิน visibility
-       */
       const post = await getPublicPostById(postId, ctx);
 
       if (!post) {
-        // fallback ไป internal canonical (authenticated view)
+        // ❗ public route ต้องจบที่นี่
         return {
-          redirect: {
-            destination: `/posts/${postId}`,
-            permanent: false,
-          },
+          notFound: true,
         };
       }
 
       return {
         props: { post },
       };
-    } catch {
-      return {
-        redirect: {
-          destination: `/posts/${postId}`,
-          permanent: false,
-        },
-      };
+    } catch (err: any) {
+      const status = err?.response?.status ?? null;
+
+      if (status === 403) {
+        return {
+          notFound: true,
+        };
+      }
+
+      if (status === 404) {
+        return {
+          notFound: true,
+        };
+      }
+
+      throw err; // ให้ Next.js handle 500
     }
   };
+
