@@ -4,7 +4,7 @@ FROM node:22-slim AS build
 WORKDIR /app
 
 RUN apt-get update -y \
-    && apt-get install -y openssl libvips \
+    && apt-get install -y openssl libvips ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 RUN npm set registry https://registry.npmmirror.com \
@@ -38,7 +38,7 @@ FROM node:22-slim AS runner
 WORKDIR /app
 
 RUN apt-get update -y \
-    && apt-get install -y openssl curl libvips \
+    && apt-get install -y openssl curl libvips ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
 ENV NODE_ENV=production
