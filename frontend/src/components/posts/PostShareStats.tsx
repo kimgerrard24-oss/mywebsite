@@ -10,7 +10,8 @@ type Props = {
 };
 
 export default function PostShareStats({ postId }: Props) {
-  const { stats, loading, reload } = usePostShareStats(postId);
+  const { stats, loading, reload } =
+    usePostShareStats(postId);
 
   // =========================
   // Live update after share
@@ -36,20 +37,23 @@ export default function PostShareStats({ postId }: Props) {
   }, [postId, reload]);
 
   // =========================
+  // Compute (HOOK MUST BE HERE)
+  // =========================
+  const total = useMemo(() => {
+    if (!stats) return 0;
+    return (
+      stats.internalShareCount +
+      stats.externalShareCount
+    );
+  }, [
+    stats?.internalShareCount,
+    stats?.externalShareCount,
+  ]);
+
+  // =========================
   // Fail-soft rendering
   // =========================
   if (loading || !stats) return null;
-
-  const total = useMemo(
-    () =>
-      stats.internalShareCount +
-      stats.externalShareCount,
-    [
-      stats.internalShareCount,
-      stats.externalShareCount,
-    ],
-  );
-
   if (total === 0) return null;
 
   // =========================
@@ -98,15 +102,14 @@ export default function PostShareStats({ postId }: Props) {
         </span>
       )}
 
-      {/* ===== Updated hint (subtle UX) ===== */}
-      {stats.updatedAt && (
-        <time
-          dateTime={stats.updatedAt}
-          className="sr-only"
-        >
-          Updated at {stats.updatedAt}
-        </time>
-      )}
+      {/* ===== Accessibility hint ===== */}
+      <time
+        dateTime={stats.updatedAt}
+        className="sr-only"
+      >
+        Updated at {stats.updatedAt}
+      </time>
     </div>
   );
 }
+
