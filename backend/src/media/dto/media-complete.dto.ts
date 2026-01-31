@@ -2,6 +2,7 @@
 import {
   IsIn,
   IsNotEmpty,
+  IsOptional,
   IsString,
   MaxLength,
 } from 'class-validator';
@@ -18,7 +19,13 @@ export class MediaCompleteDto {
   @MaxLength(255)
   mimeType!: string;
 
+  /**
+   * ✅ OPTIONAL
+   * - video only
+   * - async generated
+   * - must NEVER block /media/complete
+   */
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
   thumbnailObjectKey?: string;
 }
