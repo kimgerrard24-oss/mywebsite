@@ -130,9 +130,25 @@ async findChatRoomsByUser(userId: string) {
       },
 
       messages: {
-        orderBy: { createdAt: 'desc' },
-        take: 1,
+  where: {
+    isDeleted: false,
+    OR: [
+      {
+        content: {
+          not: null,
+        },
       },
+      {
+        type: 'POST_SHARE',
+      },
+    ],
+  },
+  orderBy: {
+    createdAt: 'desc',
+  },
+  take: 1,
+},
+
 
       readStates: {
         where: { userId },
@@ -380,5 +396,28 @@ async findChatRoomsByUser(userId: string) {
   });
 }
 
+async upsertReadState(params: {
+  chatId: string;
+  userId: string;
+}) {
+  const { chatId, userId } = params;
+
+  await this.prisma.chatReadState.upsert({
+    where: {
+      chatId_userId: {
+        chatId,
+        userId,
+      },
+    },
+    update: {
+      lastReadAt: new Date(),
+    },
+    create: {
+      chatId,
+      userId,
+      lastReadAt: new Date(),
+    },
+  });
+}
 
 }

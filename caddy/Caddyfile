@@ -48,15 +48,36 @@ phlyphant.com, www.phlyphant.com {
         "
     }
 
-    reverse_proxy phlyphant-frontend:3000 {
-        header_up Host {host}
-        header_up X-Forwarded-For {remote}
-        header_up X-Real-IP {remote}
-        header_up X-Forwarded-Proto {scheme}
-        header_up Cookie {http.request.header.Cookie}
+    # ==================================================
+    # SHARE LINK ENTRY (BACKEND AUTHORITY)
+    # ==================================================
+    @share_links {
+        path /s/*
+    }
+
+    handle @share_links {
+        reverse_proxy api.phlyphant.com {
+            header_up Host {host}
+            header_up X-Forwarded-For {remote}
+            header_up X-Real-IP {remote}
+            header_up X-Forwarded-Proto {scheme}
+            header_up Cookie {http.request.header.Cookie}
+        }
+    }
+
+    # ==================================================
+    # DEFAULT FRONTEND (Next.js)
+    # ==================================================
+    handle {
+        reverse_proxy phlyphant-frontend:3000 {
+            header_up Host {host}
+            header_up X-Forwarded-For {remote}
+            header_up X-Real-IP {remote}
+            header_up X-Forwarded-Proto {scheme}
+            header_up Cookie {http.request.header.Cookie}
+        }
     }
 }
-
 
 # ======================================
 # BACKEND (NestJS + Socket.IO)
@@ -77,16 +98,14 @@ api.phlyphant.com {
     }
     respond @invalid_methods 405
 
-
     # --------------------------------------------------
-    # PROTECT HEALTH & SYSTEM CHECK (SECRET HEADER)
+    # PROTECT HEALTH & SYSTEM CHECK
     # --------------------------------------------------
     @health_protected {
         path /health* /system-check*
         not header X-Health-Token REPLACE_WITH_LONG_RANDOM_SECRET
     }
     respond @health_protected 403
-
 
     # --------------------------------------------------
     # BASIC REQUEST HARDENING
@@ -121,7 +140,6 @@ api.phlyphant.com {
         "
     }
 
-
     # ===============================
     # Socket.IO
     # ===============================
@@ -144,7 +162,6 @@ api.phlyphant.com {
             header_up Cookie {http.request.header.Cookie}
         }
     }
-
 
     # ===============================
     # NORMAL API TRAFFIC

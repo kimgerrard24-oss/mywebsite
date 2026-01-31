@@ -375,26 +375,7 @@ const sharedPostId =
 />
 
 
-          <ChatConfirmDeleteModal
-            open={confirmDelete}
-            onCancel={() => setConfirmDelete(false)}
-            onConfirm={() => {
-              remove({
-                chatId,
-                message,
-                onOptimistic: () => {
-                  onDeleted?.(message.id);
-                  setConfirmDelete(false);
-                },
-                onRollback: () => {
-                  setConfirmDelete(false);
-                },
-                onSuccess: () => {
-                  // noop
-                },
-              });
-            }}
-          />
+    
         </div>
       )}
     </div>
@@ -405,6 +386,28 @@ const sharedPostId =
     onClose={() => setPreviewImage(null)}
   />
 )}
+
+<ChatConfirmDeleteModal
+  open={confirmDelete}
+  onCancel={() => setConfirmDelete(false)}
+  onConfirm={() => {
+    remove({
+      chatId,
+      message,
+      onOptimistic: () => {
+        onDeleted?.(message.id);
+        setConfirmDelete(false);
+      },
+      onRollback: () => {
+        setConfirmDelete(false);
+      },
+      onSuccess: () => {
+        // noop
+      },
+    });
+  }}
+/>
+
 {reportOpen && (
   <ReportDialog
     targetType="CHAT_MESSAGE"

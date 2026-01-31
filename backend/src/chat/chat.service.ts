@@ -159,6 +159,11 @@ if (isNew) {
       viewerUserId,
     });
 
+    await this.repo.upsertReadState({
+      chatId,
+      userId: viewerUserId,
+    });
+
     // 3. Load messages
     const rows = await this.repo.findMessages({
       chatId,

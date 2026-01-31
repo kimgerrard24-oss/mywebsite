@@ -19,6 +19,7 @@ export type RateLimitAction =
   | 'chatMessageEdit'
   | 'chatTyping'
   | 'oauth'
+  | 'shareResolve'
   | 'logout'
   | 'adminUsersList'
   | 'adminUserBan'
@@ -52,6 +53,7 @@ export type RateLimitAction =
   | 'mediaPresign'
   | 'postsVisibilityValidate'
   | 'postUpdate'
+  | 'publicPostRead'
   | 'postDelete'
   | 'postUpdateTags'
   | 'postTagDecision'
@@ -1255,6 +1257,42 @@ adminDisableShare: {
     maxViolations: 3,
     windowSec: 86400,     // ภายใน 24 ชม.
     longBlockSec: 21600,  // block 6 ชม. ถ้า abuse ซ้ำ
+  },
+},
+
+shareResolve: {
+  // ===== readable form =====
+  windowSec: 60,          // 1 นาที
+  max: 120,               // 120 req / min / IP
+  blockDurationSec: 300,  // block 5 นาที
+
+  // ===== legacy fields =====
+  points: 120,
+  duration: 60,
+  blockDuration: 300,
+
+  escalation: {
+    maxViolations: 10,    // ต้อง abuse ต่อเนื่องจริง
+    windowSec: 86400,     // 24 ชม.
+    longBlockSec: 3600,   // block 1 ชม.
+  },
+},
+
+publicPostRead: {
+  // ===== main =====
+  windowSec: 60,           // 1 นาที
+  max: 300,                // 300 req / min / IP
+  blockDurationSec: 300,   // block 5 นาที
+
+  // ===== legacy =====
+  points: 300,
+  duration: 60,
+  blockDuration: 300,
+
+  escalation: {
+    maxViolations: 10,     // ต้อง abuse ต่อเนื่องจริง
+    windowSec: 86400,      // 24 ชม.
+    longBlockSec: 3600,    // block 1 ชม.
   },
 },
 
