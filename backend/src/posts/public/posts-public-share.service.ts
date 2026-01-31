@@ -44,6 +44,13 @@ export class PostsPublicShareService {
                   ? 'image'
                   : 'video',
               cdnUrl: this.buildCdnUrl(firstMedia.objectKey),
+              
+              thumbnailUrl:
+               firstMedia.mediaType === MediaType.VIDEO &&
+               firstMedia.thumbnailObjectKey
+                 ? this.buildCdnUrl(firstMedia.thumbnailObjectKey)
+                 : undefined,
+
               width: firstMedia.width ?? 0,
               height: firstMedia.height ?? 0,
             },

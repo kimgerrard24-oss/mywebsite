@@ -22,13 +22,7 @@ export default function ShareSheet({
 }: Props) {
   if (!open) return null;
 
-  const [fallbackLoading, setFallbackLoading] =
-    useState(false);
-
-  const shareUrl =
-    typeof window !== "undefined"
-      ? `${window.location.origin}/p/${postId}`
-      : "";
+ 
   const [showPicker, setShowPicker] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [showChatPicker, setShowChatPicker] =
@@ -39,38 +33,6 @@ export default function ShareSheet({
      (used when ExternalShareButton fails or not supported)
      ========================= */
 
-  const copyLink = async () => {
-    try {
-      await navigator.clipboard.writeText(shareUrl);
-      alert("คัดลอกลิงก์แล้ว");
-      onClose();
-    } catch {
-      alert("ไม่สามารถคัดลอกลิงก์ได้");
-    }
-  };
-
-  const nativeShareFallback = async () => {
-    if (!shareUrl) return;
-
-    setFallbackLoading(true);
-
-    try {
-      if (
-        typeof navigator !== "undefined" &&
-        "share" in navigator
-      ) {
-        await navigator.share({ url: shareUrl });
-        onClose();
-        return;
-      }
-
-      await copyLink();
-    } catch {
-      // fail-soft
-    } finally {
-      setFallbackLoading(false);
-    }
-  };
 
   return (
   <>
@@ -153,35 +115,24 @@ export default function ShareSheet({
 )}
 
 
-          {intent.canShareExternal && (
-            <ExternalShareButton
-              postId={postId}
-              disabled={!intent.canShareExternal}
-            />
-          )}
+         {intent.canShareExternal && (
+  <div
+    className="
+      w-full
+      border
+      rounded-md
+      hover:bg-gray-50
+    "
+  >
+    <ExternalShareButton
+      postId={postId}
+      disabled={!intent.canShareExternal}
+    />
+  </div>
+)}
 
-          {intent.canShareExternal && (
-            <button
-              className="
-                w-full
-                text-left
-                px-3
-                py-2
-                border
-                rounded-md
-                hover:bg-gray-50
-                disabled:opacity-60
-                disabled:cursor-not-allowed
-              "
-              disabled={fallbackLoading}
-              onClick={nativeShareFallback}
-            >
-              {fallbackLoading
-                ? "กำลังแชร์..."
-                : "คัดลอกลิงก์โพสต์"}
-            </button>
-          )}
 
+          
           {!intent.canShareInternal &&
             !intent.canShareExternal && (
               <p className="text-sm text-gray-500">

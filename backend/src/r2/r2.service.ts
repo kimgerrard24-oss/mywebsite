@@ -4,7 +4,10 @@ import {
   S3Client,
   PutObjectCommand,
   DeleteObjectCommand,
+  GetObjectCommand,
 } from '@aws-sdk/client-s3';
+import { createWriteStream } from 'fs';
+import { pipeline } from 'stream/promises';
 
 @Injectable()
 export class R2Service {
@@ -155,4 +158,47 @@ export class R2Service {
     return `${base}/${key}`;
   }
 
+  // =========================================================
+// NEW: download object to local file (stream-safe)
+// =========================================================
+async downloadObject(params: {
+  objectKey: string;
+  destinationPath: string;
+}): Promise<void> {
+  const bucket = process.env.R2_BUCKET_NAME;
+
+  if (!bucket) {
+    this.logger.error('R2_BUCKET_NAME is not configured');
+    throw new Error('R2 bucket not configured');
+  }
+
+  const { objectKey, destinationPath } = params;
+
+  const result = await this.client.send(
+    new GetObjectCommand({
+      Bucket: bucket,
+      Key: objectKey,
+    }),
+  );
+
+  if (!result.Body) {
+    throw new Error('R2 object body is empty');
+  }
+
+  // Body เป็น stream
+  const writeStream = createWriteStream(destinationPath);
+
+  try {
+    await pipeline(
+      result.Body as any,
+      writeStream,
+    );
+  } catch (err) {
+    this.logger.error(
+      `R2 downloadObject failed (key=${objectKey})`,
+      err as any,
+    );
+    throw err;
+  }
+}
 }

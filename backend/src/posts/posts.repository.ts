@@ -2165,6 +2165,7 @@ async findPostForPublicShare(postId: string) {
               objectKey: true,
               width: true,
               height: true,
+              thumbnailObjectKey: true,
             },
           },
         },

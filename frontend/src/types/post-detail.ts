@@ -25,6 +25,7 @@ export type PostDetail = {
     id: string;
     type: string;
     cdnUrl: string;
+    thumbnailUrl?: string | null;
     url?: string; // optional for backward compatibility
   }[];
   

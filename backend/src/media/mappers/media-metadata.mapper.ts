@@ -53,31 +53,37 @@ export class MediaMetadataMapper {
             relatedPost.isHidden === true),
       );
 
-    return {
-      id: row.id,
+   return {
+  id: row.id,
 
-      type:
-        row.mediaType === MediaType.IMAGE
-          ? 'image'
-          : 'video',
+  type:
+    row.mediaType === MediaType.IMAGE
+      ? 'image'
+      : 'video',
 
-      url: buildCdnUrl(row.objectKey),
+  url: buildCdnUrl(row.objectKey),
 
-      objectKey: row.objectKey,
+  objectKey: row.objectKey,
 
-      ownerUserId: ownerId,
+  /**
+   * 🔹 NEW (safe)
+   */
+  thumbnailUrl:
+    row.mediaType === MediaType.VIDEO &&
+    row.thumbnailObjectKey
+      ? buildCdnUrl(row.thumbnailObjectKey)
+      : undefined,
 
-      postId,
+  ownerUserId: ownerId,
 
-      createdAt: row.createdAt.toISOString(),
+  postId,
 
-      isOwner,
+  createdAt: row.createdAt.toISOString(),
 
-      /**
-       * ✅ UX guard only
-       * backend authority is enforced in POST /appeals
-       */
-      canAppeal: Boolean(isOwner && hasActiveModeration),
-    };
+  isOwner,
+
+  canAppeal: Boolean(isOwner && hasActiveModeration),
+};
+
   }
 }

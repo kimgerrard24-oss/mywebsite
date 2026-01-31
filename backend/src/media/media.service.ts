@@ -13,6 +13,7 @@ import { MediaType } from '@prisma/client';
 import { MediaMetadataDto } from './dto/media-metadata.dto';
 import { MediaMetadataMapper } from './mappers/media-metadata.mapper';
 import { AuditLogService } from '../users/audit/audit-log.service';
+import { generateAndUploadVideoThumbnail } from './utils/generate-and-upload-video-thumbnail';
 
 @Injectable()
 export class MediaService {
@@ -77,7 +78,7 @@ try {
     };
   }
 
- async completeUpload(params: {
+async completeUpload(params: {
   actorUserId: string;
   objectKey: string;
   mediaType: 'image' | 'video';
@@ -85,7 +86,9 @@ try {
 }) {
   const { actorUserId, objectKey, mediaType, mimeType } = params;
 
-  // 1️⃣ ป้องกัน duplicate / replay
+  // =========================
+  // 1️⃣ Duplicate / replay guard
+  // =========================
   const exists =
     await this.mediaRepository.existsByObjectKey(objectKey);
 
@@ -95,12 +98,15 @@ try {
     );
   }
 
-  // 2️⃣ ตรวจสอบว่า key เป็นของ bucket เราจริง (fail-fast)
-  // buildPublicUrl จะ throw ถ้า key ผิด
-  const _cdnUrl =
-    this.r2Service.buildPublicUrl(objectKey);
+  // =========================
+  // 2️⃣ Validate objectKey belongs to our bucket
+  // (fail-fast security check)
+  // =========================
+  this.r2Service.buildPublicUrl(objectKey);
 
-  // 3️⃣ Persist metadata (draft media)
+  // =========================
+  // 3️⃣ Persist media metadata (authoritative)
+  // =========================
   const media = await this.mediaRepository.create({
     ownerUserId: actorUserId,
     objectKey,
@@ -110,29 +116,68 @@ try {
         : MediaType.VIDEO,
     mimeType,
   });
-// ===============================
-// ✅ AUDIT: MEDIA REGISTERED
-// ===============================
-try {
-  await this.auditLogService.log({
-    userId: actorUserId,
-    action: 'MEDIA_UPLOAD_COMPLETE',
-    success: true,
-    targetId: media.id,
-    metadata: {
-      mediaType,
-      mimeType,
-    },
-  });
-} catch {
-  // must not affect main flow
-}
 
-  // 4️⃣ response
+// =========================
+// 4️⃣ OPTIONAL: Video thumbnail (FAIL-SOFT)
+// =========================
+if (mediaType === 'video') {
+  (async () => {
+    try {
+      const result =
+        await generateAndUploadVideoThumbnail(
+          {
+            sourceObjectKey: objectKey,
+            ownerUserId: actorUserId,
+          },
+          {
+            r2Service: this.r2Service,
+          },
+        );
+
+      if (result) {
+        await this.mediaRepository.update(media.id, {
+          thumbnailObjectKey: result.thumbnailObjectKey,
+        });
+      }
+    } catch {
+      // ❗ Must never affect upload success
+      try {
+        await this.auditLogService.log({
+          userId: actorUserId,
+          action: 'MEDIA_THUMBNAIL_GENERATION_FAILED',
+          success: false,
+          targetId: media.id,
+        });
+      } catch {}
+    }
+  })();
+}
+  // =========================
+  // 5️⃣ AUDIT: MEDIA UPLOAD COMPLETE
+  // =========================
+  try {
+    await this.auditLogService.log({
+      userId: actorUserId,
+      action: 'MEDIA_UPLOAD_COMPLETE',
+      success: true,
+      targetId: media.id,
+      metadata: {
+        mediaType,
+        mimeType,
+      },
+    });
+  } catch {
+    // must not affect main flow
+  }
+
+  // =========================
+  // 6️⃣ Response (unchanged)
+  // =========================
   return {
     mediaId: media.id,
   };
- }
+}
+
 
   async getMediaMetadata(params: {
     mediaId: string;

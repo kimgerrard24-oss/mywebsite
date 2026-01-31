@@ -12,7 +12,7 @@ type Props = {
    * ประเภท media ที่อนุญาต
    * backend เป็น authority
    */
-  mediaType: "image" | "audio";
+ mediaType: "image" | "audio" | "video";
 
   /**
    * callback เมื่อ backend complete แล้ว
@@ -73,25 +73,41 @@ export default function MediaUploadFlow({
       const file = e.target.files?.[0];
       if (!file) return;
 
+      if (
+  mediaType === "video" &&
+  file.size > 50 * 1024 * 1024
+) {
+  e.target.value = "";
+  return;
+}
+
       /**
        * fail-fast (client side only)
        * backend จะ validate ซ้ำอีกครั้ง
        */
       if (
-        mediaType === "image" &&
-        !file.type.startsWith("image/")
-      ) {
-        e.target.value = "";
-        return;
-      }
+  mediaType === "image" &&
+  !file.type.startsWith("image/")
+) {
+  e.target.value = "";
+  return;
+}
 
-      if (
-        mediaType === "audio" &&
-        !file.type.startsWith("audio/")
-      ) {
-        e.target.value = "";
-        return;
-      }
+if (
+  mediaType === "video" &&
+  !file.type.startsWith("video/")
+) {
+  e.target.value = "";
+  return;
+}
+
+if (
+  mediaType === "audio" &&
+  !file.type.startsWith("audio/")
+) {
+  e.target.value = "";
+  return;
+}
 
       try {
         // 1️⃣ upload raw file → storage (R2)
@@ -129,10 +145,13 @@ export default function MediaUploadFlow({
       <input
         type="file"
         accept={
-          mediaType === "image"
-            ? "image/*"
-            : "audio/*"
-        }
+  mediaType === "image"
+    ? "image/*"
+    : mediaType === "video"
+    ? "video/*"
+    : "audio/*"
+}
+
         onChange={handleChange}
         disabled={isLoading}
         className="
@@ -210,6 +229,34 @@ export default function MediaUploadFlow({
               className="w-full"
             />
           )}
+
+          {metadata.type === "video" && (
+  <>
+    <video
+      src={metadata.url}
+      poster={metadata.thumbnailUrl ?? undefined}
+      controls
+      preload="metadata"
+      playsInline
+      className="
+        w-full
+        max-h-[60vh]
+        rounded-md
+        bg-black
+        object-contain
+      "
+    />
+
+    {/* 🔹 Thumbnail generating state */}
+    {!metadata.thumbnailUrl && (
+      <p className="mt-1 text-sm text-gray-400">
+        กำลังเตรียมภาพตัวอย่าง…
+      </p>
+    )}
+  </>
+)}
+
+
         </section>
       )}
     </section>

@@ -242,31 +242,43 @@ const closeLikes = () => {
               );
             }
 
-            if (m.type === "video") {
-              return (
-                <figure
-                  key={m.id}
-                  className="
-                    overflow-hidden
-                    rounded-lg
-                    sm:rounded-xl
-                    bg-black
-                  "
-                >
-                  <video
-                    src={src}
-                    controls
-                    preload="metadata"
-                    className="
-                      w-full
-                      max-h-[60vh]
-                      sm:max-h-[70vh]
-                      object-contain
-                    "
-                  />
-                </figure>
-              );
-            }
+           if (m.type === "video") {
+  return (
+    <figure
+      key={m.id}
+      className="
+        overflow-hidden
+        rounded-lg
+        sm:rounded-xl
+        bg-black
+      "
+    >
+      <video
+        src={src}
+        poster={m.thumbnailUrl ?? undefined}
+        controls
+        preload="metadata"
+        playsInline
+        controlsList="nodownload"
+        disablePictureInPicture
+        className="
+          w-full
+          max-h-[60vh]
+          sm:max-h-[70vh]
+          object-contain
+        "
+      />
+
+      {/* 🔹 UX: thumbnail async generating */}
+      {!m.thumbnailUrl && (
+        <p className="mt-1 text-xs text-gray-400 text-center">
+          กำลังเตรียมภาพตัวอย่าง…
+        </p>
+      )}
+    </figure>
+  );
+}
+
 
             return null;
           })}

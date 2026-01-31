@@ -52,6 +52,7 @@ export type MediaMetadata = {
   postId: string | null;
   createdAt: string;
   isOwner: boolean;
+  thumbnailUrl?: string;
 
   /**
    * optional (audio)

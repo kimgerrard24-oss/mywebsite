@@ -11,11 +11,20 @@ export type MediaMetadataResponse = {
   type: 'image' | 'video' | 'audio';
   url: string;
   objectKey: string;
+
+  /**
+   * 🔹 NEW
+   * - CDN URL ของ video thumbnail
+   * - undefined สำหรับ image / audio
+   */
+  thumbnailUrl?: string;
+
   ownerUserId: string;
   postId: string | null;
   createdAt: string;
   isOwner: boolean;
 };
+
 
 
 export type PresignValidateRequest = {

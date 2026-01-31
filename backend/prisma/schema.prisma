@@ -359,13 +359,18 @@ model Media {
   owner       User        @relation(fields: [ownerUserId], references: [id], onDelete: Cascade)
 
   objectKey   String      @unique
+  thumbnailKey String?    @unique 
   mediaType   MediaType
   mimeType    String
 
   width       Int?
   height      Int?
   duration    Int?
-
+  
+  thumbnailObjectKey String?  // objectKey ของ thumbnail image
+  thumbnailWidth     Int?
+  thumbnailHeight    Int?
+  
   createdAt   DateTime    @default(now())
 
   deletedAt   DateTime?   // เมื่อ user ลบ post / media

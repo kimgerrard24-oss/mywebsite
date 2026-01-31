@@ -17,4 +17,8 @@ export class MediaCompleteDto {
   @IsString()
   @MaxLength(255)
   mimeType!: string;
+
+  @IsString()
+  @IsNotEmpty()
+  thumbnailObjectKey?: string;
 }

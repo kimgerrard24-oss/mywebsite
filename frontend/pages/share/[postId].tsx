@@ -39,10 +39,16 @@ function mapShareToPublicPostDetail(
       type: m.type,
       url: m.cdnUrl,
       cdnUrl: m.cdnUrl,
-      width: m.width,
-      height: m.height,
-      duration: null,
-    })),
+
+      // 🔹 NEW: backend-provided thumbnail
+      thumbnailUrl:
+       m.type === "video" ? m.thumbnailUrl ?? null : null,
+
+       width: m.width,
+       height: m.height,
+       duration: null,
+     })),
+
   };
 }
 
@@ -52,18 +58,30 @@ export default function PublicSharePage({ post }: Props) {
 
   const hasMedia = post.media.length > 0;
 
-const ogImage = hasMedia
-  ? firstMedia?.type === "image"
-    ? mediaSrc
-    : "https://www.phlyphant.com/og/default-text-post.png"
+const isImage = firstMedia?.type === "image";
+const isVideo = firstMedia?.type === "video";
+
+/**
+ * FB REQUIREMENT:
+ * - og:image is REQUIRED even for video
+ * - og:image must be a REAL image (thumbnail)
+ */
+
+const thumbnailSrc =
+  isVideo && firstMedia?.thumbnailUrl
+    ? firstMedia.thumbnailUrl
+    : null;
+
+const ogImage = isImage
+  ? mediaSrc
+  : thumbnailSrc
+  ? thumbnailSrc
   : "https://www.phlyphant.com/og/default-text-post.png";
 
-const ogVideo =
-  hasMedia && firstMedia?.type === "video"
-    ? mediaSrc
-    : undefined;
+const ogVideo = isVideo ? mediaSrc : undefined;
 
-const ogType = hasMedia ? "article" : "website";
+const ogType = isVideo ? "video.other" : "article";
+
 
   /**
    * Support deep-link comment anchors
@@ -123,18 +141,25 @@ const ogType = hasMedia ? "article" : "website";
           content={`https://www.phlyphant.com/share/${post.id}`}
         />
 
-        <meta property="og:image" content={ogImage} />
-        <meta property="og:image:width" content="1200" />
-        <meta property="og:image:height" content="630" />
+        {/* ✅ REQUIRED for FB (image OR video) */}
+  <meta property="og:image" content={ogImage} />
+  <meta property="og:image:width" content="1200" />
+  <meta property="og:image:height" content="630" />
 
-
-        {ogVideo && (
-          <>
-            <meta property="og:video" content={ogVideo} />
-            <meta property="og:video:type" content="video/mp4" />
-          </>
-        )}
-      </Head>
+  {/* ✅ VIDEO META (only when video) */}
+  {ogVideo && (
+    <>
+      <meta property="og:video" content={ogVideo} />
+      <meta
+        property="og:video:secure_url"
+        content={ogVideo}
+      />
+      <meta property="og:video:type" content="video/mp4" />
+      <meta property="og:video:width" content="1280" />
+      <meta property="og:video:height" content="720" />
+    </>
+  )}
+</Head>
 
       <main
         className="mx-auto w-full max-w-sm sm:max-w-md md:max-w-2xl px-4 sm:px-6 py-6 sm:py-8"

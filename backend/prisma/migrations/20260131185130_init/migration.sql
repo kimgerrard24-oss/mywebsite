@@ -264,11 +264,15 @@ CREATE TABLE "Media" (
     "id" TEXT NOT NULL,
     "ownerUserId" TEXT NOT NULL,
     "objectKey" TEXT NOT NULL,
+    "thumbnailKey" TEXT,
     "mediaType" "MediaType" NOT NULL,
     "mimeType" TEXT NOT NULL,
     "width" INTEGER,
     "height" INTEGER,
     "duration" INTEGER,
+    "thumbnailObjectKey" TEXT,
+    "thumbnailWidth" INTEGER,
+    "thumbnailHeight" INTEGER,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "deletedAt" TIMESTAMP(3),
     "cleanupAt" TIMESTAMP(3),
@@ -792,6 +796,9 @@ CREATE UNIQUE INDEX "PostMedia_postId_mediaId_key" ON "PostMedia"("postId", "med
 
 -- CreateIndex
 CREATE UNIQUE INDEX "Media_objectKey_key" ON "Media"("objectKey");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Media_thumbnailKey_key" ON "Media"("thumbnailKey");
 
 -- CreateIndex
 CREATE INDEX "Media_ownerUserId_idx" ON "Media"("ownerUserId");
