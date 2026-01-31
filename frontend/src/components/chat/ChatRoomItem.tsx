@@ -130,7 +130,10 @@ return (
           </span>
 
           <span className="truncate text-xs text-gray-500">
-            {room.lastMessage?.content ?? "No messages yet"}
+           {room.lastMessage
+  ? room.lastMessage.content || "Shared a post"
+  : "No messages yet"}
+
           </span>
         </div>
 

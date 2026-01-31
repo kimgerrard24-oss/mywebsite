@@ -13,6 +13,7 @@ import type { Request } from 'express';
 import { PostsPublicService } from './posts-public.service';
 import { OptionalAuthGuard } from '../guards/optional-auth.guard';
 import { ParsePostIdPipe } from '../pipes/parse-post-id.pipe';
+import { RateLimit } from '../../common/rate-limit/rate-limit.decorator';
 
 @Controller()
 export class PostsPublicController {
@@ -28,6 +29,7 @@ export class PostsPublicController {
    */
   @Get('p/:postId')
   @UseGuards(OptionalAuthGuard)
+  @RateLimit('publicPostRead')
   async getPublicPost(
     @Param('postId', ParsePostIdPipe) postId: string,
     @Req() req: Request,

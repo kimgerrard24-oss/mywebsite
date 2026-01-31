@@ -11,6 +11,7 @@ import {
 import type { Request, Response } from 'express';
 import { OptionalAuthGuard } from './guards/optional-auth.guard';
 import { ShareLinksService } from './share-links.service';
+import { RateLimit } from '../../common/rate-limit/rate-limit.decorator';
 
 @Controller('s')
 export class ShareLinksController {
@@ -19,6 +20,7 @@ export class ShareLinksController {
   ) {}
 
   @UseGuards(OptionalAuthGuard)
+  @RateLimit('shareResolve')
   @Get(':code')
   async resolve(
     @Param('code') code: string,
