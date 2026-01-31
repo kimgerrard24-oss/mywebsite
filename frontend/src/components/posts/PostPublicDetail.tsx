@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { renderContentWithHashtags } from "@/utils/renderContentWithHashtags";
 import PostMediaViewer from "@/components/media/PostMediaViewer";
+import Avatar from "@/components/ui/Avatar";
 import type { PublicPostDetail } from "@/types/public-post-detail";
 
 type Props = {
@@ -12,44 +13,37 @@ type Props = {
 export default function PostPublicDetail({ post }: Props) {
   return (
     <>
-      {/* ===== Header ===== */}
+      {/* ================= Header ================= */}
       <header
         className="
           mb-3
           sm:mb-4
           flex
-          items-center
+          items-start
+          sm:items-center
           justify-between
           gap-2
+          sm:gap-3
         "
       >
+        {/* ===== Author ===== */}
         <Link
           href={`/users/${post.author.id}`}
           className="
             flex
             items-center
             gap-2
+            sm:gap-3
             hover:underline
             min-w-0
           "
         >
-          <img
-            src={
-              post.author.avatarUrl ??
-              "/images/avatar-placeholder.png"
-            }
-            alt={`${post.author.displayName} profile`}
-            className="
-              h-8
-              w-8
-              sm:h-10
-              sm:w-10
-              rounded-full
-              object-cover
-              flex-shrink-0
-            "
-            loading="lazy"
+          <Avatar
+            avatarUrl={post.author.avatarUrl}
+            name={post.author.displayName}
+            size={40}
           />
+
           <span
             className="
               font-medium
@@ -62,6 +56,7 @@ export default function PostPublicDetail({ post }: Props) {
           </span>
         </Link>
 
+        {/* ===== Timestamp ===== */}
         <time
           dateTime={post.createdAt}
           className="
@@ -69,13 +64,14 @@ export default function PostPublicDetail({ post }: Props) {
             sm:text-sm
             text-gray-500
             whitespace-nowrap
+            flex-shrink-0
           "
         >
           {new Date(post.createdAt).toLocaleString()}
         </time>
       </header>
 
-      {/* ===== Content ===== */}
+      {/* ================= Content ================= */}
       <section
         className="
           prose
@@ -89,8 +85,8 @@ export default function PostPublicDetail({ post }: Props) {
         <p>{renderContentWithHashtags(post.content)}</p>
       </section>
 
-      {/* ===== Media ===== */}
-      {post.media.length > 0 && (
+      {/* ================= Media ================= */}
+      {Array.isArray(post.media) && post.media.length > 0 && (
         <section
           className="
             mt-3
@@ -100,9 +96,79 @@ export default function PostPublicDetail({ post }: Props) {
           "
           aria-label="Post media"
         >
-          <PostMediaViewer media={post.media} />
+          {post.media.map((m) => {
+            const src = m.cdnUrl ?? m.url;
+
+            if (m.type === "image") {
+              return (
+                <figure
+                  key={m.id}
+                  className="
+                    overflow-hidden
+                    rounded-lg
+                    sm:rounded-xl
+                  "
+                >
+                  <img
+                    src={src}
+                    alt=""
+                    loading="lazy"
+                    className="
+                      w-full
+                      max-h-[60vh]
+                      sm:max-h-[70vh]
+                      object-contain
+                      bg-black/5
+                    "
+                  />
+                </figure>
+              );
+            }
+
+            if (m.type === "video") {
+              return (
+                <figure
+                  key={m.id}
+                  className="
+                    overflow-hidden
+                    rounded-lg
+                    sm:rounded-xl
+                    bg-black
+                  "
+                >
+                  <video
+                    src={src}
+                    controls
+                    preload="metadata"
+                    className="
+                      w-full
+                      max-h-[60vh]
+                      sm:max-h-[70vh]
+                      object-contain
+                    "
+                  />
+                </figure>
+              );
+            }
+
+            return null;
+          })}
         </section>
       )}
+
+      {/* ================= Public Notice ================= */}
+      <footer
+        className="
+          mt-4
+          sm:mt-5
+          text-xs
+          sm:text-sm
+          text-gray-500
+        "
+        aria-label="Public post notice"
+      >
+        This post is shared publicly on PhlyPhant
+      </footer>
     </>
   );
 }

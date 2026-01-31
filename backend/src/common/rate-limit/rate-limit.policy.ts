@@ -1300,8 +1300,8 @@ publicPostRead: {
 publicPostShareRead: {
   // ===== main =====
   windowSec: 60,            // 1 นาที
-  max: 600,                 // รองรับ crawler + social bot
-  blockDurationSec: 300,    // block 5 นาทีถ้า abuse
+  max: 2000,                 // รองรับ crawler + social bot
+  blockDurationSec: 120,    // block 5 นาทีถ้า abuse
 
   // ===== legacy =====
   points: 600,
@@ -1309,7 +1309,7 @@ publicPostShareRead: {
   blockDuration: 300,
 
   escalation: {
-    maxViolations: 10,      // ต้อง spam หนักจริง
+    maxViolations: 20,      // ต้อง spam หนักจริง
     windowSec: 86400,       // 24 ชม.
     longBlockSec: 3600,     // block 1 ชม.
   },

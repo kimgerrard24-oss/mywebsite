@@ -50,11 +50,20 @@ export default function PublicSharePage({ post }: Props) {
   const firstMedia = post.media?.[0];
   const mediaSrc = firstMedia?.cdnUrl ?? firstMedia?.url;
 
-  const ogImage =
-    firstMedia?.type === "image" ? mediaSrc : undefined;
+  const hasMedia = post.media.length > 0;
 
-  const ogVideo =
-    firstMedia?.type === "video" ? mediaSrc : undefined;
+const ogImage = hasMedia
+  ? firstMedia?.type === "image"
+    ? mediaSrc
+    : "https://www.phlyphant.com/og/default-text-post.png"
+  : "https://www.phlyphant.com/og/default-text-post.png";
+
+const ogVideo =
+  hasMedia && firstMedia?.type === "video"
+    ? mediaSrc
+    : undefined;
+
+const ogType = hasMedia ? "article" : "website";
 
   /**
    * Support deep-link comment anchors
@@ -99,7 +108,8 @@ export default function PublicSharePage({ post }: Props) {
           href={`https://www.phlyphant.com/share/${post.id}`}
         />
 
-        <meta property="og:type" content="article" />
+        <meta property="og:type" content={ogType} />
+
         <meta
           property="og:title"
           content={post.content.slice(0, 60)}
@@ -113,9 +123,10 @@ export default function PublicSharePage({ post }: Props) {
           content={`https://www.phlyphant.com/share/${post.id}`}
         />
 
-        {ogImage && (
-          <meta property="og:image" content={ogImage} />
-        )}
+        <meta property="og:image" content={ogImage} />
+        <meta property="og:image:width" content="1200" />
+        <meta property="og:image:height" content="630" />
+
 
         {ogVideo && (
           <>
