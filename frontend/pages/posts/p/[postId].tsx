@@ -137,42 +137,32 @@ export default function PublicPostPage({ post }: Props) {
 
 /* ================= SSR ================= */
 
-export const getServerSideProps: GetServerSideProps<Props> =
-  async (ctx) => {
-    const postId = ctx.params?.postId;
+export const getServerSideProps: GetServerSideProps<Props> = async (ctx) => {
+  const postId = ctx.params?.postId;
+  if (typeof postId !== "string") return { notFound: true };
 
-    if (typeof postId !== "string") {
-      return { notFound: true };
-    }
+  // 1️⃣ External share (must NEVER throw)
+  let share: PublicPostShare | null = null;
+  try {
+    share = await getPublicPostShareById(postId, ctx);
+  } catch {
+    share = null; // ← swallow error
+  }
 
-    try {
-      /**
-       * 1) Try external share (OG / crawler-safe)
-       */
-      const share = await getPublicPostShareById(postId, ctx);
+  if (share) {
+    return {
+      props: { post: mapShareToPublicPostDetail(share) },
+    };
+  }
 
-      if (share) {
-        return {
-          props: {
-            post: mapShareToPublicPostDetail(share),
-          },
-        };
-      }
+  // 2️⃣ Normal public post (may depend on auth)
+  try {
+    const post = await getPublicPostById(postId, ctx);
+    if (!post) return { notFound: true };
 
-      /**
-       * 2) Fallback to normal public post
-       *    (may include auth / cookie / visibility)
-       */
-      const post = await getPublicPostById(postId, ctx);
+    return { props: { post } };
+  } catch {
+    return { notFound: true };
+  }
+};
 
-      if (!post) {
-        return { notFound: true };
-      }
-
-      return {
-        props: { post },
-      };
-    } catch {
-      return { notFound: true };
-    }
-  };
