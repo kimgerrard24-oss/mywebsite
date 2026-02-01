@@ -54,7 +54,7 @@ export type PostFeedItem = {
 
 export type PostFeedResponse = {
   items: PostFeedItem[];
-  nextCursor?: string | null;
+  nextCursor: string | null;
 };
 
 export type UserPostFeedResponse = {

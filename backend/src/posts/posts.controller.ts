@@ -389,4 +389,26 @@ async unhideTaggedPost(
   });
 }
 
+// ===============================
+// GET /posts/me/tagged-posts/hidden
+// ===============================
+@UseGuards(AccessTokenCookieAuthGuard)
+@Get('me/tagged-posts/hidden')
+async getMyHiddenTaggedPosts(
+  @CurrentUser() user: { userId: string },
+  @Query('limit') limit?: string,
+  @Query('cursor') cursor?: string,
+) {
+  const take =
+    typeof limit === 'string'
+      ? Math.min(Math.max(Number(limit) || 20, 1), 50)
+      : 20;
+
+  return this.postsService.getHiddenTaggedPosts({
+    viewerUserId: user.userId,
+    limit: take,
+    cursor,
+  });
+}
+
 }
