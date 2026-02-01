@@ -119,13 +119,11 @@ export default function FeedPage({
           shadow-sm
         "
       >
-        <nav
+ <nav
   aria-label="Primary navigation"
   className="
     mx-auto
     flex
-    flex-nowrap
-    overflow-x-auto
     h-14
     max-w-6xl
     items-center
@@ -137,6 +135,7 @@ export default function FeedPage({
     sm:gap-4
   "
 >
+
 
           {/* ===== Left: Logo ===== */}
           <Link
@@ -193,7 +192,7 @@ export default function FeedPage({
  <Link
   href="/chat"
   aria-label="Go to chats"
-  className="hidden sm:inline text-sm font-medium text-gray-700 hover:text-blue-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
+  className="inline text-sm font-medium text-gray-700 hover:text-blue-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
 >
   Chats
 </Link>
@@ -202,111 +201,80 @@ export default function FeedPage({
   <NotificationBell />
 
   {/* 👤 Avatar */}
-  <Link
-  href="/profile"
-  aria-label="Go to profile"
-  className="focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded-full"
+ <button
+  type="button"
+  aria-haspopup="menu"
+  aria-expanded={menuOpen}
+  onClick={() => setMenuOpen((v) => !v)}
+  className="rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500"
 >
   <Avatar
     avatarUrl={user?.avatarUrl}
     name={user?.displayName || user?.email || "U"}
     size={36}
-    className="
-      cursor-pointer
-      transition
-      hover:ring-2
-      hover:ring-blue-500
-    "
+    className="cursor-pointer transition hover:ring-2 hover:ring-blue-500"
   />
-</Link>
+</button>
 
 
-  {/* ⚙️ Menu Button */}
-  <button
-  type="button"
-  aria-haspopup="menu"
-  aria-expanded={menuOpen}
-  onClick={() => setMenuOpen((v) => !v)}
-  className="
-    inline-flex
-    items-center
-    justify-center
-    h-10
-    w-10
-    sm:h-9
-    sm:w-9
-    rounded-full
-    border
-    bg-white
-    text-gray-700
-    hover:bg-gray-100
-    focus:outline-none
-    focus-visible:ring-2
-    focus-visible:ring-blue-500
-  "
->
-
-    {/* ใช้เป็น ≡ หรือ ⚙️ ก็ได้ */}
-    <span aria-hidden className="text-lg leading-none">≡</span>
-    <span className="sr-only">Open user menu</span>
-  </button>
 
   {/* ===== Dropdown Menu ===== */}
   {menuOpen && (
-    <div
-      role="menu"
-      aria-label="User menu"
-      className="
-        absolute
-        right-0
-        top-full
-        mt-2
-        w-52
-        rounded-md
-        border
-        bg-white
-        shadow-lg
-        z-30
-        overflow-hidden
-      "
-    >
-      <ul className="py-1 text-sm text-gray-700">
-        <li>
-          <Link
-            href="/account/"
-            role="menuitem"
-            className="block px-4 py-2 hover:bg-gray-100"
-          >
-            Account
-          </Link>
-        </li>
-
-        {/* 🌐 Language */}
-        <li className="px-4 py-2 hover:bg-gray-100">
-          <LanguageSwitcher currentLang={lang} />
-        </li>
-
-        <li className="border-t my-1" />
-
-        <li>
-          <button
-            role="menuitem"
-            onClick={handleLogout}
-            className="
-              w-full
-              text-left
-              px-4
-              py-2
-              text-red-600
-              hover:bg-red-50
-            "
-          >
-            {t.feed.nav.logout}
-          </button>
-        </li>
-      </ul>
+  <div
+    role="menu"
+    aria-label="User menu"
+    className="absolute right-0 top-full mt-2 w-64 rounded-md border bg-white shadow-lg z-30 overflow-hidden"
+  >
+    {/* ===== User Info Header ===== */}
+    <div className="flex items-center gap-3 px-4 py-3 border-b bg-gray-50">
+      <Avatar
+        avatarUrl={user?.avatarUrl}
+        name={user?.displayName || user?.email || "U"}
+        size={40}
+      />
+      <div className="min-w-0">
+        <p className="text-sm font-medium text-gray-900 truncate">
+          {user?.displayName || "User"}
+        </p>
+        {user?.username && (
+          <p className="text-xs text-gray-500 truncate">
+            @{user.username}
+          </p>
+        )}
+      </div>
     </div>
-  )}
+
+    {/* ===== Menu Items ===== */}
+    <ul className="py-1 text-sm text-gray-700">
+      <li>
+        <Link
+          href="/account/"
+          role="menuitem"
+          className="block px-4 py-2 hover:bg-gray-100"
+        >
+          Account
+        </Link>
+      </li>
+
+      <li className="px-4 py-2 hover:bg-gray-100">
+        <LanguageSwitcher currentLang={lang} />
+      </li>
+
+      <li className="border-t my-1" />
+
+      <li>
+        <button
+          role="menuitem"
+          onClick={handleLogout}
+          className="w-full text-left px-4 py-2 text-red-600 hover:bg-red-50"
+        >
+          {t.feed.nav.logout}
+        </button>
+      </li>
+    </ul>
+  </div>
+)}
+
 </div>
 
 
