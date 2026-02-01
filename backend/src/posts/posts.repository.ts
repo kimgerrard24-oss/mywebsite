@@ -2196,4 +2196,137 @@ async findPostForPublicShare(postId: string) {
     },
   });
 }
+
+
+async findHiddenTaggedPosts(params: {
+  viewerUserId: string;
+  limit?: number;
+  cursor?: string;
+}) {
+  const {
+    viewerUserId,
+    limit = 20,
+    cursor,
+  } = params;
+
+  return this.prisma.post.findMany({
+    where: {
+  
+      userTags: {
+        some: {
+          taggedUserId: viewerUserId,
+          status: PostUserTagStatus.ACCEPTED,
+          isHiddenByTaggedUser: true,
+        },
+      },
+
+    
+      isDeleted: false,
+      isHidden: false,
+
+    
+      AND: [
+        {
+          author: {
+            blockedBy: {
+              none: { blockerId: viewerUserId },
+            },
+          },
+        },
+        {
+          author: {
+            blockedUsers: {
+              none: { blockedId: viewerUserId },
+            },
+          },
+        },
+      ],
+    },
+
+    take: limit,
+    skip: cursor ? 1 : 0,
+    cursor: cursor ? { id: cursor } : undefined,
+
+    orderBy: {
+      createdAt: 'desc',
+    },
+
+    
+    select: {
+      id: true,
+      content: true,
+      createdAt: true,
+
+      isHidden: true,
+      isDeleted: true,
+
+      likeCount: true,
+      commentCount: true,
+
+      author: {
+        select: {
+          id: true,
+          displayName: true,
+          avatarUrl: true,
+          isPrivate: true,
+
+          followers: {
+            where: { followerId: viewerUserId },
+            take: 1,
+          },
+
+          followRequestsReceived: {
+            where: { requesterId: viewerUserId },
+            take: 1,
+          },
+
+          blockedBy: {
+            where: { blockerId: viewerUserId },
+            take: 1,
+          },
+        },
+      },
+
+      media: {
+        select: {
+          media: {
+            select: {
+              id: true,
+              mediaType: true,
+              objectKey: true,
+              width: true,
+              height: true,
+              duration: true,
+            },
+          },
+        },
+      },
+
+      userTags: {
+        where: {
+          status: PostUserTagStatus.ACCEPTED,
+        },
+        select: {
+          id: true,
+          status: true,
+          taggedUserId: true,
+          isHiddenByTaggedUser: true,
+
+          taggedUser: {
+            select: {
+              id: true,
+              username: true,
+              displayName: true,
+              avatarUrl: true,
+              isDisabled: true,
+              isBanned: true,
+              active: true,
+            },
+          },
+        },
+      },
+    },
+  });
+}
+
 }

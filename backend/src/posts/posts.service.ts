@@ -1834,5 +1834,34 @@ async unhideTaggedPost(params: {
   return { success: true };
 }
 
+async getHiddenTaggedPosts(params: {
+  viewerUserId: string;
+  limit: number;
+  cursor?: string;
+}) {
+  const { viewerUserId, limit, cursor } = params;
+
+  const rows =
+    await this.repo.findHiddenTaggedPosts({
+      viewerUserId,
+      limit,
+      cursor,
+    });
+
+  const items = rows.map((row) =>
+    PostFeedMapper.toDto(row, viewerUserId),
+  );
+
+  const nextCursor =
+    rows.length === limit
+      ? rows[rows.length - 1].id
+      : null;
+
+  return {
+    items,
+    nextCursor,
+  };
+}
+
 
 }
