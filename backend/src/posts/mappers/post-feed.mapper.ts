@@ -46,19 +46,30 @@ export class PostFeedMapper {
             username: t.taggedUser.username,
           }))
       : [];
-  
+    
+    const myTag = Array.isArray(row.userTags) && viewerUserId
+       ? row.userTags.find(
+         (t: any) => t.taggedUserId === viewerUserId,
+           )
+       : null;
+
+    const isTaggedUser = Boolean(myTag);
+    const isHiddenByTaggedUser =
+        Boolean(myTag?.isHiddenByTaggedUser === true);  
       
     return {
       id: row.id,
       content: row.content,
       createdAt: row.createdAt.toISOString(),
 
+      isTaggedUser,
+      isHiddenByTaggedUser,
+
       author: {
         id: author?.id ?? 'unknown',
         displayName: author?.displayName ?? null,
         avatarUrl: author?.avatarUrl ?? null,
 
-        // ✅ viewer follow author?
         isFollowing:
           Array.isArray(author?.followers) &&
           author.followers.length > 0,

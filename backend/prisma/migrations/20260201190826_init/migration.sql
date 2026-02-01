@@ -384,6 +384,7 @@ CREATE TABLE "PostUserTag" (
     "status" "PostUserTagStatus" NOT NULL DEFAULT 'PENDING',
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "respondedAt" TIMESTAMP(3),
+    "isHiddenByTaggedUser" BOOLEAN NOT NULL DEFAULT false,
 
     CONSTRAINT "PostUserTag_pkey" PRIMARY KEY ("id")
 );

@@ -5,6 +5,9 @@ export class PostFeedItemDto {
   content!: string;
   createdAt!: string;
 
+  isTaggedUser!: boolean;
+  isHiddenByTaggedUser!: boolean;
+
   author!: {
     id: string;
     displayName: string | null;

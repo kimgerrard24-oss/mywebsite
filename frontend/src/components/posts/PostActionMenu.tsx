@@ -10,7 +10,11 @@ type Props = {
   canDelete?: boolean;
   canReport?: boolean;
 
-  // ✅ รองรับเฉพาะหน้า Post Detail (optional)
+  canHideTaggedPost?: boolean;
+  isTagHidden?: boolean;
+  onHideTaggedPost?: () => void;
+  onUnhideTaggedPost?: () => void;
+
   onDeleted?: () => void;
 };
 
@@ -19,10 +23,17 @@ export default function PostActionMenu({
   canEdit = false,
   canDelete = false,
   canReport = false,
+
+  canHideTaggedPost = false,
+  isTagHidden = false,
+  onHideTaggedPost,
+  onUnhideTaggedPost,
+
   onDeleted,
 }: Props) {
   const [open, setOpen] = useState(false);
   const [reportOpen, setReportOpen] = useState(false);
+  const [actionLoading, setActionLoading] = useState(false);
 
   const ref = useRef<HTMLDivElement | null>(null);
 
@@ -40,10 +51,15 @@ export default function PostActionMenu({
     };
   }, []);
 
-  // ถ้าไม่มี action ใด ๆ เลย → ไม่ render
-  if (!canEdit && !canDelete && !canReport) {
-    return null;
-  }
+  if (
+  !canEdit &&
+  !canDelete &&
+  !canReport &&
+  !canHideTaggedPost
+) {
+  return null;
+}
+
 
   return (
   <div
@@ -55,28 +71,34 @@ export default function PostActionMenu({
   >
     {/* ===== Trigger ===== */}
     <button
-      type="button"
-      aria-haspopup="menu"
-      aria-expanded={open}
-      onClick={() => setOpen((v) => !v)}
-      title="Post actions"
-      className="
-        inline-flex
-        items-center
-        justify-center
-        h-8
-        w-8
-        sm:h-9
-        sm:w-9
-        rounded-full
-        text-gray-800
-        hover:bg-gray-200
-        focus:outline-none
-        focus-visible:ring-2
-        focus-visible:ring-blue-500
-        transition
-      "
-    >
+  type="button"
+  aria-haspopup="menu"
+  aria-expanded={open}
+  disabled={actionLoading}
+  onClick={() => {
+    if (actionLoading) return;
+    setOpen((v) => !v);
+  }}
+  title="Post actions"
+  className={`
+    inline-flex
+    items-center
+    justify-center
+    h-8
+    w-8
+    sm:h-9
+    sm:w-9
+    rounded-full
+    text-gray-800
+    hover:bg-gray-200
+    focus:outline-none
+    focus-visible:ring-2
+    focus-visible:ring-blue-500
+    transition
+    ${actionLoading ? "opacity-50 cursor-not-allowed" : ""}
+  `}
+>
+
       <span
         className="
           text-base
@@ -172,6 +194,48 @@ export default function PostActionMenu({
               />
             </li>
           )}
+
+          {canHideTaggedPost && (
+  <li>
+   <button
+  type="button"
+  role="menuitem"
+  disabled={actionLoading}
+  onClick={async () => {
+    if (actionLoading) return;
+
+    setActionLoading(true);
+    setOpen(false);
+
+    try {
+      if (isTagHidden) {
+        await onUnhideTaggedPost?.();
+      } else {
+        await onHideTaggedPost?.();
+      }
+    } finally {
+      setActionLoading(false);
+    }
+  }}
+  className={`
+    block
+    w-full
+    px-3
+    sm:px-4
+    py-2
+    text-left
+    hover:bg-gray-100
+    ${actionLoading ? "opacity-50 cursor-not-allowed" : ""}
+  `}
+>
+
+      {isTagHidden
+        ? "แสดงโพสต์นี้บนโปรไฟล์ฉัน"
+        : "ซ่อนโพสต์นี้จากโปรไฟล์ฉัน"}
+    </button>
+  </li>
+)}
+
 
           {canReport && (
   <li>

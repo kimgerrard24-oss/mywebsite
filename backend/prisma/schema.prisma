@@ -496,6 +496,8 @@ model PostUserTag {
   createdAt DateTime @default(now())
   respondedAt DateTime?
 
+  isHiddenByTaggedUser Boolean @default(false)
+
   // ===== relations =====
   post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
 
