@@ -13,6 +13,7 @@ import Avatar from "@/components/ui/Avatar";
 import FollowController from "@/components/follows/FollowController";
 import ShareButton from "@/components/share/ShareButton";
 import PostShareStats from "@/components/posts/PostShareStats";
+import PostMediaGrid from "@/components/posts/PostMediaGrid";
 
 type Props = {
   post: PostFeedItem;
@@ -228,80 +229,11 @@ const taggedUsers = post.taggedUsers ?? [];
 )}
 
 
-
-
       {/* ================= Media ================= */}
-      {Array.isArray(post.media) && post.media.length > 0 && (
-        <section
-          className="
-            mt-3
-            sm:mt-4
-            space-y-2
-            sm:space-y-3
-          "
-          aria-label="Post media"
-        >
-          {post.media.map((m) => (
-            <figure
-              key={m.id}
-              className="
-                overflow-hidden
-                rounded-lg
-                sm:rounded-xl
-              "
-            >
-              {m.type === "image" && (
-                <img
-                  src={m.url}
-                  alt=""
-                  loading="lazy"
-                  className="
-                    w-full
-                    max-h-[360px]
-                    sm:max-h-[420px]
-                    md:max-h-[520px]
-                    object-cover
-                    bg-black/5
-                  "
-                />
-              )}
-
-            {m.type === "video" && (
-  <div
-    className="
-      relative
-      w-full
-      aspect-video
-      bg-black
-      rounded-lg
-      sm:rounded-xl
-      overflow-hidden
-    "
-  >
-    <video
-      src={m.url}
-      poster={m.thumbnailUrl ?? undefined}
-      controls
-      preload="metadata"
-      playsInline
-      controlsList="nodownload"
-      disablePictureInPicture
-      className="
-        absolute
-        inset-0
-        h-full
-        w-full
-        object-contain
-      "
-    />
-
-  </div>
+{Array.isArray(post.media) && post.media.length > 0 && (
+  <PostMediaGrid media={post.media} />
 )}
 
-            </figure>
-          ))}
-        </section>
-      )}
 
       {/* ================= Footer ================= */}
       <footer

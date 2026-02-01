@@ -12,7 +12,7 @@ import PostLikeListModal from "@/components/posts/PostLikeListModal";
 import ShareButton from "@/components/share/ShareButton";
 import PostShareStats from "@/components/posts/PostShareStats";
 import Avatar from "@/components/ui/Avatar";
-
+import PostMediaGrid from "@/components/posts/PostMediaGrid";
 
 type Props = {
   post: PostDetailType;
@@ -201,89 +201,10 @@ const closeLikes = () => {
 )}
 
 
-
-      {/* ================= Media ================= */}
-      {Array.isArray(post.media) && post.media.length > 0 && (
-        <section
-          className="
-            mt-3
-            sm:mt-4
-            space-y-3
-            sm:space-y-4
-          "
-          aria-label="Post media"
-        >
-          {post.media.map((m) => {
-            const src = m.cdnUrl ?? m.url;
-
-            if (m.type === "image") {
-              return (
-                <figure
-                  key={m.id}
-                  className="
-                    overflow-hidden
-                    rounded-lg
-                    sm:rounded-xl
-                  "
-                >
-                  <img
-                    src={src}
-                    alt=""
-                    loading="lazy"
-                    className="
-                      w-full
-                      max-h-[60vh]
-                      sm:max-h-[70vh]
-                      object-contain
-                      bg-black/5
-                    "
-                  />
-                </figure>
-              );
-            }
-
-           if (m.type === "video") {
-  return (
-    <figure
-      key={m.id}
-      className="
-        overflow-hidden
-        rounded-lg
-        sm:rounded-xl
-        bg-black
-      "
-    >
-      <video
-        src={src}
-        poster={m.thumbnailUrl ?? undefined}
-        controls
-        preload="metadata"
-        playsInline
-        controlsList="nodownload"
-        disablePictureInPicture
-        className="
-          w-full
-          max-h-[60vh]
-          sm:max-h-[70vh]
-          object-contain
-        "
-      />
-
-      {/* 🔹 UX: thumbnail async generating */}
-      {!m.thumbnailUrl && (
-        <p className="mt-1 text-xs text-gray-400 text-center">
-          กำลังเตรียมภาพตัวอย่าง…
-        </p>
-      )}
-    </figure>
-  );
-}
-
-
-            return null;
-          })}
-        </section>
-      )}
+{/* ================= Media ================= */}
+{Array.isArray(post.media) && post.media.length > 0 && (
+  <PostMediaGrid media={post.media} />
+)}
 
       
 {post.userTags && post.userTags.length > 0 && (
