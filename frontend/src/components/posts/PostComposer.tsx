@@ -17,7 +17,12 @@ import UserPickerModal from "@/components/users/UserPickerModal";
 
 type Props = {
   onPostCreated?: () => void;
-  onPosted?: () => void; // legacy compatibility
+  onPosted?: () => void; 
+};
+
+type LocalMedia = {
+  file: File;
+  preview: string;
 };
 
 const MAX_LENGTH = 2000;
@@ -30,8 +35,8 @@ export default function PostComposer({
   const router = useRouter();
 
   const [content, setContent] = useState("");
-  const [files, setFiles] = useState<File[]>([]);
-  const [previews, setPreviews] = useState<string[]>([]);
+  const [media, setMedia] = useState<LocalMedia[]>([]);
+
   const [error, setError] = useState<string | null>(null);
 
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
@@ -61,38 +66,35 @@ export default function PostComposer({
   const [taggedUserIds, setTaggedUserIds] = useState<string[]>([]);
   const [showTagPicker, setShowTagPicker] = useState(false);
 
-  // =========================
-  // File selection (safe)
-  // =========================
-  const handleFileChange = (
-    e: React.ChangeEvent<HTMLInputElement>,
-  ) => {
-    if (!e.target.files) return;
+ const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  if (!e.target.files) return;
 
-    const selected = Array.from(e.target.files).slice(
-      0,
-      MAX_FILES,
-    );
+  if (media.length >= MAX_FILES) {
+    setError(`เลือกได้สูงสุด ${MAX_FILES} ไฟล์`);
+    return;
+  }
 
-    setFiles(selected);
+  const selected = Array.from(e.target.files);
+  const remainingSlots = MAX_FILES - media.length;
 
-    // 🔍 preview (frontend only)
-    const urls = selected.map((file) =>
-      URL.createObjectURL(file),
-    );
-    setPreviews(urls);
+  if (selected.length > remainingSlots) {
+    setError(`เลือกได้สูงสุด ${MAX_FILES} ไฟล์`);
+  } else {
+    setError(null);
+  }
 
-    e.target.value = "";
-  };
+  const nextFiles = selected.slice(0, remainingSlots);
 
-  // cleanup preview URLs (memory-safe)
-  useEffect(() => {
-    return () => {
-      previews.forEach((url) =>
-        URL.revokeObjectURL(url),
-      );
-    };
-  }, [previews]);
+  const nextItems: LocalMedia[] = nextFiles.map((file) => ({
+    file,
+    preview: URL.createObjectURL(file),
+  }));
+
+  setMedia((prev) => [...prev, ...nextItems]);
+  e.target.value = "";
+};
+
+
 
   // =========================
   // Submit post (text + media)
@@ -100,7 +102,7 @@ export default function PostComposer({
   const handleSubmit = useCallback(async () => {
     if (submitting) return;
 
-    if (!content.trim() && files.length === 0) {
+    if (!content.trim() && media.length === 0) {
       setError("กรุณาเขียนข้อความหรือเลือกไฟล์ก่อนโพสต์");
       return;
     }
@@ -125,7 +127,7 @@ export default function PostComposer({
       // 1️⃣ upload + complete media
       const mediaIds: string[] = [];
 
-      for (const file of files) {
+      for (const { file } of media) {
         const { objectKey } = await upload(file);
 
         const mediaId = await complete({
@@ -172,12 +174,10 @@ if (res?.failedTags?.length) {
   setError(msg);
 }
 
-
-       
+      
       // reset state
       setContent("");
-      setFiles([]);
-      setPreviews([]);
+      setMedia([]);
       setTaggedUserIds([]);
       setShowTagPicker(false);
 
@@ -198,7 +198,6 @@ setShowExcludePicker(false);
     }
   }, [
     content,
-    files,
     visibility,
     visibility.includeUserIds,
     visibility.excludeUserIds,
@@ -211,6 +210,18 @@ setShowExcludePicker(false);
     onPosted,
     router,
   ]);
+
+  const removeMediaAt = (index: number) => {
+  if (submitting) return;
+
+  setMedia((prev) => {
+    const target = prev[index];
+    if (target) URL.revokeObjectURL(target.preview);
+    return prev.filter((_, i) => i !== index);
+  });
+};
+
+
 
   return (
     <article
@@ -279,33 +290,35 @@ setShowExcludePicker(false);
       />
 
       {/* ===== Media preview ===== */}
-      {previews.length > 0 && (
-        <section
-          className="grid grid-cols-2 gap-2 pt-1"
-          aria-label="Media preview"
+      {media.length > 0 && (
+  <section className="grid grid-cols-2 gap-2 pt-1">
+    {media.map((m, i) => (
+      <div key={i} className="relative overflow-hidden rounded-lg bg-black/5">
+        <button
+          type="button"
+          disabled={submitting}
+          onClick={() => removeMediaAt(i)}
+          className={`
+            absolute top-1 right-1 z-10
+            w-6 h-6 rounded-full
+            flex items-center justify-center
+            text-xs text-white
+            bg-black/60 hover:bg-black/80
+            ${submitting ? "opacity-50 cursor-not-allowed" : ""}
+          `}
         >
-          {files.map((file, i) => (
-            <div
-              key={i}
-              className="overflow-hidden rounded-lg bg-black/5"
-            >
-              {file.type.startsWith("image") ? (
-                <img
-                  src={previews[i]}
-                  alt=""
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <video
-                  src={previews[i]}
-                  controls
-                  className="w-full h-full object-cover"
-                />
-              )}
-            </div>
-          ))}
-        </section>
-      )}
+          ×
+        </button>
+
+        {m.file.type.startsWith("image") ? (
+          <img src={m.preview} className="w-full h-full object-cover" />
+        ) : (
+          <video src={m.preview} className="w-full h-full object-cover" />
+        )}
+      </div>
+    ))}
+  </section>
+)}
 
       {/* ===== Media ===== */}
       <div className="flex items-center justify-between">
@@ -333,7 +346,7 @@ setShowExcludePicker(false);
         </label>
       </div>
 
-      {files.length > 0 && (
+      {media.length > 0 && (
         <p
           className="
             text-[10px]
@@ -343,7 +356,7 @@ setShowExcludePicker(false);
           role="status"
           aria-live="polite"
         >
-          เลือกไฟล์แล้ว {files.length} ไฟล์
+          เลือกไฟล์แล้ว {media.length} ไฟล์
         </p>
       )}
        
@@ -360,12 +373,12 @@ setShowExcludePicker(false);
     }
   }}
   onPickInclude={() => {
-    setShowVisibility(false);      // ✅ ปิด visibility panel
-    setShowIncludePicker(true);    // ✅ เปิด modal เลือกคน
+    setShowVisibility(false);     
+    setShowIncludePicker(true);   
   }}
   onPickExclude={() => {
-    setShowVisibility(false);      // ✅ ปิด visibility panel
-    setShowExcludePicker(true);    // ✅ เปิด modal เลือกคน
+    setShowVisibility(false);      
+    setShowExcludePicker(true);    
   }}
 />
 

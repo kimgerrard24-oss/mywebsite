@@ -23,7 +23,7 @@ export type PostDetail = {
 
   media: {
     id: string;
-    type: string;
+    type: "image" | "video";
     cdnUrl: string;
     thumbnailUrl?: string | null;
     url?: string; // optional for backward compatibility

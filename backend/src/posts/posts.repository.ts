@@ -587,7 +587,20 @@ async findUserPosts(params: {
 
   return this.prisma.post.findMany({
     where: {
+       OR: [
+    {
       authorId: userId,
+    },
+
+    {
+      userTags: {
+        some: {
+          taggedUserId: userId,
+          status: PostUserTagStatus.ACCEPTED,
+        },
+      },
+    },
+  ],
 
       // ===== BASE FILTER (DB authority) =====
       isDeleted: false,
@@ -771,7 +784,6 @@ async findUserPosts(params: {
         },
       },
 
-            // ✅ NEW: accepted user tags for feed display
       userTags: {
         where: {
           status: PostUserTagStatus.ACCEPTED,

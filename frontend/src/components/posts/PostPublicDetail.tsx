@@ -5,6 +5,7 @@ import { renderContentWithHashtags } from "@/utils/renderContentWithHashtags";
 import PostMediaViewer from "@/components/media/PostMediaViewer";
 import Avatar from "@/components/ui/Avatar";
 import type { PublicPostDetail } from "@/types/public-post-detail";
+import PostMediaGrid from "@/components/posts/PostMediaGrid";
 
 type Props = {
   post: PublicPostDetail;
@@ -85,76 +86,10 @@ export default function PostPublicDetail({ post }: Props) {
         <p>{renderContentWithHashtags(post.content)}</p>
       </section>
 
-      {/* ================= Media ================= */}
-      {Array.isArray(post.media) && post.media.length > 0 && (
-        <section
-          className="
-            mt-3
-            sm:mt-4
-            space-y-3
-            sm:space-y-4
-          "
-          aria-label="Post media"
-        >
-          {post.media.map((m) => {
-            const src = m.cdnUrl ?? m.url;
-
-            if (m.type === "image") {
-              return (
-                <figure
-                  key={m.id}
-                  className="
-                    overflow-hidden
-                    rounded-lg
-                    sm:rounded-xl
-                  "
-                >
-                  <img
-                    src={src}
-                    alt=""
-                    loading="lazy"
-                    className="
-                      w-full
-                      max-h-[60vh]
-                      sm:max-h-[70vh]
-                      object-contain
-                      bg-black/5
-                    "
-                  />
-                </figure>
-              );
-            }
-
-            if (m.type === "video") {
-              return (
-                <figure
-                  key={m.id}
-                  className="
-                    overflow-hidden
-                    rounded-lg
-                    sm:rounded-xl
-                    bg-black
-                  "
-                >
-                  <video
-                    src={src}
-                    controls
-                    preload="metadata"
-                    className="
-                      w-full
-                      max-h-[60vh]
-                      sm:max-h-[70vh]
-                      object-contain
-                    "
-                  />
-                </figure>
-              );
-            }
-
-            return null;
-          })}
-        </section>
-      )}
+     {/* ================= Media ================= */}
+{Array.isArray(post.media) && post.media.length > 0 && (
+  <PostMediaGrid media={post.media} />
+)}
 
       {/* ================= Public Notice ================= */}
       <footer
