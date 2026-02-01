@@ -13,30 +13,47 @@ type Props = {
 };
 
 export default function AccountPrivacyPage({ isPrivate }: Props) {
-  return (
-    <>
-      <Head>
-        <title>Privacy Settings | PhlyPhant</title>
-        <meta
-          name="description"
-          content="Manage your account privacy settings on PhlyPhant"
-        />
-      </Head>
+return (
+  <>
+    <Head>
+      <title>Privacy Settings | PhlyPhant</title>
+      <meta name="description" content="Manage your account privacy settings on PhlyPhant" />
+    </Head>
 
-      <AccountLayout>
-        <main className="space-y-6">
-          <header>
-            <h1 className="text-xl font-semibold">Privacy</h1>
-            <p className="mt-1 text-sm text-gray-600">
-              Control who can follow and view your profile.
-            </p>
-          </header>
+    <AccountLayout>
+      <main
+        className="flex flex-col gap-6 sm:gap-8"
+        role="main"
+        aria-labelledby="privacy-heading"
+        aria-describedby="privacy-description"
+      >
+        <header className="flex flex-col gap-1" role="banner">
+          <h1
+            id="privacy-heading"
+            className="text-lg font-semibold text-gray-900 sm:text-xl"
+          >
+            Privacy
+          </h1>
+          <p
+            id="privacy-description"
+            className="text-sm text-gray-600"
+          >
+            Control who can follow and view your profile.
+          </p>
+        </header>
 
+        <section
+          className="flex flex-col gap-4"
+          role="region"
+          aria-label="Privacy settings"
+        >
           <PrivacySettingCard initialIsPrivate={isPrivate} />
-        </main>
-      </AccountLayout>
-    </>
-  );
+        </section>
+      </main>
+    </AccountLayout>
+  </>
+);
+
 }
 
 /* ================= SSR ================= */

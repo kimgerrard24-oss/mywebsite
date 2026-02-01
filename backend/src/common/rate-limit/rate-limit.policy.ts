@@ -51,6 +51,9 @@ export type RateLimitAction =
   | 'userModerationRead'
   | 'mediaComplete'
   | 'mediaPresign'
+  | 'postTagHide'
+  | 'postTagUnhide'
+  | 'userHiddenTaggedPostsRead'
   | 'postsVisibilityValidate'
   | 'postUpdate'
   | 'publicPostRead'
@@ -1312,6 +1315,54 @@ publicPostShareRead: {
     maxViolations: 20,      // ต้อง spam หนักจริง
     windowSec: 86400,       // 24 ชม.
     longBlockSec: 3600,     // block 1 ชม.
+  },
+},
+
+postTagHide: {
+  windowSec: 60,
+  max: 30,                 // hide ได้ 30 ครั้ง / นาที
+  blockDurationSec: 300,   // block 5 นาทีถ้า spam
+
+  points: 30,
+  duration: 60,
+  blockDuration: 300,
+
+  escalation: {
+    maxViolations: 3,
+    windowSec: 86400,      // 24 ชม.
+    longBlockSec: 21600,   // block 6 ชม.
+  },
+},
+
+postTagUnhide: {
+  windowSec: 60,
+  max: 30,
+  blockDurationSec: 300,
+
+  points: 30,
+  duration: 60,
+  blockDuration: 300,
+
+  escalation: {
+    maxViolations: 3,
+    windowSec: 86400,
+    longBlockSec: 21600,
+  },
+},
+
+userHiddenTaggedPostsRead: {
+  windowSec: 60,
+  max: 30,                 // scroll / reload ได้สบาย
+  blockDurationSec: 300,
+
+  points: 30,
+  duration: 60,
+  blockDuration: 300,
+
+  escalation: {
+    maxViolations: 5,      // ต้อง abuse ต่อเนื่อง
+    windowSec: 86400,
+    longBlockSec: 3600,    // block 1 ชม.
   },
 },
 

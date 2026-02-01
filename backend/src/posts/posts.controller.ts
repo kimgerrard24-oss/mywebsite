@@ -362,6 +362,7 @@ async rejectPostTag(
 
 
 @Post(':postId/tags/hide')
+@RateLimit('postTagHide')
 @HttpCode(HttpStatus.OK)
 @UseGuards(AccessTokenCookieAuthGuard)
 async hideTaggedPost(
@@ -377,6 +378,7 @@ async hideTaggedPost(
 
 
 @Post(':postId/tags/unhide')
+@RateLimit('postTagUnhide')
 @HttpCode(HttpStatus.OK)
 @UseGuards(AccessTokenCookieAuthGuard)
 async unhideTaggedPost(
@@ -389,10 +391,9 @@ async unhideTaggedPost(
   });
 }
 
-// ===============================
-// GET /posts/me/tagged-posts/hidden
-// ===============================
+
 @UseGuards(AccessTokenCookieAuthGuard)
+@RateLimit('userHiddenTaggedPostsRead')
 @Get('me/tagged-posts/hidden')
 async getMyHiddenTaggedPosts(
   @CurrentUser() user: { userId: string },

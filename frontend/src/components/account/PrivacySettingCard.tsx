@@ -10,15 +10,20 @@ export default function PrivacySettingCard({
   initialIsPrivate,
 }: Props) {
   return (
-    <section
-      className="rounded-lg border bg-white p-4"
-      aria-labelledby="privacy-setting-title"
+  <section
+    className="w-full rounded-lg border bg-white p-4 sm:p-6 focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-2"
+    role="region"
+    aria-labelledby="privacy-setting-title"
+  >
+    <h2
+      id="privacy-setting-title"
+      className="sr-only"
     >
-      <h2 id="privacy-setting-title" className="sr-only">
-        Post privacy setting
-      </h2>
+      Post privacy setting
+    </h2>
 
-      <PrivacySettingToggle initialIsPrivate={initialIsPrivate} />
-    </section>
-  );
+    <PrivacySettingToggle initialIsPrivate={initialIsPrivate} />
+  </section>
+);
+
 }
