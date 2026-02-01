@@ -360,4 +360,33 @@ async rejectPostTag(
   });
 }
 
+
+@Post(':postId/tags/hide')
+@HttpCode(HttpStatus.OK)
+@UseGuards(AccessTokenCookieAuthGuard)
+async hideTaggedPost(
+  @Param('postId', ParsePostIdPipe) postId: string,
+  @Req() req: { user: { userId: string } },
+) {
+  return this.postsService.hideTaggedPost({
+    postId,
+    actorUserId: req.user.userId,
+  });
+}
+
+
+
+@Post(':postId/tags/unhide')
+@HttpCode(HttpStatus.OK)
+@UseGuards(AccessTokenCookieAuthGuard)
+async unhideTaggedPost(
+  @Param('postId', ParsePostIdPipe) postId: string,
+  @Req() req: { user: { userId: string } },
+) {
+  return this.postsService.unhideTaggedPost({
+    postId,
+    actorUserId: req.user.userId,
+  });
+}
+
 }

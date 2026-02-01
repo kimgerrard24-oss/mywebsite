@@ -244,6 +244,10 @@ async findPublicFeed(params: {
         select: {
           id: true,
           status: true,
+
+          taggedUserId: true,
+          isHiddenByTaggedUser: true,
+
           taggedUser: {
             select: {
               id: true,
@@ -597,6 +601,7 @@ async findUserPosts(params: {
         some: {
           taggedUserId: userId,
           status: PostUserTagStatus.ACCEPTED,
+          isHiddenByTaggedUser: false,
         },
       },
     },
@@ -791,6 +796,10 @@ async findUserPosts(params: {
         select: {
           id: true,
           status: true,
+
+          taggedUserId: true,
+          isHiddenByTaggedUser: true,
+          
           taggedUser: {
             select: {
               id: true,
@@ -941,7 +950,6 @@ async findPostsByTag(params: {
       createdAt: 'desc',
     },
 
-    // ✅ USE SELECT ONLY (mapper-safe, no overfetch)
     select: {
       id: true,
       content: true,
@@ -1013,7 +1021,6 @@ async findPostsByTag(params: {
         },
       },
 
-            // ✅ NEW: accepted user tags for feed display
       userTags: {
         where: {
           status: PostUserTagStatus.ACCEPTED,
@@ -1021,6 +1028,10 @@ async findPostsByTag(params: {
         select: {
           id: true,
           status: true,
+
+          taggedUserId: true,
+          isHiddenByTaggedUser: true,
+          
           taggedUser: {
             select: {
               id: true,

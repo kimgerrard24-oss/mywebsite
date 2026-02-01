@@ -1781,6 +1781,58 @@ async rejectPostTag(params: {
   return { success: true };
 }
 
+async hideTaggedPost(params: {
+  postId: string;
+  actorUserId: string;
+}) {
+  const { postId, actorUserId } = params;
+
+  const tag = await this.prisma.postUserTag.findFirst({
+    where: {
+      postId,
+      taggedUserId: actorUserId,
+      status: PostUserTagStatus.ACCEPTED,
+    },
+    select: { id: true },
+  });
+
+  if (!tag) {
+    throw new NotFoundException('Tag not found');
+  }
+
+  await this.prisma.postUserTag.update({
+    where: { id: tag.id },
+    data: { isHiddenByTaggedUser: true },
+  });
+
+  return { success: true };
+}
+
+async unhideTaggedPost(params: {
+  postId: string;
+  actorUserId: string;
+}) {
+  const { postId, actorUserId } = params;
+
+  const tag = await this.prisma.postUserTag.findFirst({
+    where: {
+      postId,
+      taggedUserId: actorUserId,
+    },
+    select: { id: true },
+  });
+
+  if (!tag) {
+    throw new NotFoundException('Tag not found');
+  }
+
+  await this.prisma.postUserTag.update({
+    where: { id: tag.id },
+    data: { isHiddenByTaggedUser: false },
+  });
+
+  return { success: true };
+}
 
 
 }

@@ -18,9 +18,16 @@ import PostMediaGrid from "@/components/posts/PostMediaGrid";
 type Props = {
   post: PostFeedItem;
   onDeleted?: (postId: string) => void;
+  onHideTaggedPost?: () => void;
+  onUnhideTaggedPost?: () => void;
 };
 
-export default function FeedItem({ post, onDeleted }: Props) {
+export default function FeedItem({ 
+  post, 
+  onDeleted,
+  onHideTaggedPost,
+  onUnhideTaggedPost, 
+}: Props) {
   const profileHref = post.canDelete
     ? "/profile"
     : `/users/${post.author.id}`;
@@ -182,13 +189,17 @@ const taggedUsers = post.taggedUsers ?? [];
 )}
 
 
-
-
     <PostActionMenu
       postId={post.id}
       canDelete={post.canDelete}
       canEdit={post.canDelete}
       canReport={!post.canDelete}
+
+      canHideTaggedPost={post.isTaggedUser === true}
+      isTagHidden={post.isHiddenByTaggedUser === true}
+      onHideTaggedPost={onHideTaggedPost}
+      onUnhideTaggedPost={onUnhideTaggedPost}
+      
       onDeleted={() => {
         onDeleted?.(post.id);
       }}

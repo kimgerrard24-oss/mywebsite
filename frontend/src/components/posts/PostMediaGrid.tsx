@@ -25,24 +25,23 @@ export default function PostMediaGrid({ media }: Props) {
     setViewerIndex(null);
   }, []);
 
-  if (!Array.isArray(media) || media.length === 0) {
-    return null;
-  }
+  if (!Array.isArray(media) || media.length === 0) return null;
 
-  // ===== helpers =====
-  const getSrc = (m: MediaItem) => m.cdnUrl ?? m.url ?? "";
   const total = media.length;
 
-  // ===== single =====
+  /* ======================================================
+   * 1 IMAGE
+   * ====================================================== */
   if (total === 1) {
-    const m = media[0];
     return (
-      <section aria-label="Post media" className="mt-3 sm:mt-4">
+      <section aria-label="Post media" className="mt-2">
         <MediaFigure
-          media={m}
+          media={media[0]}
           onClick={() => openViewer(0)}
           priority
+          single
         />
+
         {viewerIndex !== null && (
           <MediaViewer
             media={media}
@@ -54,39 +53,31 @@ export default function PostMediaGrid({ media }: Props) {
     );
   }
 
-  // ===== grid (2–4+) =====
+  /* ======================================================
+   * 2–4+ IMAGES (Facebook-style)
+   * ====================================================== */
   const main = media[0];
-  const rest = media.slice(1, 4); // show max 3 on the right
+  const rest = media.slice(1, 4);
   const remaining = total - 4;
 
   return (
-    <section
-      aria-label="Post media"
-      className="mt-3 sm:mt-4"
-    >
-      <div
-        className="
-          grid
-          grid-cols-3
-          gap-1.5
-          sm:gap-2
-        "
-      >
-        {/* ===== left: main ===== */}
+    <section aria-label="Post media" className="mt-2">
+      <div className="grid grid-cols-3 gap-[2px]">
+        {/* ===== LEFT (MAIN) ===== */}
         <div className="col-span-2">
           <MediaFigure
             media={main}
             onClick={() => openViewer(0)}
             priority
+            tall
           />
         </div>
 
-        {/* ===== right: grid ===== */}
-        <div className="col-span-1 grid grid-rows-3 gap-1.5 sm:gap-2">
+        {/* ===== RIGHT (STACK) ===== */}
+        <div className="col-span-1 grid grid-rows-3 gap-[2px]">
           {rest.map((m, i) => {
             const index = i + 1;
-            const isLastVisible =
-              index === 3 && remaining > 0;
+            const showOverlay = index === 3 && remaining > 0;
 
             return (
               <div key={m.id} className="relative">
@@ -95,22 +86,17 @@ export default function PostMediaGrid({ media }: Props) {
                   onClick={() => openViewer(index)}
                 />
 
-                {isLastVisible && (
+                {showOverlay && (
                   <button
                     type="button"
                     onClick={() => openViewer(index)}
                     className="
-                      absolute
-                      inset-0
-                      flex
-                      items-center
-                      justify-center
+                      absolute inset-0
+                      flex items-center justify-center
                       bg-black/60
                       text-white
-                      text-xl
-                      font-semibold
-                      rounded-lg
-                      sm:rounded-xl
+                      text-xl font-semibold
+                      rounded-md
                     "
                     aria-label={`View ${remaining} more media`}
                   >
@@ -141,34 +127,35 @@ function MediaFigure({
   media,
   onClick,
   priority = false,
+  tall = false,
+  single = false,
 }: {
   media: MediaItem;
   onClick: () => void;
   priority?: boolean;
+  tall?: boolean;
+  single?: boolean;
 }) {
   const src = media.cdnUrl ?? media.url ?? "";
 
   return (
     <figure
-      className="
-        relative
-        overflow-hidden
-        rounded-lg
-        sm:rounded-xl
-        bg-black/5
-        cursor-pointer
-        group
-        aspect-square
-      "
       onClick={onClick}
-      tabIndex={0}
       role="button"
+      tabIndex={0}
       aria-label="Open media viewer"
       onKeyDown={(e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          onClick();
-        }
+        if (e.key === "Enter" || e.key === " ") onClick();
       }}
+      className={`
+        relative
+        overflow-hidden
+        rounded-md
+        bg-black/5
+        cursor-pointer
+        ${single ? "max-h-[70vh]" : ""}
+        ${tall ? "min-h-[300px]" : "min-h-[100px]"}
+      `}
     >
       {media.type === "image" ? (
         <img
@@ -176,12 +163,8 @@ function MediaFigure({
           alt=""
           loading={priority ? "eager" : "lazy"}
           className="
-            h-full
-            w-full
+            w-full h-full
             object-cover
-            transition-transform
-            duration-200
-            group-hover:scale-[1.02]
           "
         />
       ) : (
@@ -192,8 +175,7 @@ function MediaFigure({
           playsInline
           preload="metadata"
           className="
-            h-full
-            w-full
+            w-full h-full
             object-cover
           "
         />
@@ -222,32 +204,21 @@ function MediaViewer({
       role="dialog"
       aria-modal="true"
       className="
-        fixed
-        inset-0
-        z-50
-        flex
-        items-center
-        justify-center
+        fixed inset-0 z-50
+        flex items-center justify-center
         bg-black/80
       "
       onClick={onClose}
     >
       <div
-        className="
-          max-w-[95vw]
-          max-h-[95vh]
-        "
+        className="max-w-[95vw] max-h-[95vh]"
         onClick={(e) => e.stopPropagation()}
       >
         {m.type === "image" ? (
           <img
             src={src}
             alt=""
-            className="
-              max-h-[95vh]
-              max-w-[95vw]
-              object-contain
-            "
+            className="max-w-[95vw] max-h-[95vh] object-contain"
           />
         ) : (
           <video
@@ -255,11 +226,7 @@ function MediaViewer({
             controls
             autoPlay
             playsInline
-            className="
-              max-h-[95vh]
-              max-w-[95vw]
-              object-contain
-            "
+            className="max-w-[95vw] max-h-[95vh] object-contain"
           />
         )}
       </div>
@@ -268,11 +235,8 @@ function MediaViewer({
         type="button"
         onClick={onClose}
         className="
-          absolute
-          top-4
-          right-4
-          text-white
-          text-2xl
+          absolute top-4 right-4
+          text-white text-2xl
         "
         aria-label="Close media viewer"
       >
@@ -281,3 +245,4 @@ function MediaViewer({
     </div>
   );
 }
+

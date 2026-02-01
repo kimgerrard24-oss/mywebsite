@@ -39,3 +39,23 @@ export async function getPostTags(params: {
 
   return res.data as PostUserTagItem[];
 }
+
+export async function hideTaggedPost(postId: string) {
+  const res = await api.post(
+    `/posts/${postId}/tags/hide`,
+    null,
+    { withCredentials: true },
+  );
+
+  return res.data as { success: true };
+}
+
+export async function unhideTaggedPost(postId: string) {
+  const res = await api.post(
+    `/posts/${postId}/tags/unhide`,
+    null,
+    { withCredentials: true },
+  );
+
+  return res.data as { success: true };
+}

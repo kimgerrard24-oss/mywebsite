@@ -24,6 +24,7 @@ export type PostUserTagItem = {
     avatarUrl: string | null;
   };
 
-  isTaggedUser: boolean; // backend computed
-  isPostOwner: boolean;  // backend computed
+  isTaggedUser: boolean; 
+  isPostOwner: boolean;  
+  isHiddenByTaggedUser?: boolean;
 };

@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import FeedItem from "@/components/feed/FeedItem";
 import { getUserPosts } from "@/lib/api/posts";
 import type { PostFeedItem } from "@/types/post-feed";
+import { hideTaggedPost, unhideTaggedPost } from "@/lib/api/post-tags";
 
 type Props = {
   /**
@@ -87,6 +88,32 @@ export default function ProfilePosts({
     );
   }
 
+  const handleHideTaggedPost = async (postId: string) => {
+  // optimistic remove
+  setPosts((prev) => prev.filter((p) => p.id !== postId));
+
+  try {
+    await hideTaggedPost(postId);
+  } catch {
+    // rollback (reload safest)
+    const feed = await getUserPosts({
+      userId,
+      limit: initialLimit,
+    });
+    setPosts(feed.items ?? []);
+  }
+};
+
+const handleUnhideTaggedPost = async () => {
+  // simplest: reload feed
+  const feed = await getUserPosts({
+    userId,
+    limit: initialLimit,
+  });
+  setPosts(feed.items ?? []);
+};
+
+
  return (
   <section
     className="
@@ -111,8 +138,14 @@ export default function ProfilePosts({
     </h2>
 
     {posts.map((post) => (
-      <FeedItem key={post.id} post={post} />
-    ))}
+  <FeedItem
+    key={post.id}
+    post={post}
+    onHideTaggedPost={() => handleHideTaggedPost(post.id)}
+    onUnhideTaggedPost={() => handleUnhideTaggedPost()}
+  />
+))}
+
   </section>
 );
 
