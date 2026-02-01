@@ -120,21 +120,24 @@ export default function FeedPage({
         "
       >
         <nav
-          aria-label="Primary navigation"
-          className="
-            mx-auto
-            flex
-            h-14
-            max-w-6xl
-            items-center
-            justify-between
-            gap-2
-            px-3
-            sm:px-4
-            md:px-6
-            sm:gap-4
-          "
-        >
+  aria-label="Primary navigation"
+  className="
+    mx-auto
+    flex
+    flex-nowrap
+    overflow-x-auto
+    h-14
+    max-w-6xl
+    items-center
+    justify-between
+    gap-2
+    px-3
+    sm:px-4
+    md:px-6
+    sm:gap-4
+  "
+>
+
           {/* ===== Left: Logo ===== */}
           <Link
             href="/feed"
@@ -168,14 +171,7 @@ export default function FeedPage({
               px-2
             "
           >
-            <div
-              className="
-                hidden
-                w-full
-                max-w-md
-                md:block
-              "
-            >
+            <div className="w-full max-w-md">
               <UserSearchPanel variant="navbar" />
             </div>
           </div>
@@ -194,22 +190,13 @@ export default function FeedPage({
 >
 
   {/* 📨 Chats */}
-  <Link
-    href="/chat"
-    aria-label="Go to chats"
-    className="
-      text-sm
-      font-medium
-      text-gray-700
-      hover:text-blue-600
-      focus:outline-none
-      focus-visible:ring-2
-      focus-visible:ring-blue-500
-      rounded
-    "
-  >
-    Chats
-  </Link>
+ <Link
+  href="/chat"
+  aria-label="Go to chats"
+  className="hidden sm:inline text-sm font-medium text-gray-700 hover:text-blue-600 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 rounded"
+>
+  Chats
+</Link>
   
   {/* 🔔 Notifications */}
   <NotificationBell />
@@ -236,26 +223,29 @@ export default function FeedPage({
 
   {/* ⚙️ Menu Button */}
   <button
-    type="button"
-    aria-haspopup="menu"
-    aria-expanded={menuOpen}
-    onClick={() => setMenuOpen((v) => !v)}
-    className="
-      inline-flex
-      items-center
-      justify-center
-      h-9
-      w-9
-      rounded-full
-      border
-      bg-white
-      text-gray-700
-      hover:bg-gray-100
-      focus:outline-none
-      focus-visible:ring-2
-      focus-visible:ring-blue-500
-    "
-  >
+  type="button"
+  aria-haspopup="menu"
+  aria-expanded={menuOpen}
+  onClick={() => setMenuOpen((v) => !v)}
+  className="
+    inline-flex
+    items-center
+    justify-center
+    h-10
+    w-10
+    sm:h-9
+    sm:w-9
+    rounded-full
+    border
+    bg-white
+    text-gray-700
+    hover:bg-gray-100
+    focus:outline-none
+    focus-visible:ring-2
+    focus-visible:ring-blue-500
+  "
+>
+
     {/* ใช้เป็น ≡ หรือ ⚙️ ก็ได้ */}
     <span aria-hidden className="text-lg leading-none">≡</span>
     <span className="sr-only">Open user menu</span>
@@ -322,19 +312,6 @@ export default function FeedPage({
 
         </nav>
       </header>
-
-      {/* ===== Mobile Search ===== */}
-      <section
-        className="
-          px-3
-          pt-3
-          sm:px-4
-          md:hidden
-        "
-        aria-label="Search users"
-      >
-        <UserSearchPanel variant="page" />
-      </section>
 
       {/* ===== Mobile Feed Mode Switcher ===== */}
       <section

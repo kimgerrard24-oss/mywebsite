@@ -8,47 +8,71 @@ import AccountLayout from "@/components/account/AccountLayout";
    ===================================================== */
 export default function AccountPage() {
   return (
-    <>
-      <Head>
-        <title>Account | PhlyPhant</title>
-        <meta
-          name="description"
-          content="Manage your account settings on PhlyPhant"
-        />
-      </Head>
+  <>
+    <Head>
+      <title>Account | PhlyPhant</title>
+      <meta name="description" content="Manage your account settings on PhlyPhant" />
+    </Head>
 
-      <AccountLayout>
-        <h1 className="text-xl font-semibold">Account</h1>
-        <p className="mt-1 text-sm text-gray-600">
+    <AccountLayout>
+      <header className="mb-6 flex flex-col gap-1 sm:mb-8" role="banner">
+        <h1 className="text-lg font-semibold text-gray-900 sm:text-xl" id="account-heading">
+          Account
+        </h1>
+        <p className="text-sm text-gray-600" id="account-description">
           Manage your basic account information.
         </p>
+      </header>
 
-        <div className="mt-6 space-y-4 text-sm">
-          <div className="rounded border p-4">
-            <p className="font-medium">Profile</p>
-            <p className="text-gray-600">
-              Edit your display name, bio, and avatar.
-            </p>
-          </div>
+      <section
+        className="space-y-4 text-sm sm:space-y-5"
+        role="region"
+        aria-labelledby="account-heading"
+        aria-describedby="account-description"
+      >
+        <article
+          className="rounded-lg border border-gray-200 bg-white p-4 transition hover:border-gray-300 focus-within:ring-2 focus-within:ring-blue-500 sm:p-5"
+          role="group"
+          aria-labelledby="account-profile-title"
+        >
+          <p id="account-profile-title" className="font-medium text-gray-900">
+            Profile
+          </p>
+          <p className="mt-1 text-gray-600">
+            Edit your display name, bio, and avatar.
+          </p>
+        </article>
 
-          <div className="rounded border p-4">
-            <p className="font-medium">Email</p>
-            <p className="text-gray-600">
-              Change and verify your email address.
-            </p>
-          </div>
+        <article
+          className="rounded-lg border border-gray-200 bg-white p-4 transition hover:border-gray-300 focus-within:ring-2 focus-within:ring-blue-500 sm:p-5"
+          role="group"
+          aria-labelledby="account-email-title"
+        >
+          <p id="account-email-title" className="font-medium text-gray-900">
+            Email
+          </p>
+          <p className="mt-1 text-gray-600">
+            Change and verify your email address.
+          </p>
+        </article>
 
-          <div className="rounded border p-4">
-            <p className="font-medium">Password</p>
-            <p className="text-gray-600">
-              Update your login password.
-            </p>
-          </div>
-        </div>
-      </AccountLayout>
+        <article
+          className="rounded-lg border border-gray-200 bg-white p-4 transition hover:border-gray-300 focus-within:ring-2 focus-within:ring-blue-500 sm:p-5"
+          role="group"
+          aria-labelledby="account-password-title"
+        >
+          <p id="account-password-title" className="font-medium text-gray-900">
+            Password
+          </p>
+          <p className="mt-1 text-gray-600">
+            Update your login password.
+          </p>
+        </article>
+      </section>
+    </AccountLayout>
+  </>
+);
 
-    </>
-  );
 }
 
 /* =====================================================
