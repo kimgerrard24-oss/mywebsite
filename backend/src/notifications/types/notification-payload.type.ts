@@ -64,6 +64,11 @@ export type NotificationPayloadMap = {
     actorUserId: string;
   };
 
+  post_reposted: {
+  postId: string;
+}
+
+
   feed_mention_in_post: {
     postId: string;
   };

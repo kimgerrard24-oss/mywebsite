@@ -55,15 +55,36 @@ export class PostFeedMapper {
 
     const isTaggedUser = Boolean(myTag);
     const isHiddenByTaggedUser =
-        Boolean(myTag?.isHiddenByTaggedUser === true);  
+        Boolean(myTag?.isHiddenByTaggedUser === true);
+        
+    const isRepost = !!row.repost;   
+
       
     return {
-      id: row.id,
+      type: isRepost ? 'repost' : 'post',
+
+
+      id: isRepost ? row.repost.id : row.id,
       content: row.content,
-      createdAt: row.createdAt.toISOString(),
+      createdAt: isRepost
+        ? row.repost.createdAt.toISOString()
+        : row.createdAt.toISOString(),
+
 
       isTaggedUser,
       isHiddenByTaggedUser,
+
+      ...(isRepost && {
+      repost: {
+      repostId: row.repost.id,
+      repostedAt: row.repost.createdAt.toISOString(),
+      actor: {
+        id: row.repost.actor.id,
+        displayName: row.repost.actor.displayName,
+        avatarUrl: row.repost.actor.avatarUrl,
+      },
+    },
+  }),
 
       author: {
         id: author?.id ?? 'unknown',
@@ -102,7 +123,9 @@ export class PostFeedMapper {
       stats: {
         likeCount: row.likeCount,
         commentCount: row.commentCount,
+        repostCount: row.repostCount ?? 0,
       },
+
 
       canDelete: isOwner,
       

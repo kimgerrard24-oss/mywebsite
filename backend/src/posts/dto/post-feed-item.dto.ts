@@ -8,6 +8,19 @@ export class PostFeedItemDto {
   isTaggedUser!: boolean;
   isHiddenByTaggedUser!: boolean;
 
+  type?: 'post' | 'repost';
+
+   repost?: {
+    repostId: string;
+    repostedAt: string;
+
+    actor: {
+      id: string;
+      displayName: string | null;
+      avatarUrl: string | null;
+    };
+  };
+
   author!: {
     id: string;
     displayName: string | null;
@@ -34,7 +47,11 @@ export class PostFeedItemDto {
   stats!: {
     likeCount: number;
     commentCount: number;
+    repostCount: number;
   };
+
+  hasReposted?: boolean;
+
 
   canDelete!: boolean;
 

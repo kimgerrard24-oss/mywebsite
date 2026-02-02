@@ -28,9 +28,29 @@ export type PostDetail = {
     thumbnailUrl?: string | null;
     url?: string; // optional for backward compatibility
   }[];
+
+  /**
+   * 🔁 Repost state (viewer-specific)
+   */
+  repost?: {
+    repostId: string;
+    repostedAt: string;
+    actor: {
+      id: string;
+      displayName: string | null;
+      avatarUrl: string | null;
+    };
+  };
+
+  /**
+   * 🔢 Repost count
+   */
+  repostCount?: number;
   
   userTags?: PostUserTagItem[];
-  
+
+  hasReposted?: boolean;
+
   likeCount: number;
   commentCount: number;
   isLikedByViewer: boolean;

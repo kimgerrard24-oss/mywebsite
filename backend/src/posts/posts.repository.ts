@@ -237,6 +237,25 @@ async findPublicFeed(params: {
         },
       },
 
+      reposts: {
+  where: {
+    deletedAt: null,
+  },
+  take: 1,
+  select: {
+    id: true,
+    createdAt: true,
+    actor: {
+      select: {
+        id: true,
+        displayName: true,
+        avatarUrl: true,
+      },
+    },
+  },
+},
+
+
       userTags: {
         where: {
           status: PostUserTagStatus.ACCEPTED,
@@ -788,6 +807,25 @@ async findUserPosts(params: {
           },
         },
       },
+
+      reposts: {
+  where: {
+    deletedAt: null,
+  },
+  take: 1,
+  select: {
+    id: true,
+    createdAt: true,
+    actor: {
+      select: {
+        id: true,
+        displayName: true,
+        avatarUrl: true,
+      },
+    },
+  },
+},
+
 
       userTags: {
         where: {

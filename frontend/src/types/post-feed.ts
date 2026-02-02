@@ -37,10 +37,15 @@ export type PostFeedItem = {
 
   isSelf: boolean;
 
+  repost?: boolean;
+
   stats: {
     likeCount: number;
     commentCount: number;
+    repostCount: number;
   };
+
+  hasReposted?: boolean;
   
   width: number | null;
   height: number | null;

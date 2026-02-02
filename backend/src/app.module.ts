@@ -42,6 +42,8 @@ import { SecuritiesModule } from './securities/securities.module';
 import { FeedModule } from './feed/feed.module';
 import { EventsModule } from './core/events/events.module';
 import { SharesModule } from './shares/shares.module';
+import { RepostsModule } from './reposts/reposts.module';
+
 
 @Module({
   imports: [
@@ -60,6 +62,7 @@ import { SharesModule } from './shares/shares.module';
     FeedModule,
     EventsModule,
     ChatModule,
+    RepostsModule,
     AppealsModule,
     SecuritiesModule,
     AuditModule,

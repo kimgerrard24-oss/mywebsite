@@ -41,6 +41,7 @@ import { PostUserTagViewPolicy } from './policy/post-user-tag-view.policy';
 import { PostUserTagAcceptPolicy } from './policy/post-user-tag-accept.policy';
 import { PostUserTagRejectPolicy } from './policy/post-user-tag-reject.policy';
 import { PostUserTagCreatePolicy } from './policy/post-user-tag-create.policy';
+import { RepostsRepository } from '../reposts/reposts.repository';
 
 @Injectable()
 export class PostsService {
@@ -57,6 +58,7 @@ export class PostsService {
     private readonly postslikes: PostsRepository,
     private readonly notifications: NotificationsService,
     private readonly eventEmitter: EventEmitter2,
+    private readonly repostsRepo: RepostsRepository,
   ) {}
 
 async createPost(params: {
@@ -401,41 +403,69 @@ async getPublicFeed(params: {
 
   // =================================================
   // 1) Load candidate posts (DB pre-filter only)
-  //    - isDeleted / isHidden / block / mediaType
-  //    - visibility here is NOT final authority
   // =================================================
   const rows = await this.repo.findPublicFeed({
     limit,
     cursor,
     viewerUserId,
-    mediaType, // pass-through (right video feed)
+    mediaType,
   });
 
   // =================================================
   // 2) Final Authority Decision (Post-level)
-  //    - Single source of truth
-  //    - Same logic as post detail / validate
   // =================================================
   const visiblePosts: typeof rows = [];
 
   for (const post of rows) {
-  const decision = await this.visibility.validateVisibility({
-    postId: post.id,
-    viewerUserId,
-  });
+    const decision = await this.visibility.validateVisibility({
+      postId: post.id,
+      viewerUserId,
+    });
 
-  if (decision.canView) {
-    visiblePosts.push(post);
+    if (decision.canView) {
+      visiblePosts.push(post);
+    }
   }
-}
-
 
   // =================================================
-  // 3) Map DTO (UX layer only, no authority here)
+  // 🆕 2.1) Build hasReposted map (batch, fail-soft)
   // =================================================
-  const items = visiblePosts.map((post) =>
-    PostFeedMapper.toDto(post, viewerUserId),
-  );
+  let hasRepostedMap = new Map<string, boolean>();
+
+  if (viewerUserId && visiblePosts.length > 0) {
+    const reposts: Array<{ originalPostId: string }> =
+      await this.prisma.repost.findMany({
+        where: {
+          actorUserId: viewerUserId,
+          originalPostId: {
+            in: visiblePosts.map((p) => p.id),
+          },
+          deletedAt: null,
+        },
+        select: {
+          originalPostId: true,
+        },
+      });
+
+    hasRepostedMap = new Map(
+      reposts.map((r) => [r.originalPostId, true]),
+    );
+  }
+
+  // =================================================
+  // 3) Map DTO (UX layer only)
+  // =================================================
+  const items = visiblePosts.map((post) => {
+    const dto = PostFeedMapper.toDto(
+      post,
+      viewerUserId,
+    );
+
+    dto.hasReposted =
+      hasRepostedMap.get(post.id) ?? false;
+
+    return dto;
+  });
 
   // =================================================
   // 4) Cursor (based on visible items only)
@@ -450,6 +480,7 @@ async getPublicFeed(params: {
     nextCursor,
   };
 }
+
 
 
 
@@ -768,9 +799,6 @@ async getUserPostFeed(params: {
 
   // =====================================================
   // 🔒 HARD BLOCK GUARD (2-way)
-  // - viewer block target
-  // - target block viewer
-  // - deny at service level (authority)
   // =====================================================
   if (viewer?.userId) {
     const blocked = await this.prisma.userBlock.findFirst({
@@ -790,15 +818,12 @@ async getUserPostFeed(params: {
     });
 
     if (blocked) {
-      // production behavior:
-      // - do not reveal block
-      // - behave as not found
       throw new NotFoundException();
     }
   }
 
   // =====================================================
-  // 🔐 ACCOUNT-LEVEL VISIBILITY (PROFILE GATE) — KEEP
+  // 🔐 ACCOUNT-LEVEL VISIBILITY (PROFILE GATE)
   // =====================================================
   const visibilityScope =
     await this.visibility.resolveUserPostVisibility({
@@ -806,11 +831,6 @@ async getUserPostFeed(params: {
       viewer,
     });
 
-  // =====================================================
-  // PROFILE FEED VISIBILITY
-  // - public profile → always viewable
-  // - private profile → must satisfy canView
-  // =====================================================
   if (
     visibilityScope.scope !== 'public' &&
     !visibilityScope.canView
@@ -821,11 +841,7 @@ async getUserPostFeed(params: {
   const effectiveLimit = query.limit ?? 20;
 
   // =====================================================
-  // 1) Load candidate posts (DB pre-filter only)
-  //    - authorId
-  //    - isDeleted / isHidden
-  //    - block (repo responsibility)
-  //    - post-level visibility here is NOT final authority
+  // 1) Load candidate posts
   // =====================================================
   const rows = await this.repo.findUserPosts({
     userId: targetUserId,
@@ -836,32 +852,63 @@ async getUserPostFeed(params: {
   });
 
   // =====================================================
-  // 2) FINAL AUTHORITY DECISION (POST-LEVEL)
-  //    - unify with post detail / feed / tag
+  // 2) FINAL AUTHORITY DECISION
   // =====================================================
   const visiblePosts: typeof rows = [];
 
   for (const post of rows) {
-  const decision = await this.visibility.validateVisibility({
-    postId: post.id,
-    viewerUserId: viewer?.userId ?? null,
+    const decision = await this.visibility.validateVisibility({
+      postId: post.id,
+      viewerUserId: viewer?.userId ?? null,
+    });
+
+    if (decision.canView) {
+      visiblePosts.push(post);
+    }
+  }
+
+  // =====================================================
+  // 🆕 2.1) Build hasReposted map (batch)
+  // =====================================================
+  let hasRepostedMap = new Map<string, boolean>();
+
+  if (viewer?.userId && visiblePosts.length > 0) {
+    const reposts: Array<{ originalPostId: string }> =
+      await this.prisma.repost.findMany({
+        where: {
+          actorUserId: viewer.userId,
+          originalPostId: {
+            in: visiblePosts.map((p) => p.id),
+          },
+          deletedAt: null,
+        },
+        select: {
+          originalPostId: true,
+        },
+      });
+
+    hasRepostedMap = new Map(
+      reposts.map((r) => [r.originalPostId, true]),
+    );
+  }
+
+  // =====================================================
+  // 3) Map DTO (keep mapper pure)
+  // =====================================================
+  const items = visiblePosts.map((row) => {
+    const dto = PostFeedMapper.toDto(
+      row,
+      viewer?.userId ?? null,
+    );
+
+    dto.hasReposted =
+      hasRepostedMap.get(row.id) ?? false;
+
+    return dto;
   });
 
-  if (decision.canView) {
-    visiblePosts.push(post);
-  }
-}
-
-
   // =====================================================
-  // 3) Map DTO (UX layer only)
-  // =====================================================
-  const items = visiblePosts.map((row) =>
-    PostFeedMapper.toDto(row, viewer?.userId ?? null),
-  );
-
-  // =====================================================
-  // 4) Cursor (based on visible items only)
+  // 4) Cursor
   // =====================================================
   const nextCursor =
     items.length === effectiveLimit
@@ -873,6 +920,8 @@ async getUserPostFeed(params: {
     nextCursor,
   };
 }
+
+
 
 
 
@@ -889,9 +938,6 @@ async getPostsByTag(params: {
 
   // =================================================
   // 1) Load candidate posts (DB pre-filter only)
-  //    - tag
-  //    - isDeleted / isHidden / block (repo responsibility)
-  //    - visibility here is NOT final authority
   // =================================================
   const rows = await this.repo.findPostsByTag({
     tag,
@@ -902,27 +948,59 @@ async getPostsByTag(params: {
 
   // =================================================
   // 2) Final Authority Decision (Post-level)
-  //    - Single source of truth
   // =================================================
   const visiblePosts: typeof rows = [];
 
   for (const post of rows) {
-  const decision = await this.visibility.validateVisibility({
-    postId: post.id,
-    viewerUserId,
-  });
+    const decision = await this.visibility.validateVisibility({
+      postId: post.id,
+      viewerUserId,
+    });
 
-  if (decision.canView) {
-    visiblePosts.push(post);
+    if (decision.canView) {
+      visiblePosts.push(post);
+    }
   }
-}
+
+  // =================================================
+  // 🆕 2.1) Build hasReposted map (batch, fail-soft)
+  // =================================================
+  let hasRepostedMap = new Map<string, boolean>();
+
+  if (viewerUserId && visiblePosts.length > 0) {
+    const reposts: Array<{ originalPostId: string }> =
+      await this.prisma.repost.findMany({
+        where: {
+          actorUserId: viewerUserId,
+          originalPostId: {
+            in: visiblePosts.map((p) => p.id),
+          },
+          deletedAt: null,
+        },
+        select: {
+          originalPostId: true,
+        },
+      });
+
+    hasRepostedMap = new Map(
+      reposts.map((r) => [r.originalPostId, true]),
+    );
+  }
 
   // =================================================
   // 3) Map DTO (UX layer only)
   // =================================================
-  const items = visiblePosts.map((row) =>
-    PostFeedMapper.toDto(row, viewerUserId),
-  );
+  const items = visiblePosts.map((row) => {
+    const dto = PostFeedMapper.toDto(
+      row,
+      viewerUserId,
+    );
+
+    dto.hasReposted =
+      hasRepostedMap.get(row.id) ?? false;
+
+    return dto;
+  });
 
   // =================================================
   // 4) Cursor (based on visible items only)
@@ -934,6 +1012,7 @@ async getPostsByTag(params: {
 
   return { items, nextCursor };
 }
+
 
   
 
@@ -1841,6 +1920,9 @@ async getHiddenTaggedPosts(params: {
 }) {
   const { viewerUserId, limit, cursor } = params;
 
+  // =================================================
+  // 1) Load hidden tagged posts (DB pre-filter only)
+  // =================================================
   const rows =
     await this.repo.findHiddenTaggedPosts({
       viewerUserId,
@@ -1848,10 +1930,49 @@ async getHiddenTaggedPosts(params: {
       cursor,
     });
 
-  const items = rows.map((row) =>
-    PostFeedMapper.toDto(row, viewerUserId),
-  );
+  // =================================================
+  // 🆕 1.1) Build hasReposted map (batch, fail-soft)
+  // =================================================
+  let hasRepostedMap = new Map<string, boolean>();
 
+  if (rows.length > 0) {
+    const reposts: Array<{ originalPostId: string }> =
+      await this.prisma.repost.findMany({
+        where: {
+          actorUserId: viewerUserId,
+          originalPostId: {
+            in: rows.map((r) => r.id),
+          },
+          deletedAt: null,
+        },
+        select: {
+          originalPostId: true,
+        },
+      });
+
+    hasRepostedMap = new Map(
+      reposts.map((r) => [r.originalPostId, true]),
+    );
+  }
+
+  // =================================================
+  // 2) Map DTO (UX layer only)
+  // =================================================
+  const items = rows.map((row) => {
+    const dto = PostFeedMapper.toDto(
+      row,
+      viewerUserId,
+    );
+
+    dto.hasReposted =
+      hasRepostedMap.get(row.id) ?? false;
+
+    return dto;
+  });
+
+  // =================================================
+  // 3) Cursor
+  // =================================================
   const nextCursor =
     rows.length === limit
       ? rows[rows.length - 1].id
@@ -1862,6 +1983,7 @@ async getHiddenTaggedPosts(params: {
     nextCursor,
   };
 }
+
 
 
 }

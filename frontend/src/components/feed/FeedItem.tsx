@@ -14,6 +14,9 @@ import FollowController from "@/components/follows/FollowController";
 import ShareButton from "@/components/share/ShareButton";
 import PostShareStats from "@/components/posts/PostShareStats";
 import PostMediaGrid from "@/components/posts/PostMediaGrid";
+import RepostButton from "@/components/repost/RepostButton";
+import PostRepostsModal from "@/components/repost/PostRepostsModal";
+import UndoRepostButton from "@/components/repost/UndoRepostButton";
 
 type Props = {
   post: PostFeedItem;
@@ -43,6 +46,8 @@ export default function FeedItem({
     initialLikeCount: post.stats.likeCount,
   });
   
+  const [repostsOpen, setRepostsOpen] = useState(false);
+
   const [showCommentBox, setShowCommentBox] = useState(false);
   const [commentCount, setCommentCount] = useState(
   post.stats.commentCount
@@ -201,6 +206,7 @@ const taggedUsers = post.taggedUsers ?? [];
       onUnhideTaggedPost={onUnhideTaggedPost}
       
       onDeleted={() => {
+        setRepostsOpen(false);
         onDeleted?.(post.id);
       }}
     />
@@ -259,39 +265,97 @@ const taggedUsers = post.taggedUsers ?? [];
     text-gray-600
   "
 >
-  {/* ===== Left: Like + Comment ===== */}
-  <div className="flex items-center gap-4">
-    <div className={isBlocked ? "opacity-50 pointer-events-none" : ""}>
-      <PostLikeButton
-        liked={liked}
-        likeCount={likeCount}
-        loading={likeLoading}
-        onClick={() => {
-          if (isBlocked) return;
-          toggleLike();
-        }}
-      />
-    </div>
-
-    <button
-      type="button"
-      disabled={isBlocked}
-      onClick={() => setShowCommentBox((v) => !v)}
-      className={`hover:underline ${
-        isBlocked ? "opacity-50 cursor-not-allowed" : ""
-      }`}
-      aria-disabled={isBlocked}
-    >
-      💬 {commentCount}
-    </button>
+  {/* ===== Left: Like + Comment + Repost ===== */}
+<div className="flex items-center gap-4">
+  <div className={isBlocked ? "opacity-50 pointer-events-none" : ""}>
+    <PostLikeButton
+      liked={liked}
+      likeCount={likeCount}
+      loading={likeLoading}
+      onClick={() => {
+        if (isBlocked) return;
+        toggleLike();
+      }}
+    />
   </div>
+
+  {/* 🔁 Repost */}
+  {!isBlocked && (
+    <RepostButton
+      postId={post.id}
+      onReposted={() => {
+        // optional (fail-soft):
+        // - update repostCount
+        // - show toast
+        // - analytics
+      }}
+    />
+  )}
+
+  <button
+    type="button"
+    disabled={isBlocked}
+    onClick={() => setShowCommentBox((v) => !v)}
+    className={`hover:underline ${
+      isBlocked ? "opacity-50 cursor-not-allowed" : ""
+    }`}
+    aria-disabled={isBlocked}
+  >
+    💬 {commentCount}
+  </button>
+</div>
 
   {/* ===== Right: Share ===== */}
   <div className="flex items-center gap-2">
+  <div
+    role="button"
+    tabIndex={isBlocked ? -1 : 0}
+    aria-disabled={isBlocked}
+    onClick={() => {
+      if (!isBlocked) setRepostsOpen(true);
+    }}
+    onKeyDown={(e) => {
+      if (!isBlocked && e.key === "Enter") {
+        setRepostsOpen(true);
+      }
+    }}
+    className={
+      isBlocked
+        ? "opacity-60 cursor-not-allowed"
+        : "cursor-pointer"
+    }
+  >
     <PostShareStats postId={post.id} />
-    {!isBlocked && <ShareButton postId={post.id} />}
-
   </div>
+
+  {/* 🔁 Repost / Undo */}
+ {!isBlocked && (
+  post.hasReposted ? (
+    <UndoRepostButton
+      postId={post.id}
+      repostCount={post.stats.repostCount}
+      onUndone={({ repostCount }) => {
+        post.stats.repostCount = repostCount;
+        post.hasReposted = false;
+      }}
+    />
+  ) : (
+    <RepostButton
+      postId={post.id}
+      onReposted={() => {
+        post.stats.repostCount += 1;
+        post.hasReposted = true;
+      }}
+    />
+  )
+)}
+
+
+  {/* 🔗 Share (external) */}
+  {!isBlocked && <ShareButton postId={post.id} />}
+</div>
+
+
 </footer>
 
 
@@ -319,6 +383,13 @@ const taggedUsers = post.taggedUsers ?? [];
 
   </section>
   )}
+
+  <PostRepostsModal
+  postId={post.id}
+  open={repostsOpen}
+  onClose={() => setRepostsOpen(false)}
+/>
+
 
     </article>
   );

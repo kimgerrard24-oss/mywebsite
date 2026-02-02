@@ -62,6 +62,9 @@ export type RateLimitAction =
   | 'postUpdateTags'
   | 'postTagDecision'
   | 'postUpdateVisibility'
+  | 'repostCreate'
+  | 'repostDelete'
+  | 'repostList'
   | 'updateProfile'
   | 'getTagSettings'
   | 'notificationRead'
@@ -1363,6 +1366,55 @@ userHiddenTaggedPostsRead: {
     maxViolations: 5,      // ต้อง abuse ต่อเนื่อง
     windowSec: 86400,
     longBlockSec: 3600,    // block 1 ชม.
+  },
+},
+
+repostCreate: {
+  windowSec: 60,
+  max: 10,                 // repost ได้ 10 ครั้ง / นาที
+  blockDurationSec: 300,   // block 5 นาที
+
+  // legacy (ยังต้องมี)
+  points: 10,
+  duration: 60,
+  blockDuration: 300,
+
+  escalation: {
+    maxViolations: 3,
+    windowSec: 86400,      // 24 ชม.
+    longBlockSec: 86400,   // block 24 ชม.
+  },
+},
+
+repostDelete: {
+  windowSec: 60,
+  max: 20,                // undo repost ได้ถี่กว่า
+  blockDurationSec: 300,
+
+  points: 20,
+  duration: 60,
+  blockDuration: 300,
+
+  escalation: {
+    maxViolations: 3,
+    windowSec: 86400,
+    longBlockSec: 21600,   // block 6 ชม.
+  },
+},
+
+repostList: {
+  windowSec: 60,
+  max: 120,               // scroll ได้สบาย
+  blockDurationSec: 300,  // block 5 นาทีถ้า spam
+
+  points: 120,
+  duration: 60,
+  blockDuration: 300,
+
+  escalation: {
+    maxViolations: 5,     // ต้อง abuse ต่อเนื่องจริง
+    windowSec: 86400,
+    longBlockSec: 3600,   // block 1 ชม.
   },
 },
 
