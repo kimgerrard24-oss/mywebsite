@@ -74,6 +74,7 @@ export type RateLimitAction =
   | 'confirmPasswordReset'
   | 'emailVerify'
   | 'messagingSend'
+  | 'chatRoomsDisplay'
   | 'shareIntent'
   | 'shareCreate'
   | 'shareExternal'
@@ -1417,6 +1418,30 @@ repostList: {
     longBlockSec: 3600,   // block 1 ชม.
   },
 },
+
+chatRoomsDisplay: {
+  /**
+   * Chat room list (share modal / picker)
+   * - read-only
+   * - UI triggered
+   * - must not break UX
+   */
+  windowSec: 60,          // 1 minute window
+  max: 60,                // ~1 req/sec per user
+  blockDurationSec: 120,  // block 2 minutes if abused
+
+  // legacy fields (still required)
+  points: 60,
+  duration: 60,
+  blockDuration: 120,
+
+  escalation: {
+    maxViolations: 5,     // ต้อง abuse ต่อเนื่องจริง
+    windowSec: 86400,     // ภายใน 24 ชม.
+    longBlockSec: 3600,   // block 1 ชม.
+  },
+},
+
 
 };
 

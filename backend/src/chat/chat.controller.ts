@@ -111,7 +111,7 @@ async sendMessage(
   const message = await this.chatService.sendMessage({
     chatId,
     senderUserId: viewer.userId,
-    content: body.content,        // ✅ ไม่ใช้ ?? null
+    content: body.content,        
     mediaIds: body.mediaIds,
   });
 
@@ -133,7 +133,8 @@ async sendMessage(
   }
 
   @UseGuards(AccessTokenCookieAuthGuard)
-@Get('rooms/display')
+@Get('chatRoomsDisplay')
+@RateLimit('messagingSend')
 async getChatRoomDisplays(
   @Req() req: Request,
 ) {
