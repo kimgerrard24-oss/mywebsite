@@ -85,6 +85,44 @@ async createShare(params: {
   }
 
   /**
+ * 1.75️⃣ Chat notification (POST_SHARE → chat_message)
+ * - only when share to chat
+ * - DM only
+ * - fail-soft
+ */
+if (params.targetChatId && chatMessage) {
+  try {
+    const chat =
+      await this.chatMessages.getChatOrFail(
+        params.targetChatId,
+      );
+
+    if (!chat.isGroup) {
+      const recipientId = chat.participants.find(
+        (p) => p.userId !== params.actorUserId,
+      )?.userId;
+
+      if (recipientId) {
+        await this.notifications.createNotification({
+  userId: recipientId,
+  actorUserId: params.actorUserId,
+  type: 'chat_message',
+  entityId: params.targetChatId,
+  payload: {
+    chatId: params.targetChatId,
+    messageId: chatMessage.id,
+  },
+});
+
+      }
+    }
+  } catch {
+    // 🔒 fail-soft: notification must never break share
+  }
+}
+
+
+  /**
    * 2️⃣ Notification (only if share to user)
    */
   if (params.targetUserId) {

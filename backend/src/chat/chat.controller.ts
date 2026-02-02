@@ -131,4 +131,18 @@ async sendMessage(
       viewerUserId,
     });
   }
+
+  @UseGuards(AccessTokenCookieAuthGuard)
+@Get('rooms/display')
+async getChatRoomDisplays(
+  @Req() req: Request,
+) {
+  const viewer = req.user as {
+    userId: string;
+  };
+
+  return this.chatService.getChatRoomDisplays(
+    viewer.userId,
+  );
+}
 }

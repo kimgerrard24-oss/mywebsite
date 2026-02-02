@@ -37,6 +37,7 @@ export type NotificationPayloadMap = {
 
   chat_message: {
     chatId: string;
+    messageId: string;
   };
 
   comment_mention: {

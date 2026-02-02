@@ -19,7 +19,12 @@ import { ChatReportService } from './chat-report.service';
 import { ChatReportRepository } from './chat-report.repository';
 
 @Module({
-  imports: [ChatRealtimeModule, AuthModule, NotificationsModule, NotificationRealtimeModule],
+  imports: [
+    ChatRealtimeModule, 
+    AuthModule, 
+    NotificationsModule, 
+    NotificationRealtimeModule,
+  ],
   controllers: [
      ChatController,
      ChatMessagesController,
