@@ -245,12 +245,12 @@ commentLike: {
 },
 
   updateAvatar: {
-    points: 5,
+    points: 10,
     duration: 60,
     blockDuration: 120, 
 
     windowSec: 300,     
-    max: 3,             
+    max: 10,             
     blockDurationSec: 600, 
 
   escalation: {
@@ -261,12 +261,12 @@ commentLike: {
   },
 
   updateCover: {
-    points: 5,
+    points: 10,
     duration: 60,
     blockDuration: 120,
 
     windowSec: 300,
-    max: 3,
+    max: 10,
     blockDurationSec: 600,
 
    escalation: {

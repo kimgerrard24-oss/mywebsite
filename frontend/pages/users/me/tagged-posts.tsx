@@ -28,13 +28,6 @@ export default function MyTaggedPostsPage({
           <h1 className="text-xl font-semibold">
             Posts you are tagged in
           </h1>
-
-          <Link
-            href="/users/me"
-            className="text-sm text-blue-600 hover:underline"
-          >
-            Back to profile
-          </Link>
         </div>
 
         {items.length === 0 ? (
