@@ -9,9 +9,14 @@ import { PostsVisibilityRepository } from '../posts/visibility/posts-visibility.
 import { PostRepostedListener } from './listeners/post-reposted.listener'
 import { PrismaModule } from '../prisma/prisma.module';
 import { AuthModule } from '../auth/auth.module';
+import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
-  imports: [AuthModule, PrismaModule],
+  imports: [
+    AuthModule, 
+    PrismaModule,
+    NotificationsModule,
+  ],
   controllers: [RepostsController],
   providers: [
     RepostsService,
