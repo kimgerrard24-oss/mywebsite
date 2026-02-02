@@ -26,12 +26,14 @@ import { PostUserTagAcceptPolicy } from './policy/post-user-tag-accept.policy';
 import { PostUserTagRejectPolicy } from './policy/post-user-tag-reject.policy';
 import { PostsPublicModule } from './public/posts-public.module';
 import { PostsShareStatsModule } from './posts-share-stats/posts-share-stats.module';
+import { RepostsModule } from '../reposts/reposts.module';
 
 @Module({
   imports: [
     PrismaModule,
     PostsPublicModule, 
     PostsShareStatsModule,
+    RepostsModule,
     AuthModule, 
     PostsVisibilityModule,
     NotificationsModule, 

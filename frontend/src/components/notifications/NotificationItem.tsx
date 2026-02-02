@@ -71,6 +71,13 @@ if (targetType === 'CHAT_MESSAGE')
         return item.entityId
           ? `/posts/${item.entityId}`
           : null;
+
+      case 'post_reposted':
+  return item.payload?.postId
+    ? `/posts/${item.payload.postId}`
+    : item.entityId
+    ? `/posts/${item.entityId}`
+    : null;
        
       case 'feed_repost':
   return item.payload?.postId
@@ -157,7 +164,10 @@ if (targetType === 'CHAT_MESSAGE')
 
       case 'feed_new_post':
         return 'new post in your feed';
-
+       
+      case 'post_reposted':
+        return 'reposted your post';
+  
       case 'feed_repost':
         return 'shared a post with you';
 

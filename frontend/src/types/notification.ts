@@ -8,7 +8,8 @@ export type NotificationType =
   | 'follow'
   | 'follow_request_approved'
   | 'chat_message'
-  | 'feed_repost' 
+  | 'feed_repost'
+  | 'post_reposted' 
   | 'moderation_action'
   | 'appeal_resolved'
   | 'post_tagged_auto_accepted'
@@ -68,6 +69,10 @@ export type NotificationPayloadMap = {
     authorId: string;
   };
 
+  post_reposted: {
+    postId: string;
+  };
+
   appeal_resolved: {
     appealId: string;
     decision: 'APPROVED' | 'REJECTED';
@@ -120,6 +125,7 @@ export type NotificationItem =
   | BaseNotificationItem<'comment_mention'>
   | BaseNotificationItem<'feed_repost'>   
   | BaseNotificationItem<'feed_new_post'>
+  | BaseNotificationItem<'post_reposted'>
   | BaseNotificationItem<'like'>
   | BaseNotificationItem<'follow_request'>
   | BaseNotificationItem<'follow'>

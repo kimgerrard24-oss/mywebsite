@@ -219,6 +219,7 @@ CREATE TABLE "Post" (
     "effectiveVisibility" "PostVisibility" NOT NULL DEFAULT 'PUBLIC',
     "deletedSource" "DeleteSource",
     "deleteReason" TEXT,
+    "repostCount" INTEGER NOT NULL DEFAULT 0,
     "commentCount" INTEGER NOT NULL DEFAULT 0,
     "likeCount" INTEGER NOT NULL DEFAULT 0,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -702,6 +703,17 @@ CREATE TABLE "PostShareStat" (
     CONSTRAINT "PostShareStat_pkey" PRIMARY KEY ("postId")
 );
 
+-- CreateTable
+CREATE TABLE "Repost" (
+    "id" TEXT NOT NULL,
+    "actorUserId" TEXT NOT NULL,
+    "originalPostId" TEXT NOT NULL,
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "deletedAt" TIMESTAMP(3),
+
+    CONSTRAINT "Repost_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 
@@ -1083,6 +1095,15 @@ CREATE INDEX "ShareLink_postId_createdAt_idx" ON "ShareLink"("postId", "createdA
 -- CreateIndex
 CREATE UNIQUE INDEX "ShareLink_postId_creatorId_key" ON "ShareLink"("postId", "creatorId");
 
+-- CreateIndex
+CREATE INDEX "Repost_actorUserId_createdAt_idx" ON "Repost"("actorUserId", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "Repost_originalPostId_createdAt_idx" ON "Repost"("originalPostId", "createdAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "Repost_actorUserId_originalPostId_key" ON "Repost"("actorUserId", "originalPostId");
+
 -- AddForeignKey
 ALTER TABLE "User" ADD CONSTRAINT "User_bannedByAdminId_fkey" FOREIGN KEY ("bannedByAdminId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
@@ -1319,3 +1340,9 @@ ALTER TABLE "ShareLink" ADD CONSTRAINT "ShareLink_disabledByAdminId_fkey" FOREIG
 
 -- AddForeignKey
 ALTER TABLE "PostShareStat" ADD CONSTRAINT "PostShareStat_postId_fkey" FOREIGN KEY ("postId") REFERENCES "Post"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Repost" ADD CONSTRAINT "Repost_actorUserId_fkey" FOREIGN KEY ("actorUserId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Repost" ADD CONSTRAINT "Repost_originalPostId_fkey" FOREIGN KEY ("originalPostId") REFERENCES "Post"("id") ON DELETE CASCADE ON UPDATE CASCADE;

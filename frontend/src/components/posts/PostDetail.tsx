@@ -7,12 +7,14 @@ import type { PostDetail as PostDetailType } from "@/types/post-detail";
 import PostActionMenu from "@/components/posts/PostActionMenu";
 import { renderContentWithHashtags } from "@/utils/renderContentWithHashtags";
 import { usePostLike } from "@/hooks/usePostLike";
-import PostLikeList from "@/components/posts/PostLikeList";
 import PostLikeListModal from "@/components/posts/PostLikeListModal";
 import ShareButton from "@/components/share/ShareButton";
 import PostShareStats from "@/components/posts/PostShareStats";
 import Avatar from "@/components/ui/Avatar";
 import PostMediaGrid from "@/components/posts/PostMediaGrid";
+import RepostButton from "@/components/repost/RepostButton";
+import PostRepostsModal from "@/components/repost/PostRepostsModal";
+import UndoRepostButton from "@/components/repost/UndoRepostButton";
 
 type Props = {
   post: PostDetailType;
@@ -48,6 +50,8 @@ const openLikes = () => {
   setIsLikeModalOpen(true);
   loadLikes({ reset: true }); // โหลดเฉพาะตอนเปิด
 };
+
+const [repostsOpen, setRepostsOpen] = useState(false);
 
 const closeLikes = () => {
   setIsLikeModalOpen(false);
@@ -161,6 +165,7 @@ const closeLikes = () => {
   canEdit={!isBlocked && post.canDelete}
   canReport={!isBlocked && !post.canDelete}
   onDeleted={() => {
+    setRepostsOpen(false)
     router.replace("/feed");
   }}
 />
@@ -235,13 +240,42 @@ const closeLikes = () => {
     {likeCount} likes
   </button>
 
-  {/* 🔗 Share (right) */}
-  <div className="flex items-center gap-2">
+ {/* 🔗 Share + Repost (right) */}
+<div className="flex items-center gap-2">
+  <div
+    role="button"
+    tabIndex={isBlocked ? -1 : 0}
+    aria-disabled={isBlocked}
+    onClick={() => {
+      if (!isBlocked) setRepostsOpen(true);
+    }}
+    onKeyDown={(e) => {
+      if (!isBlocked && e.key === "Enter") {
+        setRepostsOpen(true);
+      }
+    }}
+    className={isBlocked ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}
+  >
     <PostShareStats postId={post.id} />
-
-    {!isBlocked && <ShareButton postId={post.id} />}
-
   </div>
+
+  {!isBlocked && (
+    <>
+     {post.hasReposted ? (
+  <UndoRepostButton
+    postId={post.id}
+    repostCount={post.repostCount ?? 0}
+  />
+) : (
+  <RepostButton postId={post.id} />
+)}
+
+      <ShareButton postId={post.id} />
+    </>
+  )}
+</div>
+
+
 </section>
 
       <PostLikeListModal
@@ -253,6 +287,13 @@ const closeLikes = () => {
   hasMore={hasMoreLikes}
   onLoadMore={() => loadLikes()}
 />
+
+<PostRepostsModal
+  postId={post.id}
+  open={repostsOpen}
+  onClose={() => setRepostsOpen(false)}
+/>
+
 
     </>
   );

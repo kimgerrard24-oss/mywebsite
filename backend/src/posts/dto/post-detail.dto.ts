@@ -24,6 +24,9 @@ export class PostDetailDto {
   likeCount!: number;
   commentCount!: number;
 
+  repostCount!: number;
+  repost!: boolean;
+
   isLikedByViewer!: boolean;
   canDelete!: boolean;
 
@@ -130,6 +133,13 @@ const userTags = Array.isArray(post.userTags)
 
       likeCount: post.likeCount ?? 0,
       commentCount: post.commentCount ?? 0,
+
+      repostCount: post.repostCount ?? 0,
+      repost: Boolean(
+      viewerUserId &&
+       Array.isArray(post.reposts) &&
+      post.reposts.length > 0
+     ),
 
       isLikedByViewer: viewerUserId
         ? Array.isArray(post.likes) && post.likes.length > 0
