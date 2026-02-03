@@ -13,7 +13,6 @@ import PostShareStats from "@/components/posts/PostShareStats";
 import Avatar from "@/components/ui/Avatar";
 import PostMediaGrid from "@/components/posts/PostMediaGrid";
 import RepostButton from "@/components/repost/RepostButton";
-import PostRepostsModal from "@/components/repost/PostRepostsModal";
 import UndoRepostButton from "@/components/repost/UndoRepostButton";
 
 type Props = {
@@ -298,13 +297,6 @@ const closeLikes = () => {
   hasMore={hasMoreLikes}
   onLoadMore={() => loadLikes()}
 />
-
-<PostRepostsModal
-  postId={post.id}
-  open={repostsOpen}
-  onClose={() => setRepostsOpen(false)}
-/>
-
 
     </>
   );

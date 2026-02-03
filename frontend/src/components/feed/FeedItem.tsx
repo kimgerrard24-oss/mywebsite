@@ -15,7 +15,6 @@ import ShareButton from "@/components/share/ShareButton";
 import PostShareStats from "@/components/posts/PostShareStats";
 import PostMediaGrid from "@/components/posts/PostMediaGrid";
 import RepostButton from "@/components/repost/RepostButton";
-import PostRepostsModal from "@/components/repost/PostRepostsModal";
 import UndoRepostButton from "@/components/repost/UndoRepostButton";
 
 type Props = {
@@ -374,13 +373,6 @@ const taggedUsers = post.taggedUsers ?? [];
 
   </section>
   )}
-
-  <PostRepostsModal
-  postId={post.id}
-  open={repostsOpen}
-  onClose={() => setRepostsOpen(false)}
-/>
-
 
     </article>
   );
