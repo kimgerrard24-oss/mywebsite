@@ -9,6 +9,24 @@ export class PostDetailDto {
   createdAt!: Date;
   visibility!: PostVisibility;
 
+  isRepost!: boolean;
+
+  originalPost?: {
+    id: string;
+    content: string;
+    createdAt: Date;
+    author: {
+      id: string;
+      displayName: string | null;
+      avatarUrl: string | null;
+    };
+    media: {
+      id: string;
+      type: 'image' | 'video';
+      url: string;
+    }[];
+  };
+
   author!: {
     id: string;
     displayName: string | null;
@@ -20,13 +38,14 @@ export class PostDetailDto {
     type: 'image' | 'video';
     url: string;
   }[];
+  
 
   likeCount!: number;
   commentCount!: number;
 
   repostCount!: number;
-  repost!: boolean;
-
+  
+  hasReposted?: boolean;
   isLikedByViewer!: boolean;
   canDelete!: boolean;
 
@@ -60,6 +79,8 @@ export class PostDetailDto {
     const isOwner =
       Boolean(viewerUserId) &&
       post.author?.id === viewerUserId;
+
+    const isRepost = post.type === 'REPOST';
 
     /**
      * 🚨 Moderation snapshot (fail-soft)
@@ -114,6 +135,32 @@ const userTags = Array.isArray(post.userTags)
       createdAt: post.createdAt,
       visibility: post.visibility,
 
+        isRepost,
+
+    originalPost:
+      isRepost && post.originalPost
+        ? {
+            id: post.originalPost.id,
+            content: post.originalPost.content,
+            createdAt: post.originalPost.createdAt,
+            author: {
+              id: post.originalPost.author.id,
+              displayName: post.originalPost.author.displayName,
+              avatarUrl: post.originalPost.author.avatarUrl,
+            },
+            media: Array.isArray(post.originalPost.media)
+              ? post.originalPost.media.map((pm: any) => ({
+                  id: pm.media.id,
+                  type:
+                    pm.media.mediaType === MediaType.IMAGE
+                      ? 'image'
+                      : 'video',
+                  url: buildCdnUrl(pm.media.objectKey),
+                }))
+              : [],
+          }
+        : undefined, 
+
       author: {
         id: post.author.id,
         displayName: post.author.displayName,
@@ -133,23 +180,15 @@ const userTags = Array.isArray(post.userTags)
 
       likeCount: post.likeCount ?? 0,
       commentCount: post.commentCount ?? 0,
-
       repostCount: post.repostCount ?? 0,
-      repost: Boolean(
-      viewerUserId &&
-       Array.isArray(post.reposts) &&
-      post.reposts.length > 0
-     ),
-
+      
       isLikedByViewer: viewerUserId
         ? Array.isArray(post.likes) && post.likes.length > 0
         : false,
 
       canDelete: Boolean(isOwner),
-
       canAppeal: Boolean(isOwner && hasActiveModeration),
 
-      // ✅ new field
       userTags,
     };
   }

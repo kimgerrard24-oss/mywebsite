@@ -1,7 +1,5 @@
 // frontend/src/components/posts/PostLikeListModal.tsx
 
-// frontend/src/components/posts/PostLikeListModal.tsx
-
 import { useEffect } from "react";
 import PostLikeList from "@/components/posts/PostLikeList";
 import type { PostLike } from "@/types/post-like";

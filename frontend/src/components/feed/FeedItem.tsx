@@ -15,7 +15,6 @@ import ShareButton from "@/components/share/ShareButton";
 import PostShareStats from "@/components/posts/PostShareStats";
 import PostMediaGrid from "@/components/posts/PostMediaGrid";
 import RepostButton from "@/components/repost/RepostButton";
-import PostRepostsModal from "@/components/repost/PostRepostsModal";
 import UndoRepostButton from "@/components/repost/UndoRepostButton";
 
 type Props = {
@@ -54,12 +53,11 @@ export default function FeedItem({
   );
 
   const [hasReposted, setHasReposted] = useState(post.hasReposted);
-  const [repostCount, setRepostCount] = useState(post.stats.repostCount);
   
-  useEffect(() => {
+ useEffect(() => {
   setHasReposted(post.hasReposted);
-  setRepostCount(post.stats.repostCount);
-}, [post.hasReposted, post.stats.repostCount]);
+}, [post.hasReposted]);
+
 
   const [isFollowing, setIsFollowing] = useState(
   post.author.isFollowing
@@ -327,21 +325,19 @@ const taggedUsers = post.taggedUsers ?? [];
   {/* 🔁 Repost / Undo */}
  {!isBlocked && (
   hasReposted ? (
-    <UndoRepostButton
-      postId={post.id}
-      onUndone={({ repostCount }) => {
-        setHasReposted(false);
-        setRepostCount(repostCount);
-      }}
-    />
+  <UndoRepostButton
+  postId={post.id}
+  onUndone={() => {
+    setHasReposted(false);
+  }}
+/>
   ) : (
     <RepostButton
-      postId={post.id}
-      onReposted={({ repostCount }) => {
-        setHasReposted(true);
-        setRepostCount(repostCount);
-      }}
-    />
+  postId={post.id}
+  onReposted={() => {
+    setHasReposted(true);
+  }}
+/>
   )
 )}
 
@@ -377,13 +373,6 @@ const taggedUsers = post.taggedUsers ?? [];
 
   </section>
   )}
-
-  <PostRepostsModal
-  postId={post.id}
-  open={repostsOpen}
-  onClose={() => setRepostsOpen(false)}
-/>
-
 
     </article>
   );

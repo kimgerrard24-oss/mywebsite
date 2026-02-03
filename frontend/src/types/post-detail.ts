@@ -13,6 +13,30 @@ export type PostDetail = {
   createdAt: string;
   visibility: PostVisibility;
 
+   /**
+   * 🆕 repost state
+   */
+  isRepost: boolean;
+
+  /**
+   * 🆕 original post (for repost only)
+   */
+  originalPost?: {
+    id: string;
+    content: string;
+    createdAt: string;
+    author: {
+      id: string;
+      displayName: string | null;
+      avatarUrl: string | null;
+    };
+    media: {
+      id: string;
+      type: "image" | "video";
+      url: string;
+    }[];
+  };
+
   author: {
     id: string;
     displayName: string;
@@ -28,19 +52,6 @@ export type PostDetail = {
     thumbnailUrl?: string | null;
     url?: string; // optional for backward compatibility
   }[];
-
-  /**
-   * 🔁 Repost state (viewer-specific)
-   */
-  repost?: {
-    repostId: string;
-    repostedAt: string;
-    actor: {
-      id: string;
-      displayName: string | null;
-      avatarUrl: string | null;
-    };
-  };
 
   /**
    * 🔢 Repost count

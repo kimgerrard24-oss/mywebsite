@@ -15,6 +15,32 @@ export type PostFeedItem = {
 
   createdAt: string;
 
+   /**
+   * 🆕 post type
+   */
+  type: 'post' | 'repost';
+
+  /**
+   * 🆕 original post (for repost)
+   */
+  originalPost?: {
+    id: string;
+    content: string;
+    createdAt: string;
+    author: {
+      id: string;
+      displayName: string | null;
+      avatarUrl: string | null;
+    };
+    media: {
+      id: string;
+      type: 'image' | 'video';
+      url: string;
+      objectKey: string;
+    }[];
+  };
+
+
   author: {
     id: string;
     displayName: string | null;

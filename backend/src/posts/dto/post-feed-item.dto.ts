@@ -35,6 +35,23 @@ export class PostFeedItemDto {
     isPrivate: boolean;
   };
 
+  originalPost?: {
+    id: string;
+    content: string;
+    createdAt: string;
+    author: {
+      id: string;
+      displayName: string | null;
+      avatarUrl: string | null;
+    };
+    media: {
+      id: string;
+      type: 'image' | 'video';
+      url: string;
+      objectKey: string;
+    }[];
+  };
+
   media!: {
     id: string;
     type: 'image' | 'video';

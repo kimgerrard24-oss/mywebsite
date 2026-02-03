@@ -412,4 +412,36 @@ async getMyHiddenTaggedPosts(
   });
 }
 
+@Post(':id/repost')
+@UseGuards(AccessTokenCookieAuthGuard)
+@HttpCode(201)
+async repost(
+  @Param('id', ParsePostIdPipe) postId: string,
+  @Req() req: Request,
+  @Body() body?: { content?: string },
+) {
+  const actor = req.user as { userId: string };
+
+  return this.postsService.repostPost({
+    actorUserId: actor.userId,
+    originalPostId: postId,
+    content: body?.content,
+  });
+}
+
+@Delete(':id/repost')
+@UseGuards(AccessTokenCookieAuthGuard)
+@HttpCode(204)
+async undoRepost(
+  @Param('id', ParsePostIdPipe) postId: string,
+  @Req() req: Request,
+) {
+  const actor = req.user as { userId: string };
+
+  await this.postsService.undoRepost({
+    actorUserId: actor.userId,
+    originalPostId: postId,
+  });
+}
+
 }

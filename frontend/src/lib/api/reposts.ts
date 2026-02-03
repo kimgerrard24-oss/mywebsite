@@ -1,74 +1,36 @@
 // frontend/src/lib/api/reposts.ts
 
 import { api } from './api';
-import type { 
-  CreateRepostResponse,
-  GetPostRepostsResponse,
-  DeleteRepostResponse,
- } from '@/types/repost';
 
-/**
- * Create repost
- * POST /reposts
- *
- * Backend is the only authority.
- * Frontend does NOT check visibility or ownership.
- */
-export async function createRepost(
+type RepostPostResponse = {
+  repostCount: number;
+};
+
+export async function repostPost(
   postId: string,
-): Promise<CreateRepostResponse> {
-  const res = await api.post<CreateRepostResponse>(
-    '/reposts',
-    { postId },
-    {
-      withCredentials: true,
-    },
+  content?: string,
+): Promise<RepostPostResponse> {
+  const res = await api.post<RepostPostResponse>(
+    `/posts/${postId}/repost`,
+    { content },
   );
 
   return res.data;
 }
 
-/**
- * Undo repost
- * DELETE /reposts/:postId
- *
- * Backend is authoritative.
- * Idempotent: deleting a non-existing repost is OK.
- */
-export async function deleteRepost(
+
+
+type UndoRepostResponse = {
+  repostCount: number;
+};
+
+export async function undoRepost(
   postId: string,
-): Promise<DeleteRepostResponse> {
-  const res = await api.delete<DeleteRepostResponse>(
-    `/reposts/${postId}`,
-    {
-      withCredentials: true,
-    },
+): Promise<UndoRepostResponse> {
+  const res = await api.delete<UndoRepostResponse>(
+    `/posts/${postId}/repost`,
   );
 
   return res.data;
 }
 
-/**
- * Get reposts of a post
- * GET /posts/:id/reposts
- *
- * Backend is the only authority.
- * Frontend does NOT check visibility, ownership, or blocks.
- */
-export async function getPostReposts(
-  postId: string,
-  params?: {
-    cursor?: string;
-    limit?: number;
-  },
-): Promise<GetPostRepostsResponse> {
-  const res = await api.get<GetPostRepostsResponse>(
-    `/posts/${postId}/reposts`,
-    {
-      params,
-      withCredentials: true,
-    },
-  );
-
-  return res.data;
-}
