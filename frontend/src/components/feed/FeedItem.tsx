@@ -52,7 +52,15 @@ export default function FeedItem({
   const [commentCount, setCommentCount] = useState(
   post.stats.commentCount
   );
+
+  const [hasReposted, setHasReposted] = useState(post.hasReposted);
+  const [repostCount, setRepostCount] = useState(post.stats.repostCount);
   
+  useEffect(() => {
+  setHasReposted(post.hasReposted);
+  setRepostCount(post.stats.repostCount);
+}, [post.hasReposted, post.stats.repostCount]);
+
   const [isFollowing, setIsFollowing] = useState(
   post.author.isFollowing
  );
@@ -60,7 +68,7 @@ export default function FeedItem({
  const [isFollowRequested, setIsFollowRequested] = useState(
   post.author.isFollowRequested
  );
-
+  
   
   const isBlocked = post.author.isBlocked === true;
 
@@ -71,6 +79,7 @@ export default function FeedItem({
 }, [post.author.isFollowing, post.author.isFollowRequested]);
   
 const taggedUsers = post.taggedUsers ?? [];
+
 
   return (
     <article
@@ -279,19 +288,6 @@ const taggedUsers = post.taggedUsers ?? [];
     />
   </div>
 
-  {/* 🔁 Repost */}
-  {!isBlocked && (
-    <RepostButton
-      postId={post.id}
-      onReposted={() => {
-        // optional (fail-soft):
-        // - update repostCount
-        // - show toast
-        // - analytics
-      }}
-    />
-  )}
-
   <button
     type="button"
     disabled={isBlocked}
@@ -330,26 +326,24 @@ const taggedUsers = post.taggedUsers ?? [];
 
   {/* 🔁 Repost / Undo */}
  {!isBlocked && (
-  post.hasReposted ? (
+  hasReposted ? (
     <UndoRepostButton
       postId={post.id}
-      repostCount={post.stats.repostCount}
       onUndone={({ repostCount }) => {
-        post.stats.repostCount = repostCount;
-        post.hasReposted = false;
+        setHasReposted(false);
+        setRepostCount(repostCount);
       }}
     />
   ) : (
     <RepostButton
       postId={post.id}
-      onReposted={() => {
-        post.stats.repostCount += 1;
-        post.hasReposted = true;
+      onReposted={({ repostCount }) => {
+        setHasReposted(true);
+        setRepostCount(repostCount);
       }}
     />
   )
 )}
-
 
   {/* 🔗 Share (external) */}
   {!isBlocked && <ShareButton postId={post.id} />}

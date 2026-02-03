@@ -5,6 +5,7 @@ export type CreateRepostResponse = {
   originalPostId: string;
   createdAt: string;
   repostedAt: string;
+  repostCount: number;
 };
 
 export type UndoRepostResult = {
@@ -30,4 +31,7 @@ export type GetPostRepostsResponse = {
   nextCursor: string | null;
 };
 
+export type DeleteRepostResponse = {
+  repostCount: number;
+};
 

@@ -59,7 +59,17 @@ export class PostFeedMapper {
         
     const isRepost = !!row.repost;   
 
-      
+    const repostActor =
+      isRepost && row.repost?.actor
+       ? {
+        id: row.repost.actor.id,
+        displayName:
+          row.repost.actor.displayName ?? 'Unknown',
+        avatarUrl:
+          row.repost.actor.avatarUrl ?? null,
+      }
+        : null;
+
     return {
       type: isRepost ? 'repost' : 'post',
 
@@ -79,12 +89,13 @@ export class PostFeedMapper {
       repostId: row.repost.id,
       repostedAt: row.repost.createdAt.toISOString(),
       actor: {
-        id: row.repost.actor.id,
-        displayName: row.repost.actor.displayName,
-        avatarUrl: row.repost.actor.avatarUrl,
+  id: row.repost.actor.id,
+  displayName: row.repost.actor.displayName ?? null,
+  avatarUrl: row.repost.actor.avatarUrl ?? null,
+},
+
       },
-    },
-  }),
+   }),
 
       author: {
         id: author?.id ?? 'unknown',
@@ -127,7 +138,10 @@ export class PostFeedMapper {
       },
 
 
-      canDelete: isOwner,
+      canDelete: isRepost
+  ? viewerUserId === row.repost?.actor?.id
+  : isOwner,
+
       
       taggedUsers,
 

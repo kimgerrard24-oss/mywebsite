@@ -852,6 +852,30 @@ async getUserPostFeed(params: {
   });
 
   // =====================================================
+// 🆕 1.1) Load reposts (activity feed)
+// =====================================================
+let repostRows: Array<{
+  id: string;
+  createdAt: Date;
+  actor: {
+    id: string;
+    displayName: string | null;
+    avatarUrl: string | null;
+  };
+  originalPost: any;
+}> = [];
+
+if (viewer?.userId === targetUserId &&
+  !query.cursor
+) {
+  repostRows = await this.repostsRepo.findUserReposts({
+    actorUserId: targetUserId,
+    limit: effectiveLimit,
+  });
+}
+
+
+  // =====================================================
   // 2) FINAL AUTHORITY DECISION
   // =====================================================
   const visiblePosts: typeof rows = [];
@@ -893,36 +917,85 @@ async getUserPostFeed(params: {
   }
 
   // =====================================================
-  // 3) Map DTO (keep mapper pure)
-  // =====================================================
-  const items = visiblePosts.map((row) => {
-    const dto = PostFeedMapper.toDto(
-      row,
-      viewer?.userId ?? null,
-    );
+// 🆕 2.2) Visibility check for reposts
+// =====================================================
+const visibleReposts: typeof repostRows = [];
 
-    dto.hasReposted =
-      hasRepostedMap.get(row.id) ?? false;
-
-    return dto;
+for (const repost of repostRows) {
+  const decision = await this.visibility.validateVisibility({
+    postId: repost.originalPost.id,
+    viewerUserId: viewer?.userId ?? null,
   });
 
-  // =====================================================
-  // 4) Cursor
-  // =====================================================
-  const nextCursor =
-    items.length === effectiveLimit
-      ? items[items.length - 1].id
-      : null;
+  if (decision.canView) {
+    visibleReposts.push(repost);
+  }
+}
+
+// =====================================================
+// 🆕 2.3) Map reposts → feed rows (shape for mapper)
+// =====================================================
+const repostFeedRows = visibleReposts.map((r) => ({
+  ...r.originalPost,
+
+  // 👇 inject repost metadata ให้ mapper
+  repost: {
+    id: r.id,
+    createdAt: r.createdAt,
+    actor: r.actor,
+  },
+}));
+
+ // =====================================================
+// 3) Map DTO (post + repost)
+// =====================================================
+const postItems = visiblePosts.map((row) => {
+  const dto = PostFeedMapper.toDto(
+    row,
+    viewer?.userId ?? null,
+  );
+
+  dto.hasReposted =
+    hasRepostedMap.get(row.id) ?? false;
+
+  return dto;
+});
+
+const repostItems = repostFeedRows.map((row) => {
+  const dto = PostFeedMapper.toDto(
+    row,
+    viewer?.userId ?? null,
+  );
+
+  dto.hasReposted = false;
+
+  return dto;
+});
+
+
+// =====================================================
+// 3.1) Merge + sort timeline
+// =====================================================
+const items = [...postItems, ...repostItems].sort(
+  (a, b) =>
+    new Date(b.createdAt).getTime() -
+    new Date(a.createdAt).getTime(),
+);
+
+// =====================================================
+// 4) Cursor (based on unified feed)
+// =====================================================
+const nextCursor =
+  items.length === effectiveLimit
+    ? items[items.length - 1].id
+    : null;
+
 
   return {
     items,
     nextCursor,
   };
 }
-
-
-
 
 
 async getPostsByTag(params: {
