@@ -413,6 +413,7 @@ async getMyHiddenTaggedPosts(
 }
 
 @Post(':id/repost')
+@RateLimit('repostCreate')
 @UseGuards(AccessTokenCookieAuthGuard)
 @HttpCode(201)
 async repost(
@@ -430,6 +431,7 @@ async repost(
 }
 
 @Delete(':id/repost')
+@RateLimit('repostDelete')
 @UseGuards(AccessTokenCookieAuthGuard)
 @HttpCode(204)
 async undoRepost(

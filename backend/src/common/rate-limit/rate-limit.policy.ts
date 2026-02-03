@@ -1389,10 +1389,10 @@ repostCreate: {
 
 repostDelete: {
   windowSec: 60,
-  max: 20,                // undo repost ได้ถี่กว่า
+  max: 15,                // undo repost ได้ถี่กว่า
   blockDurationSec: 300,
 
-  points: 20,
+  points: 15,
   duration: 60,
   blockDuration: 300,
 
