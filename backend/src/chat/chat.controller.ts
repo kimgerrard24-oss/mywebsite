@@ -111,7 +111,7 @@ async sendMessage(
   const message = await this.chatService.sendMessage({
     chatId,
     senderUserId: viewer.userId,
-    content: body.content,        // ✅ ไม่ใช้ ?? null
+    content: body.content,        
     mediaIds: body.mediaIds,
   });
 
@@ -131,4 +131,19 @@ async sendMessage(
       viewerUserId,
     });
   }
+
+  @UseGuards(AccessTokenCookieAuthGuard)
+@Get('chatRoomsDisplay')
+@RateLimit('messagingSend')
+async getChatRoomDisplays(
+  @Req() req: Request,
+) {
+  const viewer = req.user as {
+    userId: string;
+  };
+
+  return this.chatService.getChatRoomDisplays(
+    viewer.userId,
+  );
+}
 }

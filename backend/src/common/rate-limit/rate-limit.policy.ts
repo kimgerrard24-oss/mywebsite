@@ -74,6 +74,7 @@ export type RateLimitAction =
   | 'confirmPasswordReset'
   | 'emailVerify'
   | 'messagingSend'
+  | 'chatRoomsDisplay'
   | 'shareIntent'
   | 'shareCreate'
   | 'shareExternal'
@@ -110,13 +111,13 @@ export const RateLimitPolicy: Record<RateLimitAction, RateLimitConfig> = {
     /**
      * ป้องกัน brute-force login
      */
-    points: 10,
+    points: 7,
     duration: 60,
     blockDuration: 300,
 
     // new format (explicit)
     windowSec: 60,       // window
-    max: 5,              // allow 5 attempts
+    max: 7,              // allow 5 attempts
     blockDurationSec: 60, // block for 1 minute
 
    escalation: {
@@ -127,12 +128,12 @@ export const RateLimitPolicy: Record<RateLimitAction, RateLimitConfig> = {
   },
 
   register: {
-    points: 6,
+    points: 7,
     duration: 60,
     blockDuration: 600,
 
     windowSec: 60,
-    max: 6,
+    max: 7,
     blockDurationSec: 600,
 
   escalation: {
@@ -143,12 +144,12 @@ export const RateLimitPolicy: Record<RateLimitAction, RateLimitConfig> = {
   },
 
   resetPassword: {
-    points: 5,
+    points: 6,
     duration: 3600,
     blockDuration: 1800,
 
     windowSec: 3600,
-    max: 5,
+    max: 6,
     blockDurationSec: 1800,
 
     escalation: {
@@ -164,23 +165,23 @@ export const RateLimitPolicy: Record<RateLimitAction, RateLimitConfig> = {
   blockDuration: 120,
 
   windowSec: 60,
-  max: 15,
+  max: 10,
   blockDurationSec: 120,
 
   escalation: {
     maxViolations: 3,
     windowSec: 86400,     // ทำผิดครบ 3 ครั้งภายใน 24 ชม.
-    longBlockSec: 86400,  // block 24 ชม.
+    longBlockSec: 21600,  // block 6 ชม.
   },
 },
 
  commentUpdate: {
-    points: 10,
+    points: 15,
     duration: 60,
     blockDuration: 120,
 
     windowSec: 60,
-    max: 20,
+    max: 15,
     blockDurationSec: 120,
 
     escalation: {
@@ -191,12 +192,12 @@ export const RateLimitPolicy: Record<RateLimitAction, RateLimitConfig> = {
 },
  
 commentReplyCreate: {
-  points: 20,
+  points: 15,
   duration: 60,
   blockDuration: 120,
 
   windowSec: 60,
-  max: 20,                
+  max: 15,                
   blockDurationSec: 120,
 
   escalation: {
@@ -233,7 +234,7 @@ commentLike: {
 
   // new structure
   windowSec: 60,
-  max: 60,                 // allow 60 toggles / minute
+  max: 30,                 // allow 60 toggles / minute
   blockDurationSec: 120,   // block 2 minutes
 
   escalation: {
@@ -244,13 +245,13 @@ commentLike: {
 },
 
   updateAvatar: {
-    points: 5,
-    duration: 60,
-    blockDuration: 120, 
+    points: 15,
+    duration: 120,
+    blockDuration: 360, 
 
-    windowSec: 300,     
-    max: 3,             
-    blockDurationSec: 600, 
+    windowSec: 120,     
+    max: 15,             
+    blockDurationSec: 360, 
 
   escalation: {
       maxViolations: 3,
@@ -260,12 +261,12 @@ commentLike: {
   },
 
   updateCover: {
-    points: 5,
-    duration: 60,
+    points: 15,
+    duration: 120,
     blockDuration: 120,
 
-    windowSec: 300,
-    max: 3,
+    windowSec: 120,
+    max: 15,
     blockDurationSec: 600,
 
    escalation: {
@@ -287,39 +288,39 @@ commentLike: {
    escalation: {
       maxViolations: 3,
       windowSec: 86400,     // ทำผิดครบ 3 ครั้งภายใน 24 ชม.
-      longBlockSec: 86400,  // block 24 ชม.
+      longBlockSec: 7200,  
      }, 
   },
 
   followUser: {
-    points: 100,
-    duration: 3600,
-    blockDuration: 3600,
+    points: 120,
+    duration: 60,
+    blockDuration: 300,
 
-    windowSec: 3600,
-    max: 50,
-    blockDurationSec: 3600,
+    windowSec: 60,
+    max: 120,
+    blockDurationSec: 300,
 
    escalation: {
       maxViolations: 3,
       windowSec: 86400,     // ทำผิดครบ 3 ครั้งภายใน 24 ชม.
-      longBlockSec: 86400,  // block 24 ชม.
+      longBlockSec: 7200,  
      }, 
   },
 
   unfollowUser: {
-    points: 50,
-    duration: 3600,
-    blockDuration: 3600,
+    points: 120,
+    duration: 120,
+    blockDuration: 300,
 
-    windowSec: 3600,
-    max: 50,
-    blockDurationSec: 3600,
+    windowSec: 120,
+    max: 120,
+    blockDurationSec: 300,
 
    escalation: {
       maxViolations: 3,
       windowSec: 86400,     // ทำผิดครบ 3 ครั้งภายใน 24 ชม.
-      longBlockSec: 86400,  // block 24 ชม.
+      longBlockSec: 7200,  
      }, 
   },
 
@@ -362,12 +363,12 @@ commentLike: {
      */
     points: 20,
     duration: 60,
-    blockDuration: 60,
+    blockDuration: 120,
 
     // new format
     windowSec: 60,        // window 1 minute
     max: 20,              // allow max 20 per minute
-    blockDurationSec: 60, // block 1 minute
+    blockDurationSec: 120, 
   },
 
   adminUsersList: {
@@ -1417,6 +1418,30 @@ repostList: {
     longBlockSec: 3600,   // block 1 ชม.
   },
 },
+
+chatRoomsDisplay: {
+  /**
+   * Chat room list (share modal / picker)
+   * - read-only
+   * - UI triggered
+   * - must not break UX
+   */
+  windowSec: 60,          // 1 minute window
+  max: 60,                // ~1 req/sec per user
+  blockDurationSec: 120,  // block 2 minutes if abused
+
+  // legacy fields (still required)
+  points: 60,
+  duration: 60,
+  blockDuration: 120,
+
+  escalation: {
+    maxViolations: 3,     // ต้อง abuse ต่อเนื่องจริง
+    windowSec: 86400,     // ภายใน 24 ชม.
+    longBlockSec: 3600,   // block 1 ชม.
+  },
+},
+
 
 };
 

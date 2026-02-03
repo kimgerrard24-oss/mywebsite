@@ -226,23 +226,41 @@ export default function FeedPage({
     className="absolute right-0 top-full mt-2 w-64 rounded-md border bg-white shadow-lg z-30 overflow-hidden"
   >
     {/* ===== User Info Header ===== */}
-    <div className="flex items-center gap-3 px-4 py-3 border-b bg-gray-50">
-      <Avatar
-        avatarUrl={user?.avatarUrl}
-        name={user?.displayName || user?.email || "U"}
-        size={40}
-      />
-      <div className="min-w-0">
-        <p className="text-sm font-medium text-gray-900 truncate">
-          {user?.displayName || "User"}
-        </p>
-        {user?.username && (
-          <p className="text-xs text-gray-500 truncate">
-            @{user.username}
-          </p>
-        )}
-      </div>
-    </div>
+    <Link
+  href="/profile"
+  className="
+    flex
+    items-center
+    gap-3
+    px-4
+    py-3
+    border-b
+    bg-gray-50
+    hover:bg-gray-100
+    focus:outline-none
+    focus-visible:ring-2
+    focus-visible:ring-blue-500
+  "
+>
+  <Avatar
+    avatarUrl={user?.avatarUrl}
+    name={user?.displayName || user?.email || "U"}
+    size={40}
+  />
+
+  <div className="min-w-0">
+    <p className="text-sm font-medium text-gray-900 truncate">
+      {user?.displayName || "User"}
+    </p>
+
+    {user?.username && (
+      <p className="text-xs text-gray-500 truncate">
+        @{user.username}
+      </p>
+    )}
+  </div>
+</Link>
+
 
     {/* ===== Menu Items ===== */}
     <ul className="py-1 text-sm text-gray-700">

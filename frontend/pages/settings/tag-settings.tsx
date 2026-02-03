@@ -25,16 +25,7 @@ export default function TagSettingsPage({
         <meta name="robots" content="noindex,nofollow" />
       </Head>
 
-      <main className="mx-auto max-w-xl px-4 py-8">
-        {/* Back */}
-        <div className="mb-6">
-          <Link
-            href="/settings/profile"
-            className="text-sm text-blue-600 hover:underline"
-          >
-            ← Back to profile
-          </Link>
-        </div>
+      <main className="mx-auto max-w-xl px-4 pt-2 pb-8">
 
         <TagSettingsForm initial={settings} />
       </main>

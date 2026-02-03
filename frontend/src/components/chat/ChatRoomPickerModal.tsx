@@ -7,20 +7,13 @@ import clsx from 'clsx';
 import { api } from '@/lib/api/api';
 import { useAuth } from '@/hooks/useAuth';
 
-type ChatRoomItem = {
+type ChatRoomDisplayItem = {
   id: string;
   isGroup: boolean;
-  title: string | null;
-  participants?: {
-  userId: string;
-  user: {
-    id: string;
-    displayName: string | null;
-    avatarUrl: string | null;
-  };
-}[];
-
+  displayName: string;
+  displayAvatarUrl: string | null;
 };
+
 
 type Props = {
   postId: string;
@@ -37,7 +30,8 @@ export default function ChatRoomPickerModal({
   const { user } = useAuth();
   const viewerUserId = user?.id;
 
-  const [rooms, setRooms] = useState<ChatRoomItem[]>([]);
+  const [rooms, setRooms] =
+  useState<ChatRoomDisplayItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const [loading, setLoading] = useState(false);
@@ -81,10 +75,11 @@ export default function ChatRoomPickerModal({
           setError(null);
         }
 
-        const res = await api.get<ChatRoomItem[]>(
-          '/chat/rooms',
-          { withCredentials: true },
-        );
+       const res = await api.get<ChatRoomDisplayItem[]>(
+  '/chat/rooms/display',
+  { withCredentials: true },
+);
+
 
         if (!active || !mountedRef.current) return;
 
@@ -139,43 +134,7 @@ onSuccess?.(res.data?.chatMessage ?? null);
       }
     }
   }
-
-  // =========================
-  // Helpers
-  // =========================
-  function getOtherParticipant(room: ChatRoomItem) {
-  if (!viewerUserId) return null;
-
-  if (!Array.isArray(room.participants)) {
-    return null;
-  }
-
-  return (
-    room.participants.find(
-      (p) =>
-        p?.user?.id &&
-        p.user.id !== viewerUserId,
-    )?.user ?? null
-  );
-}
-
-
-  function getRoomTitle(room: ChatRoomItem) {
-    if (room.isGroup) {
-      return room.title || 'Group chat';
-    }
-
-    const other = getOtherParticipant(room);
-    return other?.displayName || 'Direct message';
-  }
-
-  function getRoomAvatar(room: ChatRoomItem) {
-    if (room.isGroup) return null;
-
-    const other = getOtherParticipant(room);
-    return other?.avatarUrl ?? null;
-  }
-
+  
   // =========================
   // Render
   // =========================
@@ -234,8 +193,9 @@ onSuccess?.(res.data?.chatMessage ?? null);
   if (!room) return null;
 
   const checked = selectedId === room.id;
-  const avatar = getRoomAvatar(room); 
-  const title = getRoomTitle(room);   
+  const avatar = room.displayAvatarUrl;
+  const title = room.displayName;
+ 
 
 
 

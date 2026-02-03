@@ -14,11 +14,10 @@ import { ChatMessageDto } from './dto/chat-message.dto';
 import { mapUnreadCount } from './mapper/chat-unread.mapper';
 import { NotificationsService } from '../notifications/notifications.service';
 import { NotificationRealtimeService } from '../notifications/realtime/notification-realtime.service';
-import { NotificationMapper } from '../notifications/mapper/notification.mapper';
 import { ChatRealtimeService } from './realtime/chat-realtime.service'
 import { ChatMessageRepository } from './chat-message.repository';
 import { AuditService } from '../auth/audit.service'
-
+import { ChatRoomDisplayDto } from './dto/chat-room-display.dto'
 
 @Injectable()
 export class ChatService {
@@ -372,4 +371,23 @@ async sendMessage(params: {
 }
 
   
+async getChatRoomDisplays(
+  viewerUserId: string,
+) {
+  await this.permission.assertUserActive(
+    viewerUserId,
+  );
+
+  const rooms =
+    await this.repo.findChatRoomsByUser(
+      viewerUserId,
+    );
+
+  return rooms.map((row) =>
+    ChatRoomDisplayDto.fromRow(
+      row,
+      viewerUserId,
+    ),
+  );
+}
 }

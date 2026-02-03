@@ -11,6 +11,7 @@ import { ChatMessageMapper } from './mapper/chat-message.mapper';
 import { ChatMessageAuditService } from './audit/chat-message-audit.service';
 import { ChatRealtimeService } from './realtime/chat-realtime.service';
 import { ChatMessageDto } from './dto/chat-message.dto';
+import { ChatRepository } from '../chat/chat.repository';
 
 @Injectable()
 export class ChatMessagesService {
@@ -19,6 +20,7 @@ export class ChatMessagesService {
     private readonly permission: ChatPermissionService,
     private readonly audit: ChatMessageAuditService,
     private readonly chatRealtime: ChatRealtimeService,
+    private readonly chatRepo: ChatRepository,
   ) {}
 
   async editMessage(params: {
@@ -262,5 +264,9 @@ try {
 
     return dto;
   }
+
+  async getChatOrFail(chatId: string) {
+  return this.chatRepo.getChatOrFail(chatId);
+}
 
 }
