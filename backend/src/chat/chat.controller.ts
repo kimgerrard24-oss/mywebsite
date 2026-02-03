@@ -133,7 +133,7 @@ async sendMessage(
   }
 
   @UseGuards(AccessTokenCookieAuthGuard)
-@Get('chatRoomsDisplay')
+@Get('rooms/display')
 @RateLimit('messagingSend')
 async getChatRoomDisplays(
   @Req() req: Request,

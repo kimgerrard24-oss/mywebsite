@@ -148,14 +148,15 @@ function MediaFigure({
         if (e.key === "Enter" || e.key === " ") onClick();
       }}
       className={`
-        relative
-        overflow-hidden
-        rounded-md
-        bg-black/5
-        cursor-pointer
-        ${single ? "max-h-[70vh]" : ""}
-        ${tall ? "min-h-[300px]" : "min-h-[100px]"}
-      `}
+  relative
+  overflow-hidden
+  rounded-md
+  bg-black/5
+  cursor-pointer
+  ${single ? "aspect-[4/5] max-h-[70vh]" : ""}
+  ${tall ? "min-h-[300px]" : "min-h-[100px]"}
+`}
+
     >
       {media.type === "image" ? (
         <img
