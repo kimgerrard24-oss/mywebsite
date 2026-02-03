@@ -111,8 +111,6 @@ model User {
   chatTypingStates   ChatTypingState[]
   loginHistories     LoginHistory[] 
 
-  reposts Repost[] @relation("UserReposts")
-
   sentShares       Share[] @relation("ShareSender")
   receivedShares   Share[] @relation("ShareTargetUser")
   disabledShares   Share[] @relation("ShareDisabledByAdmin")
@@ -270,8 +268,11 @@ model Post {
   deleteReason  String?
   visibilityRules PostVisibilityRule[]
   author User @relation("PostAuthor",fields: [authorId],references: [id])
-  
-  reposts Repost[]
+
+  originalPostId String?
+  originalPost   Post?   @relation("PostRepost", fields: [originalPostId], references: [id])
+  repostChildren Post[] @relation("PostRepost")
+  type      PostType @default(POST)
   repostCount Int @default(0)
 
   shares        Share[]
@@ -1202,22 +1203,7 @@ model PostShareStat {
   post Post @relation(fields: [postId], references: [id], onDelete: Cascade)
 }
 
-model Repost {
-  id             String   @id @default(uuid())
-
-  actorUserId    String
-  originalPostId String
-
-  createdAt      DateTime @default(now())
-  deletedAt      DateTime?
-
-  /// relations
-  actor User @relation("UserReposts",fields: [actorUserId],references: [id],onDelete: Cascade)  
-  originalPost Post @relation(fields: [originalPostId], references: [id], onDelete: Cascade)
-
-  /// constraints
-  @@unique([actorUserId, originalPostId]) // repost ซ้ำไม่ได้
-  @@index([actorUserId, createdAt])
-  @@index([originalPostId, createdAt])
+enum PostType {
+  POST
+  REPOST
 }
-

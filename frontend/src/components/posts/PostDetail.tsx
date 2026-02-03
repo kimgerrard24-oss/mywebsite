@@ -54,9 +54,6 @@ const openLikes = () => {
 const [hasReposted, setHasReposted] = useState(
   post.hasReposted ?? false,
 );
-const [repostCount, setRepostCount] = useState(
-  post.repostCount ?? 0,
-);
 
 
 const [repostsOpen, setRepostsOpen] = useState(false);
@@ -268,21 +265,19 @@ const closeLikes = () => {
  {!isBlocked && (
   <>
     {hasReposted ? (
-      <UndoRepostButton
-        postId={post.id}
-        onUndone={({ repostCount }) => {
-          setHasReposted(false);
-          setRepostCount(repostCount);
-        }}
-      />
+     <UndoRepostButton
+  postId={post.id}
+  onUndone={() => {
+    setHasReposted(false);
+  }}
+/>
     ) : (
       <RepostButton
-        postId={post.id}
-        onReposted={({ repostCount }) => {
-          setHasReposted(true);
-          setRepostCount(repostCount);
-        }}
-      />
+  postId={post.id}
+  onReposted={() => {
+    setHasReposted(true);
+  }}
+/>
     )}
 
     <ShareButton postId={post.id} />

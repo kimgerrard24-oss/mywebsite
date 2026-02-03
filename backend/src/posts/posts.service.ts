@@ -41,7 +41,6 @@ import { PostUserTagViewPolicy } from './policy/post-user-tag-view.policy';
 import { PostUserTagAcceptPolicy } from './policy/post-user-tag-accept.policy';
 import { PostUserTagRejectPolicy } from './policy/post-user-tag-reject.policy';
 import { PostUserTagCreatePolicy } from './policy/post-user-tag-create.policy';
-import { RepostsRepository } from '../reposts/reposts.repository';
 
 @Injectable()
 export class PostsService {
@@ -58,7 +57,6 @@ export class PostsService {
     private readonly postslikes: PostsRepository,
     private readonly notifications: NotificationsService,
     private readonly eventEmitter: EventEmitter2,
-    private readonly repostsRepo: RepostsRepository,
   ) {}
 
 async createPost(params: {
@@ -432,25 +430,26 @@ async getPublicFeed(params: {
   // =================================================
   let hasRepostedMap = new Map<string, boolean>();
 
-  if (viewerUserId && visiblePosts.length > 0) {
-    const reposts: Array<{ originalPostId: string }> =
-      await this.prisma.repost.findMany({
-        where: {
-          actorUserId: viewerUserId,
-          originalPostId: {
-            in: visiblePosts.map((p) => p.id),
-          },
-          deletedAt: null,
-        },
-        select: {
-          originalPostId: true,
-        },
-      });
+if (viewerUserId && visiblePosts.length > 0) {
+  const reposts = await this.prisma.post.findMany({
+    where: {
+      authorId: viewerUserId,
+      type: 'REPOST',
+      originalPostId: {
+        in: visiblePosts.map((p) => p.id),
+        not: null, 
+      },
+      isDeleted: false,
+    },
+    select: {
+      originalPostId: true,
+    },
+  });
 
-    hasRepostedMap = new Map(
-      reposts.map((r) => [r.originalPostId, true]),
-    );
-  }
+  hasRepostedMap = new Map(
+    reposts.map((r) => [r.originalPostId!, true]),
+  );
+}
 
   // =================================================
   // 3) Map DTO (UX layer only)
@@ -480,10 +479,6 @@ async getPublicFeed(params: {
     nextCursor,
   };
 }
-
-
-
-
 
  async getPostDetail(params: {
   postId: string;
@@ -544,16 +539,27 @@ if (!decision.canView) return null;
 
 
   // 4) Map DTO
-  const dto = PostDetailDto.from(
-    post,
-    viewer?.userId,
-  );
+const dto = PostDetailDto.from(
+  post,
+  viewer?.userId,
+);
 
-  // ⛔️ logic เดิม (ไม่แตะ)
-  dto.canDelete =
-    !!viewer &&
-    post.isDeleted === false &&
-    viewer.userId === post.author.id;
+// 🆕 set hasReposted (authoritative, viewer-aware)
+if (viewer?.userId && post.type !== 'REPOST') {
+  dto.hasReposted = await this.repo.hasUserReposted({
+    userId: viewer.userId,
+    originalPostId: post.id,
+  });
+} else {
+  dto.hasReposted = false;
+}
+
+// ⛔️ logic เดิม (ไม่แตะ)
+dto.canDelete =
+  !!viewer &&
+  post.isDeleted === false &&
+  viewer.userId === post.author.id;
+
 
   // 5) Cache
   const isPublicPost =
@@ -852,30 +858,6 @@ async getUserPostFeed(params: {
   });
 
   // =====================================================
-// 🆕 1.1) Load reposts (activity feed)
-// =====================================================
-let repostRows: Array<{
-  id: string;
-  createdAt: Date;
-  actor: {
-    id: string;
-    displayName: string | null;
-    avatarUrl: string | null;
-  };
-  originalPost: any;
-}> = [];
-
-if (viewer?.userId === targetUserId &&
-  !query.cursor
-) {
-  repostRows = await this.repostsRepo.findUserReposts({
-    actorUserId: targetUserId,
-    limit: effectiveLimit,
-  });
-}
-
-
-  // =====================================================
   // 2) FINAL AUTHORITY DECISION
   // =====================================================
   const visiblePosts: typeof rows = [];
@@ -897,56 +879,29 @@ if (viewer?.userId === targetUserId &&
   let hasRepostedMap = new Map<string, boolean>();
 
   if (viewer?.userId && visiblePosts.length > 0) {
-    const reposts: Array<{ originalPostId: string }> =
-      await this.prisma.repost.findMany({
-        where: {
-          actorUserId: viewer.userId,
-          originalPostId: {
-            in: visiblePosts.map((p) => p.id),
-          },
-          deletedAt: null,
-        },
-        select: {
-          originalPostId: true,
-        },
-      });
-
-    hasRepostedMap = new Map(
-      reposts.map((r) => [r.originalPostId, true]),
-    );
-  }
-
-  // =====================================================
-// 🆕 2.2) Visibility check for reposts
-// =====================================================
-const visibleReposts: typeof repostRows = [];
-
-for (const repost of repostRows) {
-  const decision = await this.visibility.validateVisibility({
-    postId: repost.originalPost.id,
-    viewerUserId: viewer?.userId ?? null,
-  });
-
-  if (decision.canView) {
-    visibleReposts.push(repost);
-  }
-}
-
-// =====================================================
-// 🆕 2.3) Map reposts → feed rows (shape for mapper)
-// =====================================================
-const repostFeedRows = visibleReposts.map((r) => ({
-  ...r.originalPost,
-
-  // 👇 inject repost metadata ให้ mapper
-  repost: {
-    id: r.id,
-    createdAt: r.createdAt,
-    actor: r.actor,
+    const reposts = await this.prisma.post.findMany({
+  where: {
+    authorId: viewer.userId,
+    type: 'REPOST',
+    originalPostId: {
+      in: visiblePosts.map((p) => p.id),
+      not: null, 
+    },
+    isDeleted: false,
   },
-}));
+  select: {
+    originalPostId: true,
+  },
+});
 
- // =====================================================
+
+   hasRepostedMap = new Map(
+  reposts.map((r) => [r.originalPostId!, true]),
+);
+
+  }
+
+// =====================================================
 // 3) Map DTO (post + repost)
 // =====================================================
 const postItems = visiblePosts.map((row) => {
@@ -961,30 +916,8 @@ const postItems = visiblePosts.map((row) => {
   return dto;
 });
 
-const repostItems = repostFeedRows.map((row) => {
-  const dto = PostFeedMapper.toDto(
-    row,
-    viewer?.userId ?? null,
-  );
+const items = postItems;
 
-  dto.hasReposted = false;
-
-  return dto;
-});
-
-
-// =====================================================
-// 3.1) Merge + sort timeline
-// =====================================================
-const items = [...postItems, ...repostItems].sort(
-  (a, b) =>
-    new Date(b.createdAt).getTime() -
-    new Date(a.createdAt).getTime(),
-);
-
-// =====================================================
-// 4) Cursor (based on unified feed)
-// =====================================================
 const nextCursor =
   items.length === effectiveLimit
     ? items[items.length - 1].id
@@ -1041,23 +974,27 @@ async getPostsByTag(params: {
   let hasRepostedMap = new Map<string, boolean>();
 
   if (viewerUserId && visiblePosts.length > 0) {
-    const reposts: Array<{ originalPostId: string }> =
-      await this.prisma.repost.findMany({
-        where: {
-          actorUserId: viewerUserId,
-          originalPostId: {
-            in: visiblePosts.map((p) => p.id),
-          },
-          deletedAt: null,
-        },
-        select: {
-          originalPostId: true,
-        },
-      });
+    const reposts = await this.prisma.post.findMany({
+  where: {
+    authorId: viewerUserId,
+    type: 'REPOST',
+    originalPostId: {
+      in: visiblePosts.map((p) => p.id),
+      not: null, 
+    },
+    isDeleted: false,
+  },
+  select: {
+    originalPostId: true,
+  },
+});
+
+
 
     hasRepostedMap = new Map(
-      reposts.map((r) => [r.originalPostId, true]),
-    );
+  reposts.map((r) => [r.originalPostId!, true]),
+);
+
   }
 
   // =================================================
@@ -2009,23 +1946,29 @@ async getHiddenTaggedPosts(params: {
   let hasRepostedMap = new Map<string, boolean>();
 
   if (rows.length > 0) {
-    const reposts: Array<{ originalPostId: string }> =
-      await this.prisma.repost.findMany({
-        where: {
-          actorUserId: viewerUserId,
-          originalPostId: {
-            in: rows.map((r) => r.id),
-          },
-          deletedAt: null,
-        },
-        select: {
-          originalPostId: true,
-        },
-      });
+   const reposts = await this.prisma.post.findMany({
+  where: {
+    authorId: viewerUserId,
+    type: 'REPOST',
+    originalPostId: {
+      in: rows.map((r) => r.id),
+    },
+    isDeleted: false,
+  },
+  select: {
+    originalPostId: true,
+  },
+});
+
 
     hasRepostedMap = new Map(
-      reposts.map((r) => [r.originalPostId, true]),
-    );
+  reposts
+    .filter(
+      (r): r is { originalPostId: string } =>
+        r.originalPostId !== null,
+    )
+    .map((r) => [r.originalPostId, true]),
+);
   }
 
   // =================================================
@@ -2058,5 +2001,78 @@ async getHiddenTaggedPosts(params: {
 }
 
 
+async repostPost(params: {
+  actorUserId: string;
+  originalPostId: string;
+  content?: string;
+}) {
+  const { actorUserId, originalPostId, content } = params;
+
+  // 1) visibility guard
+  const decision = await this.visibility.validateVisibility({
+    postId: originalPostId,
+    viewerUserId: actorUserId,
+  });
+
+  if (!decision.canView) {
+    throw new NotFoundException('Post not found');
+  }
+
+  // 2) prevent duplicate repost
+  const already = await this.repo.hasUserReposted({
+    userId: actorUserId,
+    originalPostId,
+  });
+
+  if (already) {
+    throw new BadRequestException('Already reposted');
+  }
+
+  // 3) create repost post
+  const repost = await this.repo.createRepostPost({
+    authorId: actorUserId,
+    originalPostId,
+    content,
+  });
+
+  // 4) increment counter (authoritative)
+  await this.prisma.post.update({
+    where: { id: originalPostId },
+    data: { repostCount: { increment: 1 } },
+  });
+
+  return repost;
+}
+
+async undoRepost(params: {
+  actorUserId: string;
+  originalPostId: string;
+}) {
+  const repost = await this.prisma.post.findFirst({
+    where: {
+      authorId: params.actorUserId,
+      type: 'REPOST',
+      originalPostId: params.originalPostId,
+      isDeleted: false,
+    },
+    select: { id: true },
+  });
+
+  if (!repost) return;
+
+  await this.prisma.$transaction([
+    this.prisma.post.update({
+      where: { id: repost.id },
+      data: {
+        isDeleted: true,
+        deletedAt: new Date(),
+      },
+    }),
+    this.prisma.post.update({
+      where: { id: params.originalPostId },
+      data: { repostCount: { decrement: 1 } },
+    }),
+  ]);
+}
 
 }

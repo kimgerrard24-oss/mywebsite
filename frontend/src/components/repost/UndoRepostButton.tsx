@@ -1,11 +1,11 @@
 // frontend/src/components/reposts/UndoRepostButton.tsx
 import { useState } from 'react';
-import { deleteRepost } from '@/lib/api/reposts';
+import { undoRepost } from '@/lib/api/reposts';
 
 type Props = {
   postId: string;
   onUndone?: (next: {
-    reposted: false;
+    hasReposted: false;
     repostCount: number;
   }) => void;
 };
@@ -17,14 +17,14 @@ export default function UndoRepostButton({ postId, onUndone }: Props) {
     if (loading) return;
 
     setLoading(true);
-
     try {
-      const result = await deleteRepost(postId);
+      const result = await undoRepost(postId);
 
-      onUndone?.({
-        reposted: false,
-        repostCount: result.repostCount,
-      });
+onUndone?.({
+  hasReposted: false,
+  repostCount: result.repostCount,
+});
+
     } finally {
       setLoading(false);
     }

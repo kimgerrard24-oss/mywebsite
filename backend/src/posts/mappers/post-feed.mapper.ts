@@ -57,45 +57,16 @@ export class PostFeedMapper {
     const isHiddenByTaggedUser =
         Boolean(myTag?.isHiddenByTaggedUser === true);
         
-    const isRepost = !!row.repost;   
-
-    const repostActor =
-      isRepost && row.repost?.actor
-       ? {
-        id: row.repost.actor.id,
-        displayName:
-          row.repost.actor.displayName ?? 'Unknown',
-        avatarUrl:
-          row.repost.actor.avatarUrl ?? null,
-      }
-        : null;
+    const isRepost = row.type === 'REPOST';
 
     return {
       type: isRepost ? 'repost' : 'post',
-
-
-      id: isRepost ? row.repost.id : row.id,
+      id: row.id,
       content: row.content,
-      createdAt: isRepost
-        ? row.repost.createdAt.toISOString()
-        : row.createdAt.toISOString(),
-
+      createdAt: row.createdAt.toISOString(),
 
       isTaggedUser,
       isHiddenByTaggedUser,
-
-      ...(isRepost && {
-      repost: {
-      repostId: row.repost.id,
-      repostedAt: row.repost.createdAt.toISOString(),
-      actor: {
-  id: row.repost.actor.id,
-  displayName: row.repost.actor.displayName ?? null,
-  avatarUrl: row.repost.actor.avatarUrl ?? null,
-},
-
-      },
-   }),
 
       author: {
         id: author?.id ?? 'unknown',
@@ -129,6 +100,31 @@ export class PostFeedMapper {
           }))
         : [],
 
+        originalPost: isRepost && row.originalPost
+  ? {
+      id: row.originalPost.id,
+      content: row.originalPost.content,
+      createdAt: row.originalPost.createdAt.toISOString(),
+      author: {
+        id: row.originalPost.author.id,
+        displayName: row.originalPost.author.displayName ?? null,
+        avatarUrl: row.originalPost.author.avatarUrl ?? null,
+      },
+      media: Array.isArray(row.originalPost.media)
+        ? row.originalPost.media.map((pm: any) => ({
+            id: pm.media.id,
+            type:
+              pm.media.mediaType === MediaType.IMAGE
+                ? 'image'
+                : 'video',
+            url: buildCdnUrl(pm.media.objectKey),
+            objectKey: pm.media.objectKey,
+          }))
+        : [],
+    }
+  : undefined,
+
+
       isSelf: isOwner,
 
       stats: {
@@ -137,12 +133,8 @@ export class PostFeedMapper {
         repostCount: row.repostCount ?? 0,
       },
 
+      canDelete: isOwner,
 
-      canDelete: isRepost
-  ? viewerUserId === row.repost?.actor?.id
-  : isOwner,
-
-      
       taggedUsers,
 
       /**

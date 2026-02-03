@@ -9,6 +9,107 @@ import {
   Prisma,
   PostUserTagStatus,
  } from '@prisma/client';
+
+export type PostDetailRow = Prisma.PostGetPayload<{
+  select: {
+    id: true;
+    content: true;
+    createdAt: true;
+    visibility: true;
+
+    isDeleted: true;
+    isHidden: true;
+    type: true;
+
+    likeCount: true;
+    commentCount: true;
+    repostCount: true;
+
+    author: {
+      select: {
+        id: true;
+        displayName: true;
+        avatarUrl: true;
+      };
+    };
+
+    media: {
+      select: {
+        id: true;
+        media: {
+          select: {
+            id: true;
+            mediaType: true;
+            objectKey: true;
+            width: true;
+            height: true;
+            duration: true;
+          };
+        };
+      };
+    };
+
+    likes?: {
+      select: { id: true };
+    };
+
+    userTags: {
+      select: {
+        id: true;
+        status: true;
+        taggedUserId: true;
+        taggedByUserId: true;
+
+        post: {
+          select: {
+            authorId: true;
+          };
+        };
+
+        taggedUser: {
+          select: {
+            id: true;
+            username: true;
+            displayName: true;
+            avatarUrl: true;
+            isDisabled: true;
+            isBanned: true;
+            active: true;
+            blockedBy?: true;
+            blockedUsers?: true;
+          };
+        };
+      };
+    };
+
+    originalPost: {
+      select: {
+        id: true;
+        content: true;
+        createdAt: true;
+        author: {
+          select: {
+            id: true;
+            displayName: true;
+            avatarUrl: true;
+          };
+        };
+        media: {
+          select: {
+            media: {
+              select: {
+                id: true;
+                mediaType: true;
+                objectKey: true;
+              };
+            };
+          };
+        };
+      };
+    };
+  };
+}>;
+
  
 
 @Injectable()
@@ -237,19 +338,27 @@ async findPublicFeed(params: {
         },
       },
 
-      reposts: {
-  where: {
-    deletedAt: null,
-  },
-  take: 1,
+      originalPost: {
   select: {
     id: true,
+    content: true,
     createdAt: true,
-    actor: {
+    author: {
       select: {
         id: true,
         displayName: true,
         avatarUrl: true,
+      },
+    },
+    media: {
+      select: {
+        media: {
+          select: {
+            id: true,
+            mediaType: true,
+            objectKey: true,
+          },
+        },
       },
     },
   },
@@ -288,7 +397,7 @@ async findPublicFeed(params: {
 async findPostById(
   postId: string,
   viewerUserId?: string,
-) {
+): Promise<PostDetailRow | null> {
   return this.prisma.post.findFirst({
     where: {
       id: postId,
@@ -406,6 +515,9 @@ async findPostById(
 
       createdAt: true,
 
+      type: true,       
+      repostCount: true,
+
       // counters
       likeCount: true,
       commentCount: true,
@@ -507,6 +619,33 @@ async findPostById(
     },
   },
 },
+
+originalPost: {
+  select: {
+    id: true,
+    content: true,
+    createdAt: true,
+    author: {
+      select: {
+        id: true,
+        displayName: true,
+        avatarUrl: true,
+      },
+    },
+    media: {
+      select: {
+        media: {
+          select: {
+            id: true,
+            mediaType: true,
+            objectKey: true,
+          },
+        },
+      },
+    },
+  },
+},
+
 
     },
   });
@@ -808,24 +947,31 @@ async findUserPosts(params: {
         },
       },
 
-      reposts: {
-  where: {
-    deletedAt: null,
-  },
-  take: 1,
+      originalPost: {
   select: {
     id: true,
+    content: true,
     createdAt: true,
-    actor: {
+    author: {
       select: {
         id: true,
         displayName: true,
         avatarUrl: true,
       },
     },
+    media: {
+      select: {
+        media: {
+          select: {
+            id: true,
+            mediaType: true,
+            objectKey: true,
+          },
+        },
+      },
+    },
   },
 },
-
 
       userTags: {
         where: {
@@ -1058,6 +1204,33 @@ async findPostsByTag(params: {
           },
         },
       },
+
+      originalPost: {
+  select: {
+    id: true,
+    content: true,
+    createdAt: true,
+    author: {
+      select: {
+        id: true,
+        displayName: true,
+        avatarUrl: true,
+      },
+    },
+    media: {
+      select: {
+        media: {
+          select: {
+            id: true,
+            mediaType: true,
+            objectKey: true,
+          },
+        },
+      },
+    },
+  },
+},
+
 
       userTags: {
         where: {
@@ -2340,6 +2513,33 @@ async findHiddenTaggedPosts(params: {
         },
       },
 
+      originalPost: {
+  select: {
+    id: true,
+    content: true,
+    createdAt: true,
+    author: {
+      select: {
+        id: true,
+        displayName: true,
+        avatarUrl: true,
+      },
+    },
+    media: {
+      select: {
+        media: {
+          select: {
+            id: true,
+            mediaType: true,
+            objectKey: true,
+          },
+        },
+      },
+    },
+  },
+},
+
+
       userTags: {
         where: {
           status: PostUserTagStatus.ACCEPTED,
@@ -2365,6 +2565,58 @@ async findHiddenTaggedPosts(params: {
       },
     },
   });
+}
+
+async createRepostPost(params: {
+  authorId: string;
+  originalPostId: string;
+  content?: string;
+}) {
+  return this.prisma.post.create({
+    data: {
+      authorId: params.authorId,
+      content: params.content ?? '',
+      type: 'REPOST',
+      originalPostId: params.originalPostId,
+    },
+    select: {
+      id: true,
+      createdAt: true,
+    },
+  });
+}
+
+async hasUserReposted(params: {
+  userId: string;
+  originalPostId: string;
+}): Promise<boolean> {
+  const count = await this.prisma.post.count({
+    where: {
+      authorId: params.userId,
+      type: 'REPOST',
+      originalPostId: params.originalPostId,
+      isDeleted: false,
+    },
+  });
+
+  return count > 0;
+}
+
+async findUserRepostedOriginalPostIds(params: {
+  userId: string;
+  originalPostIds: string[];
+}) {
+  const rows = await this.prisma.post.findMany({
+    where: {
+      authorId: params.userId,
+      type: 'REPOST',
+      originalPostId: { in: params.originalPostIds },
+      isDeleted: false,
+    },
+    select: { originalPostId: true },
+  });
+
+  return new Set(rows.map((r) => r.originalPostId!));
 }
 
 }

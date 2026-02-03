@@ -54,12 +54,11 @@ export default function FeedItem({
   );
 
   const [hasReposted, setHasReposted] = useState(post.hasReposted);
-  const [repostCount, setRepostCount] = useState(post.stats.repostCount);
   
-  useEffect(() => {
+ useEffect(() => {
   setHasReposted(post.hasReposted);
-  setRepostCount(post.stats.repostCount);
-}, [post.hasReposted, post.stats.repostCount]);
+}, [post.hasReposted]);
+
 
   const [isFollowing, setIsFollowing] = useState(
   post.author.isFollowing
@@ -327,21 +326,19 @@ const taggedUsers = post.taggedUsers ?? [];
   {/* 🔁 Repost / Undo */}
  {!isBlocked && (
   hasReposted ? (
-    <UndoRepostButton
-      postId={post.id}
-      onUndone={({ repostCount }) => {
-        setHasReposted(false);
-        setRepostCount(repostCount);
-      }}
-    />
+  <UndoRepostButton
+  postId={post.id}
+  onUndone={() => {
+    setHasReposted(false);
+  }}
+/>
   ) : (
     <RepostButton
-      postId={post.id}
-      onReposted={({ repostCount }) => {
-        setHasReposted(true);
-        setRepostCount(repostCount);
-      }}
-    />
+  postId={post.id}
+  onReposted={() => {
+    setHasReposted(true);
+  }}
+/>
   )
 )}
 
