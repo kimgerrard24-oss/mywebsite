@@ -51,13 +51,19 @@ const openLikes = () => {
   loadLikes({ reset: true }); // โหลดเฉพาะตอนเปิด
 };
 
+const [hasReposted, setHasReposted] = useState(
+  post.hasReposted ?? false,
+);
+const [repostCount, setRepostCount] = useState(
+  post.repostCount ?? 0,
+);
+
+
 const [repostsOpen, setRepostsOpen] = useState(false);
 
 const closeLikes = () => {
   setIsLikeModalOpen(false);
 };
-
-
 
   return (
     <>
@@ -259,20 +265,30 @@ const closeLikes = () => {
     <PostShareStats postId={post.id} />
   </div>
 
-  {!isBlocked && (
-    <>
-     {post.hasReposted ? (
-  <UndoRepostButton
-    postId={post.id}
-    repostCount={post.repostCount ?? 0}
-  />
-) : (
-  <RepostButton postId={post.id} />
+ {!isBlocked && (
+  <>
+    {hasReposted ? (
+      <UndoRepostButton
+        postId={post.id}
+        onUndone={({ repostCount }) => {
+          setHasReposted(false);
+          setRepostCount(repostCount);
+        }}
+      />
+    ) : (
+      <RepostButton
+        postId={post.id}
+        onReposted={({ repostCount }) => {
+          setHasReposted(true);
+          setRepostCount(repostCount);
+        }}
+      />
+    )}
+
+    <ShareButton postId={post.id} />
+  </>
 )}
 
-      <ShareButton postId={post.id} />
-    </>
-  )}
 </div>
 
 

@@ -212,5 +212,74 @@ async findRepostsByPostId(params: {
   });
   return count > 0;
 }
+
+async findUserReposts(params: {
+  actorUserId: string;
+  limit: number;
+  cursor?: string;
+}) {
+  const { actorUserId, limit, cursor } = params;
+
+  return this.prisma.repost.findMany({
+    where: {
+      actorUserId,
+      deletedAt: null,
+    },
+    orderBy: { createdAt: 'desc' },
+    take: limit,
+    ...(cursor && {
+      skip: 1,
+      cursor: { id: cursor },
+    }),
+    select: {
+      id: true,
+      createdAt: true,
+      actor: {
+        select: {
+          id: true,
+          displayName: true,
+          avatarUrl: true,
+        },
+      },
+      originalPost: {
+        select: {
+          id: true,
+          content: true,
+          createdAt: true,
+          repostCount: true,
+          likeCount: true,
+          commentCount: true,
+          author: {
+            select: {
+              id: true,
+              displayName: true,
+              avatarUrl: true,
+              isPrivate: true,
+              followers: true,
+              followRequestsReceived: true,
+              blockedBy: true,
+            },
+          },
+          media: {
+            select: {
+              media: {
+                select: {
+                  id: true,
+                  mediaType: true,
+                  objectKey: true,
+                  width: true,
+                  height: true,
+                  duration: true,
+                },
+              },
+            },
+          },
+          userTags: true,
+        },
+      },
+    },
+  });
+}
+
 }
 

@@ -4,6 +4,7 @@ import { api } from './api';
 import type { 
   CreateRepostResponse,
   GetPostRepostsResponse,
+  DeleteRepostResponse,
  } from '@/types/repost';
 
 /**
@@ -36,13 +37,15 @@ export async function createRepost(
  */
 export async function deleteRepost(
   postId: string,
-): Promise<void> {
-  await api.delete(
+): Promise<DeleteRepostResponse> {
+  const res = await api.delete<DeleteRepostResponse>(
     `/reposts/${postId}`,
     {
       withCredentials: true,
     },
   );
+
+  return res.data;
 }
 
 /**
