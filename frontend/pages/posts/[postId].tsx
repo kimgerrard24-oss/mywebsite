@@ -129,13 +129,27 @@ export default function PostDetailPage({ post }: Props) {
   "
 >
   <PostVisibilityGuard postId={post.id}>
-    
+    <article
+      aria-label="Post content"
+      className="
+        w-full
+        rounded-lg
+        sm:rounded-xl
+        border
+        border-gray-200
+        bg-white
+        p-3
+        sm:p-4
+        md:p-5
+      "
+     >
+
       {/* ===== Post ===== */}
       <PostDetail post={post} />
 
       {/* ===== Comments ===== */}
       <section
-        className="mt-6 border-t pt-4"
+        className="mt-6"
         aria-label="Post comments"
       >
         <CommentComposer
@@ -154,6 +168,7 @@ export default function PostDetailPage({ post }: Props) {
           }}
         />
       </section>
+    </article>
   </PostVisibilityGuard>
 </main>
 
