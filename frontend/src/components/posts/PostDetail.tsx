@@ -14,6 +14,7 @@ import PostMediaGrid from "@/components/posts/PostMediaGrid";
 import RepostComposerModal from "@/components/repost/RepostComposerModal";
 import PostCard from "@/components/posts/PostCard";
 import PostShareMenu from "@/components/posts/PostShareMenu";
+import { getDisplayName } from "@/utils/getDisplayName";
 
 type Props = {
   post: PostDetailType;
@@ -77,12 +78,15 @@ const closeLikes = () => {
 };
 
   return (
-     <article
-      className={[
-        "w-full rounded-lg sm:rounded-xl border border-gray-200 bg-white",
-        embedded ? "p-3" : "p-3 sm:p-4 md:p-5",
-      ].join(" ")}
-    >
+   <article
+  className={[
+    "w-full",
+    embedded
+      ? "rounded-lg border bg-white p-3"
+      : "rounded-lg sm:rounded-xl border border-gray-200 bg-white p-3 sm:p-4 md:p-5",
+  ].join(" ")}
+>
+
     <>
       {/* ================= Header ================= */}
       <header
@@ -140,7 +144,7 @@ const closeLikes = () => {
   />
 
   <span className="font-medium text-sm sm:text-base truncate">
-    {actor.displayName}
+    {getDisplayName(actor)}
   </span>
 </Link>
 
@@ -154,7 +158,8 @@ const closeLikes = () => {
       href={`/users/${originalAuthor.id}`}
       className="hover:underline"
     >
-      {originalAuthor.displayName}
+      {getDisplayName(originalAuthor)}
+
     </Link>
   </span>
 )}
