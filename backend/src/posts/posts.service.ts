@@ -409,21 +409,34 @@ async getPublicFeed(params: {
     mediaType,
   });
 
-  // =================================================
-  // 2) Final Authority Decision (Post-level)
-  // =================================================
-  const visiblePosts: typeof rows = [];
+ // =================================================
+// 2) Final Authority Decision (Post-level + Repost)
+// =================================================
+const visiblePosts: typeof rows = [];
 
-  for (const post of rows) {
-    const decision = await this.visibility.validateVisibility({
-      postId: post.id,
+for (const post of rows) {
+  // 2.1 validate repost itself
+  const decision = await this.visibility.validateVisibility({
+    postId: post.id,
+    viewerUserId,
+  });
+
+  if (!decision.canView) continue;
+
+  // 2.2  repost must respect original post visibility
+if (post.originalPost) {
+  const originalDecision =
+    await this.visibility.validateVisibility({
+      postId: post.originalPost.id,
       viewerUserId,
     });
 
-    if (decision.canView) {
-      visiblePosts.push(post);
-    }
+  if (!originalDecision.canView) {
+    continue;
   }
+}
+  visiblePosts.push(post);
+}
 
   // =================================================
   // 🆕 2.1) Build hasReposted map (batch, fail-soft)
@@ -537,6 +550,19 @@ const decision = await this.visibility.validateVisibility({
 
 if (!decision.canView) return null;
 
+// 3.1 🔥 Repost must respect original post visibility
+if (post.originalPost) {
+  const originalDecision =
+    await this.visibility.validateVisibility({
+      postId: post.originalPost.id,
+      viewerUserId: viewer?.userId ?? null,
+    });
+
+  if (!originalDecision.canView) {
+    // production behavior: do not reveal existence
+    return null;
+  }
+}
 
   // 4) Map DTO
 const dto = PostDetailDto.from(
@@ -794,7 +820,6 @@ async updatePost(params: {
   };
 }
 
- 
 
 async getUserPostFeed(params: {
   targetUserId: string;
@@ -858,20 +883,35 @@ async getUserPostFeed(params: {
   });
 
   // =====================================================
-  // 2) FINAL AUTHORITY DECISION
-  // =====================================================
-  const visiblePosts: typeof rows = [];
+// 2) FINAL AUTHORITY DECISION (Post + Repost)
+// =====================================================
+const visiblePosts: typeof rows = [];
 
-  for (const post of rows) {
-    const decision = await this.visibility.validateVisibility({
-      postId: post.id,
-      viewerUserId: viewer?.userId ?? null,
-    });
+for (const post of rows) {
+  // 2.1 validate post itself
+  const decision = await this.visibility.validateVisibility({
+    postId: post.id,
+    viewerUserId: viewer?.userId ?? null,
+  });
 
-    if (decision.canView) {
-      visiblePosts.push(post);
+  if (!decision.canView) continue;
+
+  // 2.2 🔥 repost must respect original post visibility
+  if (post.originalPost) {
+    const originalDecision =
+      await this.visibility.validateVisibility({
+        postId: post.originalPost.id,
+        viewerUserId: viewer?.userId ?? null,
+      });
+
+    if (!originalDecision.canView) {
+      continue;
     }
   }
+
+  visiblePosts.push(post);
+}
+
 
   // =====================================================
   // 🆕 2.1) Build hasReposted map (batch)
@@ -952,21 +992,36 @@ async getPostsByTag(params: {
     viewerUserId,
   });
 
-  // =================================================
-  // 2) Final Authority Decision (Post-level)
-  // =================================================
-  const visiblePosts: typeof rows = [];
+ // =================================================
+// 2) Final Authority Decision (Post + Repost)
+// =================================================
+const visiblePosts: typeof rows = [];
 
-  for (const post of rows) {
-    const decision = await this.visibility.validateVisibility({
-      postId: post.id,
-      viewerUserId,
-    });
+for (const post of rows) {
+  // 2.1 validate post itself
+  const decision = await this.visibility.validateVisibility({
+    postId: post.id,
+    viewerUserId,
+  });
 
-    if (decision.canView) {
-      visiblePosts.push(post);
+  if (!decision.canView) continue;
+
+  // 2.2 🔥 repost must respect original post visibility
+  if (post.originalPost) {
+    const originalDecision =
+      await this.visibility.validateVisibility({
+        postId: post.originalPost.id,
+        viewerUserId,
+      });
+
+    if (!originalDecision.canView) {
+      continue;
     }
   }
+
+  visiblePosts.push(post);
+}
+
 
   // =================================================
   // 🆕 2.1) Build hasReposted map (batch, fail-soft)
@@ -1060,6 +1115,20 @@ if (!decision.canView) {
   throw new NotFoundException('Post not found');
 }
 
+// 2.1 🔥 Repost must respect original post visibility
+if (post.originalPost) {
+  const originalDecision =
+    await this.visibility.validateVisibility({
+      postId: post.originalPost.id,
+      viewerUserId: userId,
+    });
+
+  if (!originalDecision.canView) {
+    // production behavior: behave as not found
+    throw new NotFoundException('Post not found');
+  }
+}
+
 
   // =================================================
   // 3) Business policy (unchanged)
@@ -1151,6 +1220,22 @@ if (!decision.canView) {
 if (!decision.canView) {
   // production behavior: behave as not found
   throw new NotFoundException('Post not found');
+}
+
+// =================================================
+// 2.1 🔥 Repost must respect original post visibility
+// =================================================
+if (post.originalPost) {
+  const originalDecision =
+    await this.visibility.validateVisibility({
+      postId: post.originalPost.id,
+      viewerUserId: userId,
+    });
+
+  if (!originalDecision.canView) {
+    // production behavior: behave as not found
+    throw new NotFoundException('Post not found');
+  }
 }
 
 
@@ -1941,40 +2026,69 @@ async getHiddenTaggedPosts(params: {
     });
 
   // =================================================
-  // 🆕 1.1) Build hasReposted map (batch, fail-soft)
+  // 2) FINAL AUTHORITY DECISION (Post + Repost)
   // =================================================
-  let hasRepostedMap = new Map<string, boolean>();
+  const visiblePosts: typeof rows = [];
 
-  if (rows.length > 0) {
-   const reposts = await this.prisma.post.findMany({
-  where: {
-    authorId: viewerUserId,
-    type: 'REPOST',
-    originalPostId: {
-      in: rows.map((r) => r.id),
-    },
-    isDeleted: false,
-  },
-  select: {
-    originalPostId: true,
-  },
-});
+  for (const post of rows) {
+    // 2.1 validate post itself
+    const decision = await this.visibility.validateVisibility({
+      postId: post.id,
+      viewerUserId,
+    });
 
+    if (!decision.canView) continue;
 
-    hasRepostedMap = new Map(
-  reposts
-    .filter(
-      (r): r is { originalPostId: string } =>
-        r.originalPostId !== null,
-    )
-    .map((r) => [r.originalPostId, true]),
-);
+    // 2.2 🔥 repost must respect original post visibility
+    if (post.originalPost) {
+      const originalDecision =
+        await this.visibility.validateVisibility({
+          postId: post.originalPost.id,
+          viewerUserId,
+        });
+
+      if (!originalDecision.canView) {
+        continue;
+      }
+    }
+
+    visiblePosts.push(post);
   }
 
   // =================================================
-  // 2) Map DTO (UX layer only)
+  // 2.1) Build hasReposted map (batch, fail-soft)
   // =================================================
-  const items = rows.map((row) => {
+  let hasRepostedMap = new Map<string, boolean>();
+
+  if (visiblePosts.length > 0) {
+    const reposts = await this.prisma.post.findMany({
+      where: {
+        authorId: viewerUserId,
+        type: 'REPOST',
+        originalPostId: {
+          in: visiblePosts.map((p) => p.id),
+        },
+        isDeleted: false,
+      },
+      select: {
+        originalPostId: true,
+      },
+    });
+
+    hasRepostedMap = new Map(
+      reposts
+        .filter(
+          (r): r is { originalPostId: string } =>
+            r.originalPostId !== null,
+        )
+        .map((r) => [r.originalPostId, true]),
+    );
+  }
+
+  // =================================================
+  // 3) Map DTO (UX layer only)
+  // =================================================
+  const items = visiblePosts.map((row) => {
     const dto = PostFeedMapper.toDto(
       row,
       viewerUserId,
@@ -1987,11 +2101,11 @@ async getHiddenTaggedPosts(params: {
   });
 
   // =================================================
-  // 3) Cursor
+  // 4) Cursor
   // =================================================
   const nextCursor =
-    rows.length === limit
-      ? rows[rows.length - 1].id
+    visiblePosts.length === limit
+      ? visiblePosts[visiblePosts.length - 1].id
       : null;
 
   return {
@@ -1999,6 +2113,7 @@ async getHiddenTaggedPosts(params: {
     nextCursor,
   };
 }
+
 
 
 async repostPost(params: {

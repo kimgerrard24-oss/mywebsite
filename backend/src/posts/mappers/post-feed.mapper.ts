@@ -65,6 +65,19 @@ export class PostFeedMapper {
       content: row.content,
       createdAt: row.createdAt.toISOString(),
 
+      repost: isRepost
+  ? {
+      repostId: row.id,
+      repostedAt: row.createdAt.toISOString(),
+      actor: {
+        id: author?.id ?? 'unknown',
+        displayName: author?.displayName ?? null,
+        avatarUrl: author?.avatarUrl ?? null,
+      },
+    }
+  : undefined,
+
+
       isTaggedUser,
       isHiddenByTaggedUser,
 
@@ -88,7 +101,7 @@ export class PostFeedMapper {
   isPrivate: author?.isPrivate === true,  
       },
 
-      media: Array.isArray(row.media)
+      media: !isRepost && Array.isArray(row.media)
         ? row.media.map((pm: any) => ({
             id: pm.media.id,
             type:
