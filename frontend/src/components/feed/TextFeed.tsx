@@ -181,6 +181,7 @@ export default function TextFeed({
           key={post.id}
           post={post}
           onDeleted={handlePostDeleted}
+          onPostCreated={refreshFeed}
         />
       ))}
     </section>

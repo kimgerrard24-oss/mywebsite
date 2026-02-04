@@ -16,19 +16,22 @@ import PostMediaGrid from "@/components/posts/PostMediaGrid";
 import RepostComposerModal from "@/components/repost/RepostComposerModal";
 import PostCard from "@/components/posts/PostCard";
 import PostShareMenu from "@/components/posts/PostShareMenu";
+import CancelFollowRequestButton from "@/components/follows/CancelFollowRequestButton";
 
 type Props = {
   post: PostFeedItem;
   onDeleted?: (postId: string) => void;
   onHideTaggedPost?: () => void;
   onUnhideTaggedPost?: () => void;
+  onPostCreated?: () => void;
 };
 
 export default function FeedItem({ 
   post, 
   onDeleted,
   onHideTaggedPost,
-  onUnhideTaggedPost, 
+  onUnhideTaggedPost,
+  onPostCreated, 
 }: Props) {
   const profileHref = post.canDelete
     ? "/profile"
@@ -196,7 +199,7 @@ const originalAuthor = post.originalPost?.author;
  {!post.isSelf && !isBlocked && (
   isFollowing ? (
     <FollowController
-      userId={actor?.id}
+      userId={actor.id}
       isFollowing={isFollowing}
       isBlocked={isBlocked}
       onChange={(v) => {
@@ -204,13 +207,20 @@ const originalAuthor = post.originalPost?.author;
         if (!v) setIsFollowRequested(false);
       }}
     />
+  ) : isFollowRequested ? (
+    <CancelFollowRequestButton
+      userId={actor.id}
+      onCanceled={() => {
+        setIsFollowRequested(false);
+      }}
+    />
   ) : (
     <FollowActionButton
-      userId={actor?.id}
+      userId={actor.id}
       isFollowing={false}
       isPrivate={post.author.isPrivate}
       isBlocked={isBlocked}
-      isFollowRequested={isFollowRequested}
+      isFollowRequested={false}
       onFollowed={() => {
         setIsFollowing(true);
         setIsFollowRequested(false);
@@ -221,6 +231,7 @@ const originalAuthor = post.originalPost?.author;
     />
   )
 )}
+
 
 
     <PostActionMenu
@@ -288,10 +299,6 @@ const originalAuthor = post.originalPost?.author;
       {/* ================= Media ================= */}
 {!isRepost && post.media.length > 0 && (
   <PostMediaGrid media={post.media} />
-)}
-
-{isRepost && originalMedia && originalMedia.length > 0 && (
-  <PostMediaGrid media={originalMedia} />
 )}
 
       {/* ================= Footer ================= */}
@@ -389,6 +396,7 @@ const originalAuthor = post.originalPost?.author;
     onPosted={() => {
       setShowRepostComposer(false);
       setHasReposted(true);
+      onPostCreated?.();
     }}
   />
 )}
