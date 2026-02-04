@@ -37,35 +37,32 @@ export default function ShareButton({ postId }: Props) {
     reset();
   };
 
-  return (
-    <>
-      <button
-        type="button"
-        onClick={onClick}
-        disabled={loading}
-        className="
-          text-sm
-          px-3
-          py-1.5
-          rounded-md
-          border
-          hover:bg-gray-50
-          disabled:opacity-60
-        "
-      >
-        Share to
-      </button>
+ return (
+  <>
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={loading}
+      aria-haspopup="dialog"
+      aria-expanded={open}
+      aria-busy={loading}
+      aria-live="polite"
+      className="inline-flex items-center justify-center rounded-md px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-medium leading-none whitespace-nowrap select-none border border-gray-300 text-gray-700 transition-colors duration-150 hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 motion-reduce:transition-none disabled:opacity-60 disabled:cursor-not-allowed"
+    >
+      <span aria-hidden={loading}>Share to</span>
+    </button>
 
-      {result && (
-        <ShareSheet
-          open={open}
-          onClose={close}
-          postId={postId}
-          intent={result}
-        />
-      )}
-    </>
-  );
+    {result && (
+      <ShareSheet
+        open={open}
+        onClose={close}
+        postId={postId}
+        intent={result}
+      />
+    )}
+  </>
+);
+
 }
 
 function getReasonMessage(res: {

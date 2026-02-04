@@ -51,34 +51,19 @@ export default function RepostButton({
   }
 
   return (
-    <button
-      type="button"
-      onClick={handleOpen}
-      disabled={opening}
-      aria-label="Repost this post"
-      className="
-        inline-flex
-        items-center
-        gap-1.5
-        rounded-md
-        px-2.5
-        py-1.5
-        text-xs
-        sm:text-sm
-        font-medium
-        border
-        border-gray-300
-        hover:bg-gray-100
-        focus:outline-none
-        focus:ring-2
-        focus:ring-blue-500
-        disabled:opacity-50
-        disabled:cursor-not-allowed
-        transition
-      "
-    >
-      <span aria-hidden>🔁</span>
-      <span>Repost</span>
-    </button>
-  );
+  <button
+    type="button"
+    onClick={handleOpen}
+    disabled={opening}
+    aria-label="Repost this post"
+    aria-busy={opening}
+    aria-disabled={opening}
+    aria-live="polite"
+    className="inline-flex items-center justify-center gap-1.5 rounded-md px-2.5 py-1.5 sm:px-3 sm:py-2 text-xs sm:text-sm font-medium leading-none whitespace-nowrap select-none border border-gray-300 text-gray-700 transition-colors duration-150 hover:bg-gray-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 motion-reduce:transition-none disabled:opacity-50 disabled:cursor-not-allowed"
+  >
+    <span aria-hidden>🔁</span>
+    <span>Repost</span>
+  </button>
+);
+
 }
