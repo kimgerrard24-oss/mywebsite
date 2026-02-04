@@ -88,6 +88,7 @@ export default function RepostComposerModal({
         <div className="px-4 pt-3">
           <PostComposer
             repostOfPostId={repostTargetId}
+            disableMedia
             onPosted={handlePosted}
             onPostCreated={handlePosted}
           />

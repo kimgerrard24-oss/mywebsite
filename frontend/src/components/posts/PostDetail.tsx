@@ -19,9 +19,11 @@ import PostCard from "@/components/posts/PostCard";
 
 type Props = {
   post: PostDetailType;
+  embedded?: boolean;
 };
 
-export default function PostDetail({ post }: Props) {
+export default function PostDetail({ post, embedded }: Props) {
+
   const router = useRouter();
 
   const isBlocked =
@@ -77,6 +79,12 @@ const closeLikes = () => {
 };
 
   return (
+     <article
+      className={[
+        "w-full rounded-lg sm:rounded-xl border border-gray-200 bg-white",
+        embedded ? "p-3" : "p-3 sm:p-4 md:p-5",
+      ].join(" ")}
+    >
     <>
       {/* ================= Header ================= */}
       <header
@@ -348,6 +356,6 @@ const closeLikes = () => {
 />
 
     </>
-
+</article>
   );
 }
