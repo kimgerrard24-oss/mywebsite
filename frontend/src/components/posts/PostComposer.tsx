@@ -379,30 +379,53 @@ setShowExcludePicker(false);
         </p>
       )}
        
-       {showVisibility && (
-  <PostVisibilitySelector
-  value={visibility}
-  compact
-  disabled={submitting}
-  onChange={(v) => {
-    setVisibility(v);
+  {showVisibility && (
+  <div
+    className="
+      fixed inset-0 z-50
+      flex items-start justify-center
+      bg-black/30
+      backdrop-blur-sm
+    "
+    role="dialog"
+    aria-modal="true"
+    onClick={() => setShowVisibility(false)}
+  >
+    <div
+      className="
+        mt-20
+        w-full max-w-md
+        rounded-xl
+        bg-white
+        shadow-xl
+        p-4
+      "
+      onClick={(e) => e.stopPropagation()}
+    >
+      <PostVisibilitySelector
+        value={visibility}
+        compact
+        disabled={submitting}
+        onChange={(v) => {
+          setVisibility(v);
 
-    if (v.visibility !== "CUSTOM") {
-      setShowVisibility(false);
-    }
-  }}
-  onPickInclude={() => {
-    setShowVisibility(false);     
-    setShowIncludePicker(true);   
-  }}
-  onPickExclude={() => {
-    setShowVisibility(false);      
-    setShowExcludePicker(true);    
-  }}
-/>
-
-
+          if (v.visibility !== "CUSTOM") {
+            setShowVisibility(false);
+          }
+        }}
+        onPickInclude={() => {
+          setShowVisibility(false);
+          setShowIncludePicker(true);
+        }}
+        onPickExclude={() => {
+          setShowVisibility(false);
+          setShowExcludePicker(true);
+        }}
+      />
+    </div>
+  </div>
 )}
+
 
 {showIncludePicker && (
   <UserPickerModal
@@ -441,7 +464,7 @@ setShowExcludePicker(false);
   <button
   type="button"
   disabled={submitting}
-  onClick={() => setShowVisibility(v => !v)}
+  onClick={() => setShowVisibility(true)}
   className="
     inline-flex items-center gap-1
     text-[10px] sm:text-[11px]
