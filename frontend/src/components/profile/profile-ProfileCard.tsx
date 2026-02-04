@@ -8,6 +8,7 @@ import UnblockUserButton from "@/components/users/UnblockUserButton";
 import FollowActionButton from "@/components/follows/FollowActionButton";
 import FollowController from "@/components/follows/FollowController";
 import { useRouter } from "next/router";
+import CancelFollowRequestButton from "@/components/follows/CancelFollowRequestButton";
 
 export interface ProfileCardProps {
   profile: UserProfile | PublicUserProfile | null;
@@ -248,33 +249,38 @@ const isPrivateLocked =
 
   {/* ===== FOLLOW / REQUEST FOLLOW ===== */}
   {publicProfile && !isSelf && !hasBlockedViewer && (
-   isFollowing ? (
+  isFollowing ? (
     <FollowController
-  userId={publicProfile.id}
-  isFollowing={true}
-  isBlocked={isBlocked}
-  onChange={(v) => {
-    setIsFollowing(v);
-    if (!v) setIsFollowRequested(false);
-  }}
-/>
-
+      userId={publicProfile.id}
+      isFollowing={true}
+      isBlocked={isBlocked}
+      onChange={(v) => {
+        setIsFollowing(v);
+        if (!v) setIsFollowRequested(false);
+      }}
+    />
+  ) : isFollowRequested ? (
+    <CancelFollowRequestButton
+      userId={publicProfile.id}
+      onCanceled={() => {
+        setIsFollowRequested(false);
+      }}
+    />
   ) : (
     <FollowActionButton
-  userId={publicProfile.id}
-  isFollowing={false}
-  isPrivate={publicProfile.isPrivate === true}
-  isBlocked={isBlocked}
-  isFollowRequested={isFollowRequested}
-  onFollowed={() => {
-    setIsFollowing(true);
-    setIsFollowRequested(false);
-  }}
-  onRequested={() => {
-    setIsFollowRequested(true);
-  }}
-/>
-
+      userId={publicProfile.id}
+      isFollowing={false}
+      isPrivate={publicProfile.isPrivate === true}
+      isBlocked={isBlocked}
+      isFollowRequested={false}
+      onFollowed={() => {
+        setIsFollowing(true);
+        setIsFollowRequested(false);
+      }}
+      onRequested={() => {
+        setIsFollowRequested(true);
+      }}
+    />
   )
 )}
 

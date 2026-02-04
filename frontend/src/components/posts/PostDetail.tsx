@@ -244,12 +244,6 @@ const closeLikes = () => {
   <PostMediaGrid media={post.media} />
 )}
 
-{isRepost && originalMedia && originalMedia.length > 0 && (
-  <PostMediaGrid media={originalMedia} />
-)}
-
-
-
       
 {post.userTags && post.userTags.length > 0 && (
   <PostTagList postId={post.id} tags={post.userTags} />

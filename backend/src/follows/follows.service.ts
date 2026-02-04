@@ -15,7 +15,6 @@ import { FollowersMapper } from './mappers/followers.mapper';
 import { FollowersReadPolicy } from './policy/followers-read.policy';
 import { FollowRemovedEvent } from './events/follow-removed.event';
 import { NotificationsService } from '../notifications/notifications.service';
-import { NotificationMapper } from '../notifications/mapper/notification.mapper';
 
 @Injectable()
 export class FollowsService {
