@@ -13,12 +13,14 @@ type RepostSource = PostFeedItem | PostDetail;
 
 type Props = {
   repostOfPost: RepostSource;
+  repostTargetId: string;
   onClose: () => void;
   onPosted: () => void;
 };
 
 export default function RepostComposerModal({
   repostOfPost,
+  repostTargetId,
   onClose,
   onPosted,
 }: Props) {
@@ -85,7 +87,7 @@ export default function RepostComposerModal({
         {/* ================= Composer ================= */}
         <div className="px-4 pt-3">
           <PostComposer
-            repostOfPostId={repostOfPost.id}
+            repostOfPostId={repostTargetId}
             onPosted={handlePosted}
             onPostCreated={handlePosted}
           />
