@@ -17,6 +17,7 @@ import PostMediaGrid from "@/components/posts/PostMediaGrid";
 import RepostButton from "@/components/repost/RepostButton";
 import UndoRepostButton from "@/components/repost/UndoRepostButton";
 import RepostComposerModal from "@/components/repost/RepostComposerModal";
+import PostCard from "@/components/posts/PostCard";
 
 type Props = {
   post: PostFeedItem;
@@ -259,46 +260,15 @@ const originalAuthor = post.originalPost?.author;
   </p>
 )}
 
-{/* ================= Original Post Preview ================= */}
+{/* ================= Original Post (REAL) ================= */}
 {isRepost && originalPost && (
-  <section
-    className="
-      mt-3
-      rounded-lg
-      border
-      border-gray-200
-      bg-gray-50
-      p-3
-    "
-    aria-label="Original post"
-  >
-    {/* Author */}
-    <div className="flex items-center gap-2 mb-2">
-      <Avatar
-        avatarUrl={originalPost.author.avatarUrl}
-        name={originalPost.author.displayName}
-        size={32}
-      />
-      <span className="text-sm font-medium text-gray-900">
-        {originalPost.author.displayName ?? "Unknown user"}
-      </span>
-    </div>
-
-    {/* Content */}
-    {originalPost.content && (
-      <p className="text-sm text-gray-800 whitespace-pre-wrap break-words mb-2">
-        {renderContentWithHashtags(originalPost.content)}
-      </p>
-    )}
-
-    {/* Media */}
-    {originalPost.media.length > 0 && (
-      <PostMediaGrid media={originalPost.media} />
-    )}
-  </section>
+  <div className="mt-3 rounded-lg border bg-gray-50 p-2">
+    <PostCard
+      postId={originalPost.id}
+      embedded
+    />
+  </div>
 )}
-
-
 
       {/* ================= Tagged Users ================= */}
 {taggedUsers.length > 0 && (
