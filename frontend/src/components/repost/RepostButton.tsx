@@ -36,7 +36,7 @@ export default function RepostButton({
     setOpening(true);
 
     try {
-      // ✅ Facebook behavior:
+      //  Facebook behavior:
       // - repost ของ repost → ใช้ originalPostId
       // - repost ของ post ปกติ → ใช้ postId
       const repostTargetId = originalPostId ?? postId;

@@ -53,7 +53,7 @@ export default function ShareButton({ postId }: Props) {
           disabled:opacity-60
         "
       >
-        แชร์
+        Share to
       </button>
 
       {result && (
