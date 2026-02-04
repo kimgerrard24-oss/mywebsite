@@ -214,7 +214,7 @@ const closeLikes = () => {
 
 {/* ================= Original Post (REAL) ================= */}
 {isRepost && originalPost && (
-  <div className="mt-4 rounded-lg border bg-gray-50 p-2">
+  <div className="mt-4">
     <PostCard
       postId={originalPost.id}
       embedded

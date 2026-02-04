@@ -131,19 +131,8 @@ export default function PostDetailPage({ post }: Props) {
   <PostVisibilityGuard postId={post.id}>
     <article
       aria-label="Post content"
-      className="
-        w-full
-        rounded-lg
-        sm:rounded-xl
-        border
-        border-gray-200
-        bg-white
-        p-3
-        sm:p-4
-        md:p-5
-      "
-     >
-
+      className="w-full"
+    >
       {/* ===== Post ===== */}
       <PostDetail post={post} />
 
