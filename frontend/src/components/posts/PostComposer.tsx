@@ -14,6 +14,7 @@ import PostVisibilitySelector from "@/components/posts/PostVisibilitySelector";
 import type { PostVisibilityValue } from "@/components/posts/PostVisibilitySelector";
 import { Settings } from "lucide-react";
 import UserPickerModal from "@/components/users/UserPickerModal";
+import PostVisibilityCustomPicker from "@/components/posts/PostVisibilityCustomPicker";
 
 type Props = {
   onPostCreated?: () => void;
@@ -428,36 +429,40 @@ setShowExcludePicker(false);
 
 
 {showIncludePicker && (
-  <UserPickerModal
-    title="Select people who can see this post"
+  <PostVisibilityCustomPicker
+    title="เลือกผู้ที่สามารถเห็นโพสต์นี้"
+    mode="include"
+    initialSelected={visibility.includeUserIds}
     onClose={() => setShowIncludePicker(false)}
-    onConfirm={(userIds: string[]) => {
+    onConfirm={(userIds) => {
       setVisibility(v => ({
         ...v,
         visibility: "CUSTOM",
         includeUserIds: userIds,
-        excludeUserIds: v.excludeUserIds,
       }));
       setShowIncludePicker(false);
     }}
   />
 )}
 
+
 {showExcludePicker && (
-  <UserPickerModal
-    title="Exclude people from this post"
+  <PostVisibilityCustomPicker
+    title="ซ่อนโพสต์นี้จากผู้ใช้"
+    mode="exclude"
+    initialSelected={visibility.excludeUserIds}
     onClose={() => setShowExcludePicker(false)}
-    onConfirm={(userIds: string[]) => {
+    onConfirm={(userIds) => {
       setVisibility(v => ({
         ...v,
         visibility: "CUSTOM",
         excludeUserIds: userIds,
-        includeUserIds: v.includeUserIds,
       }));
       setShowExcludePicker(false);
     }}
   />
 )}
+
 
 
 <div className="flex justify-between items-center pt-1">
