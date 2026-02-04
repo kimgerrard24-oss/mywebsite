@@ -78,15 +78,12 @@ const closeLikes = () => {
 };
 
   return (
-   <article
-  className={[
-    "w-full",
-    embedded
-      ? "rounded-lg border bg-white p-3"
-      : "rounded-lg sm:rounded-xl border border-gray-200 bg-white p-3 sm:p-4 md:p-5",
-  ].join(" ")}
->
-
+     <article
+      className={[
+        "w-full rounded-lg sm:rounded-xl border border-gray-200 bg-white",
+        embedded ? "p-3" : "p-3 sm:p-4 md:p-5",
+      ].join(" ")}
+    >
     <>
       {/* ================= Header ================= */}
       <header
@@ -153,7 +150,7 @@ const closeLikes = () => {
 
 {isRepost && originalAuthor && (
   <span className="block text-xs text-gray-500">
-    แชร์โพสต์ของ{" "}
+    แชร์โพสต์{" "}
     <Link
       href={`/users/${originalAuthor.id}`}
       className="hover:underline"
