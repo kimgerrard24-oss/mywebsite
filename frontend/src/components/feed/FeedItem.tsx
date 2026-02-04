@@ -358,14 +358,12 @@ const originalAuthor = post.originalPost?.author;
 
 </div>
 
-
-
 </footer>
 
 
        {showCommentBox && !isBlocked && (
   <section
-    className="mt-3 border-t pt-3"
+    className="mt-3"
     aria-label="Post comments"
   >
     <CommentComposer
