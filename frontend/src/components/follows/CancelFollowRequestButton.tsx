@@ -41,7 +41,7 @@ export default function CancelFollowRequestButton({
     className="inline-flex items-center justify-center rounded-xl px-3 py-1.5 sm:px-4 sm:py-2 text-xs sm:text-sm font-medium leading-none whitespace-nowrap select-none border border-zinc-300 text-zinc-700 transition-colors duration-150 hover:bg-zinc-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 motion-reduce:transition-none disabled:opacity-50 disabled:cursor-not-allowed"
   >
     <span aria-hidden={loading}>
-      {loading ? "Canceling…" : "Requested"}
+      {loading ? "Canceling…" : "Cancel request"}
     </span>
   </button>
 );

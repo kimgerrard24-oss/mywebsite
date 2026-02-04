@@ -129,10 +129,7 @@ export default function PostDetailPage({ post }: Props) {
   "
 >
   <PostVisibilityGuard postId={post.id}>
-    <article
-      aria-label="Post content"
-      className="w-full"
-    >
+    
       {/* ===== Post ===== */}
       <PostDetail post={post} />
 
@@ -157,7 +154,6 @@ export default function PostDetailPage({ post }: Props) {
           }}
         />
       </section>
-    </article>
   </PostVisibilityGuard>
 </main>
 
