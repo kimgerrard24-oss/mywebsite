@@ -104,9 +104,17 @@ jobs:
       # -----------------------------------------------------------
       - name: Create backend .env.production
         run: echo "${{ secrets.BACKEND_ENV_PRODUCTION }}" > backend/.env.production
-
+      
+      - name: Cache Prisma engines
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/prisma
+          key: prisma-${{ runner.os }}-${{ hashFiles('backend/package-lock.json') }}
+      
       - name: Build backend
         working-directory: backend
+        env:
+          PRISMA_ENGINES_CHECKSUM_IGNORE_MISSING: "1"
         run: |
           npm ci
           npm run build
