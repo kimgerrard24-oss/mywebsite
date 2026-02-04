@@ -15,6 +15,7 @@ import PostMediaGrid from "@/components/posts/PostMediaGrid";
 import RepostButton from "@/components/repost/RepostButton";
 import UndoRepostButton from "@/components/repost/UndoRepostButton";
 import RepostComposerModal from "@/components/repost/RepostComposerModal";
+import PostCard from "@/components/posts/PostCard";
 
 type Props = {
   post: PostDetailType;
@@ -203,48 +204,15 @@ const closeLikes = () => {
   </section>
 )}
 
-{/* ================= Original Post Preview ================= */}
+{/* ================= Original Post (REAL) ================= */}
 {isRepost && originalPost && (
-  <section
-    className="
-      mt-4
-      rounded-lg
-      border
-      border-gray-200
-      bg-gray-50
-      p-4
-    "
-    aria-label="Original post"
-  >
-    {/* Original Author */}
-    <div className="flex items-center gap-2 mb-2">
-      <Avatar
-        avatarUrl={originalPost.author.avatarUrl}
-        name={originalPost.author.displayName}
-        size={36}
-      />
-      <Link
-        href={`/users/${originalPost.author.id}`}
-        className="text-sm font-medium text-gray-900 hover:underline"
-      >
-        {originalPost.author.displayName ?? "Unknown user"}
-      </Link>
-    </div>
-
-    {/* Original Content */}
-    {originalPost.content && (
-      <p className="text-sm text-gray-800 whitespace-pre-wrap break-words mb-3">
-        {renderContentWithHashtags(originalPost.content)}
-      </p>
-    )}
-
-    {/* Original Media */}
-    {originalPost.media.length > 0 && (
-      <PostMediaGrid media={originalPost.media} />
-    )}
-  </section>
+  <div className="mt-4 rounded-lg border bg-gray-50 p-2">
+    <PostCard
+      postId={originalPost.id}
+      embedded
+    />
+  </div>
 )}
-
 
       {/* ================= Tagged Users (Accepted only) ================= */}
 {acceptedTags.length > 0 && (
