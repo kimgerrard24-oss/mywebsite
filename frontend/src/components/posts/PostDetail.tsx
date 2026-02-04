@@ -8,14 +8,12 @@ import PostActionMenu from "@/components/posts/PostActionMenu";
 import { renderContentWithHashtags } from "@/utils/renderContentWithHashtags";
 import { usePostLike } from "@/hooks/usePostLike";
 import PostLikeListModal from "@/components/posts/PostLikeListModal";
-import ShareButton from "@/components/share/ShareButton";
 import PostShareStats from "@/components/posts/PostShareStats";
 import Avatar from "@/components/ui/Avatar";
 import PostMediaGrid from "@/components/posts/PostMediaGrid";
-import RepostButton from "@/components/repost/RepostButton";
-import UndoRepostButton from "@/components/repost/UndoRepostButton";
 import RepostComposerModal from "@/components/repost/RepostComposerModal";
 import PostCard from "@/components/posts/PostCard";
+import PostShareMenu from "@/components/posts/PostShareMenu";
 
 type Props = {
   post: PostDetailType;
@@ -283,50 +281,20 @@ const closeLikes = () => {
 
  {/* 🔗 Share + Repost (right) */}
 <div className="flex items-center gap-2">
-  <div
-    role="button"
-    tabIndex={isBlocked ? -1 : 0}
-    aria-disabled={isBlocked}
-    onClick={() => {
-      if (!isBlocked) setRepostsOpen(true);
+  <PostShareStats postId={post.id} />
+
+  <PostShareMenu
+    postId={post.id}
+    originalPostId={post.originalPost?.id}
+    hasReposted={hasReposted}
+    isBlocked={isBlocked}
+    onOpenRepostComposer={(repostTargetId) => {
+      setShowRepostComposer(true);
+      setRepostTargetId(repostTargetId);
     }}
-    onKeyDown={(e) => {
-      if (!isBlocked && e.key === "Enter") {
-        setRepostsOpen(true);
-      }
-    }}
-    className={isBlocked ? "opacity-60 cursor-not-allowed" : "cursor-pointer"}
-  >
-    <PostShareStats postId={post.id} />
-  </div>
-
- {!isBlocked && (
-  <>
-    {hasReposted ? (
-     <UndoRepostButton
-  postId={post.id}
-  onUndone={() => {
-    setHasReposted(false);
-  }}
-/>
-    ) : (
-<RepostButton
-  postId={post.id}
-  originalPostId={post.originalPost?.id}
-  onOpenComposer={({ repostOfPostId }) => {
-    setShowRepostComposer(true);
-    setRepostTargetId(repostOfPostId);
-  }}
-/>
-
-
-    )}
-
-    <ShareButton postId={post.id} />
-  </>
-)}
-
+  />
 </div>
+
 
 
 </section>

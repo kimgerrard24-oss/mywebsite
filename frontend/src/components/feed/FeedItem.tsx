@@ -11,13 +11,11 @@ import CommentList from "@/components/comments/CommentList";
 import FollowActionButton from '@/components/follows/FollowActionButton';
 import Avatar from "@/components/ui/Avatar";
 import FollowController from "@/components/follows/FollowController";
-import ShareButton from "@/components/share/ShareButton";
 import PostShareStats from "@/components/posts/PostShareStats";
 import PostMediaGrid from "@/components/posts/PostMediaGrid";
-import RepostButton from "@/components/repost/RepostButton";
-import UndoRepostButton from "@/components/repost/UndoRepostButton";
 import RepostComposerModal from "@/components/repost/RepostComposerModal";
 import PostCard from "@/components/posts/PostCard";
+import PostShareMenu from "@/components/posts/PostShareMenu";
 
 type Props = {
   post: PostFeedItem;
@@ -338,52 +336,21 @@ const originalAuthor = post.originalPost?.author;
 
   {/* ===== Right: Share ===== */}
   <div className="flex items-center gap-2">
-  <div
-    role="button"
-    tabIndex={isBlocked ? -1 : 0}
-    aria-disabled={isBlocked}
-    onClick={() => {
-      if (!isBlocked) setRepostsOpen(true);
-    }}
-    onKeyDown={(e) => {
-      if (!isBlocked && e.key === "Enter") {
-        setRepostsOpen(true);
-      }
-    }}
-    className={
-      isBlocked
-        ? "opacity-60 cursor-not-allowed"
-        : "cursor-pointer"
-    }
-  >
-    <PostShareStats postId={post.id} />
-  </div>
+  <PostShareStats postId={post.id} />
 
-  {/* 🔁 Repost / Undo */}
- {!isBlocked && (
-  hasReposted ? (
-  <UndoRepostButton
-  postId={post.id}
-  onUndone={() => {
-    setHasReposted(false);
-  }}
-/>
-  ) : (
-  <RepostButton
+  <PostShareMenu
   postId={post.id}
   originalPostId={post.originalPost?.id}
-  onOpenComposer={({ repostOfPostId }) => {
+  hasReposted={hasReposted === true}
+  isBlocked={isBlocked}
+  onOpenRepostComposer={(repostTargetId) => {
     setShowRepostComposer(true);
-    setRepostTargetId(repostOfPostId);
+    setRepostTargetId(repostTargetId);
   }}
 />
 
-  )
-)}
-
-  {/* 🔗 Share (external) */}
-  {!isBlocked && <ShareButton postId={post.id} />}
 </div>
+
 
 
 </footer>
