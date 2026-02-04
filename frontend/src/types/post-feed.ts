@@ -20,6 +20,19 @@ export type PostFeedItem = {
    */
   type: 'post' | 'repost';
 
+   /**
+   * 🆕 repost metadata (Facebook-style)
+   */
+  repost?: {
+    repostId: string;
+    repostedAt: string;
+    actor: {
+      id: string;
+      displayName: string | null;
+      avatarUrl: string | null;
+    };
+  };
+
   /**
    * 🆕 original post (for repost)
    */
@@ -62,8 +75,6 @@ export type PostFeedItem = {
   }[];
 
   isSelf: boolean;
-
-  repost?: boolean;
 
   stats: {
     likeCount: number;

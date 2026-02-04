@@ -2,11 +2,21 @@
 import { useState } from "react";
 
 type Props = {
+  /**
+   * ID ของโพสต์ที่แสดงใน feed
+   * - ถ้าเป็นโพสต์ปกติ = post.id
+   * - ถ้าเป็น repost = repost.id
+   */
   postId: string;
 
   /**
-   * 🔁 เปิด Repost Composer (Facebook-style)
-   * - parent เป็นคน decide ว่าใช้ modal / drawer / page
+   * 🆕 original post id (กรณี repost)
+   * - Facebook-style: repost ซ้ำต้องอ้างอิงโพสต์ต้นฉบับเสมอ
+   */
+  originalPostId?: string;
+
+  /**
+   * 🔁 เปิด Repost Composer
    */
   onOpenComposer: (params: {
     repostOfPostId: string;
@@ -15,6 +25,7 @@ type Props = {
 
 export default function RepostButton({
   postId,
+  originalPostId,
   onOpenComposer,
 }: Props) {
   const [opening, setOpening] = useState(false);
@@ -25,11 +36,16 @@ export default function RepostButton({
     setOpening(true);
 
     try {
+      // ✅ Facebook behavior:
+      // - repost ของ repost → ใช้ originalPostId
+      // - repost ของ post ปกติ → ใช้ postId
+      const repostTargetId = originalPostId ?? postId;
+
       onOpenComposer({
-        repostOfPostId: postId,
+        repostOfPostId: repostTargetId,
       });
     } finally {
-      // reset ทันที เพราะไม่มี async แล้ว
+      // reset ทันที (ไม่มี async)
       setOpening(false);
     }
   }

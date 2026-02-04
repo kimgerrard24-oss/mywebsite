@@ -277,6 +277,7 @@ async findPublicFeed(params: {
 
     select: {
       id: true,
+      type: true,
       content: true,
       createdAt: true,
       likeCount: true,
@@ -890,7 +891,7 @@ async findUserPosts(params: {
       id: true,
       content: true,
       createdAt: true,
-
+      type: true,
       authorId: true,
       isHidden: true,
       isDeleted: true,
@@ -1136,6 +1137,7 @@ async findPostsByTag(params: {
 
     select: {
       id: true,
+      type: true,
       content: true,
       createdAt: true,
 
@@ -1585,6 +1587,7 @@ async findPostForLike(params: {
 
     select: {
       id: true,
+      type: true,
       authorId: true,
       isDeleted: true,
       isHidden: true,
@@ -2473,7 +2476,7 @@ async findHiddenTaggedPosts(params: {
       id: true,
       content: true,
       createdAt: true,
-
+      type: true,
       isHidden: true,
       isDeleted: true,
 

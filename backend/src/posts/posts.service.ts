@@ -102,6 +102,15 @@ async createPost(params: {
     taggedUserCount: taggedUserIds.length,
   });
 
+// =========================
+// Repost hard rule
+// =========================
+if (repostOfPostId && mediaIds.length > 0) {
+  throw new BadRequestException(
+    'Repost cannot contain media',
+  );
+}
+
   // =========================
   // Media ownership check
   // =========================
@@ -178,18 +187,19 @@ if (repostOfPostId) {
         },
       });
 
-      // -------------------------
-      // 2) Attach media
-      // -------------------------
-      if (mediaIds.length > 0) {
-        await tx.postMedia.createMany({
-          data: mediaIds.map((mediaId) => ({
-            postId: createdPost.id,
-            mediaId,
-          })),
-          skipDuplicates: true,
-        });
-      }
+// -------------------------
+// 2) Attach media
+// -------------------------
+if (!repostOfPostId && mediaIds.length > 0) {
+  await tx.postMedia.createMany({
+    data: mediaIds.map((mediaId) => ({
+      postId: createdPost.id,
+      mediaId,
+    })),
+    skipDuplicates: true,
+  });
+}
+
 
       // -------------------------
       // 3) Visibility rules (CUSTOM only)
@@ -428,7 +438,6 @@ if (repostOfPostId) {
   };
 }
 
-
  
 async getPublicFeed(params: {
   viewerUserId: string | null;
@@ -436,7 +445,7 @@ async getPublicFeed(params: {
   cursor?: string;
 
   /**
-   * 🔥 OPTIONAL
+   *  OPTIONAL
    * - 'video' = ใช้สำหรับ right video feed (TikTok-style)
    * - undefined = feed ปกติ (text / image / video ปนกัน)
    */
@@ -518,16 +527,23 @@ if (viewerUserId && visiblePosts.length > 0) {
   // 3) Map DTO (UX layer only)
   // =================================================
   const items = visiblePosts.map((post) => {
-    const dto = PostFeedMapper.toDto(
-      post,
-      viewerUserId,
-    );
+  const dto = PostFeedMapper.toDto(
+    post,
+    viewerUserId,
+  );
 
-    dto.hasReposted =
-      hasRepostedMap.get(post.id) ?? false;
+  const originalId =
+    post.type === 'REPOST'
+      ? post.originalPost?.id
+      : post.id;
 
-    return dto;
-  });
+  dto.hasReposted =
+    originalId
+      ? hasRepostedMap.get(originalId) ?? false
+      : false;
+
+  return dto;
+});
 
   // =================================================
   // 4) Cursor (based on visible items only)
@@ -1000,8 +1016,16 @@ const postItems = visiblePosts.map((row) => {
     viewer?.userId ?? null,
   );
 
-  dto.hasReposted =
-    hasRepostedMap.get(row.id) ?? false;
+ const originalId =
+  row.type === 'REPOST'
+    ? row.originalPost?.id
+    : row.id;
+
+dto.hasReposted =
+  originalId
+    ? hasRepostedMap.get(originalId) ?? false
+    : false;
+
 
   return dto;
 });
@@ -1105,17 +1129,25 @@ for (const post of rows) {
   // =================================================
   // 3) Map DTO (UX layer only)
   // =================================================
-  const items = visiblePosts.map((row) => {
-    const dto = PostFeedMapper.toDto(
-      row,
-      viewerUserId,
-    );
+  const items = visiblePosts.map((post) => {
+  const dto = PostFeedMapper.toDto(
+    post,
+    viewerUserId,
+  );
 
-    dto.hasReposted =
-      hasRepostedMap.get(row.id) ?? false;
+  const originalId =
+    post.type === 'REPOST'
+      ? post.originalPost?.id
+      : post.id;
 
-    return dto;
-  });
+  dto.hasReposted =
+    originalId
+      ? hasRepostedMap.get(originalId) ?? false
+      : false;
+
+  return dto;
+});
+
 
   // =================================================
   // 4) Cursor (based on visible items only)
@@ -2144,8 +2176,16 @@ async getHiddenTaggedPosts(params: {
       viewerUserId,
     );
 
-    dto.hasReposted =
-      hasRepostedMap.get(row.id) ?? false;
+    const originalId =
+  row.type === 'REPOST'
+    ? row.originalPost?.id
+    : row.id;
+
+dto.hasReposted =
+  originalId
+    ? hasRepostedMap.get(originalId) ?? false
+    : false;
+
 
     return dto;
   });
