@@ -62,6 +62,7 @@ const hasCaption = post.content.trim().length > 0;
 const originalPost = post.originalPost;
 const originalMedia = originalPost?.media;
 const [showRepostComposer, setShowRepostComposer] = useState(false);
+const [repostTargetId, setRepostTargetId] = useState<string | null>(null);
 
 const [hasReposted, setHasReposted] = useState(
   post.hasReposted ?? false,
@@ -202,6 +203,49 @@ const closeLikes = () => {
   </section>
 )}
 
+{/* ================= Original Post Preview ================= */}
+{isRepost && originalPost && (
+  <section
+    className="
+      mt-4
+      rounded-lg
+      border
+      border-gray-200
+      bg-gray-50
+      p-4
+    "
+    aria-label="Original post"
+  >
+    {/* Original Author */}
+    <div className="flex items-center gap-2 mb-2">
+      <Avatar
+        avatarUrl={originalPost.author.avatarUrl}
+        name={originalPost.author.displayName}
+        size={36}
+      />
+      <Link
+        href={`/users/${originalPost.author.id}`}
+        className="text-sm font-medium text-gray-900 hover:underline"
+      >
+        {originalPost.author.displayName ?? "Unknown user"}
+      </Link>
+    </div>
+
+    {/* Original Content */}
+    {originalPost.content && (
+      <p className="text-sm text-gray-800 whitespace-pre-wrap break-words mb-3">
+        {renderContentWithHashtags(originalPost.content)}
+      </p>
+    )}
+
+    {/* Original Media */}
+    {originalPost.media.length > 0 && (
+      <PostMediaGrid media={originalPost.media} />
+    )}
+  </section>
+)}
+
+
       {/* ================= Tagged Users (Accepted only) ================= */}
 {acceptedTags.length > 0 && (
   <p className="mt-1 text-xs sm:text-sm text-gray-600">
@@ -292,10 +336,13 @@ const closeLikes = () => {
     ) : (
 <RepostButton
   postId={post.id}
-  onOpenComposer={() => {
+  originalPostId={post.originalPost?.id}
+  onOpenComposer={({ repostOfPostId }) => {
     setShowRepostComposer(true);
+    setRepostTargetId(repostOfPostId);
   }}
 />
+
 
     )}
 
@@ -308,9 +355,10 @@ const closeLikes = () => {
 
 </section>
 
-{showRepostComposer && (
+{showRepostComposer && repostTargetId && (
   <RepostComposerModal
     repostOfPost={post}
+    repostTargetId={repostTargetId}
     onClose={() => setShowRepostComposer(false)}
     onPosted={() => {
       setShowRepostComposer(false);
@@ -318,6 +366,7 @@ const closeLikes = () => {
     }}
   />
 )}
+
 
 
       <PostLikeListModal

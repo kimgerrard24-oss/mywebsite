@@ -51,6 +51,7 @@ export default function FeedItem({
   const originalPost = post.originalPost;
   const originalMedia = originalPost?.media;
   const [showRepostComposer, setShowRepostComposer] = useState(false);
+  const [repostTargetId, setRepostTargetId] = useState<string | null>(null);
 
   const [showCommentBox, setShowCommentBox] = useState(false);
   const [commentCount, setCommentCount] = useState(
@@ -83,10 +84,7 @@ export default function FeedItem({
   
 const taggedUsers = post.taggedUsers ?? [];
 const isRepost = post.type === "repost";
-const actor =
-  isRepost && typeof post.repost === "object"
-    ? post.repost.actor
-    : post.author;
+const actor = post.author;
 const originalAuthor = post.originalPost?.author;
 
   return (
@@ -261,6 +259,46 @@ const originalAuthor = post.originalPost?.author;
   </p>
 )}
 
+{/* ================= Original Post Preview ================= */}
+{isRepost && originalPost && (
+  <section
+    className="
+      mt-3
+      rounded-lg
+      border
+      border-gray-200
+      bg-gray-50
+      p-3
+    "
+    aria-label="Original post"
+  >
+    {/* Author */}
+    <div className="flex items-center gap-2 mb-2">
+      <Avatar
+        avatarUrl={originalPost.author.avatarUrl}
+        name={originalPost.author.displayName}
+        size={32}
+      />
+      <span className="text-sm font-medium text-gray-900">
+        {originalPost.author.displayName ?? "Unknown user"}
+      </span>
+    </div>
+
+    {/* Content */}
+    {originalPost.content && (
+      <p className="text-sm text-gray-800 whitespace-pre-wrap break-words mb-2">
+        {renderContentWithHashtags(originalPost.content)}
+      </p>
+    )}
+
+    {/* Media */}
+    {originalPost.media.length > 0 && (
+      <PostMediaGrid media={originalPost.media} />
+    )}
+  </section>
+)}
+
+
 
       {/* ================= Tagged Users ================= */}
 {taggedUsers.length > 0 && (
@@ -365,8 +403,10 @@ const originalAuthor = post.originalPost?.author;
   ) : (
   <RepostButton
   postId={post.id}
-  onOpenComposer={() => {
+  originalPostId={post.originalPost?.id}
+  onOpenComposer={({ repostOfPostId }) => {
     setShowRepostComposer(true);
+    setRepostTargetId(repostOfPostId);
   }}
 />
 
@@ -406,16 +446,18 @@ const originalAuthor = post.originalPost?.author;
   </section>
   )}
 
-  {showRepostComposer && (
+  {showRepostComposer && repostTargetId && (
   <RepostComposerModal
     repostOfPost={post}
+    repostTargetId={repostTargetId}
     onClose={() => setShowRepostComposer(false)}
     onPosted={() => {
       setShowRepostComposer(false);
-      setHasReposted(true); 
+      setHasReposted(true);
     }}
   />
 )}
+
 
 
     </article>
