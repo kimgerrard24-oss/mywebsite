@@ -18,6 +18,7 @@ import UserPickerModal from "@/components/users/UserPickerModal";
 type Props = {
   onPostCreated?: () => void;
   onPosted?: () => void; 
+  repostOfPostId?: string;
 };
 
 type LocalMedia = {
@@ -31,6 +32,7 @@ const MAX_FILES = 5;
 export default function PostComposer({
   onPostCreated,
   onPosted,
+  repostOfPostId,
 }: Props) {
   const router = useRouter();
 
@@ -102,7 +104,7 @@ export default function PostComposer({
   const handleSubmit = useCallback(async () => {
     if (submitting) return;
 
-    if (!content.trim() && media.length === 0) {
+    if (!repostOfPostId && !content.trim() && media.length === 0) {
       setError("กรุณาเขียนข้อความหรือเลือกไฟล์ก่อนโพสต์");
       return;
     }
@@ -144,6 +146,7 @@ export default function PostComposer({
       // 2️⃣ create post
       const res = await submit({
   content,
+  repostOfPostId,
   mediaIds: mediaIds.length > 0 ? mediaIds : undefined,
   visibility: visibility.visibility,
   includeUserIds: visibility.includeUserIds,
@@ -202,6 +205,7 @@ setShowExcludePicker(false);
     visibility.includeUserIds,
     visibility.excludeUserIds,
     taggedUserIds,
+    repostOfPostId,
     submitting,
     upload,
     complete,

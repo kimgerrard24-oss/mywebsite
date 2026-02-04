@@ -16,4 +16,5 @@ export type CreatePostPayload = {
   excludeUserIds?: string[];
 
   taggedUserIds?: string[];
+  repostOfPostId?: string;
 };

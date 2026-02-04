@@ -54,5 +54,12 @@ export class CreatePostDto {
   @ArrayMaxSize(10) // production-safe: limit tags per post
   @IsUUID('4', { each: true })
   taggedUserIds?: string[];
+
+  // =========================
+  // Repost (original post reference)
+  // =========================
+  @IsOptional()
+  @IsUUID('4')
+  repostOfPostId?: string;
 }
 

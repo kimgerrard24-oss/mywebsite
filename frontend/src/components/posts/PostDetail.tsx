@@ -14,6 +14,7 @@ import Avatar from "@/components/ui/Avatar";
 import PostMediaGrid from "@/components/posts/PostMediaGrid";
 import RepostButton from "@/components/repost/RepostButton";
 import UndoRepostButton from "@/components/repost/UndoRepostButton";
+import RepostComposerModal from "@/components/repost/RepostComposerModal";
 
 type Props = {
   post: PostDetailType;
@@ -54,6 +55,7 @@ const isRepost = post.isRepost;
 const hasCaption = post.content.trim().length > 0;
 const originalPost = post.originalPost;
 const originalMedia = originalPost?.media;
+const [showRepostComposer, setShowRepostComposer] = useState(false);
 
 const [hasReposted, setHasReposted] = useState(
   post.hasReposted ?? false,
@@ -283,12 +285,13 @@ const closeLikes = () => {
   }}
 />
     ) : (
-      <RepostButton
+<RepostButton
   postId={post.id}
-  onReposted={() => {
-    setHasReposted(true);
+  onOpenComposer={() => {
+    setShowRepostComposer(true);
   }}
 />
+
     )}
 
     <ShareButton postId={post.id} />
@@ -299,6 +302,18 @@ const closeLikes = () => {
 
 
 </section>
+
+{showRepostComposer && (
+  <RepostComposerModal
+    repostOfPost={post}
+    onClose={() => setShowRepostComposer(false)}
+    onPosted={() => {
+      setShowRepostComposer(false);
+      setHasReposted(true);
+    }}
+  />
+)}
+
 
       <PostLikeListModal
   open={isLikeModalOpen}
@@ -311,5 +326,6 @@ const closeLikes = () => {
 />
 
     </>
+
   );
 }
