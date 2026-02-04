@@ -52,6 +52,12 @@ const openLikes = () => {
 };
 
 const isRepost = post.isRepost;
+const actor = isRepost && post.originalPost
+  ? post.author // คนที่ repost = เจ้าของ post นี้
+  : post.author;
+
+const originalAuthor = post.originalPost?.author;
+
 const hasCaption = post.content.trim().length > 0;
 const originalPost = post.originalPost;
 const originalMedia = originalPost?.media;
@@ -116,34 +122,33 @@ const closeLikes = () => {
     </div>
   ) : (
     <Link
-      href={`/users/${post.author.id}`}
-      className="
-        flex
-        items-center
-        gap-2
-        sm:gap-3
-        hover:underline
-        min-w-0
-      "
-    >
-      <Avatar
-  avatarUrl={post.author.avatarUrl}
-  name={post.author.displayName}
-  size={40}
-/>
+  href={`/users/${actor.id}`}
+  className="flex items-center gap-2 sm:gap-3 hover:underline min-w-0"
+>
+  <Avatar
+    avatarUrl={actor.avatarUrl}
+    name={actor.displayName}
+    size={40}
+  />
 
-      <span
-        className="
-          font-medium
-          text-sm
-          sm:text-base
-          truncate
-        "
-      >
-        {post.author.displayName}
-      </span>
-    </Link>
+  <span className="font-medium text-sm sm:text-base truncate">
+    {actor.displayName}
+  </span>
+</Link>
+
   )
+)}
+
+{isRepost && originalAuthor && (
+  <span className="block text-xs text-gray-500">
+    แชร์โพสต์ของ{" "}
+    <Link
+      href={`/users/${originalAuthor.id}`}
+      className="hover:underline"
+    >
+      {originalAuthor.displayName}
+    </Link>
+  </span>
 )}
 
       

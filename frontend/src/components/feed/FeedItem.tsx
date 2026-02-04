@@ -47,7 +47,6 @@ export default function FeedItem({
   });
   
   const [repostsOpen, setRepostsOpen] = useState(false);
-  const isRepost = post.type === "repost";
   const hasCaption = post.content.trim().length > 0;
   const originalPost = post.originalPost;
   const originalMedia = originalPost?.media;
@@ -83,7 +82,12 @@ export default function FeedItem({
 }, [post.author.isFollowing, post.author.isFollowRequested]);
   
 const taggedUsers = post.taggedUsers ?? [];
-
+const isRepost = post.type === "repost";
+const actor =
+  isRepost && typeof post.repost === "object"
+    ? post.repost.actor
+    : post.author;
+const originalAuthor = post.originalPost?.author;
 
   return (
     <article
@@ -121,21 +125,22 @@ const taggedUsers = post.taggedUsers ?? [];
           "
         >
           {/* ===== Avatar (LINK) ===== */}
-          <Link href={profileHref} className="flex-shrink-0">
+          <Link
+  href={`/users/${actor?.id}`}
+  className="flex-shrink-0"
+>
   <Avatar
-    avatarUrl={post.author.avatarUrl}
-    name={post.author.displayName}
-    size={36} // ใกล้ sm:h-9 w-9
+    avatarUrl={actor?.avatarUrl}
+    name={actor?.displayName}
+    size={36}
     className="cursor-pointer"
   />
 </Link>
 
-
-
           {/* ===== Name + Time ===== */}
           <div className="flex min-w-0 flex-col leading-tight">
             <Link
-              href={profileHref}
+              href={`/users/${actor?.id}`}
               id={`post-${post.id}`}
               className="
                 text-sm
@@ -146,8 +151,21 @@ const taggedUsers = post.taggedUsers ?? [];
                 truncate
               "
             >
-              {post.author.displayName ?? "Unknown user"}
+              {actor?.displayName ?? "Unknown user"}
             </Link>
+
+            {isRepost && originalAuthor && (
+  <span className="text-xs text-gray-500">
+    แชร์โพสต์ของ{" "}
+    <Link
+      href={`/users/${originalAuthor.id}`}
+      className="hover:underline"
+    >
+      {originalAuthor.displayName}
+    </Link>
+  </span>
+)}
+
 
             <time
               dateTime={post.createdAt}
@@ -166,9 +184,9 @@ const taggedUsers = post.taggedUsers ?? [];
         {/* ขวา: Follow + PostAction */}
   <div className="flex items-center gap-2">
          {/* 💬 Chat */}
-  {!post.isSelf && !isBlocked && (
+  {!post.isSelf && !isBlocked && actor && (
   <Link
-    href={`/chat/${post.author.id}`}
+    href={`/chat/${actor.id}`}
     className="text-xs text-blue-600 hover:underline"
   >
     💬 แชท
@@ -176,11 +194,12 @@ const taggedUsers = post.taggedUsers ?? [];
 )}
 
 
+
     {/* Follow (render only) */}
  {!post.isSelf && !isBlocked && (
   isFollowing ? (
     <FollowController
-      userId={post.author.id}
+      userId={actor?.id}
       isFollowing={isFollowing}
       isBlocked={isBlocked}
       onChange={(v) => {
@@ -190,7 +209,7 @@ const taggedUsers = post.taggedUsers ?? [];
     />
   ) : (
     <FollowActionButton
-      userId={post.author.id}
+      userId={actor?.id}
       isFollowing={false}
       isPrivate={post.author.isPrivate}
       isBlocked={isBlocked}
@@ -393,7 +412,7 @@ const taggedUsers = post.taggedUsers ?? [];
     onClose={() => setShowRepostComposer(false)}
     onPosted={() => {
       setShowRepostComposer(false);
-      setHasReposted(true); // ✅ หลังโพสต์สำเร็จเท่านั้น
+      setHasReposted(true); 
     }}
   />
 )}
