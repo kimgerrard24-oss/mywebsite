@@ -46,6 +46,10 @@ export default function FeedItem({
   });
   
   const [repostsOpen, setRepostsOpen] = useState(false);
+  const isRepost = post.type === "repost";
+  const hasCaption = post.content.trim().length > 0;
+  const originalPost = post.originalPost;
+  const originalMedia = originalPost?.media;
 
   const [showCommentBox, setShowCommentBox] = useState(false);
   const [commentCount, setCommentCount] = useState(
@@ -221,18 +225,21 @@ const taggedUsers = post.taggedUsers ?? [];
       </header>
 
       {/* ================= Content ================= */}
-      <p
-        className="
-          whitespace-pre-wrap
-          break-words
-          text-sm
-          sm:text-[0.95rem]
-          text-gray-800
-          leading-relaxed
-        "
-      >
-        {renderContentWithHashtags(post.content)}
-      </p>
+{(!isRepost || hasCaption) && (
+  <p
+    className="
+      whitespace-pre-wrap
+      break-words
+      text-sm
+      sm:text-[0.95rem]
+      text-gray-800
+      leading-relaxed
+    "
+  >
+    {renderContentWithHashtags(post.content)}
+  </p>
+)}
+
 
       {/* ================= Tagged Users ================= */}
 {taggedUsers.length > 0 && (
@@ -254,10 +261,13 @@ const taggedUsers = post.taggedUsers ?? [];
 
 
       {/* ================= Media ================= */}
-{Array.isArray(post.media) && post.media.length > 0 && (
+{!isRepost && post.media.length > 0 && (
   <PostMediaGrid media={post.media} />
 )}
 
+{isRepost && originalMedia && originalMedia.length > 0 && (
+  <PostMediaGrid media={originalMedia} />
+)}
 
       {/* ================= Footer ================= */}
       <footer

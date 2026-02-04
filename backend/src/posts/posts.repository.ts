@@ -1588,6 +1588,12 @@ async findPostForLike(params: {
       authorId: true,
       isDeleted: true,
       isHidden: true,
+
+       originalPost: {
+      select: {
+        id: true,
+      },
+    },
     },
   });
 }

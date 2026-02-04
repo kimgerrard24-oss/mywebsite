@@ -27,7 +27,7 @@ export default function PostDetail({ post }: Props) {
   post.author?.hasBlockedViewer === true;
   const acceptedTags =
   post.userTags?.filter((t) => t.status === "ACCEPTED") ?? [];
-
+  
   const {
     likeCount,
     likes,
@@ -49,6 +49,11 @@ const openLikes = () => {
   setIsLikeModalOpen(true);
   loadLikes({ reset: true }); // โหลดเฉพาะตอนเปิด
 };
+
+const isRepost = post.isRepost;
+const hasCaption = post.content.trim().length > 0;
+const originalPost = post.originalPost;
+const originalMedia = originalPost?.media;
 
 const [hasReposted, setHasReposted] = useState(
   post.hasReposted ?? false,
@@ -176,18 +181,19 @@ const closeLikes = () => {
       </header>
 
       {/* ================= Content ================= */}
-      <section
-        className="
-          prose
-          prose-sm
-          sm:prose-base
-          max-w-none
-          break-words
-        "
-        aria-label="Post content"
-      >
-        <p>{renderContentWithHashtags(post.content)}</p>
-      </section>
+{(!isRepost || hasCaption) && (
+  <section
+    className="
+      prose
+      prose-sm
+      sm:prose-base
+      max-w-none
+      break-words
+    "
+  >
+    <p>{renderContentWithHashtags(post.content)}</p>
+  </section>
+)}
 
       {/* ================= Tagged Users (Accepted only) ================= */}
 {acceptedTags.length > 0 && (
@@ -209,9 +215,15 @@ const closeLikes = () => {
 
 
 {/* ================= Media ================= */}
-{Array.isArray(post.media) && post.media.length > 0 && (
+{!isRepost && post.media.length > 0 && (
   <PostMediaGrid media={post.media} />
 )}
+
+{isRepost && originalMedia && originalMedia.length > 0 && (
+  <PostMediaGrid media={originalMedia} />
+)}
+
+
 
       
 {post.userTags && post.userTags.length > 0 && (
