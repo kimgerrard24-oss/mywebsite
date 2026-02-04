@@ -1,43 +1,68 @@
 // frontend/src/components/posts/RepostButton.tsx
-import { useState } from 'react';
-import { repostPost } from '@/lib/api/reposts';
+import { useState } from "react";
 
 type Props = {
   postId: string;
-  onReposted?: (next: {
-    hasReposted: true;
-    repostCount: number;
+
+  /**
+   * 🔁 เปิด Repost Composer (Facebook-style)
+   * - parent เป็นคน decide ว่าใช้ modal / drawer / page
+   */
+  onOpenComposer: (params: {
+    repostOfPostId: string;
   }) => void;
 };
 
-export default function RepostButton({ postId, onReposted }: Props) {
-  const [loading, setLoading] = useState(false);
+export default function RepostButton({
+  postId,
+  onOpenComposer,
+}: Props) {
+  const [opening, setOpening] = useState(false);
 
-  async function handleRepost() {
-    if (loading) return;
+  function handleOpen() {
+    if (opening) return;
 
-    setLoading(true);
+    setOpening(true);
+
     try {
-      const result = await repostPost(postId);
-
-onReposted?.({
-  hasReposted: true,
-  repostCount: result.repostCount,
-});
-
+      onOpenComposer({
+        repostOfPostId: postId,
+      });
     } finally {
-      setLoading(false);
+      // reset ทันที เพราะไม่มี async แล้ว
+      setOpening(false);
     }
   }
 
   return (
     <button
       type="button"
-      onClick={handleRepost}
-      disabled={loading}
-      className="inline-flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs sm:text-sm font-medium border border-gray-300 hover:bg-gray-100 disabled:opacity-50"
+      onClick={handleOpen}
+      disabled={opening}
+      aria-label="Repost this post"
+      className="
+        inline-flex
+        items-center
+        gap-1.5
+        rounded-md
+        px-2.5
+        py-1.5
+        text-xs
+        sm:text-sm
+        font-medium
+        border
+        border-gray-300
+        hover:bg-gray-100
+        focus:outline-none
+        focus:ring-2
+        focus:ring-blue-500
+        disabled:opacity-50
+        disabled:cursor-not-allowed
+        transition
+      "
     >
-      🔁 Repost
+      <span aria-hidden>🔁</span>
+      <span>Repost</span>
     </button>
   );
 }

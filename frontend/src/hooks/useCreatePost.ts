@@ -11,25 +11,42 @@ export function useCreatePost() {
   const submit = useCallback(
     async (params: {
       content: string;
+
+      // ===== optional (normal post) =====
       mediaIds?: string[];
+
+      // ===== visibility =====
       visibility?: "PUBLIC" | "FOLLOWERS" | "PRIVATE" | "CUSTOM";
       includeUserIds?: string[];
       excludeUserIds?: string[];
+
+      // ===== tagging =====
       taggedUserIds?: string[];
+
+      // ===== 🆕 repost =====
+      repostOfPostId?: string;
     }) => {
       setLoading(true);
       setError(null);
 
       try {
         const res = await createPost({
-  content: params.content,
-  mediaIds: params.mediaIds,
-  visibility: params.visibility,
-  includeUserIds: params.includeUserIds,
-  excludeUserIds: params.excludeUserIds,
-  taggedUserIds: params.taggedUserIds,
-});
+          content: params.content,
 
+          // media
+          mediaIds: params.mediaIds,
+
+          // visibility
+          visibility: params.visibility,
+          includeUserIds: params.includeUserIds,
+          excludeUserIds: params.excludeUserIds,
+
+          // tagging
+          taggedUserIds: params.taggedUserIds,
+
+          //  repost (pass-through only)
+          repostOfPostId: params.repostOfPostId,
+        });
 
         return res;
       } catch (err) {

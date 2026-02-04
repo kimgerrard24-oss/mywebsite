@@ -70,6 +70,8 @@ async createPost(params: {
     params.dto?.content ??
     params.content ??
     '';
+  const repostOfPostId =
+  params.dto?.repostOfPostId ?? null;  
 
   const mediaIds =
     params.dto?.mediaIds ?? [];
@@ -123,6 +125,34 @@ async createPost(params: {
     }
   }
 
+// =========================
+// Repost: validate original post (if any)
+// =========================
+let originalPost: { id: string } | null = null;
+
+if (repostOfPostId) {
+  originalPost = await this.prisma.post.findUnique({
+    where: { id: repostOfPostId },
+    select: { id: true },
+  });
+
+  if (!originalPost) {
+    // production behavior: do not reveal existence
+    throw new NotFoundException('Post not found');
+  }
+
+  // 🔒 FINAL AUTHORITY: visibility of original post
+  const decision = await this.visibility.validateVisibility({
+    postId: repostOfPostId,
+    viewerUserId: authorId,
+  });
+
+  if (!decision.canView) {
+    throw new NotFoundException('Post not found');
+  }
+}
+
+
   /**
    * =================================================
    * DB TRANSACTION (AUTHORITY)
@@ -138,6 +168,9 @@ async createPost(params: {
           authorId,
           content,
           visibility,
+
+          type: repostOfPostId ? 'REPOST' : 'POST',
+          originalPostId: repostOfPostId ?? null,
         },
         select: {
           id: true,
@@ -306,6 +339,23 @@ async createPost(params: {
   );
 
   const post = txResult.post;
+
+  // =========================
+// Repost: increment counter (fail-soft)
+// =========================
+if (repostOfPostId) {
+  try {
+    await this.prisma.post.update({
+      where: { id: repostOfPostId },
+      data: {
+        repostCount: { increment: 1 },
+      },
+    });
+  } catch {
+    //  must never break post creation
+  }
+}
+
   const failedTags = txResult.failedTags;
 
   /**
