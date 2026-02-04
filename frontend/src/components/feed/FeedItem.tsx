@@ -155,7 +155,7 @@ const originalAuthor = post.originalPost?.author;
 
             {isRepost && originalAuthor && (
   <span className="text-xs text-gray-500">
-    แชร์โพสต์ของ{" "}
+    แชร์โพสต์{" "}
     <Link
       href={`/users/${originalAuthor.id}`}
       className="hover:underline"
@@ -262,13 +262,11 @@ const originalAuthor = post.originalPost?.author;
 
 {/* ================= Original Post (REAL) ================= */}
 {isRepost && originalPost && (
-  <div className="mt-3 rounded-lg border bg-gray-50 p-2">
-    <PostCard
-      postId={originalPost.id}
-      embedded
-    />
+  <div className="mt-4">
+    <PostCard postId={originalPost.id} embedded />
   </div>
 )}
+
 
       {/* ================= Tagged Users ================= */}
 {taggedUsers.length > 0 && (

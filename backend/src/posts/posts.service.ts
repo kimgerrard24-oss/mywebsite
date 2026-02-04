@@ -137,12 +137,15 @@ if (repostOfPostId && mediaIds.length > 0) {
 // =========================
 // Repost: validate original post (if any)
 // =========================
-let originalPost: { id: string } | null = null;
+let originalPost: { id: string; authorId: string } | null = null;
 
 if (repostOfPostId) {
   originalPost = await this.prisma.post.findUnique({
     where: { id: repostOfPostId },
-    select: { id: true },
+    select: { 
+      id: true,
+      authorId: true,
+     }, 
   });
 
   if (!originalPost) {
@@ -350,7 +353,7 @@ if (!repostOfPostId && mediaIds.length > 0) {
 
   const post = txResult.post;
 
-  // =========================
+// =========================
 // Repost: increment counter (fail-soft)
 // =========================
 if (repostOfPostId) {
@@ -365,6 +368,26 @@ if (repostOfPostId) {
     //  must never break post creation
   }
 }
+
+// =========================
+// 🔔 Repost notification (fail-soft)
+// =========================
+if (repostOfPostId && originalPost?.authorId) {
+  try {
+    await this.notifications.createNotification({
+      userId: originalPost.authorId, // เจ้าของโพสต์ต้นฉบับ
+      actorUserId: authorId,          // คนที่ repost
+      type: 'post_reposted',
+      entityId: repostOfPostId,
+      payload: {
+        postId: repostOfPostId,
+      },
+    });
+  } catch {
+    // ❗ notification must never break post creation
+  }
+}
+
 
   const failedTags = txResult.failedTags;
 

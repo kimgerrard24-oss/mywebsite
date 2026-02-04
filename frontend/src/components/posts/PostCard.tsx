@@ -12,7 +12,8 @@ type Props = {
   embedded?: boolean;
 };
 
-export default function PostCard({ postId }: Props) {
+export default function PostCard({ postId, embedded }: Props) {
+
   const [post, setPost] = useState<PostDetailType | null>(null);
 
   useEffect(() => {
@@ -36,5 +37,5 @@ export default function PostCard({ postId }: Props) {
    * - ไม่มี normalization
    * - ไม่มีเดา field
    */
-  return <PostDetail post={post} />;
+  return <PostDetail post={post} embedded={embedded} />;
 }

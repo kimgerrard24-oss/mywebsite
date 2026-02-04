@@ -19,6 +19,7 @@ type Props = {
   onPostCreated?: () => void;
   onPosted?: () => void; 
   repostOfPostId?: string;
+  disableMedia?: boolean; 
 };
 
 type LocalMedia = {
@@ -33,6 +34,7 @@ export default function PostComposer({
   onPostCreated,
   onPosted,
   repostOfPostId,
+  disableMedia,
 }: Props) {
   const router = useRouter();
 
@@ -42,6 +44,7 @@ export default function PostComposer({
   const [error, setError] = useState<string | null>(null);
 
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const canAttachMedia = !disableMedia && !repostOfPostId;
 
   const { upload, uploading } = useMediaUpload();
   const { complete, loading: completing } = useMediaComplete();
@@ -108,6 +111,12 @@ export default function PostComposer({
       setError("กรุณาเขียนข้อความหรือเลือกไฟล์ก่อนโพสต์");
       return;
     }
+
+    if (disableMedia && media.length > 0) {
+  setError("Repost ไม่สามารถแนบรูปหรือวิดีโอได้");
+  return;
+}
+
 
     if (content.length > MAX_LENGTH) {
       setError("ข้อความยาวเกินกำหนด");
@@ -275,7 +284,11 @@ setShowExcludePicker(false);
           transition
         "
         rows={1}
-        placeholder="คุณกำลังคิดอะไรอยู่?"
+        placeholder={
+    repostOfPostId
+      ? "เพิ่มความคิดเห็นของคุณ..."
+      : "คุณกำลังคิดอะไรอยู่?"
+  }
         value={content}
         maxLength={MAX_LENGTH}
         disabled={submitting}
@@ -294,7 +307,7 @@ setShowExcludePicker(false);
       />
 
       {/* ===== Media preview ===== */}
-      {media.length > 0 && (
+      {canAttachMedia && media.length > 0 && (
   <section className="grid grid-cols-2 gap-2 pt-1">
     {media.map((m, i) => (
       <div key={i} className="relative overflow-hidden rounded-lg bg-black/5">
@@ -326,6 +339,7 @@ setShowExcludePicker(false);
 
       {/* ===== Media ===== */}
       <div className="flex items-center justify-between">
+        {canAttachMedia && (
         <label
           className="
             inline-flex
@@ -348,6 +362,7 @@ setShowExcludePicker(false);
           />
           เพิ่มรูป / วิดีโอ
         </label>
+        )}
       </div>
 
       {media.length > 0 && (
@@ -440,6 +455,7 @@ setShowExcludePicker(false);
 
 </div>
 
+{!repostOfPostId && (
 <button
   type="button"
   disabled={submitting}
@@ -448,6 +464,7 @@ setShowExcludePicker(false);
 >
   Tag people
 </button>
+)}
 
 {showTagPicker && (
   <UserPickerModal

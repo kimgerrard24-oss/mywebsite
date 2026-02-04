@@ -6,6 +6,7 @@ import {
   IsString,
   Length,
   ArrayMaxSize,
+  ValidateIf,
   IsEnum,
   IsUUID,
 } from 'class-validator';
@@ -19,6 +20,7 @@ export class CreatePostDto {
   content!: string;
 
   @IsOptional()
+  @ValidateIf((o) => !o.repostOfPostId)
   @IsArray()
   @ArrayMaxSize(10)
   @IsString({ each: true })
