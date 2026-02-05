@@ -102,4 +102,58 @@ export class MediaRepository {
       },
     });
   }
+
+ async findOwnerMediaPaginated(params: {
+  ownerUserId: string;
+  mediaType?: MediaType;
+  cursor?: string;
+  limit: number;
+}) {
+  const { ownerUserId, mediaType, cursor, limit } = params;
+
+  return this.prisma.media.findMany({
+    where: {
+      ownerUserId,
+      mediaType: {
+        in: [MediaType.IMAGE, MediaType.VIDEO],
+      },
+      ...(mediaType ? { mediaType } : {}),
+      deletedAt: null,
+      posts: {
+        some: {
+          post: {
+            isDeleted: false,
+            isHidden: false,
+          },
+        },
+      },
+    },
+    include: {
+      posts: {
+        take: 1,
+        include: {
+          post: {
+            select: {
+              id: true,
+              createdAt: true,
+            },
+          },
+        },
+      },
+    },
+    orderBy: [
+      { createdAt: 'desc' },
+      { id: 'desc' },
+    ],
+    take: limit + 1,
+    ...(cursor
+      ? {
+          skip: 1,
+          cursor: { id: cursor },
+        }
+      : {}),
+  });
+}
+
+
 }

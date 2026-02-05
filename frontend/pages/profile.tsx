@@ -11,7 +11,6 @@ import Link from "next/link";
 import type { UserProfile } from "@/types/user-profile";
 import { ProfileCard } from "@/components/profile/profile-ProfileCard";
 import { ProfileSkeleton } from "@/components/profile/ProfileSkeleton";
-
 import ProfilePosts from "@/components/profile/ProfilePosts";
 
 interface ProfilePageProps {
@@ -268,15 +267,25 @@ return (
         {!loading && error && <ProfileSkeleton errorMessage={error} />}
 
         {!loading && !error && profile && (
-          <>
-            <ProfileCard profile={profile} />
+  <>
+    <ProfileCard profile={profile} />
 
-            {/* ✅ profile posts */}
-            <div className="mt-6 sm:mt-8">
-              <ProfilePosts userId={profile.id} />
-            </div>
-          </>
-        )}
+    <div className="mt-4 flex gap-3">
+      <Link
+        href="/media/me"
+        className="inline-flex items-center rounded-md border px-3 py-1.5 text-sm hover:bg-gray-50"
+      >
+        View your media
+      </Link>
+    </div>
+
+    <div className="mt-6 sm:mt-8">
+      <ProfilePosts userId={profile.id} />
+    </div>
+  </>
+)}
+
+
       </div>
     </main>
   </>
