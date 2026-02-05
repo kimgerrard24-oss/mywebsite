@@ -12,7 +12,6 @@ type UserItem = {
   displayName: string | null;
   avatarUrl: string | null;
 
-  // 🔥 tag permission hint
   canBeTagged?: boolean;
   tagBlockReason?:
     | "FOLLOWERS_ONLY"

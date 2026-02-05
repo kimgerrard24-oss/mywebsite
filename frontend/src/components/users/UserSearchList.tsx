@@ -149,7 +149,7 @@ export default function UserSearchList({
 </div>
 
 
-            <div className="min-w-0">
+            <div className="min-w-0 flex-1">
               <p className="text-sm sm:text-base font-medium truncate">
                 {user.displayName ?? user.username}
               </p>

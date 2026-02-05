@@ -51,6 +51,7 @@ export type RateLimitAction =
   | 'userModerationRead'
   | 'mediaComplete'
   | 'mediaPresign'
+  | 'mediaGallery'
   | 'postTagHide'
   | 'postTagUnhide'
   | 'userHiddenTaggedPostsRead'
@@ -1442,6 +1443,28 @@ chatRoomsDisplay: {
   },
 },
 
+mediaGallery: {
+  /**
+   * Owner media gallery
+   * - Read-only
+   * - Infinite scroll
+   * - SSR + CSR
+   */
+  windowSec: 60,          // 1 minute
+  max: 60,                // ~1 req/sec per user
+  blockDurationSec: 120,  // block 2 minutes if abused
+
+  // legacy (ยังต้องมี)
+  points: 60,
+  duration: 60,
+  blockDuration: 120,
+
+  escalation: {
+    maxViolations: 5,     // ต้อง spam ต่อเนื่องจริง
+    windowSec: 86400,     // ภายใน 24 ชม.
+    longBlockSec: 3600,   // block 1 ชม.
+  },
+},
 
 };
 
