@@ -7,7 +7,7 @@ export class MyMediaGalleryMapper {
   static toItem(
     row: Media & { posts: any[] },
   ): MyMediaGalleryItemDto {
-    const post = row.posts[0]?.post;
+    const post = row.posts[0]?.post ?? null;
 
     if (
       row.mediaType !== MediaType.IMAGE &&
@@ -19,16 +19,16 @@ export class MyMediaGalleryMapper {
       );
     }
 
-    return {
-      mediaId: row.id,
-      postId: post.id,
-      type: row.mediaType, 
-      objectKey: row.objectKey,
-      thumbnailObjectKey: row.thumbnailObjectKey,
-      width: row.width,
-      height: row.height,
-      duration: row.duration,
-      createdAt: post.createdAt,
-    };
+   return {
+    mediaId: row.id,
+    postId: post?.id ?? null,          
+    type: row.mediaType,
+    objectKey: row.objectKey,
+    thumbnailObjectKey: row.thumbnailObjectKey,
+    width: row.width,
+    height: row.height,
+    duration: row.duration,
+    createdAt: post?.createdAt ?? row.createdAt, 
+  };
   }
 }
