@@ -270,15 +270,6 @@ return (
   <>
     <ProfileCard profile={profile} />
 
-    <div className="mt-4 flex gap-3">
-      <Link
-        href="/media/me"
-        className="inline-flex items-center rounded-md border px-3 py-1.5 text-sm hover:bg-gray-50"
-      >
-        View your media
-      </Link>
-    </div>
-
     <div className="mt-6 sm:mt-8">
       <ProfilePosts userId={profile.id} />
     </div>
