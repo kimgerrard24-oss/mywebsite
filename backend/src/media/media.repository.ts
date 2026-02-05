@@ -103,7 +103,7 @@ export class MediaRepository {
     });
   }
 
- async findOwnerMediaPaginated(params: {
+async findOwnerMediaPaginated(params: {
   ownerUserId: string;
   mediaType?: MediaType;
   cursor?: string;
@@ -114,19 +114,11 @@ export class MediaRepository {
   return this.prisma.media.findMany({
     where: {
       ownerUserId,
+      deletedAt: null,
       mediaType: {
         in: [MediaType.IMAGE, MediaType.VIDEO],
       },
       ...(mediaType ? { mediaType } : {}),
-      deletedAt: null,
-      posts: {
-        some: {
-          post: {
-            isDeleted: false,
-            isHidden: false,
-          },
-        },
-      },
     },
     include: {
       posts: {
@@ -154,6 +146,7 @@ export class MediaRepository {
       : {}),
   });
 }
+
 
 
 }
