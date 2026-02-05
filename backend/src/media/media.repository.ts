@@ -115,10 +115,21 @@ async findOwnerMediaPaginated(params: {
     where: {
       ownerUserId,
       deletedAt: null,
+
       mediaType: {
         in: [MediaType.IMAGE, MediaType.VIDEO],
       },
       ...(mediaType ? { mediaType } : {}),
+
+      // 🔥 สำคัญที่สุด
+      posts: {
+        some: {
+          post: {
+            isDeleted: false,
+            isHidden: false,
+          },
+        },
+      },
     },
     include: {
       posts: {

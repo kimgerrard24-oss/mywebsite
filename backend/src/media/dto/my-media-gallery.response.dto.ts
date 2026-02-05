@@ -3,7 +3,7 @@
 // =======================================
 export interface MyMediaGalleryItemDto {
   mediaId: string;
-  postId: string | null;
+  postId: string;
   type: 'IMAGE' | 'VIDEO';
   objectKey: string;
   thumbnailObjectKey?: string | null;
