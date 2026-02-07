@@ -34,7 +34,7 @@ services:
   # Frontend (Next.js)
   # ============================================================
   frontend:
-    image: ghcr.io/kimgerrard24-oss/mywebsite-frontend:${DEPLOY_SHA:?DEPLOY_SHA is required}
+    image: ghcr.io/kimgerrard24-oss/mywebsite-frontend:${DEPLOY_SHA}
     container_name: phlyphant-frontend
     restart: unless-stopped
     command: ["node", "server.js"]
@@ -68,7 +68,7 @@ services:
   # Backend (NestJS)
   # ============================================================
   backend:
-    image: ghcr.io/kimgerrard24-oss/mywebsite-backend:${DEPLOY_SHA:?DEPLOY_SHA is required}
+    image: ghcr.io/kimgerrard24-oss/mywebsite-backend:${DEPLOY_SHA}
     container_name: phlyphant-backend
     restart: unless-stopped
 
