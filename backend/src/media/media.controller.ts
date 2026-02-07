@@ -6,6 +6,7 @@ import {
   Post,
   NotFoundException,
   Get,
+  Query,
   Param,
   Req,
   UseGuards,
@@ -17,6 +18,7 @@ import { MediaCompleteDto } from './dto/media-complete.dto';
 import { AccessTokenCookieAuthGuard } from '../auth/guards/access-token-cookie.guard';
 import { OptionalAuthGuard } from '../posts/guards/optional-auth.guard';
 import { RateLimit } from '../common/rate-limit/rate-limit.decorator';
+import { MyMediaGalleryQueryDto } from './dto/my-media-gallery.query.dto';
 
 @Controller('media')
 export class MediaController {
@@ -83,5 +85,24 @@ export class MediaController {
 
     return media;
   }
+
+    /**
+   * GET /media/me
+   * Owner-only media gallery
+   */
+  @Get('me/gallery')
+  @RateLimit('mediaGallery')
+  @UseGuards(AccessTokenCookieAuthGuard)
+  async getMyMedia(
+    @Query() query: MyMediaGalleryQueryDto,
+    @Req() req: Request,
+  ) {
+    const actor = req.user as { userId: string; jti: string };
+
+    return this.mediaService.getMyMediaGallery({
+      actorUserId: actor.userId,
+      query,
+    });
+  } 
 
 }

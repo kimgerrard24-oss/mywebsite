@@ -101,17 +101,18 @@ export class PostFeedMapper {
   isPrivate: author?.isPrivate === true,  
       },
 
-      media: !isRepost && Array.isArray(row.media)
-        ? row.media.map((pm: any) => ({
-            id: pm.media.id,
-            type:
-              pm.media.mediaType === MediaType.IMAGE
-                ? 'image'
-                : 'video',
-            url: buildCdnUrl(pm.media.objectKey),
-            objectKey: pm.media.objectKey,
-          }))
-        : [],
+     media: Array.isArray(row.media)
+  ? row.media.map((pm: any) => ({
+      id: pm.media.id,
+      type:
+        pm.media.mediaType === MediaType.IMAGE
+          ? 'image'
+          : 'video',
+      url: buildCdnUrl(pm.media.objectKey),
+      objectKey: pm.media.objectKey,
+    }))
+  : [],
+
 
         originalPost: isRepost && row.originalPost
   ? {

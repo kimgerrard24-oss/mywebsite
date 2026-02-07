@@ -15,6 +15,13 @@ import { MediaMetadataMapper } from './mappers/media-metadata.mapper';
 import { AuditLogService } from '../users/audit/audit-log.service';
 import { generateAndUploadVideoThumbnail } from './utils/generate-and-upload-video-thumbnail';
 
+import {
+  MyMediaGalleryQueryDto,
+  MyMediaTypeFilter,
+} from './dto/my-media-gallery.query.dto';
+import { MyMediaGalleryResponseDto } from './dto/my-media-gallery.response.dto';
+import { MyMediaGalleryMapper } from './mappers/my-media-gallery.mapper'; 
+
 @Injectable()
 export class MediaService {
   constructor(
@@ -190,5 +197,55 @@ if (mediaType === 'video') {
 
     return MediaMetadataMapper.toDto(row, params.viewerUserId);
   }
+  
+   async getMyMediaGallery(params: {
+    actorUserId: string;
+    query: MyMediaGalleryQueryDto;
+  }): Promise<MyMediaGalleryResponseDto> {
+    const { actorUserId, query } = params;
 
+    if (query.usedOnly !== true) {
+    throw new BadRequestException(
+      'usedOnly=true is required',
+    );
+  }
+
+    const mediaType =
+      query.type === MyMediaTypeFilter.ALL
+        ? undefined
+        : query.type === MyMediaTypeFilter.IMAGE
+        ? MediaType.IMAGE
+        : MediaType.VIDEO;
+
+    const cursor = query.cursor
+      ? JSON.parse(
+          Buffer.from(query.cursor, 'base64').toString(),
+        )
+      : undefined;
+
+    const rows = await this.mediaRepository.findOwnerMediaPaginated({
+      ownerUserId: actorUserId,
+      mediaType,
+      usedOnly: query.usedOnly === true,
+      cursor,
+      limit: query.limit,
+    });
+
+    const hasNext = rows.length > query.limit;
+    const items = rows.slice(0, query.limit).map(MyMediaGalleryMapper.toItem);
+
+    const nextCursor = hasNext
+      ? Buffer.from(
+          JSON.stringify({
+            createdAt: rows[query.limit].createdAt,
+            id: rows[query.limit].id,
+          }),
+        ).toString('base64')
+      : null;
+
+    return {
+      items,
+      nextCursor,
+    };
+  } 
 }

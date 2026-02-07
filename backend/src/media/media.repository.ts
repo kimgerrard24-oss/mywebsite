@@ -102,4 +102,66 @@ export class MediaRepository {
       },
     });
   }
+
+ async findOwnerMediaPaginated(params: {
+  ownerUserId: string;
+  mediaType?: MediaType;
+  usedOnly?: boolean;
+  cursor?: string;
+  limit: number;
+}) {
+  const {
+    ownerUserId,
+    mediaType,
+    usedOnly,
+    cursor,
+    limit,
+  } = params;
+
+  return this.prisma.media.findMany({
+    where: {
+      ownerUserId,
+      deletedAt: null,
+      ...(mediaType ? { mediaType } : {}),
+
+      // ✅ EXPLICIT, POLICY-DRIVEN
+      ...(usedOnly
+        ? {
+            posts: {
+              some: {}, // media ที่ถูก attach กับ post อย่างน้อย 1
+            },
+          }
+        : {}),
+    },
+
+    include: {
+      posts: {
+        take: 1,
+        include: {
+          post: {
+            select: {
+              id: true,
+              createdAt: true,
+            },
+          },
+        },
+      },
+    },
+
+    orderBy: [
+      { createdAt: 'desc' },
+      { id: 'desc' },
+    ],
+
+    take: limit + 1,
+
+    ...(cursor
+      ? {
+          skip: 1,
+          cursor: { id: cursor },
+        }
+      : {}),
+  });
+}
+
 }

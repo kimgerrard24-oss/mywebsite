@@ -1,0 +1,33 @@
+// backend/src/media/mappers/my-media-gallery.mapper.ts
+import { MyMediaGalleryItemDto } from '../dto/my-media-gallery.response.dto';
+import { Media, MediaType } from '@prisma/client';
+
+export class MyMediaGalleryMapper {
+  static toItem(
+    row: Media & { posts: any[] },
+  ): MyMediaGalleryItemDto {
+    const post = row.posts[0]?.post;
+
+    if (
+      row.mediaType !== MediaType.IMAGE &&
+      row.mediaType !== MediaType.VIDEO
+    ) {
+      // ❗ defensive guard (should never happen)
+      throw new Error(
+        `Unsupported media type in gallery: ${row.mediaType}`,
+      );
+    }
+
+    return {
+      mediaId: row.id,
+      postId: post.id,
+      type: row.mediaType, 
+      objectKey: row.objectKey,
+      thumbnailObjectKey: row.thumbnailObjectKey,
+      width: row.width,
+      height: row.height,
+      duration: row.duration,
+      createdAt: post.createdAt,
+    };
+  }
+}
