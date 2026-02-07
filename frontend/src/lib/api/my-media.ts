@@ -17,6 +17,8 @@ export async function getMyMediaGallery(
 ): Promise<MyMediaGalleryResponse> {
   const qs = new URLSearchParams();
 
+  qs.set("usedOnly", "true");
+
   if (params.cursor) qs.set("cursor", params.cursor);
   if (params.limit)
     qs.set("limit", String(params.limit));

@@ -204,6 +204,12 @@ if (mediaType === 'video') {
   }): Promise<MyMediaGalleryResponseDto> {
     const { actorUserId, query } = params;
 
+    if (query.usedOnly !== true) {
+    throw new BadRequestException(
+      'usedOnly=true is required',
+    );
+  }
+
     const mediaType =
       query.type === MyMediaTypeFilter.ALL
         ? undefined
@@ -220,6 +226,7 @@ if (mediaType === 'video') {
     const rows = await this.mediaRepository.findOwnerMediaPaginated({
       ownerUserId: actorUserId,
       mediaType,
+      usedOnly: query.usedOnly === true,
       cursor,
       limit: query.limit,
     });
