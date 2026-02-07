@@ -103,7 +103,7 @@ export class MediaRepository {
     });
   }
 
-async findOwnerMediaPaginated(params: {
+/* async findOwnerMediaPaginated(params: {
   ownerUserId: string;
   mediaType?: MediaType;
   usedOnly?: boolean;
@@ -164,5 +164,5 @@ async findOwnerMediaPaginated(params: {
   });
 }
 
-
+*/
 }
