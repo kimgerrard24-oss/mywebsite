@@ -143,8 +143,8 @@ async findPublicFeed(params: {
   const viewerUserId = params.viewerUserId;
 
   return this.prisma.post.findMany({
-    take: limit,
-
+    take: limit + 1,
+    
     ...(params.cursor && {
       skip: 1,
       cursor: { id: params.cursor },
