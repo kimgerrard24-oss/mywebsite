@@ -2,7 +2,15 @@
 // backend/src/media/dto/my-media-gallery.query.dto.ts
 // =======================================
 
-import { IsEnum, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { 
+  IsEnum, 
+  IsInt, 
+  IsOptional, 
+  IsString, 
+  Max, 
+  Min,
+  IsBoolean,
+} from 'class-validator';
 import { Transform } from 'class-transformer';
 
 export enum MyMediaTypeFilter {
@@ -15,6 +23,11 @@ export class MyMediaGalleryQueryDto {
   @IsOptional()
   @IsEnum(MyMediaTypeFilter)
   type: MyMediaTypeFilter = MyMediaTypeFilter.ALL;
+
+  @IsOptional()
+  @Transform(({ value }) => value === 'true')
+  @IsBoolean()
+  usedOnly?: boolean;
 
   @IsOptional()
   @IsString()

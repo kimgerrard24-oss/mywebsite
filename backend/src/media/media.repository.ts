@@ -106,31 +106,34 @@ export class MediaRepository {
 async findOwnerMediaPaginated(params: {
   ownerUserId: string;
   mediaType?: MediaType;
+  usedOnly?: boolean;
   cursor?: string;
   limit: number;
 }) {
-  const { ownerUserId, mediaType, cursor, limit } = params;
+  const {
+    ownerUserId,
+    mediaType,
+    usedOnly,
+    cursor,
+    limit,
+  } = params;
 
   return this.prisma.media.findMany({
     where: {
       ownerUserId,
       deletedAt: null,
-
-      mediaType: {
-        in: [MediaType.IMAGE, MediaType.VIDEO],
-      },
       ...(mediaType ? { mediaType } : {}),
 
-      // 🔥 สำคัญที่สุด
-      posts: {
-        some: {
-          post: {
-            isDeleted: false,
-            isHidden: false,
-          },
-        },
-      },
+      // ✅ EXPLICIT, POLICY-DRIVEN
+      ...(usedOnly
+        ? {
+            posts: {
+              some: {}, // media ที่ถูก attach กับ post อย่างน้อย 1
+            },
+          }
+        : {}),
     },
+
     include: {
       posts: {
         take: 1,
@@ -144,11 +147,14 @@ async findOwnerMediaPaginated(params: {
         },
       },
     },
+
     orderBy: [
       { createdAt: 'desc' },
       { id: 'desc' },
     ],
+
     take: limit + 1,
+
     ...(cursor
       ? {
           skip: 1,
@@ -157,7 +163,6 @@ async findOwnerMediaPaginated(params: {
       : {}),
   });
 }
-
 
 
 }
