@@ -178,7 +178,6 @@ if (mediaType === 'video') {
   };
 }
 
-
   async getMediaMetadata(params: {
     mediaId: string;
     viewerUserId: string | null;
