@@ -120,7 +120,7 @@ jobs:
           npm run build
 
       # -----------------------------------------------------------
-      # 5) Build + Push Docker Images (versioned + latest)
+      # 5) Build + Push Docker Images
       # -----------------------------------------------------------
       - name: Build frontend Docker image
         run: |
@@ -149,7 +149,7 @@ jobs:
           docker push ghcr.io/${{ secrets.GHCR_USERNAME }}/mywebsite-backend:latest
 
       # -----------------------------------------------------------
-      # 6) Deploy to Linode (only on main push)
+      # 6) Deploy to Linode
       # -----------------------------------------------------------
       - name: Deploy to Linode
         if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -188,12 +188,9 @@ jobs:
             printf '%s' "$FRONTEND_ENV_PRODUCTION" > frontend/.env.production
             printf '%s' "$BACKEND_ENV_PRODUCTION" > backend/.env.production
 
-            # ---- Pull versioned images and retag to latest ----
+            # ---- Pull exact versioned images only ----
             docker pull ghcr.io/$GHCR_USERNAME/mywebsite-backend:$DEPLOY_SHA
-            docker tag  ghcr.io/$GHCR_USERNAME/mywebsite-backend:$DEPLOY_SHA ghcr.io/$GHCR_USERNAME/mywebsite-backend:latest
-
             docker pull ghcr.io/$GHCR_USERNAME/mywebsite-frontend:$DEPLOY_SHA
-            docker tag  ghcr.io/$GHCR_USERNAME/mywebsite-frontend:$DEPLOY_SHA ghcr.io/$GHCR_USERNAME/mywebsite-frontend:latest
 
             docker compose up -d --remove-orphans --force-recreate
 
