@@ -25,7 +25,7 @@ export async function getMyMediaGallery(
   if (params.type) qs.set("type", params.type);
 
   const res = await fetch(
-    `${API_BASE}/media/me?${qs.toString()}`,
+    `${API_BASE}/media/me/gallery?${qs.toString()}`,
     {
       method: "GET",
       headers: {

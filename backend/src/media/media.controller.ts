@@ -90,7 +90,7 @@ export class MediaController {
    * GET /media/me
    * Owner-only media gallery
    */
- /* @Get('me')
+  @Get('me/gallery')
   @RateLimit('mediaGallery')
   @UseGuards(AccessTokenCookieAuthGuard)
   async getMyMedia(
@@ -103,6 +103,6 @@ export class MediaController {
       actorUserId: actor.userId,
       query,
     });
-  } */
+  } 
 
 }

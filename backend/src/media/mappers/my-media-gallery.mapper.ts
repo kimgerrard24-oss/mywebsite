@@ -1,5 +1,5 @@
 // backend/src/media/mappers/my-media-gallery.mapper.ts
-/*import { MyMediaGalleryItemDto } from '../dto/my-media-gallery.response.dto';
+import { MyMediaGalleryItemDto } from '../dto/my-media-gallery.response.dto';
 import { Media, MediaType } from '@prisma/client';
 
 export class MyMediaGalleryMapper {
@@ -31,4 +31,3 @@ export class MyMediaGalleryMapper {
     };
   }
 }
-*/

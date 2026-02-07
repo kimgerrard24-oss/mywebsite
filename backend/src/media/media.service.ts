@@ -15,12 +15,12 @@ import { MediaMetadataMapper } from './mappers/media-metadata.mapper';
 import { AuditLogService } from '../users/audit/audit-log.service';
 import { generateAndUploadVideoThumbnail } from './utils/generate-and-upload-video-thumbnail';
 
-/*import {
+import {
   MyMediaGalleryQueryDto,
   MyMediaTypeFilter,
 } from './dto/my-media-gallery.query.dto';
 import { MyMediaGalleryResponseDto } from './dto/my-media-gallery.response.dto';
-import { MyMediaGalleryMapper } from './mappers/my-media-gallery.mapper'; */
+import { MyMediaGalleryMapper } from './mappers/my-media-gallery.mapper'; 
 
 @Injectable()
 export class MediaService {
@@ -199,7 +199,7 @@ if (mediaType === 'video') {
     return MediaMetadataMapper.toDto(row, params.viewerUserId);
   }
   
-  /* async getMyMediaGallery(params: {
+   async getMyMediaGallery(params: {
     actorUserId: string;
     query: MyMediaGalleryQueryDto;
   }): Promise<MyMediaGalleryResponseDto> {
@@ -248,5 +248,5 @@ if (mediaType === 'video') {
       items,
       nextCursor,
     };
-  } */
+  } 
 }
