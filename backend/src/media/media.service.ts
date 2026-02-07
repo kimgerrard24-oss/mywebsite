@@ -198,7 +198,7 @@ if (mediaType === 'video') {
     return MediaMetadataMapper.toDto(row, params.viewerUserId);
   }
   
-   async getMyMediaGallery(params: {
+  /* async getMyMediaGallery(params: {
     actorUserId: string;
     query: MyMediaGalleryQueryDto;
   }): Promise<MyMediaGalleryResponseDto> {
@@ -247,5 +247,5 @@ if (mediaType === 'video') {
       items,
       nextCursor,
     };
-  }
+  } */
 }
