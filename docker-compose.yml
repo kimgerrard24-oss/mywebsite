@@ -22,7 +22,7 @@ services:
       - /var/lib/phlyphant/caddy/data:/data
       - /var/lib/phlyphant/caddy/config:/config
       - /etc/caddy/cloudflare.crt:/etc/caddy/cloudflare.crt:ro
-      - /etc/caddy/cloudflare.key:/etc/caddy/cloudflare.key:ro      
+      - /etc/caddy/cloudflare.key:/etc/caddy/cloudflare.key:ro
     depends_on:
       - frontend
       - backend
@@ -34,13 +34,17 @@ services:
   # Frontend (Next.js)
   # ============================================================
   frontend:
-    image: ghcr.io/kimgerrard24-oss/mywebsite-frontend:latest
-    pull_policy: always
+    image: ghcr.io/kimgerrard24-oss/mywebsite-frontend:${DEPLOY_SHA}
     container_name: phlyphant-frontend
     restart: unless-stopped
     command: ["node", "server.js"]
+
     env_file:
       - ./frontend/.env.production
+
+    environment:
+      DEPLOY_SHA: ${DEPLOY_SHA}
+
     read_only: true
     tmpfs:
       - /tmp:size=64m
@@ -64,19 +68,23 @@ services:
   # Backend (NestJS)
   # ============================================================
   backend:
-    image: ghcr.io/kimgerrard24-oss/mywebsite-backend:latest
-    pull_policy: always
+    image: ghcr.io/kimgerrard24-oss/mywebsite-backend:${DEPLOY_SHA}
     container_name: phlyphant-backend
     restart: unless-stopped
+
     env_file:
       - ./backend/.env.production
+
+    environment:
+      DEPLOY_SHA: ${DEPLOY_SHA}
+
     depends_on:
       - postgres
       - redis
     networks:
       - phlyphant_network
 
-    ports: 
+    ports:
       - "127.0.0.1:4001:4001"
 
     healthcheck:
@@ -95,7 +103,7 @@ services:
       - /tmp:size=64m
 
   # ============================================================
-  # PostgreSQL 18
+  # PostgreSQL
   # ============================================================
   postgres:
     image: postgres:18
@@ -107,18 +115,16 @@ services:
       - ./postgres-data:/var/lib/postgresql:rw
     networks:
       - phlyphant_network
-
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB -h localhost -p 5432 || exit 1"]
       interval: 30s
       timeout: 5s
       retries: 5
       start_period: 10s
-
     logging: *default-logging
 
   # ============================================================
-  # Redis (Production Hardened)
+  # Redis
   # ============================================================
   redis:
     image: redis:7.2.4-alpine
@@ -148,28 +154,20 @@ services:
       - redis-data:/data
     networks:
       - phlyphant_network
-
     healthcheck:
       test: ["CMD-SHELL", "redis-cli -h localhost -a \"$REDIS_PASSWORD\" ping || exit 1"]
       interval: 30s
       timeout: 3s
       retries: 5
       start_period: 10s
-
     logging: *default-logging
 
-# ============================================================
-# Networks
-# ============================================================
 networks:
   phlyphant_network:
     driver: bridge
 
-# ============================================================
-# Volumes
-# ============================================================
 volumes:
   postgres-data:
   caddy_data:
-  caddy_config:       
+  caddy_config:
   redis-data:
