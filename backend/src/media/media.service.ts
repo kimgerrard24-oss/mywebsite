@@ -14,12 +14,13 @@ import { MediaMetadataDto } from './dto/media-metadata.dto';
 import { MediaMetadataMapper } from './mappers/media-metadata.mapper';
 import { AuditLogService } from '../users/audit/audit-log.service';
 import { generateAndUploadVideoThumbnail } from './utils/generate-and-upload-video-thumbnail';
-import {
+
+/*import {
   MyMediaGalleryQueryDto,
   MyMediaTypeFilter,
 } from './dto/my-media-gallery.query.dto';
 import { MyMediaGalleryResponseDto } from './dto/my-media-gallery.response.dto';
-import { MyMediaGalleryMapper } from './mappers/my-media-gallery.mapper';
+import { MyMediaGalleryMapper } from './mappers/my-media-gallery.mapper'; */
 
 @Injectable()
 export class MediaService {
