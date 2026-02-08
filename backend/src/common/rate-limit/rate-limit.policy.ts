@@ -1035,10 +1035,10 @@ accountLock: {
 
 mediaPresign: {
   windowSec: 60,
-  max: 20,                // ขอได้ 10 ครั้ง/นาที
+  max: 80,                // ขอได้ 10 ครั้ง/นาที
   blockDurationSec: 300, // block 5 นาที
 
-  points: 20,
+  points: 80,
   duration: 60,
   blockDuration: 300,
 
@@ -1051,10 +1051,10 @@ mediaPresign: {
 
 mediaComplete: {
   windowSec: 60,
-  max: 15,
+  max: 80,
   blockDurationSec: 300,
 
-  points: 15,
+  points: 80,
   duration: 60,
   blockDuration: 300,
 
