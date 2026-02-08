@@ -87,7 +87,7 @@ export class MediaController {
   }
 
     /**
-   * GET /media/me
+   * GET /media/gallery
    * Owner-only media gallery
    */
   @Get('me/gallery')
