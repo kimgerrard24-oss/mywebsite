@@ -76,19 +76,18 @@ export const getServerSideProps: GetServerSideProps<
       "https://api.phlyphant.com";
 
     const res = await fetch(
-      `${base}/media/me?limit=24`,
-      {
-        method: "GET",
-        headers: {
-          Accept: "application/json",
-          ...(cookieHeader
-            ? { Cookie: cookieHeader }
-            : {}),
-        },
-        credentials: "include",
-        cache: "no-store",
-      },
-    );
+  `${base}/media/me/gallery?usedOnly=true&limit=24`,
+  {
+    method: "GET",
+    headers: {
+      Accept: "application/json",
+      ...(cookieHeader ? { Cookie: cookieHeader } : {}),
+    },
+    credentials: "include",
+    cache: "no-store",
+  }
+);
+
 
     if (!res.ok) {
       throw new Error("Failed to load media");
