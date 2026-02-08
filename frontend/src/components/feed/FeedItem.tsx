@@ -11,7 +11,6 @@ import CommentList from "@/components/comments/CommentList";
 import FollowActionButton from '@/components/follows/FollowActionButton';
 import Avatar from "@/components/ui/Avatar";
 import FollowController from "@/components/follows/FollowController";
-import PostShareStats from "@/components/posts/PostShareStats";
 import PostMediaGrid from "@/components/posts/PostMediaGrid";
 import RepostComposerModal from "@/components/repost/RepostComposerModal";
 import PostCard from "@/components/posts/PostCard";
@@ -343,7 +342,6 @@ const originalAuthor = post.originalPost?.author;
 
   {/* ===== Right: Share ===== */}
   <div className="flex items-center gap-2">
-  <PostShareStats postId={post.id} />
 
   <PostShareMenu
   postId={post.id}
