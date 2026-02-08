@@ -1237,11 +1237,11 @@ shareExternal: {
 
 postShareStatsRead: {
   windowSec: 60,
-  max: 60,                // เปิดดูได้ 60 ครั้ง/นาที
+  max: 600,                // เปิดดูได้ 60 ครั้ง/นาที
   blockDurationSec: 120,  // block 2 นาทีถ้า spam
 
   // legacy (ยังใช้ใน service)
-  points: 60,
+  points: 600,
   duration: 60,
   blockDuration: 120,
 
