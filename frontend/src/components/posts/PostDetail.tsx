@@ -8,7 +8,6 @@ import PostActionMenu from "@/components/posts/PostActionMenu";
 import { renderContentWithHashtags } from "@/utils/renderContentWithHashtags";
 import { usePostLike } from "@/hooks/usePostLike";
 import PostLikeListModal from "@/components/posts/PostLikeListModal";
-import PostShareStats from "@/components/posts/PostShareStats";
 import Avatar from "@/components/ui/Avatar";
 import PostMediaGrid from "@/components/posts/PostMediaGrid";
 import RepostComposerModal from "@/components/repost/RepostComposerModal";
@@ -277,7 +276,6 @@ const closeLikes = () => {
 
  {/* 🔗 Share + Repost (right) */}
 <div className="flex items-center gap-2">
-  <PostShareStats postId={post.id} />
 
   <PostShareMenu
     postId={post.id}

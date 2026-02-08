@@ -92,6 +92,11 @@ export default function CreatePostForm() {
         mediaIds.push(mediaId);
       }
 
+      if (files.length > 0 && mediaIds.length !== files.length) {
+  setError("อัปโหลดรูป/วิดีโอไม่สำเร็จ กรุณาลองใหม่");
+  return;
+}
+
       // create post (UNCHANGED)
       const res = await createPost({
   content,

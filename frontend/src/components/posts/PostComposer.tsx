@@ -153,6 +153,11 @@ export default function PostComposer({
         mediaIds.push(mediaId);
       }
 
+      if (media.length > 0 && mediaIds.length !== media.length) {
+  setError("อัปโหลดรูป/วิดีโอไม่สำเร็จ กรุณาลองใหม่");
+  return;
+}
+
       // 2️⃣ create post
       const res = await submit({
   content,
