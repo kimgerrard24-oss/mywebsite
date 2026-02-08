@@ -75,6 +75,11 @@ export default function PostComposer({
  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
   if (!e.target.files) return;
 
+if (uploading || completing || submitting) {
+  e.target.value = "";
+  return;
+}
+
   if (media.length >= MAX_FILES) {
     setError(`เลือกได้สูงสุด ${MAX_FILES} ไฟล์`);
     return;
@@ -136,29 +141,34 @@ export default function PostComposer({
     try {
       setError(null);
 
-      // 1️⃣ upload + complete media
-      const mediaIds: string[] = [];
+     // ===== 1️⃣ upload ทุกไฟล์ก่อน =====
+const uploaded = await Promise.all(
+  media.map(async ({ file }) => {
+    const { objectKey } = await upload(file);
+    return { file, objectKey };
+  })
+);
 
-      for (const { file } of media) {
-        const { objectKey } = await upload(file);
+// ===== 2️⃣ complete ทุกไฟล์ =====
+const mediaIds = await Promise.all(
+  uploaded.map(({ file, objectKey }) =>
+    complete({
+      objectKey,
+      mimeType: file.type,
+      mediaType: file.type.startsWith("video/")
+        ? "video"
+        : "image",
+    })
+  )
+);
 
-        const mediaId = await complete({
-          objectKey,
-          mimeType: file.type,
-          mediaType: file.type.startsWith("video/")
-            ? "video"
-            : "image",
-        });
-
-        mediaIds.push(mediaId);
-      }
-
-      if (media.length > 0 && mediaIds.length !== media.length) {
+// ===== 3️⃣ guard แบบเชื่อถือได้ =====
+if (media.length > 0 && mediaIds.length !== media.length) {
   setError("อัปโหลดรูป/วิดีโอไม่สำเร็จ กรุณาลองใหม่");
   return;
 }
 
-      // 2️⃣ create post
+      //  create post
       const res = await submit({
   content,
   repostOfPostId,
@@ -191,6 +201,8 @@ if (res?.failedTags?.length) {
 
   setError(msg);
 }
+
+media.forEach(m => URL.revokeObjectURL(m.preview));
 
       
       // reset state

@@ -42,6 +42,11 @@ export default function CreatePostForm() {
   ) {
     if (!e.target.files) return;
 
+    if (uploading || completing || submitting) {
+  e.target.value = "";
+  return;
+}
+
     const selected = Array.from(e.target.files).slice(
       0,
       MAX_FILES,
@@ -61,6 +66,9 @@ export default function CreatePostForm() {
       return;
     }
 
+    if (submitting) return;
+
+
     if (
   visibility.visibility === "CUSTOM" &&
   (visibility.includeUserIds?.length ?? 0) === 0 &&
@@ -75,27 +83,33 @@ export default function CreatePostForm() {
       setLoading(true);
       setError(null);
 
-      // upload + complete media (UNCHANGED)
-      const mediaIds: string[] = [];
+     // ===== 1️⃣ upload ทุกไฟล์ =====
+const uploaded = await Promise.all(
+  files.map(async (file) => {
+    const { objectKey } = await upload(file);
+    return { file, objectKey };
+  })
+);
 
-      for (const file of files) {
-        const { objectKey } = await upload(file);
+// ===== 2️⃣ complete ทุกไฟล์ =====
+const mediaIds = await Promise.all(
+  uploaded.map(({ file, objectKey }) =>
+    complete({
+      objectKey,
+      mimeType: file.type,
+      mediaType: file.type.startsWith("video/")
+        ? "video"
+        : "image",
+    })
+  )
+);
 
-        const mediaId = await complete({
-          objectKey,
-          mimeType: file.type,
-          mediaType: file.type.startsWith('video/')
-            ? 'video'
-            : 'image',
-        });
-
-        mediaIds.push(mediaId);
-      }
-
-      if (files.length > 0 && mediaIds.length !== files.length) {
+// ===== 3️⃣ guard =====
+if (files.length > 0 && mediaIds.length !== files.length) {
   setError("อัปโหลดรูป/วิดีโอไม่สำเร็จ กรุณาลองใหม่");
   return;
 }
+
 
       // create post (UNCHANGED)
       const res = await createPost({
