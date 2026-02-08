@@ -14,6 +14,26 @@ type Props = {
   media: MediaItem[];
 };
 
+function isVideoMedia(media: {
+  type?: string;
+  url?: string;
+  cdnUrl?: string | null;
+}) {
+  // backend hint (ใช้ได้ แต่ไม่เชื่อ 100%)
+  if (media.type === "video") return true;
+
+  const src = media.cdnUrl ?? media.url ?? "";
+  const lower = src.toLowerCase();
+
+  // fallback จาก extension (source of truth ฝั่ง UI)
+  return (
+    lower.endsWith(".mp4") ||
+    lower.endsWith(".webm") ||
+    lower.endsWith(".mov") ||
+    lower.endsWith(".m3u8")
+  );
+}
+
 export default function PostMediaGrid({ media }: Props) {
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
 
@@ -59,7 +79,7 @@ export default function PostMediaGrid({ media }: Props) {
   const main = media[0];
   const rest = media.slice(1, 4);
   const remaining = total - 4;
-
+  
   return (
     <section aria-label="Post media" className="mt-2">
       <div className="grid grid-cols-3 gap-[2px]">
@@ -137,6 +157,7 @@ function MediaFigure({
   single?: boolean;
 }) {
   const src = media.cdnUrl ?? media.url ?? "";
+  const isVideo = isVideoMedia(media);
 
   return (
     <figure
@@ -156,31 +177,27 @@ function MediaFigure({
   ${single ? "aspect-[4/5] max-h-[70vh]" : ""}
   ${tall ? "min-h-[300px]" : "min-h-[100px]"}
 `}
+>
 
-    >
-      {media.type === "image" ? (
-        <img
-          src={src}
-          alt=""
-          loading={priority ? "eager" : "lazy"}
-          className="
-            w-full h-full
-            object-cover
-          "
-        />
-      ) : (
-        <video
-          src={src}
-          poster={media.thumbnailUrl ?? undefined}
-          muted
-          playsInline
-          preload="metadata"
-          className="
-            w-full h-full
-            object-cover
-          "
-        />
-      )}
+
+{isVideo ? (
+  <video
+    src={src}
+    poster={media.thumbnailUrl ?? undefined}
+    muted
+    playsInline
+    preload="metadata"
+    className="w-full h-full object-cover"
+  />
+) : (
+  <img
+    src={src}
+    alt=""
+    loading={priority ? "eager" : "lazy"}
+    className="w-full h-full object-cover"
+  />
+)}
+
     </figure>
   );
 }
@@ -199,6 +216,7 @@ function MediaViewer({
 }) {
   const m = media[index];
   const src = m.cdnUrl ?? m.url ?? "";
+  const isVideo = isVideoMedia(m); 
 
   return (
     <div
@@ -215,21 +233,23 @@ function MediaViewer({
         className="max-w-[95vw] max-h-[95vh]"
         onClick={(e) => e.stopPropagation()}
       >
-        {m.type === "image" ? (
-          <img
-            src={src}
-            alt=""
-            className="max-w-[95vw] max-h-[95vh] object-contain"
-          />
-        ) : (
-          <video
-            src={src}
-            controls
-            autoPlay
-            playsInline
-            className="max-w-[95vw] max-h-[95vh] object-contain"
-          />
-        )}
+       
+{isVideo ? (
+  <video
+    src={src}
+    controls
+    autoPlay
+    playsInline
+    className="max-w-[95vw] max-h-[95vh] object-contain"
+  />
+) : (
+  <img
+    src={src}
+    alt=""
+    className="max-w-[95vw] max-h-[95vh] object-contain"
+  />
+)}
+
       </div>
 
       <button
