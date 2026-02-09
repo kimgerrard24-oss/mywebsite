@@ -20,8 +20,14 @@ export default function CreatePostForm() {
 
   const { upload, uploading } = useMediaUpload();
   const { complete, loading: completing } = useMediaComplete();
+  const [mediaProcessing, setMediaProcessing] = useState(false);
   
-  const submitting = loading || uploading || completing;
+  const submitting =
+  loading ||
+  uploading ||
+  completing ||
+  mediaProcessing;
+
   const [visibility, setVisibility] = useState<{
     visibility: "PUBLIC" | "FOLLOWERS" | "PRIVATE" | "CUSTOM";
     includeUserIds?: string[];
@@ -42,7 +48,8 @@ export default function CreatePostForm() {
   ) {
     if (!e.target.files) return;
 
-    if (uploading || completing || submitting) {
+    if (uploading || completing || submitting || mediaProcessing) {
+
   e.target.value = "";
   return;
 }
@@ -66,8 +73,7 @@ export default function CreatePostForm() {
       return;
     }
 
-    if (submitting) return;
-
+    if (submitting || mediaProcessing) return;
 
     if (
   visibility.visibility === "CUSTOM" &&
@@ -81,6 +87,7 @@ export default function CreatePostForm() {
 
     try {
       setLoading(true);
+      setMediaProcessing(true);
       setError(null);
 
      // ===== 1️⃣ upload ทุกไฟล์ =====
@@ -156,6 +163,7 @@ if (res.failedTags && res.failedTags.length > 0) {
       setError('Failed to create post. Please try again.');
     } finally {
       setLoading(false);
+      setMediaProcessing(false);
     }
   }
 

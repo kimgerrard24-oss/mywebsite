@@ -35,7 +35,7 @@ export default function EditPostForm({
   const { submit, loading, error } = useUpdatePost();
   const { upload, uploading } = useMediaUpload();
   const { complete, loading: completing } = useMediaComplete();
-
+  const [mediaProcessing, setMediaProcessing] = useState(false);
   const {
   value: visibility,
   loading: visibilityLoading,
@@ -47,7 +47,11 @@ export default function EditPostForm({
 });
 
 const submitting =
-  loading || uploading || completing || visibilityLoading;
+  loading ||
+  uploading ||
+  completing ||
+  visibilityLoading ||
+  mediaProcessing;
    
   // =========================
   // File selection (UNCHANGED)
@@ -56,6 +60,11 @@ const submitting =
     e: React.ChangeEvent<HTMLInputElement>,
   ) {
     if (!e.target.files) return;
+
+    if (submitting || mediaProcessing) {
+  e.target.value = "";
+  return;
+}
 
     const selected = Array.from(e.target.files).slice(
       0,
@@ -83,8 +92,8 @@ const submitting =
 
     try {
       setLocalError(null);
+      setMediaProcessing(true);
 
-      // ✅ upload + complete media (FIXED FLOW)
       const mediaIds: string[] = [];
 
       for (const file of files) {
@@ -111,9 +120,11 @@ const submitting =
         router.replace(`/posts/${postId}`);
       }
     } catch (err) {
-      console.error(err);
-      setLocalError('Failed to update post');
-    }
+  console.error(err);
+  setLocalError('Failed to update post');
+} finally {
+  setMediaProcessing(false);
+}
   }
 
   return (
