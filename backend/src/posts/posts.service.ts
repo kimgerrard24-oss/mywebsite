@@ -111,29 +111,6 @@ if (repostOfPostId && mediaIds.length > 0) {
   );
 }
 
-  // =========================
-  // Media ownership check
-  // =========================
-  if (mediaIds.length > 0) {
-    const mediaList = await this.prisma.media.findMany({
-      where: { id: { in: mediaIds } },
-      select: { id: true, ownerUserId: true },
-    });
-
-    if (mediaList.length !== mediaIds.length) {
-      throw new BadRequestException(
-        'Some media not found',
-      );
-    }
-
-    for (const media of mediaList) {
-      PostMediaPolicy.assertOwnership({
-        actorUserId: authorId,
-        ownerUserId: media.ownerUserId,
-      });
-    }
-  }
-
 // =========================
 // Repost: validate original post (if any)
 // =========================
@@ -172,6 +149,29 @@ if (repostOfPostId) {
    */
   const txResult = await this.prisma.$transaction(
     async (tx) => {
+
+      // -------------------------
+// 0) Validate media ownership (CRITICAL FIX)
+// -------------------------
+if (!repostOfPostId && mediaIds.length > 0) {
+  const mediaList = await tx.media.findMany({
+    where: {
+      id: { in: mediaIds },
+      ownerUserId: authorId,
+      deletedAt: null,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (mediaList.length !== mediaIds.length) {
+    throw new BadRequestException(
+      'Some media not found, not owned, or deleted',
+    );
+  }
+}
+
       // -------------------------
       // 1) Create post
       // -------------------------
