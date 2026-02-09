@@ -45,9 +45,14 @@ export default function PostMediaGrid({ media }: Props) {
     setViewerIndex(null);
   }, []);
 
-  if (!Array.isArray(media) || media.length === 0) return null;
+ if (!Array.isArray(media)) return null;
 
-  const total = media.length;
+const validMedia = media.filter(m => m.cdnUrl || m.url);
+
+if (validMedia.length === 0) return null;
+
+const total = validMedia.length;
+
 
   /* ======================================================
    * 1 IMAGE
@@ -56,7 +61,7 @@ export default function PostMediaGrid({ media }: Props) {
     return (
       <section aria-label="Post media" className="mt-2">
         <MediaFigure
-          media={media[0]}
+          media={validMedia[0]}
           onClick={() => openViewer(0)}
           priority
           single
@@ -64,7 +69,7 @@ export default function PostMediaGrid({ media }: Props) {
 
         {viewerIndex !== null && (
           <MediaViewer
-            media={media}
+            media={validMedia}
             index={viewerIndex}
             onClose={closeViewer}
           />
@@ -76,8 +81,8 @@ export default function PostMediaGrid({ media }: Props) {
   /* ======================================================
    * 2–4+ IMAGES (Facebook-style)
    * ====================================================== */
-  const main = media[0];
-  const rest = media.slice(1, 4);
+  const main = validMedia[0];
+  const rest = validMedia.slice(1, 4);
   const remaining = total - 4;
   
   return (
@@ -131,7 +136,7 @@ export default function PostMediaGrid({ media }: Props) {
 
       {viewerIndex !== null && (
         <MediaViewer
-          media={media}
+          media={validMedia}
           index={viewerIndex}
           onClose={closeViewer}
         />
@@ -156,7 +161,9 @@ function MediaFigure({
   tall?: boolean;
   single?: boolean;
 }) {
-  const src = media.cdnUrl ?? media.url ?? "";
+  const src = media.cdnUrl ?? media.url;
+  if (!src) return null;
+
   const isVideo = isVideoMedia(media);
 
   return (
@@ -215,7 +222,10 @@ function MediaViewer({
   onClose: () => void;
 }) {
   const m = media[index];
-  const src = m.cdnUrl ?? m.url ?? "";
+  const src = m.cdnUrl ?? m.url;
+
+  if (!src) return null;
+
   const isVideo = isVideoMedia(m); 
 
   return (
