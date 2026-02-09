@@ -147,13 +147,16 @@ if (uploading || completing || submitting) {
     try {
       setError(null);
       setMediaProcessing(true);
+
+      const mediaSnapshot = [...media];
+
      // ===== 1️⃣ upload ทุกไฟล์ก่อน =====
-const uploaded = await Promise.all(
-  media.map(async ({ file }) => {
-    const { objectKey } = await upload(file);
-    return { file, objectKey };
-  })
-);
+      const uploaded = await Promise.all(
+        media.map(async ({ file }) => {
+        const { objectKey } = await upload(file);
+          return { file, objectKey };
+       })
+    );
 
 // ===== 2️⃣ complete ทุกไฟล์ =====
 const mediaIds = await Promise.all(
@@ -169,7 +172,7 @@ const mediaIds = await Promise.all(
 );
 
 // ===== 3️⃣ guard แบบเชื่อถือได้ =====
-if (media.length > 0 && mediaIds.length !== media.length) {
+if (mediaSnapshot.length > 0 && mediaIds.length !== mediaSnapshot.length) {
   setError("อัปโหลดรูป/วิดีโอไม่สำเร็จ กรุณาลองใหม่");
   return;
 }

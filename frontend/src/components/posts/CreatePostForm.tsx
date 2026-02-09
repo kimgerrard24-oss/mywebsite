@@ -90,6 +90,8 @@ export default function CreatePostForm() {
       setMediaProcessing(true);
       setError(null);
 
+      const filesSnapshot = [...files];
+
      // ===== 1️⃣ upload ทุกไฟล์ =====
 const uploaded = await Promise.all(
   files.map(async (file) => {
@@ -112,7 +114,7 @@ const mediaIds = await Promise.all(
 );
 
 // ===== 3️⃣ guard =====
-if (files.length > 0 && mediaIds.length !== files.length) {
+if (filesSnapshot.length > 0 && mediaIds.length !== filesSnapshot.length) {
   setError("อัปโหลดรูป/วิดีโอไม่สำเร็จ กรุณาลองใหม่");
   return;
 }

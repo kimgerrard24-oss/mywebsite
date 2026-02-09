@@ -272,7 +272,7 @@ const isPrivateLocked =
       transition
     "
   >
-    My Media
+    My Media1
   </Link>
 )}
 
