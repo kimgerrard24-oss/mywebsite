@@ -4,6 +4,7 @@ import {
   NotFoundException,
   BadRequestException,
   ForbiddenException,
+  Logger,
  } from '@nestjs/common';
 import { PostsRepository } from './posts.repository';
 import { PostCreatePolicy } from './policy/post-create.policy';
@@ -44,7 +45,9 @@ import { PostUserTagCreatePolicy } from './policy/post-user-tag-create.policy';
 
 @Injectable()
 export class PostsService {
-  constructor(
+  private readonly logger = new Logger(PostsService.name);
+  
+   constructor(
     private readonly repo: PostsRepository,
     private readonly audit: PostAudit,
     private readonly postCreatedEvent: PostCreatedEvent,
@@ -111,6 +114,52 @@ if (repostOfPostId && mediaIds.length > 0) {
   );
 }
 
+  // =========================
+  // Media ownership check
+  // =========================
+  if (mediaIds.length > 0) {
+    const mediaList = await this.prisma.media.findMany({
+      where: { id: { in: mediaIds } },
+      select: { 
+        id: true, 
+        ownerUserId: true,
+        deletedAt: true,
+      },
+    });
+
+    this.logger.debug(
+    `MEDIA VALIDATION DEBUG requested=${JSON.stringify(mediaIds)} found=${JSON.stringify(mediaList)}`
+  );
+
+    if (mediaList.length !== mediaIds.length) {
+      throw new BadRequestException(
+        'Some media not found',
+      );
+
+    }
+
+     for (const media of mediaList) {
+    if (media.ownerUserId !== authorId) {
+      throw new BadRequestException(
+        'Media ownership mismatch',
+      );
+    }
+
+    if (media.deletedAt !== null) {
+      throw new BadRequestException(
+        'Media deleted',
+      );
+    }
+  }
+
+    for (const media of mediaList) {
+      PostMediaPolicy.assertOwnership({
+        actorUserId: authorId,
+        ownerUserId: media.ownerUserId,
+      });
+    }
+  }
+
 // =========================
 // Repost: validate original post (if any)
 // =========================
@@ -149,29 +198,7 @@ if (repostOfPostId) {
    */
   const txResult = await this.prisma.$transaction(
     async (tx) => {
-
-      // -------------------------
-// 0) Validate media ownership (CRITICAL FIX)
-// -------------------------
-if (!repostOfPostId && mediaIds.length > 0) {
-  const mediaList = await tx.media.findMany({
-    where: {
-      id: { in: mediaIds },
-      ownerUserId: authorId,
-      deletedAt: null,
-    },
-    select: {
-      id: true,
-    },
-  });
-
-  if (mediaList.length !== mediaIds.length) {
-    throw new BadRequestException(
-      'Some media not found, not owned, or deleted',
-    );
-  }
-}
-
+      
       // -------------------------
       // 1) Create post
       // -------------------------
