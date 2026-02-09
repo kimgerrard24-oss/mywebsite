@@ -112,6 +112,12 @@ const submitting =
         mediaIds.push(mediaId);
       }
 
+      if (filesSnapshot.length > 0 && mediaIds.length !== filesSnapshot.length) {
+  setLocalError("อัปโหลดรูป/วิดีโอไม่สำเร็จ กรุณาลองใหม่");
+  return;
+}
+
+
       const result = await submit({
         postId,
         content,
