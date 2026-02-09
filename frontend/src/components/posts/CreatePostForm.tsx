@@ -68,12 +68,14 @@ export default function CreatePostForm() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    if (!content.trim() && files.length === 0) {
+    if (submitting || mediaProcessing) return;
+
+    const filesSnapshot = [...files];
+
+    if (!content.trim() && filesSnapshot.length === 0) {
       setError('Post must have text or media');
       return;
     }
-
-    if (submitting || mediaProcessing) return;
 
     if (
   visibility.visibility === "CUSTOM" &&
@@ -90,17 +92,13 @@ export default function CreatePostForm() {
       setMediaProcessing(true);
       setError(null);
 
-      const filesSnapshot = [...files];
-
-     // ===== 1️⃣ upload ทุกไฟล์ =====
 const uploaded = await Promise.all(
-  files.map(async (file) => {
+  filesSnapshot.map(async (file) => {
     const { objectKey } = await upload(file);
     return { file, objectKey };
   })
 );
 
-// ===== 2️⃣ complete ทุกไฟล์ =====
 const mediaIds = await Promise.all(
   uploaded.map(({ file, objectKey }) =>
     complete({
@@ -113,11 +111,11 @@ const mediaIds = await Promise.all(
   )
 );
 
-// ===== 3️⃣ guard =====
 if (filesSnapshot.length > 0 && mediaIds.length !== filesSnapshot.length) {
   setError("อัปโหลดรูป/วิดีโอไม่สำเร็จ กรุณาลองใหม่");
   return;
 }
+
 
 
       // create post (UNCHANGED)

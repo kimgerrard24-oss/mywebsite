@@ -150,15 +150,13 @@ if (uploading || completing || submitting) {
 
       const mediaSnapshot = [...media];
 
-     // ===== 1️⃣ upload ทุกไฟล์ก่อน =====
-      const uploaded = await Promise.all(
-        media.map(async ({ file }) => {
-        const { objectKey } = await upload(file);
-          return { file, objectKey };
-       })
-    );
+const uploaded = await Promise.all(
+  mediaSnapshot.map(async ({ file }) => {
+    const { objectKey } = await upload(file);
+    return { file, objectKey };
+  })
+);
 
-// ===== 2️⃣ complete ทุกไฟล์ =====
 const mediaIds = await Promise.all(
   uploaded.map(({ file, objectKey }) =>
     complete({
@@ -171,7 +169,6 @@ const mediaIds = await Promise.all(
   )
 );
 
-// ===== 3️⃣ guard แบบเชื่อถือได้ =====
 if (mediaSnapshot.length > 0 && mediaIds.length !== mediaSnapshot.length) {
   setError("อัปโหลดรูป/วิดีโอไม่สำเร็จ กรุณาลองใหม่");
   return;
@@ -211,9 +208,8 @@ if (res?.failedTags?.length) {
   setError(msg);
 }
 
-media.forEach(m => URL.revokeObjectURL(m.preview));
+mediaSnapshot.forEach(m => URL.revokeObjectURL(m.preview));
 
-      
       // reset state
       setContent("");
       setMedia([]);
@@ -235,12 +231,12 @@ setShowExcludePicker(false);
   console.error("Create post failed:", err);
   setError("ไม่สามารถโพสต์ได้ กรุณาลองใหม่");
 } finally {
-  // CRITICAL FIX: release lock
   setMediaProcessing(false);
 }
 
   }, [
     content,
+    media,
     visibility,
     visibility.includeUserIds,
     visibility.excludeUserIds,
