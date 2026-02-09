@@ -192,8 +192,6 @@ const originalAuthor = post.originalPost?.author;
   </Link>
 )}
 
-
-
     {/* Follow (render only) */}
  {!post.isSelf && !isBlocked && (
   isFollowing ? (
