@@ -50,8 +50,14 @@ export default function PostComposer({
   const { upload, uploading } = useMediaUpload();
   const { complete, loading: completing } = useMediaComplete();
   const { submit, loading: creating } = useCreatePost();
+  const [mediaProcessing, setMediaProcessing] = useState(false);
+  
+  const submitting =
+  uploading ||
+  completing ||
+  creating ||
+  mediaProcessing;
 
-  const submitting = uploading || completing || creating;
   const remaining = MAX_LENGTH - content.length;
   const [visibility, setVisibility] =
   useState<PostVisibilityValue>({
@@ -140,7 +146,7 @@ if (uploading || completing || submitting) {
 
     try {
       setError(null);
-
+      setMediaProcessing(true);
      // ===== 1️⃣ upload ทุกไฟล์ก่อน =====
 const uploaded = await Promise.all(
   media.map(async ({ file }) => {
@@ -222,15 +228,20 @@ media.forEach(m => URL.revokeObjectURL(m.preview));
 setShowIncludePicker(false);
 setShowExcludePicker(false);
 
-    } catch (err) {
-      console.error("Create post failed:", err);
-      setError("ไม่สามารถโพสต์ได้ กรุณาลองใหม่");
-    }
+   } catch (err) {
+  console.error("Create post failed:", err);
+  setError("ไม่สามารถโพสต์ได้ กรุณาลองใหม่");
+} finally {
+  // CRITICAL FIX: release lock
+  setMediaProcessing(false);
+}
+
   }, [
     content,
     visibility,
     visibility.includeUserIds,
     visibility.excludeUserIds,
+    mediaProcessing,
     taggedUserIds,
     repostOfPostId,
     submitting,
@@ -243,7 +254,7 @@ setShowExcludePicker(false);
   ]);
 
   const removeMediaAt = (index: number) => {
-  if (submitting) return;
+  if (submitting || mediaProcessing) return;
 
   setMedia((prev) => {
     const target = prev[index];
