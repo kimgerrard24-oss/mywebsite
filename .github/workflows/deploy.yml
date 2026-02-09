@@ -188,7 +188,7 @@ jobs:
             printf '%s' "$FRONTEND_ENV_PRODUCTION" > frontend/.env.production
             printf '%s' "$BACKEND_ENV_PRODUCTION" > backend/.env.production
          
-            export DEPLOY_SHA="$DEPLOY_SHA"
+            echo "DEPLOY_SHA=$DEPLOY_SHA" > .env
             
             # ---- Pull exact versioned images only ----
             docker pull ghcr.io/$GHCR_USERNAME/mywebsite-backend:$DEPLOY_SHA
