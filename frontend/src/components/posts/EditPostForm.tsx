@@ -94,9 +94,11 @@ const submitting =
       setLocalError(null);
       setMediaProcessing(true);
 
+      const filesSnapshot = [...files];
+
       const mediaIds: string[] = [];
 
-      for (const file of files) {
+      for (const file of filesSnapshot) {
         const { objectKey } = await upload(file);
 
         const mediaId = await complete({
