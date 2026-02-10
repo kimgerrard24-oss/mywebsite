@@ -6,13 +6,12 @@ export class MyMediaGalleryMapper {
   static toItem(
     row: Media & { posts: any[] },
   ): MyMediaGalleryItemDto {
-    const post = row.posts[0]?.post;
+    const post = row.posts[0]?.post ?? null;
 
     if (
       row.mediaType !== MediaType.IMAGE &&
       row.mediaType !== MediaType.VIDEO
     ) {
-      // ❗ defensive guard (should never happen)
       throw new Error(
         `Unsupported media type in gallery: ${row.mediaType}`,
       );
@@ -20,14 +19,14 @@ export class MyMediaGalleryMapper {
 
     return {
       mediaId: row.id,
-      postId: post.id,
-      type: row.mediaType, 
+      postId: post?.id ?? null,
+      type: row.mediaType,
       objectKey: row.objectKey,
       thumbnailObjectKey: row.thumbnailObjectKey,
       width: row.width,
       height: row.height,
       duration: row.duration,
-      createdAt: post.createdAt,
+      createdAt: post?.createdAt ?? row.createdAt,
     };
   }
 }
