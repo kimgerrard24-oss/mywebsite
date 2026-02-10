@@ -11,6 +11,11 @@ import type {
 } from "@/components/posts/PostVisibilitySelector";
 import UserPickerModal from "@/components/users/UserPickerModal";
 
+type LocalMedia = {
+  file: File;
+  preview: string;
+};
+
 type Props = {
   postId: string;
   initialContent: string;
@@ -25,11 +30,6 @@ type ExistingMedia = {
   thumbnailUrl?: string | null;
 };
 
-type LocalMedia = {
-  file: File;
-  preview: string;
-};
-
 const MAX_FILES = 5;
 
 export default function EditPostForm({
@@ -40,8 +40,7 @@ export default function EditPostForm({
 }: Props) {
   const router = useRouter();
   const [content, setContent] = useState(initialContent);
-  const [files, setFiles] = useState<File[]>([]);
-  const [localError, setLocalError] = useState<string | null>(null);
+  const [files, setFiles] = useState<LocalMedia[]>([]);  const [localError, setLocalError] = useState<string | null>(null);
   const [showIncludePicker, setShowIncludePicker] = useState(false);
   const [showExcludePicker, setShowExcludePicker] = useState(false);
   const [mediaTouched, setMediaTouched] = useState(false);
@@ -97,8 +96,15 @@ const selected = Array.from(e.target.files).slice(
 );
 
 
-    setFiles(selected);
-    setMediaTouched(true);
+    const nextItems: LocalMedia[] = selected.map((file) => ({
+  file,
+  preview: URL.createObjectURL(file),
+}));
+
+setFiles((prev) => [...prev, ...nextItems]);
+setMediaTouched(true);
+e.target.value = "";
+
   }
 
   // =========================
@@ -125,19 +131,20 @@ const selected = Array.from(e.target.files).slice(
 
       const mediaIds: string[] = [];
 
-      for (const file of filesSnapshot) {
-        const { objectKey } = await upload(file);
+      for (const m of filesSnapshot) {
+  const { objectKey } = await upload(m.file);
 
-        const mediaId = await complete({
-          objectKey,
-          mimeType: file.type,
-          mediaType: file.type.startsWith('video/')
-            ? 'video'
-            : 'image',
-        });
+  const mediaId = await complete({
+    objectKey,
+    mimeType: m.file.type,
+    mediaType: m.file.type.startsWith('video/')
+      ? 'video'
+      : 'image',
+  });
 
-        mediaIds.push(mediaId);
-      }
+  mediaIds.push(mediaId);
+}
+
 
       if (filesSnapshot.length > 0 && mediaIds.length !== filesSnapshot.length) {
   setLocalError("อัปโหลดรูป/วิดีโอไม่สำเร็จ กรุณาลองใหม่");
@@ -161,11 +168,19 @@ if (mediaTouched) {
 const result = await submit(payload);
 
 if (result) {
+  // 🔥 revoke preview URLs (เหมือน PostComposer)
+  filesSnapshot.forEach((m) => {
+    URL.revokeObjectURL(m.preview);
+  });
+
   setFiles([]);
+  setExistingMedia([]);
   setMediaTouched(false);
 
-  router.replace(`/posts/${postId}`);
+  router.replace(`/posts/${postId}?updated=${Date.now()}`);
 }
+
+
 
     } catch (err) {
   console.error(err);
@@ -359,22 +374,28 @@ if (result) {
     ))}
 
     {/* New files */}
-    {files.map((file, i) => (
+    {files.map((m, i) => (
       <div
         key={i}
         className="relative aspect-square overflow-hidden rounded bg-gray-100"
       >
-        <img
-          src={URL.createObjectURL(file)}
-          className="h-full w-full object-cover"
-        />
+       <img
+  src={m.preview}
+  className="h-full w-full object-cover"
+/>
 
         <button
           type="button"
-         onClick={() => {
-  setFiles((prev) => prev.filter((_, idx) => idx !== i));
-  setMediaTouched(true); 
-}}
+  onClick={() => {
+    setFiles((prev) => {
+      const target = prev[i];
+      if (target) {
+        URL.revokeObjectURL(target.preview);
+      }
+      return prev.filter((_, idx) => idx !== i);
+    });
+    setMediaTouched(true);
+  }}
 
           className="
             absolute top-1 right-1
