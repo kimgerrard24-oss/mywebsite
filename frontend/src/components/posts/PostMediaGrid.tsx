@@ -145,6 +145,41 @@ const total = validMedia.length;
 }
 
 /* ======================================================
+ * Play Overlay (Video Indicator)
+ * ====================================================== */
+function PlayOverlay() {
+  return (
+    <div
+      className="
+        absolute inset-0
+        flex items-center justify-center
+        bg-black/20
+        pointer-events-none
+      "
+      aria-hidden
+    >
+      <div
+        className="
+          w-14 h-14
+          rounded-full
+          bg-black/60
+          flex items-center justify-center
+        "
+      >
+        <svg
+          viewBox="0 0 24 24"
+          className="w-7 h-7 text-white ml-1"
+          fill="currentColor"
+        >
+          <path d="M8 5v14l11-7z" />
+        </svg>
+      </div>
+    </div>
+  );
+}
+
+
+/* ======================================================
  * Media Figure
  * ====================================================== */
 function MediaFigure({
@@ -186,23 +221,15 @@ function MediaFigure({
 >
 
 
-{isVideo ? (
-  <video
-    src={src}
-    poster={media.thumbnailUrl ?? undefined}
-    muted
-    playsInline
-    preload="metadata"
-    className="w-full h-full object-cover"
-  />
-) : (
-  <img
-    src={src}
-    alt=""
-    loading={priority ? "eager" : "lazy"}
-    className="w-full h-full object-cover"
-  />
-)}
+<img
+  src={isVideo ? media.thumbnailUrl ?? src : src}
+  alt=""
+  loading={priority ? "eager" : "lazy"}
+  className="w-full h-full object-cover"
+/>
+
+{isVideo && <PlayOverlay />}
+
 
     </figure>
   );
