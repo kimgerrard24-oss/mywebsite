@@ -909,20 +909,20 @@ if (mediaIds && mediaIds.length > 0) {
 // 🆕 MEDIA DIFF LOGIC (SAFE)
 // =========================
 
-// 👉 ทำเฉพาะเมื่อ frontend ตั้งใจแก้ media
 if (keepMediaIds !== undefined) {
+  if (keepMediaIds.length === 0) {
+    await tx.postMedia.deleteMany({
+      where: { postId },
+    });
+  } else {
+    await tx.postMedia.deleteMany({
+      where: {
+        postId,
+        mediaId: { notIn: keepMediaIds },
+      },
+    });
+  }
 
-  // 2️⃣ Remove media ที่ไม่อยู่ใน keepMediaIds
-  await tx.postMedia.deleteMany({
-    where: {
-      postId,
-      ...(keepMediaIds.length > 0
-        ? { mediaId: { notIn: keepMediaIds } }
-        : {}), // [] = explicit clear all
-    },
-  });
-
-  // 3️⃣ Attach media ใหม่
   if (mediaIds && mediaIds.length > 0) {
     await tx.postMedia.createMany({
       data: mediaIds.map((mediaId) => ({
