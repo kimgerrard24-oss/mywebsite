@@ -204,12 +204,6 @@ if (mediaType === 'video') {
   }): Promise<MyMediaGalleryResponseDto> {
     const { actorUserId, query } = params;
 
-    if (query.usedOnly !== true) {
-    throw new BadRequestException(
-      'usedOnly=true is required',
-    );
-  }
-
     const mediaType =
       query.type === MyMediaTypeFilter.ALL
         ? undefined

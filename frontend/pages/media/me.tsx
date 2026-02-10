@@ -76,7 +76,7 @@ export const getServerSideProps: GetServerSideProps<
       "https://api.phlyphant.com";
 
     const res = await fetch(
-  `${base}/media/me/gallery?usedOnly=true&limit=24`,
+  `${base}/media/me/gallery?limit=24`,
   {
     method: "GET",
     headers: {
