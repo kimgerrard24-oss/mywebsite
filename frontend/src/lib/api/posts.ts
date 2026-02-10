@@ -233,9 +233,7 @@ export async function createPost(
   content: string;
   keepMediaIds?: string[];
   mediaIds?: string[];
-  visibility?: string;
-  includeUserIds?: string[];
-  excludeUserIds?: string[];
+
 }) {
   const { postId, ...body } = params;
 
