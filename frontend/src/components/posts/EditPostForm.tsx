@@ -25,6 +25,11 @@ type ExistingMedia = {
   thumbnailUrl?: string | null;
 };
 
+type LocalMedia = {
+  file: File;
+  preview: string;
+};
+
 const MAX_FILES = 5;
 
 export default function EditPostForm({
@@ -93,6 +98,7 @@ const selected = Array.from(e.target.files).slice(
 
 
     setFiles(selected);
+    setMediaTouched(true);
   }
 
   // =========================
@@ -139,19 +145,28 @@ const selected = Array.from(e.target.files).slice(
 }
 
 
-      const keepMediaIds = existingMedia.map((m) => m.id);
-
-const result = await submit({
+      const payload: any = {
   postId,
   content,
-  keepMediaIds, 
-  ...(mediaIds.length > 0 ? { mediaIds } : {}),
-});
+};
 
+if (mediaTouched) {
+  payload.keepMediaIds = existingMedia.map((m) => m.id);
 
-      if (result) {
-        router.replace(`/posts/${postId}`);
-      }
+  if (mediaIds.length > 0) {
+    payload.mediaIds = mediaIds;
+  }
+}
+
+const result = await submit(payload);
+
+if (result) {
+  setFiles([]);
+  setMediaTouched(false);
+
+  router.replace(`/posts/${postId}`);
+}
+
     } catch (err) {
   console.error(err);
   setLocalError('Failed to update post');
@@ -325,11 +340,13 @@ const result = await submit({
 
         <button
           type="button"
-          onClick={() =>
-            setExistingMedia((prev) =>
-              prev.filter((x) => x.id !== m.id),
-            )
-          }
+          onClick={() => {
+  setExistingMedia((prev) =>
+    prev.filter((x) => x.id !== m.id),
+  );
+  setMediaTouched(true); 
+}}
+
           className="
             absolute top-1 right-1
             w-6 h-6 rounded-full
@@ -354,11 +371,11 @@ const result = await submit({
 
         <button
           type="button"
-          onClick={() =>
-            setFiles((prev) =>
-              prev.filter((_, idx) => idx !== i),
-            )
-          }
+         onClick={() => {
+  setFiles((prev) => prev.filter((_, idx) => idx !== i));
+  setMediaTouched(true); 
+}}
+
           className="
             absolute top-1 right-1
             w-6 h-6 rounded-full
