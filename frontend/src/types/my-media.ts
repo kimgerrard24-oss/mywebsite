@@ -4,13 +4,16 @@ export type MyMediaGalleryItem = {
   mediaId: string;
   postId: string | null;
   type: "IMAGE" | "VIDEO";
-  objectKey: string;
-  thumbnailObjectKey?: string | null;
+
+  url: string;
+  thumbnailUrl?: string | null;
+
   width?: number | null;
   height?: number | null;
   duration?: number | null;
-  createdAt: string | Date;
+  createdAt: string;
 };
+
 
 
 export type MyMediaGalleryResponse = {
