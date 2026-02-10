@@ -50,25 +50,25 @@ export default function MyMediaGallery({
             {/* ================= Media Preview ================= */}
             {item.type === "IMAGE" ? (
               <Image
-                src={`/cdn/${item.objectKey}`}
-                alt=""
-                fill
-                sizes="(max-width: 640px) 33vw, 25vw"
-                className="object-cover transition-transform duration-200 group-hover:scale-[1.02]"
-                priority={false}
-              />
+  src={item.url}
+  alt=""
+  fill
+  sizes="(max-width: 640px) 33vw, 25vw"
+  className="object-cover"
+/>
+
             ) : (
               <>
                 <Image
-                  src={
-                    item.thumbnailObjectKey
-                      ? `/cdn/${item.thumbnailObjectKey}`
-                      : "/video-placeholder.png"
-                  }
-                  alt=""
-                  fill
-                  className="object-cover transition-transform duration-200 group-hover:scale-[1.02]"
-                />
+  src={
+    item.thumbnailUrl ??
+    "/video-placeholder.png"
+  }
+  alt=""
+  fill
+  className="object-cover"
+/>
+
 
                 {/* ▶ play indicator */}
                 <span
