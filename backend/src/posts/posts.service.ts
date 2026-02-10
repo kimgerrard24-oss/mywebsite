@@ -804,8 +804,15 @@ async updatePost(params: {
   postId: string;
   actorUserId: string;
   content: string;
+  keepMediaIds?: string[];
+  mediaIds?: string[];
 }) {
   const { postId, actorUserId, content } = params;
+
+  const {
+  keepMediaIds = [],
+  mediaIds = [],
+} = params;
 
   const post = await this.repo.findById(postId);
   if (!post || post.isDeleted) {
@@ -845,6 +852,38 @@ async updatePost(params: {
   }
 
   // =========================
+// Media ownership check (NEW)
+// =========================
+if (mediaIds.length > 0) {
+  const mediaList = await this.prisma.media.findMany({
+    where: { id: { in: mediaIds } },
+    select: {
+      id: true,
+      ownerUserId: true,
+      deletedAt: true,
+    },
+  });
+
+  if (mediaList.length !== mediaIds.length) {
+    throw new BadRequestException('Some media not found');
+  }
+
+  for (const media of mediaList) {
+    if (media.ownerUserId !== actorUserId) {
+      throw new BadRequestException(
+        'Media ownership mismatch',
+      );
+    }
+
+    if (media.deletedAt !== null) {
+      throw new BadRequestException(
+        'Media deleted',
+      );
+    }
+  }
+}
+
+  // =========================
   // DB Transaction (authority)
   // =========================
   const updated = await this.prisma.$transaction(async (tx) => {
@@ -864,6 +903,33 @@ async updatePost(params: {
         editedAt: true,
       },
     });
+
+    // =========================
+// 🆕 MEDIA DIFF LOGIC
+// =========================
+
+// 2️⃣ Remove media ที่ไม่อยู่ใน keepMediaIds
+// (ถ้า keepMediaIds ว่าง → ลบ media เดิมทั้งหมด)
+await tx.postMedia.deleteMany({
+  where: {
+    postId,
+    ...(keepMediaIds.length > 0
+      ? { mediaId: { notIn: keepMediaIds } }
+      : {}),
+  },
+});
+
+// 3️⃣ Attach media ใหม่
+if (mediaIds.length > 0) {
+  await tx.postMedia.createMany({
+    data: mediaIds.map((mediaId) => ({
+      postId,
+      mediaId,
+    })),
+    skipDuplicates: true,
+  });
+}
+
 
     // -------------------------
     // 2) Remove old tags
@@ -918,6 +984,7 @@ async updatePost(params: {
         },
       });
     }
+    
 
     return u;
   });

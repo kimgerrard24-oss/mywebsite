@@ -15,8 +15,15 @@ type Props = {
   postId: string;
   initialContent: string;
   initialVisibility: PostVisibilityValue;
+  initialMedia: ExistingMedia[];
 };
 
+type ExistingMedia = {
+  id: string;
+  type: "IMAGE" | "VIDEO";
+  url: string;
+  thumbnailUrl?: string | null;
+};
 
 const MAX_FILES = 5;
 
@@ -24,6 +31,7 @@ export default function EditPostForm({
   postId,
   initialContent,
   initialVisibility,
+  initialMedia,
 }: Props) {
   const router = useRouter();
   const [content, setContent] = useState(initialContent);
@@ -45,6 +53,9 @@ export default function EditPostForm({
   postId,
   initial: initialVisibility,
 });
+
+  const [existingMedia, setExistingMedia] =
+  useState<ExistingMedia[]>(initialMedia);
 
 const submitting =
   loading ||
@@ -118,11 +129,15 @@ const submitting =
 }
 
 
-      const result = await submit({
-        postId,
-        content,
-        ...(mediaIds.length > 0 ? { mediaIds } : {}),
-      });
+      const keepMediaIds = existingMedia.map((m) => m.id);
+
+const result = await submit({
+  postId,
+  content,
+  keepMediaIds, 
+  ...(mediaIds.length > 0 ? { mediaIds } : {}),
+});
+
 
       if (result) {
         router.replace(`/posts/${postId}`);
@@ -274,6 +289,76 @@ const submitting =
       setShowExcludePicker(false);
     }}
   />
+)}
+
+{/* ================= Media Preview ================= */}
+{(existingMedia.length > 0 || files.length > 0) && (
+  <section className="grid grid-cols-3 gap-2 sm:grid-cols-4">
+    {/* Existing media */}
+    {existingMedia.map((m) => (
+      <div
+        key={m.id}
+        className="relative aspect-square overflow-hidden rounded bg-gray-100"
+      >
+        {m.type === "IMAGE" ? (
+          <img
+            src={m.url}
+            className="h-full w-full object-cover"
+          />
+        ) : (
+          <img
+            src={m.thumbnailUrl ?? "/video-placeholder.png"}
+            className="h-full w-full object-cover"
+          />
+        )}
+
+        <button
+          type="button"
+          onClick={() =>
+            setExistingMedia((prev) =>
+              prev.filter((x) => x.id !== m.id),
+            )
+          }
+          className="
+            absolute top-1 right-1
+            w-6 h-6 rounded-full
+            bg-black/60 text-white text-xs
+          "
+        >
+          ×
+        </button>
+      </div>
+    ))}
+
+    {/* New files */}
+    {files.map((file, i) => (
+      <div
+        key={i}
+        className="relative aspect-square overflow-hidden rounded bg-gray-100"
+      >
+        <img
+          src={URL.createObjectURL(file)}
+          className="h-full w-full object-cover"
+        />
+
+        <button
+          type="button"
+          onClick={() =>
+            setFiles((prev) =>
+              prev.filter((_, idx) => idx !== i),
+            )
+          }
+          className="
+            absolute top-1 right-1
+            w-6 h-6 rounded-full
+            bg-black/60 text-white text-xs
+          "
+        >
+          ×
+        </button>
+      </div>
+    ))}
+  </section>
 )}
 
 

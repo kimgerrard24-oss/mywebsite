@@ -100,6 +100,16 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
   };
 }
 
+const initialMedia =
+  Array.isArray(post.media)
+    ? post.media.map((m: any) => ({
+        id: m.id,
+        type: m.type === "image" ? "IMAGE" : "VIDEO",
+        url: m.url,
+        thumbnailUrl: m.thumbnailUrl ?? null,
+      }))
+    : [];
+
   // =================================================
   // 5) Final props (backend authority)
   // =================================================
@@ -117,6 +127,7 @@ export const getServerSideProps: GetServerSideProps = async (ctx) => {
           ? rules.excludeUserIds
           : [],
       },
+      initialMedia,
     },
   };
 };
