@@ -82,8 +82,9 @@ const submitting =
   return;
 }
 
-   const remainingSlots =
-  MAX_FILES - existingMedia.length;
+  const remainingSlots =
+  MAX_FILES - existingMedia.length - files.length;
+
 
 if (remainingSlots <= 0) {
   setLocalError(`สามารถแนบได้สูงสุด ${MAX_FILES} ไฟล์`);
@@ -158,11 +159,14 @@ e.target.value = "";
 };
 
 if (mediaTouched) {
-  payload.keepMediaIds = existingMedia.map((m) => m.id);
+  
+  if (mediaTouched) {
+  payload.keepMediaIds = [
+    ...existingMedia.map((m) => m.id),
+    ...mediaIds,
+  ];
+}
 
-  if (mediaIds.length > 0) {
-    payload.mediaIds = mediaIds;
-  }
 }
 
 const result = await submit(payload);
