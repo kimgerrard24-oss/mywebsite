@@ -6,6 +6,13 @@ import type { PostVisibilityValue } from "@/components/posts/PostVisibilitySelec
 
 export { getServerSideProps } from "@/lib/gssp/edit-post";
 
+type ExistingMedia = {
+  id: string;
+  type: "IMAGE" | "VIDEO";
+  url: string;
+  thumbnailUrl?: string | null;
+};
+
 type Props = {
   postId: string;
   content: string;
@@ -16,12 +23,14 @@ type Props = {
    * via getServerSideProps
    */
   initialVisibility: PostVisibilityValue;
+  initialMedia: ExistingMedia[];
 };
 
 export default function EditPostPage({
   postId,
   content,
   initialVisibility,
+  initialMedia,
 }: Props) {
   return (
     <>
@@ -77,6 +86,7 @@ export default function EditPostPage({
             postId={postId}
             initialContent={content}
             initialVisibility={initialVisibility}
+            initialMedia={initialMedia}
           />
         </section>
       </main>

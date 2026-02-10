@@ -155,6 +155,8 @@ export class PostsController {
     postId,
     actorUserId: actor.userId,
     content: dto.content,
+    keepMediaIds: dto.keepMediaIds,
+    mediaIds: dto.mediaIds,
   });
  }
  
