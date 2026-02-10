@@ -809,9 +809,9 @@ async updatePost(params: {
 }) {
   const { postId, actorUserId, content } = params;
 
-  const {
-  keepMediaIds = [],
-  mediaIds = [],
+const {
+  keepMediaIds,
+  mediaIds,
 } = params;
 
   const post = await this.repo.findById(postId);
@@ -854,7 +854,8 @@ async updatePost(params: {
   // =========================
 // Media ownership check (NEW)
 // =========================
-if (mediaIds.length > 0) {
+if (mediaIds && mediaIds.length > 0) {
+
   const mediaList = await this.prisma.media.findMany({
     where: { id: { in: mediaIds } },
     select: {
@@ -904,32 +905,34 @@ if (mediaIds.length > 0) {
       },
     });
 
-    // =========================
-// 🆕 MEDIA DIFF LOGIC
+// =========================
+// 🆕 MEDIA DIFF LOGIC (SAFE)
 // =========================
 
-// 2️⃣ Remove media ที่ไม่อยู่ใน keepMediaIds
-// (ถ้า keepMediaIds ว่าง → ลบ media เดิมทั้งหมด)
-await tx.postMedia.deleteMany({
-  where: {
-    postId,
-    ...(keepMediaIds.length > 0
-      ? { mediaId: { notIn: keepMediaIds } }
-      : {}),
-  },
-});
+// 👉 ทำเฉพาะเมื่อ frontend ตั้งใจแก้ media
+if (keepMediaIds !== undefined) {
 
-// 3️⃣ Attach media ใหม่
-if (mediaIds.length > 0) {
-  await tx.postMedia.createMany({
-    data: mediaIds.map((mediaId) => ({
+  // 2️⃣ Remove media ที่ไม่อยู่ใน keepMediaIds
+  await tx.postMedia.deleteMany({
+    where: {
       postId,
-      mediaId,
-    })),
-    skipDuplicates: true,
+      ...(keepMediaIds.length > 0
+        ? { mediaId: { notIn: keepMediaIds } }
+        : {}), // [] = explicit clear all
+    },
   });
-}
 
+  // 3️⃣ Attach media ใหม่
+  if (mediaIds && mediaIds.length > 0) {
+    await tx.postMedia.createMany({
+      data: mediaIds.map((mediaId) => ({
+        postId,
+        mediaId,
+      })),
+      skipDuplicates: true,
+    });
+  }
+}
 
     // -------------------------
     // 2) Remove old tags

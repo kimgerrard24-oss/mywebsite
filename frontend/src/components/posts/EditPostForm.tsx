@@ -39,6 +39,7 @@ export default function EditPostForm({
   const [localError, setLocalError] = useState<string | null>(null);
   const [showIncludePicker, setShowIncludePicker] = useState(false);
   const [showExcludePicker, setShowExcludePicker] = useState(false);
+  const [mediaTouched, setMediaTouched] = useState(false);
 
   const { submit, loading, error } = useUpdatePost();
   const { upload, uploading } = useMediaUpload();
@@ -77,10 +78,19 @@ const submitting =
   return;
 }
 
-    const selected = Array.from(e.target.files).slice(
-      0,
-      MAX_FILES,
-    );
+   const remainingSlots =
+  MAX_FILES - existingMedia.length;
+
+if (remainingSlots <= 0) {
+  setLocalError(`สามารถแนบได้สูงสุด ${MAX_FILES} ไฟล์`);
+  return;
+}
+
+const selected = Array.from(e.target.files).slice(
+  0,
+  remainingSlots,
+);
+
 
     setFiles(selected);
   }
@@ -303,6 +313,7 @@ const result = await submit({
         {m.type === "IMAGE" ? (
           <img
             src={m.url}
+            alt=""
             className="h-full w-full object-cover"
           />
         ) : (
