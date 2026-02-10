@@ -231,12 +231,17 @@ export async function createPost(
  export async function updatePost(params: {
   postId: string;
   content: string;
- }) {
-  const { postId, content } = params;
+  keepMediaIds?: string[];
+  mediaIds?: string[];
+  visibility?: string;
+  includeUserIds?: string[];
+  excludeUserIds?: string[];
+}) {
+  const { postId, ...body } = params;
 
   const res = await api.put(
     `/posts/${postId}`,
-    { content },
+    body,
     { withCredentials: true },
   );
 
@@ -245,5 +250,4 @@ export async function createPost(
     content: string;
     editedAt: string;
   };
- 
 }
