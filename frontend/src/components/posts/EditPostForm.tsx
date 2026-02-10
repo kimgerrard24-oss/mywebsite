@@ -156,9 +156,6 @@ e.target.value = "";
       const payload: any = {
   postId,
   content,
-  visibility: visibility.visibility,
-  includeUserIds: visibility.includeUserIds,
-  excludeUserIds: visibility.excludeUserIds,
 };
 
 if (mediaTouched) {
