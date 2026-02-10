@@ -156,17 +156,17 @@ e.target.value = "";
       const payload: any = {
   postId,
   content,
+  visibility: visibility.visibility,
+  includeUserIds: visibility.includeUserIds,
+  excludeUserIds: visibility.excludeUserIds,
 };
 
 if (mediaTouched) {
-  
-  if (mediaTouched) {
-  payload.keepMediaIds = [
-    ...existingMedia.map((m) => m.id),
-    ...mediaIds,
-  ];
-}
+  payload.keepMediaIds = existingMedia.map((m) => m.id);
 
+  if (mediaIds.length > 0) {
+    payload.mediaIds = mediaIds;
+  }
 }
 
 const result = await submit(payload);
