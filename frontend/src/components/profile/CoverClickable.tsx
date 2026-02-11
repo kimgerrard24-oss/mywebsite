@@ -1,5 +1,4 @@
 // frontend/src/components/profile/CoverClickable.tsx
-
 import React from "react";
 
 type Props = {
@@ -7,7 +6,7 @@ type Props = {
   onClick?: () => void;
 };
 
-export function CoverClickable({ coverUrl }: Props) {
+export function CoverClickable({ coverUrl, onClick }: Props) {
   return (
     <button
       type="button"
@@ -24,7 +23,7 @@ export function CoverClickable({ coverUrl }: Props) {
       "
       onClick={() => {
         if (!coverUrl) return;
-        window.open(coverUrl, "_blank");
+        onClick?.();
       }}
     >
       {coverUrl && (
@@ -38,3 +37,4 @@ export function CoverClickable({ coverUrl }: Props) {
     </button>
   );
 }
+
