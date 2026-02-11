@@ -13,7 +13,7 @@ export class MediaMetadataMapper {
 
     /**
      * =====================================================
-     * 🔎 Resolve related post (support both old & new shape)
+     * 🔎 Resolve related post (authoritative source)
      * =====================================================
      */
     const relatedPost =
@@ -21,12 +21,10 @@ export class MediaMetadataMapper {
       row.posts?.[0]?.post ??
       null;
 
-    const postId =
-      relatedPost &&
+    const hasValidPost =
+      !!relatedPost &&
       relatedPost.isDeleted !== true &&
-      relatedPost.isHidden !== true
-        ? relatedPost.id
-        : null;
+      relatedPost.isHidden !== true;
 
     /**
      * =====================================================
@@ -42,8 +40,6 @@ export class MediaMetadataMapper {
      * =====================================================
      * ⚠️ Active moderation snapshot (UX only)
      * =====================================================
-     * - media deleted
-     * - or attached post hidden / deleted
      */
     const hasActiveModeration =
       Boolean(row.deletedAt) ||
@@ -53,37 +49,65 @@ export class MediaMetadataMapper {
             relatedPost.isHidden === true),
       );
 
-   return {
-  id: row.id,
+    return {
+      id: row.id,
 
-  type:
-    row.mediaType === MediaType.IMAGE
-      ? 'image'
-      : 'video',
+      type:
+        row.mediaType === MediaType.IMAGE
+          ? 'image'
+          : 'video',
 
-  url: buildCdnUrl(row.objectKey),
+      url: buildCdnUrl(row.objectKey),
 
-  objectKey: row.objectKey,
+      objectKey: row.objectKey,
 
-  /**
-   * 🔹 NEW (safe)
-   */
-  thumbnailUrl:
-    row.mediaType === MediaType.VIDEO &&
-    row.thumbnailObjectKey
-      ? buildCdnUrl(row.thumbnailObjectKey)
-      : undefined,
+      /**
+       * 🔹 Video thumbnail (safe, optional)
+       */
+      thumbnailUrl:
+        row.mediaType === MediaType.VIDEO &&
+        row.thumbnailObjectKey
+          ? buildCdnUrl(row.thumbnailObjectKey)
+          : undefined,
 
-  ownerUserId: ownerId,
+      ownerUserId: ownerId,
 
-  postId,
+      /**
+       * =====================================================
+       * 🔗 Backward-compatible
+       * =====================================================
+       */
+      postId: hasValidPost ? relatedPost.id : null,
 
-  createdAt: row.createdAt.toISOString(),
+      /**
+       * =====================================================
+       * 🆕 Post context (for media viewer only)
+       * =====================================================
+       */
+      ...(hasValidPost
+        ? {
+            usedPost: {
+              id: relatedPost.id,
+              content: relatedPost.content,
+              createdAt:
+                relatedPost.createdAt.toISOString(),
+              author: {
+                id: relatedPost.author.id,
+                username:
+                  relatedPost.author.username,
+                avatarUrl:
+                  relatedPost.author.avatarUrl ??
+                  null,
+              },
+            },
+          }
+        : {}),
 
-  isOwner,
+      createdAt: row.createdAt.toISOString(),
 
-  canAppeal: Boolean(isOwner && hasActiveModeration),
-};
+      isOwner,
 
+      canAppeal: Boolean(isOwner && hasActiveModeration),
+    };
   }
 }
