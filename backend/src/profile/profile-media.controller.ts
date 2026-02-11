@@ -1,0 +1,102 @@
+// backend/src/profile/profile-media.controller.ts
+
+import {
+  Controller,
+  Patch,
+  Body,
+  Post,
+  UseGuards,
+  Get,
+  Param,
+  Query,
+} from '@nestjs/common';
+import { AccessTokenCookieAuthGuard } from '../auth/guards/access-token-cookie.guard';
+import { ProfileMediaService } from './profile-media.service';
+import { SetAvatarDto } from './dto/set-avatar.dto';
+import { SetCoverDto } from './dto/set-cover.dto';
+import { GetProfileMediaQueryDto } from './dto/get-profile-media.query.dto';
+import { SetCurrentProfileMediaDto } from './dto/set-current-profile-media.dto';
+import { GetCurrentProfileMediaParamsDto } from './dto/get-current-profile-media.params.dto';
+import { CurrentUser } from '../auth/decorators/current-user.decorator';
+import type { SessionUser } from '../auth/services/validate-session.service';
+
+@Controller('users/me')
+export class ProfileMediaController {
+  constructor(private readonly service: ProfileMediaService) {}
+
+  // ==========================
+  // PATCH /users/me/avatar
+  // ==========================
+  @UseGuards(AccessTokenCookieAuthGuard)
+  @Patch('avatar')
+  async setAvatar(
+    @CurrentUser() user: SessionUser,
+    @Body() dto: SetAvatarDto,
+  ) {
+    return this.service.setAvatar(user.userId, dto.mediaId);
+  }
+
+  // ==========================
+  // PATCH /users/me/cover
+  // ==========================
+  @UseGuards(AccessTokenCookieAuthGuard)
+  @Patch('cover')
+  async setCover(
+    @CurrentUser() user: SessionUser,
+    @Body() dto: SetCoverDto,
+  ) {
+    return this.service.setCover({
+      actorUserId: user.userId,
+      mediaId: dto.mediaId,
+    });
+  }
+
+  // ==========================
+  // GET /users/me/:userId/profile-media
+  // ==========================
+  @UseGuards(AccessTokenCookieAuthGuard)
+  @Get(':userId/profile-media')
+  async getProfileMedia(
+    @Param('userId') userId: string,
+    @Query() query: GetProfileMediaQueryDto,
+    @CurrentUser() user: SessionUser,
+  ) {
+    return this.service.getProfileMedia(
+      user?.userId ?? null,
+      userId,
+      query,
+    );
+  }
+
+  // ==========================
+  // POST /users/me/:mediaId/set-current
+  // ==========================
+  @UseGuards(AccessTokenCookieAuthGuard)
+  @Post(':mediaId/set-current')
+  async setCurrent(
+    @Param('mediaId') mediaId: string,
+    @Body() dto: SetCurrentProfileMediaDto,
+    @CurrentUser() user: SessionUser,
+  ) {
+    return this.service.setCurrentProfileMedia({
+      actorUserId: user.userId,
+      mediaId,
+      type: dto.type,
+    });
+  }
+
+  // ==========================
+  // GET /users/me/:userId/profile-media/current
+  // ==========================
+  @UseGuards(AccessTokenCookieAuthGuard)
+  @Get(':userId/profile-media/current')
+  async getCurrentProfileMedia(
+    @Param() params: GetCurrentProfileMediaParamsDto,
+    @CurrentUser() user: SessionUser,
+  ) {
+    return this.service.getCurrentProfileMedia(
+      user?.userId ?? null,
+      params.userId,
+    );
+  }
+}

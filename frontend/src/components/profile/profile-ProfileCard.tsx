@@ -9,6 +9,12 @@ import FollowActionButton from "@/components/follows/FollowActionButton";
 import FollowController from "@/components/follows/FollowController";
 import { useRouter } from "next/router";
 import CancelFollowRequestButton from "@/components/follows/CancelFollowRequestButton";
+import { useCurrentProfileMedia } from "@/hooks/useCurrentProfileMedia";
+import { AvatarClickable } from "@/components/profile/AvatarClickable";
+import { CoverClickable } from "@/components/profile/CoverClickable";
+import { AvatarUploader } from "@/components/profile/AvatarUploader";
+import { CoverUploader } from "@/components/profile/CoverUploaderr";
+import AvatarCoverPreviewModal from "@/components/profile/AvatarCoverPreviewModal";
 
 export interface ProfileCardProps {
   profile: UserProfile | PublicUserProfile | null;
@@ -36,6 +42,9 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
   isSelf = true,
 }) => {
   if (!profile) return null;
+  const { data: currentMedia, loading: mediaLoading } =
+  useCurrentProfileMedia(profile.id);
+
   const router = useRouter();
   const displayName =
     profile.displayName && profile.displayName.trim().length > 0
@@ -74,6 +83,8 @@ const isPrivateLocked =
   !isSelf &&
   !isFollowing;
 
+  const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
+
   return (
     <section
       aria-labelledby="profile-heading"
@@ -91,27 +102,22 @@ const isPrivateLocked =
         shadow-sm
       "
     >
-      {/* ===== Cover ===== */}
-      <div
-        className="
-          h-24
-          sm:h-32
-          md:h-40
-          w-full
-          rounded-t-xl
-          sm:rounded-t-2xl
-          bg-gray-200
-        "
-        style={{
-          backgroundImage: profile.coverUrl
-            ? `url(${profile.coverUrl})`
-            : undefined,
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-        }}
-        role="img"
-        aria-label="Profile cover image"
-      />
+ {/* ===== Cover ===== */}
+<CoverClickable
+  coverUrl={currentMedia?.cover?.url}
+  onClick={() => {
+    if (currentMedia?.cover?.url) {
+      setPreviewUrl(currentMedia.cover.url);
+    }
+  }}
+/>
+
+{isSelf && (
+  <div className="px-4 pt-2">
+    <CoverUploader />
+  </div>
+)}
+
 
       <div
         className="
@@ -144,46 +150,29 @@ const isPrivateLocked =
               sm:gap-4
             "
           >
-            <div
-              className="
-                h-16
-                w-16
-                sm:h-20
-                sm:w-20
-                shrink-0
-                overflow-hidden
-                rounded-full
-                border-4
-                border-white
-                bg-gray-100
-              "
-            >
-              {profile.avatarUrl ? (
-                <img
-                  src={profile.avatarUrl}
-                  alt={displayName}
-                  loading="lazy"
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                <div
-                  className="
-                    flex
-                    h-full
-                    w-full
-                    items-center
-                    justify-center
-                    text-xl
-                    sm:text-2xl
-                    font-semibold
-                    text-gray-500
-                  "
-                  aria-hidden="true"
-                >
-                  {displayName.charAt(0).toUpperCase()}
-                </div>
-              )}
-            </div>
+           <div
+  className="
+    flex
+    flex-col
+    items-start
+    gap-2
+  "
+>
+  <AvatarClickable
+    avatarUrl={currentMedia?.avatar?.url}
+    displayName={displayName}
+    onClick={() => {
+      if (currentMedia?.avatar?.url) {
+        setPreviewUrl(currentMedia.avatar.url);
+      }
+    }}
+  />
+
+  {isSelf && (
+    <AvatarUploader />
+  )}
+</div>
+
 
             <div className="flex flex-col gap-0.5 sm:gap-1 min-w-0">
               <h1
@@ -402,6 +391,13 @@ const isPrivateLocked =
   )}
 
       </div>
+      {previewUrl && (
+  <AvatarCoverPreviewModal
+    imageUrl={previewUrl}
+    onClose={() => setPreviewUrl(null)}
+  />
+)}
+
     </section>
   );
 };

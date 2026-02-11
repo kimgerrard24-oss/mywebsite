@@ -11,6 +11,7 @@ export type User = {
   email?: string | null;
   username?: string | null;
   avatar?: string | null;
+  cover?: string | null;
 };
 
 type UserContextValue = {
@@ -18,6 +19,8 @@ type UserContextValue = {
   isAuthenticated: boolean;
   loading: boolean;
   logout: () => Promise<void>;
+  updateAvatar: (avatarUrl: string) => void;
+  updateCover: (coverUrl: string) => void;
 };
 
 const UserContext = createContext<UserContextValue | undefined>(undefined);
@@ -40,12 +43,14 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
         authUser.displayName?.trim() ||
         (authUser.email ? authUser.email.split("@")[0] : null);
 
-      setUser({
-        id: authUser.id,
-        email: authUser.email,
-        username,
-        avatar: authUser.avatarUrl || null,
-      });
+     setUser({
+  id: authUser.id,
+  email: authUser.email,
+  username,
+  avatar: authUser.avatarUrl || null,
+  cover: authUser.coverUrl || null,
+});
+
 
       setLoading(false);
       return;
@@ -55,6 +60,28 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     setUser(null);
     setLoading(false);
   }, [authUser, authLoading]);
+
+   const updateAvatar = (avatarUrl: string) => {
+    setUser((prev) => {
+      if (!prev) return prev;
+
+      return {
+        ...prev,
+        avatar: avatarUrl,
+      };
+    });
+  };
+
+  const updateCover = (coverUrl: string) => {
+  setUser((prev) => {
+    if (!prev) return prev;
+
+    return {
+      ...prev,
+      cover: coverUrl,
+    };
+  });
+};
 
   // Backend logout
   const logout = async () => {
@@ -73,6 +100,8 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     isAuthenticated: !loading && Boolean(authUser),
     loading,
     logout,
+    updateAvatar,
+    updateCover,
   };
 
   return <UserContext.Provider value={value}>{children}</UserContext.Provider>;
@@ -90,6 +119,8 @@ export function useUserStore() {
       isAuthenticated: false,
       loading: true,
       logout: async () => {},
+      updateAvatar: () => {},
+      updateCover: () => {},
     };
   }
 

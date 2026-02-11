@@ -38,6 +38,8 @@ model User {
   coverUrl                  String?
   currentRefreshTokenHash   String?
   adminNote                 String?
+  avatarMediaId             String?
+  coverMediaId              String?
   isPrivate                 Boolean  @default(false)
   lastSeenAt                DateTime?
   role                      UserRole @default(USER)
@@ -52,6 +54,9 @@ model User {
   reports Report[] @relation("UserReports")
   resolvedReports Report[] @relation("ReportResolvedBy")
   // relation (optional แต่ production-grade)
+  
+  avatarMedia Media? @relation("UserAvatar",fields: [avatarMediaId],references: [id],onDelete: SetNull)
+  coverMedia Media? @relation("UserCover",fields: [coverMediaId],references: [id],onDelete: SetNull)
 
   bannedByAdmin     User?     @relation("UserBannedByAdmin",fields: [bannedByAdminId],references: [id],onDelete: SetNull)
   moderationActions ModerationAction[] @relation("AdminModerationActions")
@@ -121,7 +126,9 @@ model User {
   // ===== Blocking =====
   blockedUsers UserBlock[] @relation("UserBlocker")
   blockedBy    UserBlock[] @relation("UserBlocked")
-
+   
+  @@index([avatarMediaId])
+  @@index([coverMediaId])
   @@index([isBanned, bannedAt])
   @@index([phoneNumber])
   @@index([isAccountLocked, accountLockedAt])
@@ -352,6 +359,11 @@ model PostMedia {
   @@index([mediaId])
 }
 
+enum ProfileMediaType {
+  AVATAR
+  COVER
+}
+
 enum MediaType {
   IMAGE
   VIDEO
@@ -368,15 +380,17 @@ model Media {
   thumbnailKey String?    @unique 
   mediaType   MediaType
   mimeType    String
-
+  
   width       Int?
   height      Int?
   duration    Int?
-  
+  profileType ProfileMediaType?
   thumbnailObjectKey String?  // objectKey ของ thumbnail image
   thumbnailWidth     Int?
   thumbnailHeight    Int?
-  
+  avatarForUsers User[] @relation("UserAvatar")
+  coverForUsers  User[] @relation("UserCover")
+
   createdAt   DateTime    @default(now())
 
   deletedAt   DateTime?   // เมื่อ user ลบ post / media

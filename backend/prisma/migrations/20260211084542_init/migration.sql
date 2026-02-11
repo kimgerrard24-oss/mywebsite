@@ -13,6 +13,9 @@ CREATE TYPE "OAuthProvider" AS ENUM ('LOCAL', 'GOOGLE', 'FACEBOOK');
 CREATE TYPE "VisibilityRuleType" AS ENUM ('INCLUDE', 'EXCLUDE');
 
 -- CreateEnum
+CREATE TYPE "ProfileMediaType" AS ENUM ('AVATAR', 'COVER');
+
+-- CreateEnum
 CREATE TYPE "MediaType" AS ENUM ('IMAGE', 'VIDEO', 'AUDIO');
 
 -- CreateEnum
@@ -90,6 +93,8 @@ CREATE TABLE "User" (
     "coverUrl" TEXT,
     "currentRefreshTokenHash" TEXT,
     "adminNote" TEXT,
+    "avatarMediaId" TEXT,
+    "coverMediaId" TEXT,
     "isPrivate" BOOLEAN NOT NULL DEFAULT false,
     "lastSeenAt" TIMESTAMP(3),
     "role" "UserRole" NOT NULL DEFAULT 'USER',
@@ -276,6 +281,7 @@ CREATE TABLE "Media" (
     "width" INTEGER,
     "height" INTEGER,
     "duration" INTEGER,
+    "profileType" "ProfileMediaType",
     "thumbnailObjectKey" TEXT,
     "thumbnailWidth" INTEGER,
     "thumbnailHeight" INTEGER,
@@ -721,6 +727,12 @@ CREATE UNIQUE INDEX "User_phoneNumber_key" ON "User"("phoneNumber");
 CREATE UNIQUE INDEX "User_firebaseUid_key" ON "User"("firebaseUid");
 
 -- CreateIndex
+CREATE INDEX "User_avatarMediaId_idx" ON "User"("avatarMediaId");
+
+-- CreateIndex
+CREATE INDEX "User_coverMediaId_idx" ON "User"("coverMediaId");
+
+-- CreateIndex
 CREATE INDEX "User_isBanned_bannedAt_idx" ON "User"("isBanned", "bannedAt");
 
 -- CreateIndex
@@ -1088,6 +1100,12 @@ CREATE INDEX "ShareLink_postId_createdAt_idx" ON "ShareLink"("postId", "createdA
 
 -- CreateIndex
 CREATE UNIQUE INDEX "ShareLink_postId_creatorId_key" ON "ShareLink"("postId", "creatorId");
+
+-- AddForeignKey
+ALTER TABLE "User" ADD CONSTRAINT "User_avatarMediaId_fkey" FOREIGN KEY ("avatarMediaId") REFERENCES "Media"("id") ON DELETE SET NULL ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "User" ADD CONSTRAINT "User_coverMediaId_fkey" FOREIGN KEY ("coverMediaId") REFERENCES "Media"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "User" ADD CONSTRAINT "User_bannedByAdminId_fkey" FOREIGN KEY ("bannedByAdminId") REFERENCES "User"("id") ON DELETE SET NULL ON UPDATE CASCADE;
