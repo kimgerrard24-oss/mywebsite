@@ -91,11 +91,7 @@ if (targetType === 'CHAT_MESSAGE')
       case 'post_tagged_request':
       case 'post_tagged_rejected':
       case 'post_tagged_accepted':
-        return item.payload?.postId
-          ? `/posts/${item.payload.postId}`
-          : item.entityId
-          ? `/posts/${item.entityId}`
-          : null;
+       return '/users/me/tagged-posts';
 
       case 'comment_mention':
         return item.payload?.postId && item.entityId

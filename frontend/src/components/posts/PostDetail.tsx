@@ -2,7 +2,6 @@
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { useState } from "react";
-import PostTagList from "@/components/posts/PostTagList";
 import type { PostDetail as PostDetailType } from "@/types/post-detail";
 import PostActionMenu from "@/components/posts/PostActionMenu";
 import { renderContentWithHashtags } from "@/utils/renderContentWithHashtags";
@@ -244,12 +243,6 @@ const closeLikes = () => {
 {!isRepost && post.media.length > 0 && (
   <PostMediaGrid media={post.media} />
 )}
-
-      
-{post.userTags && post.userTags.length > 0 && (
-  <PostTagList postId={post.id} tags={post.userTags} />
-)}
-
 
       {/* ================= Likes ================= */}
 <section
