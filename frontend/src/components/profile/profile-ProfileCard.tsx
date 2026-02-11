@@ -12,8 +12,6 @@ import CancelFollowRequestButton from "@/components/follows/CancelFollowRequestB
 import { useCurrentProfileMedia } from "@/hooks/useCurrentProfileMedia";
 import { AvatarClickable } from "@/components/profile/AvatarClickable";
 import { CoverClickable } from "@/components/profile/CoverClickable";
-import { AvatarUploader } from "@/components/profile/AvatarUploader";
-import { CoverUploader } from "@/components/profile/CoverUploaderr";
 import AvatarCoverPreviewModal from "@/components/profile/AvatarCoverPreviewModal";
 
 export interface ProfileCardProps {
@@ -112,12 +110,6 @@ const isPrivateLocked =
   }}
 />
 
-{isSelf && (
-  <div className="px-4 pt-2">
-    <CoverUploader />
-  </div>
-)}
-
 
       <div
         className="
@@ -167,10 +159,7 @@ const isPrivateLocked =
       }
     }}
   />
-
-  {isSelf && (
-    <AvatarUploader />
-  )}
+ 
 </div>
 
 

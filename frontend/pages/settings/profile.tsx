@@ -6,7 +6,7 @@ import ProfileForm from "@/components/profile/ProfileForm";
 import type { UserProfile } from "@/types/user-profile";
 import Link from "next/link";
 import { AvatarUploader } from "@/components/profile/AvatarUploader";
-import { CoverUploader } from "@/components/profile/CoverUploaderr";
+import { CoverUploader } from "@/components/profile/CoverUploader";
 import { useCurrentProfileMedia } from "@/hooks/useCurrentProfileMedia";
 
 type Props = {

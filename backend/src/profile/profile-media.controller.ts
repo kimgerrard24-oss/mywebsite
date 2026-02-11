@@ -19,6 +19,7 @@ import { SetCurrentProfileMediaDto } from './dto/set-current-profile-media.dto';
 import { GetCurrentProfileMediaParamsDto } from './dto/get-current-profile-media.params.dto';
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { SessionUser } from '../auth/services/validate-session.service';
+import { RateLimit } from '../common/rate-limit/rate-limit.decorator';
 
 @Controller('users')
 export class ProfileMediaController {
@@ -28,6 +29,7 @@ export class ProfileMediaController {
   // PATCH /users/me/avatar
   // ==========================
   @UseGuards(AccessTokenCookieAuthGuard)
+  @RateLimit('updateAvatar')
   @Patch('me/avatar')
   async setAvatar(
     @CurrentUser() user: SessionUser,
@@ -40,6 +42,7 @@ export class ProfileMediaController {
   // PATCH /users/me/cover
   // ==========================
   @UseGuards(AccessTokenCookieAuthGuard)
+  @RateLimit('updateCover')
   @Patch('me/cover')
   async setCover(
     @CurrentUser() user: SessionUser,
@@ -55,6 +58,7 @@ export class ProfileMediaController {
   // GET /users/:userId/profile-media
   // ==========================
   @UseGuards(AccessTokenCookieAuthGuard)
+  @RateLimit('mediaGallery')
   @Get(':userId/profile-media')
   async getProfileMedia(
     @Param('userId') userId: string,
@@ -72,6 +76,7 @@ export class ProfileMediaController {
   // POST /users/me/profile-media/:mediaId/set-current
   // ==========================
   @UseGuards(AccessTokenCookieAuthGuard)
+  @RateLimit('updateProfile')
   @Post('me/profile-media/:mediaId/set-current')
   async setCurrent(
     @Param('mediaId') mediaId: string,
@@ -89,6 +94,7 @@ export class ProfileMediaController {
   // GET /users/:userId/profile-media/current
   // ==========================
   @UseGuards(AccessTokenCookieAuthGuard)
+  @RateLimit('mediaGallery')
   @Get(':userId/profile-media/current')
   async getCurrentProfileMedia(
     @Param() params: GetCurrentProfileMediaParamsDto,
