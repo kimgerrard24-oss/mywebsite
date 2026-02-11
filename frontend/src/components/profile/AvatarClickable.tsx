@@ -8,10 +8,10 @@ type Props = {
   onClick?: () => void;
 };
 
-
 export function AvatarClickable({
   avatarUrl,
   displayName,
+  onClick,
 }: Props) {
   return (
     <button
@@ -20,7 +20,7 @@ export function AvatarClickable({
       className="h-16 w-16 sm:h-20 sm:w-20 shrink-0 overflow-hidden rounded-full border-4 border-white bg-gray-100"
       onClick={() => {
         if (!avatarUrl) return;
-        window.open(avatarUrl, "_blank");
+        onClick?.();
       }}
     >
       {avatarUrl ? (
@@ -38,3 +38,4 @@ export function AvatarClickable({
     </button>
   );
 }
+

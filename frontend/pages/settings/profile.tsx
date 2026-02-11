@@ -55,31 +55,14 @@ export default function ProfileSettingsPage({ user }: Props) {
         {/* ==============================
            COVER SECTION (NEW SYSTEM)
            ============================== */}
-        <section className="mt-8">
-          <h2 className="text-lg font-medium">Profile Cover</h2>
+       <section className="mt-8">
+  <h2 className="text-lg font-medium">Profile Cover</h2>
 
-          <div className="mt-4 space-y-4">
-            {/* Cover Preview */}
-            <div className="relative w-full h-48 rounded-xl overflow-hidden bg-gray-100">
-              {mediaLoading ? (
-                <div className="w-full h-full animate-pulse bg-gray-200" />
-              ) : coverUrl ? (
-                <img
-                  src={coverUrl}
-                  alt="Current cover"
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="flex items-center justify-center w-full h-full text-sm text-gray-400">
-                  No cover photo
-                </div>
-              )}
-            </div>
+  <div className="mt-4">
+    <CoverUploader />
+  </div>
+</section>
 
-            {/* Upload Button */}
-            <CoverUploader />
-          </div>
-        </section>
 
         {/* ==============================
            AVATAR SECTION (NEW SYSTEM)
@@ -89,21 +72,24 @@ export default function ProfileSettingsPage({ user }: Props) {
 
           <div className="mt-4 flex items-center gap-6">
             {/* Avatar Preview */}
-            <div className="relative">
-              {mediaLoading ? (
-                <div className="h-24 w-24 rounded-full bg-gray-200 animate-pulse" />
-              ) : avatarUrl ? (
-                <img
-                  src={avatarUrl}
-                  alt="Current avatar"
-                  className="h-24 w-24 rounded-full object-cover border"
-                />
-              ) : (
-                <div className="h-24 w-24 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 text-xl font-semibold border">
-                  {user.displayName?.charAt(0)?.toUpperCase() ?? "U"}
-                </div>
-              )}
-            </div>
+         <div className="relative h-24 w-24">
+  {mediaLoading ? (
+    <div className="h-24 w-24 rounded-full bg-gray-200 animate-pulse" />
+  ) : avatarUrl ? (
+    <div className="h-24 w-24 rounded-full overflow-hidden border">
+      <img
+        src={avatarUrl}
+        alt="Current avatar"
+        className="h-full w-full object-cover"
+      />
+    </div>
+  ) : (
+    <div className="h-24 w-24 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 text-xl font-semibold border">
+      {user.displayName?.charAt(0)?.toUpperCase() ?? "U"}
+    </div>
+  )}
+</div>
+
 
             {/* Upload Button */}
             <AvatarUploader />
