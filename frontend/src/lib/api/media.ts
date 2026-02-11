@@ -23,6 +23,18 @@ export type MediaMetadataResponse = {
   postId: string | null;
   createdAt: string;
   isOwner: boolean;
+  canAppeal?: boolean;
+
+   usedPost?: {
+    id: string;
+    content: string;
+    createdAt: string;
+    author: {
+      id: string;
+      username: string;
+      avatarUrl: string | null;
+    };
+  };
 };
 
 
@@ -94,27 +106,45 @@ export async function requestPresignValidate(
 }
 
 
+/* =========================================================
+ * Get media metadata (viewer)
+ * ========================================================= */
+
 export async function getMediaById(
   mediaId: string,
-  options?: { req?: IncomingMessage },
+  options?: {
+    /**
+     * For SSR only (pass ctx.req)
+     */
+    req?: IncomingMessage;
+  },
 ): Promise<MediaMetadataResponse> {
+  if (!mediaId) {
+    throw new Error("mediaId is required");
+  }
+
   const res = await fetch(
     `${API_BASE}/media/${encodeURIComponent(mediaId)}`,
     {
-      method: 'GET',
+      method: "GET",
       headers: {
-        Accept: 'application/json',
+        Accept: "application/json",
+
+        // SSR cookie forwarding
         ...(options?.req?.headers.cookie
           ? { cookie: options.req.headers.cookie }
           : {}),
       },
-      credentials: 'include',
+      credentials: "include",
     },
   );
 
   if (!res.ok) {
-    throw new Error('Failed to fetch media metadata');
+    throw new Error(
+      `Failed to fetch media metadata (${res.status})`,
+    );
   }
 
-  return res.json();
+  return (await res.json()) as MediaMetadataResponse;
 }
+

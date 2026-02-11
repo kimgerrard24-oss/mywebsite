@@ -3,7 +3,8 @@
 import { useEffect, useState, useCallback } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import type { MediaMetadata } from "@/types/media-metadata";
+import { getMediaById } from "@/lib/api/media";
+import type { MediaMetadataResponse } from "@/lib/api/media";
 
 type Props = {
   mediaId: string;
@@ -11,7 +12,8 @@ type Props = {
 };
 
 export default function MediaViewer({ mediaId, onClose }: Props) {
-  const [data, setData] = useState<MediaMetadata | null>(null);
+  const [data, setData] =
+  useState<MediaMetadataResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -38,47 +40,37 @@ export default function MediaViewer({ mediaId, onClose }: Props) {
   /* ===============================
    * Fetch media detail (authoritative)
    * =============================== */
-  useEffect(() => {
-    let aborted = false;
+ useEffect(() => {
+  let aborted = false;
+  
+  async function load() {
+    try {
+      setLoading(true);
+      setError(null);
 
-    async function load() {
-      try {
-        setLoading(true);
-        setError(null);
+      const json = await getMediaById(mediaId);
 
-        const res = await fetch(`/media/${mediaId}`, {
-          method: "GET",
-          credentials: "include",
-          headers: {
-            Accept: "application/json",
-          },
-        });
-
-        if (!res.ok) {
-          throw new Error("Failed to load media");
-        }
-
-        const json = (await res.json()) as MediaMetadata;
-
-        if (!aborted) {
-          setData(json);
-        }
-      } catch {
-        if (!aborted) {
-          setError("Unable to load media");
-        }
-      } finally {
-        if (!aborted) {
-          setLoading(false);
-        }
+      if (!aborted) {
+        setData(json);
+      }
+    } catch {
+      if (!aborted) {
+        setError("Unable to load media");
+      }
+    } finally {
+      if (!aborted) {
+        setLoading(false);
       }
     }
+  }
+  setData(null);
+  load();
 
-    load();
-    return () => {
-      aborted = true;
-    };
-  }, [mediaId]);
+  return () => {
+    aborted = true;
+  };
+}, [mediaId]);
+
 
   /* ===============================
    * Loading / Error states
@@ -145,7 +137,7 @@ export default function MediaViewer({ mediaId, onClose }: Props) {
           {data.type === "image" ? (
             <Image
               src={data.url}
-              alt=""
+              alt={usedPost?.content ?? "Media"}
               width={1600}
               height={1600}
               priority
@@ -158,6 +150,7 @@ export default function MediaViewer({ mediaId, onClose }: Props) {
               controls
               autoPlay
               playsInline
+              preload="metadata"
               controlsList="nodownload"
               disablePictureInPicture
               className="max-h-[90vh] w-auto bg-black"
@@ -176,7 +169,7 @@ export default function MediaViewer({ mediaId, onClose }: Props) {
                     usedPost.author.avatarUrl ??
                     "/avatar-placeholder.png"
                   }
-                  alt=""
+                  alt={`Avatar of ${usedPost.author.username}`}
                   width={32}
                   height={32}
                   className="rounded-full"
