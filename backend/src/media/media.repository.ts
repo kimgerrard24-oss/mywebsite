@@ -37,40 +37,50 @@ export class MediaRepository {
   }
 
   async findMediaById(mediaId: string) {
-  return this.prisma.media.findUnique({
-    where: {
-      id: mediaId,
-    },
-    select: {
-      id: true,
-      objectKey: true,
-      mediaType: true,
-      mimeType: true,
-      ownerUserId: true,
-      createdAt: true,
-      deletedAt: true,
-
-      owner: {
-        select: {
-          id: true,
-        },
+    return this.prisma.media.findUnique({
+      where: {
+        id: mediaId,
       },
+      select: {
+        id: true,
+        objectKey: true,
+        mediaType: true,
+        mimeType: true,
+        ownerUserId: true,
+        createdAt: true,
+        deletedAt: true,
 
-      posts: {
-        select: {
-          post: {
-            select: {
-              id: true,
-              isDeleted: true,
-              isHidden: true,
+        owner: {
+          select: {
+            id: true,
+          },
+        },
+
+        posts: {
+          take: 1, // media ผูกกับ post เดียวในระบบคุณ
+          select: {
+            post: {
+              select: {
+                id: true,
+                content: true,
+                createdAt: true,
+                isDeleted: true,
+                isHidden: true,
+
+                author: {
+                  select: {
+                    id: true,
+                    username: true,
+                    avatarUrl: true,
+                  },
+                },
+              },
             },
           },
         },
-        take: 1, // media ผูกกับ post เดียวในระบบคุณ
       },
-    },
-  });
- }
+    });
+  }
 
   async update(
     mediaId: string,

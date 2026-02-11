@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from "react";
 import Image from "next/image";
 import type { MyMediaGalleryItem } from "@/types/my-media";
+import MediaViewer from "@/components/media/MediaViewer";
 
 type Props = {
   items: MyMediaGalleryItem[];
@@ -10,15 +11,16 @@ type Props = {
 };
 
 export default function MyMediaGallery({ items }: Props) {
-  const [active, setActive] =
-    useState<MyMediaGalleryItem | null>(null);
+ const [activeMediaId, setActiveMediaId] =
+  useState<string | null>(null);
 
   /* ===============================
    * Close handlers
    * =============================== */
-  const closeViewer = useCallback(() => {
-    setActive(null);
-  }, []);
+const closeViewer = useCallback(() => {
+  setActiveMediaId(null);
+}, []);
+
 
   const onKeyDown = useCallback(
     (e: KeyboardEvent) => {
@@ -30,10 +32,11 @@ export default function MyMediaGallery({ items }: Props) {
   );
 
   useEffect(() => {
-    if (active) {
-      document.addEventListener("keydown", onKeyDown);
-      document.body.style.overflow = "hidden"; // lock scroll
-    } else {
+   if (activeMediaId) {
+  document.addEventListener("keydown", onKeyDown);
+  document.body.style.overflow = "hidden";
+}
+ else {
       document.body.style.overflow = "";
     }
 
@@ -41,7 +44,7 @@ export default function MyMediaGallery({ items }: Props) {
       document.removeEventListener("keydown", onKeyDown);
       document.body.style.overflow = "";
     };
-  }, [active, onKeyDown]);
+  }, [activeMediaId, onKeyDown]);
 
   /* ===============================
    * Empty state
@@ -84,7 +87,8 @@ export default function MyMediaGallery({ items }: Props) {
               {/* Clickable layer */}
               <button
                 type="button"
-                onClick={() => setActive(item)}
+                aria-haspopup="dialog"
+                onClick={() => setActiveMediaId(item.mediaId)}
                 className="absolute inset-0 z-10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
                 aria-label={
                   item.type === "VIDEO"
@@ -146,48 +150,13 @@ export default function MyMediaGallery({ items }: Props) {
       {/* ===============================
        * Media Viewer (Modal)
        * =============================== */}
-      {active && (
-        <div
-          role="dialog"
-          aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4"
-          onClick={closeViewer}
-        >
-          {/* Close button */}
-          <button
-            type="button"
-            onClick={closeViewer}
-            aria-label="Close media viewer"
-            className="absolute right-4 top-4 rounded bg-black/60 px-3 py-1.5 text-sm text-white hover:bg-black/80 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
-          >
-            ✕
-          </button>
+      {activeMediaId && (
+  <MediaViewer
+    mediaId={activeMediaId}
+    onClose={closeViewer}
+  />
+)}
 
-          {/* Content */}
-          <div
-            className="relative max-h-full max-w-full"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {active.type === "IMAGE" ? (
-              <Image
-                src={active.url}
-                alt=""
-                width={1600}
-                height={1600}
-                className="max-h-[90vh] w-auto rounded object-contain"
-                priority
-              />
-            ) : (
-              <video
-                src={active.url}
-                controls
-                autoPlay
-                className="max-h-[90vh] w-auto rounded bg-black"
-              />
-            )}
-          </div>
-        </div>
-      )}
     </>
   );
 }

@@ -21,6 +21,7 @@ import {
 } from './dto/my-media-gallery.query.dto';
 import { MyMediaGalleryResponseDto } from './dto/my-media-gallery.response.dto';
 import { MyMediaGalleryMapper } from './mappers/my-media-gallery.mapper'; 
+import { PostsVisibilityService } from '../posts/visibility/posts-visibility.service';
 
 @Injectable()
 export class MediaService {
@@ -29,7 +30,7 @@ export class MediaService {
     private readonly mediaRepository: MediaRepository,
     private readonly r2Service: R2Service,
     private readonly auditLogService: AuditLogService,
-
+    private readonly postsVisibilityService: PostsVisibilityService,
   ) {}
 
   async validateAndPresign(params: {
@@ -185,19 +186,56 @@ if (mediaType === 'video') {
   };
 }
 
-  async getMediaMetadata(params: {
-    mediaId: string;
-    viewerUserId: string | null;
-  }): Promise<MediaMetadataDto | null> {
-    const row = await this.mediaRepository.findMediaById(params.mediaId);
+async getMediaMetadata(params: {
+  mediaId: string;
+  viewerUserId: string | null;
+}): Promise<MediaMetadataDto | null> {
+  const { mediaId, viewerUserId } = params;
 
-    if (!row) {
-      return null;
-    }
+  const row = await this.mediaRepository.findMediaById(mediaId);
 
-    return MediaMetadataMapper.toDto(row, params.viewerUserId);
+  if (!row) {
+    return null;
   }
-  
+
+  /**
+   * =====================================================
+   * 🔎 Resolve related post (if any)
+   * =====================================================
+   */
+  const relatedPost = row.posts?.[0]?.post ?? null;
+
+  /**
+   * =====================================================
+   * 🔐 Enforce post visibility (BACKEND AUTHORITY)
+   * =====================================================
+   */
+  if (relatedPost) {
+    const decision =
+      await this.postsVisibilityService.validateVisibility({
+        postId: relatedPost.id,
+        viewerUserId,
+      });
+
+    if (!decision.canView) {
+      /**
+       * ❗ Viewer cannot see this post
+       * - media viewer still allowed
+       * - but MUST strip post context
+       */
+      row.posts = [];
+    }
+  }
+
+  /**
+   * =====================================================
+   * 🧭 Mapping (media + optional post context)
+   * =====================================================
+   */
+  return MediaMetadataMapper.toDto(row, viewerUserId);
+}
+
+
    async getMyMediaGallery(params: {
     actorUserId: string;
     query: MyMediaGalleryQueryDto;
