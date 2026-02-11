@@ -24,6 +24,7 @@ interface UserProfile {
   avatarUrl: string | null;
   createdAt: string;
   updatedAt: string;
+  coverUrl?: string | null;
 }
 
 interface AuthContextValue {

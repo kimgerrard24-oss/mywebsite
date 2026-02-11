@@ -42,6 +42,7 @@ import { SecuritiesModule } from './securities/securities.module';
 import { FeedModule } from './feed/feed.module';
 import { EventsModule } from './core/events/events.module';
 import { SharesModule } from './shares/shares.module';
+import { ProfileMediaModule } from './profile/profile-media.module';
 
 
 @Module({
@@ -76,6 +77,7 @@ import { SharesModule } from './shares/shares.module';
     PrismaModule,
     RequestContextModule,
     MediaModule,
+    ProfileMediaModule, 
     RedisModule,
     AuthModule,
     AwsModule,
