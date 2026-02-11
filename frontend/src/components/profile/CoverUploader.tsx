@@ -1,206 +1,125 @@
-// frontend/components/profile/CoverUploader.tsx
-import { useState, ChangeEvent, useEffect } from 'react';
-import { updateCover } from '@/lib/api/user';
-import UploadProgress from '@/components/ui/UploadProgress';
-import { useAuth } from '@/context/AuthContext';
-import { validateCoverFile } from '@/lib/upload/cover-upload';
+// frontend/src/components/profile/CoverUploader.tsx
 
-type Props = {
-  currentCoverUrl: string | null;
-};
+import { useEffect, useRef, useState } from "react";
+import { useCoverUpload } from "@/hooks/useCoverUpload";
+import { useCurrentProfileMedia } from "@/hooks/useCurrentProfileMedia";
+import { useAuth } from "@/context/AuthContext";
 
-export default function CoverUploader({ currentCoverUrl }: Props) {
-  const { refreshUser } = useAuth();
+export function CoverUploader() {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const { user, refreshUser } = useAuth();
+  const userId = user?.id ?? null;
+
+  const { upload, loading, error } = useCoverUpload();
+  const { data, refetch } = useCurrentProfileMedia(userId);
 
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
-  const [coverUrl, setCoverUrl] = useState<string | null>(currentCoverUrl);
-
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
 
   useEffect(() => {
-    setCoverUrl(currentCoverUrl);
-  }, [currentCoverUrl]);
+    return () => {
+      if (previewUrl) {
+        URL.revokeObjectURL(previewUrl);
+      }
+    };
+  }, [previewUrl]);
 
-  const onFileChange = async (e: ChangeEvent<HTMLInputElement>) => {
+  async function handleChange(
+    e: React.ChangeEvent<HTMLInputElement>,
+  ) {
     const file = e.target.files?.[0];
     if (!file) return;
 
-    try {
-      validateCoverFile(file);
-    } catch (err: any) {
-      setError(err?.message ?? 'Invalid cover file');
-      return;
-    }
-
-    setError(null);
     setSuccess(false);
-    setLoading(true);
 
     const objectUrl = URL.createObjectURL(file);
     setPreviewUrl(objectUrl);
 
     try {
-      const res = await updateCover(file);
+      await upload(file);
 
-      if (res && typeof res.coverUrl === 'string') {
-        setCoverUrl(res.coverUrl);
-      }
+      // ✅ refresh auth user (if coverUrl stored there)
+      await refreshUser();
 
-      refreshUser().catch(() => null);
+      // ✅ refetch profile media current
+      await refetch();
 
       setSuccess(true);
       setPreviewUrl(null);
-    } catch (err: any) {
-      setError(err?.message ?? 'Upload failed');
+    } catch {
+      // error handled by hook
     } finally {
-      setLoading(false);
-      URL.revokeObjectURL(objectUrl);
-      e.target.value = '';
+      if (inputRef.current) {
+        inputRef.current.value = "";
+      }
     }
-  };
+  }
 
-  const imageSrc = previewUrl ?? coverUrl;
+  const imageSrc =
+    previewUrl ??
+    data?.cover?.url ??
+    null;
 
- return (
-  <article
-    aria-labelledby="cover-heading"
-    className="
-      w-full
-      max-w-4xl
-      mx-auto
-    "
-  >
-    <h2
-      id="cover-heading"
-      className="
-        text-base
-        sm:text-lg
-        font-medium
-      "
-    >
-      Cover photo
-    </h2>
+  return (
+    <article className="flex flex-col gap-4">
+      <div className="overflow-hidden rounded-lg border">
+        {imageSrc ? (
+          <img
+            src={imageSrc}
+            alt="Cover image"
+            className="h-48 w-full object-cover"
+          />
+        ) : (
+          <div className="flex h-48 items-center justify-center text-sm text-gray-400">
+            No cover photo
+          </div>
+        )}
+      </div>
 
-    <p
-      className="
-        mt-1
-        text-xs
-        sm:text-sm
-        text-gray-600
-      "
-    >
-      This image appears at the top of your profile
-    </p>
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*"
+        hidden
+        onChange={handleChange}
+      />
 
-    <div
-      className="
-        mt-3
-        sm:mt-4
-        overflow-hidden
-        rounded-lg
-        sm:rounded-xl
-        border
-      "
-    >
-      {imageSrc ? (
-        <img
-          src={imageSrc}
-          alt="Cover image"
-          loading="lazy"
-          className="
-            h-36
-            sm:h-48
-            md:h-56
-            w-full
-            object-cover
-          "
-        />
-      ) : (
-        <div
-          className="
-            flex
-            h-36
-            sm:h-48
-            md:h-56
-            items-center
-            justify-center
-            text-xs
-            sm:text-sm
-            text-gray-400
-          "
-        >
-          No cover photo
-        </div>
-      )}
-    </div>
-
-    <div
-      className="
-        mt-3
-        sm:mt-4
-        flex
-        flex-col
-        sm:flex-row
-        sm:items-center
-        gap-2
-        sm:gap-4
-      "
-    >
-      <label
-        className={`
+      <button
+        type="button"
+        disabled={loading}
+        onClick={() => inputRef.current?.click()}
+        className="
           inline-flex
           items-center
           justify-center
-          cursor-pointer
           rounded-md
-          sm:rounded-lg
-          px-3
-          sm:px-4
+          border
+          border-gray-300
+          bg-white
+          px-4
           py-2
-          text-xs
-          sm:text-sm
+          text-sm
           font-medium
-          text-white
-          transition
-          ${
-            loading
-              ? "bg-gray-400 cursor-not-allowed"
-              : "bg-black hover:bg-gray-800"
-          }
-        `}
+          text-gray-700
+          hover:bg-gray-50
+          disabled:opacity-60
+        "
       >
-        {loading ? "Uploading…" : "Change cover"}
-        <input
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={onFileChange}
-          disabled={loading}
-          aria-hidden="true"
-        />
-      </label>
+        {loading ? "กำลังอัปโหลดรูปปก…" : "เปลี่ยนรูปปก"}
+      </button>
 
       {success && (
-        <span
-          className="
-            text-xs
-            sm:text-sm
-            text-green-600
-          "
-          role="status"
-          aria-live="polite"
-        >
-          Cover updated successfully
-        </span>
+        <p className="text-sm text-green-600">
+          อัปเดตรูปปกสำเร็จ
+        </p>
       )}
-    </div>
 
-    <div className="mt-2 sm:mt-3">
-      <UploadProgress loading={loading} error={error} />
-    </div>
-  </article>
-);
-
+      {error && (
+        <p className="text-sm text-red-600" role="alert">
+          {error}
+        </p>
+      )}
+    </article>
+  );
 }

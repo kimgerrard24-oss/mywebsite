@@ -1,9 +1,13 @@
 // frontend/src/hooks/useCoverUpload.ts
 
 import { useState } from "react";
-import { api } from "@/lib/api/api";
+import {
+  buildPresignValidatePayload,
+  requestPresignValidate,
+} from "@/lib/api/media";
 import { setCover } from "@/lib/api/profile-media";
 import { useUserStore } from "@/stores/user.store";
+import { api } from "@/lib/api/api";
 
 type PresignResponse = {
   uploadUrl: string;
@@ -50,18 +54,11 @@ export function useCoverUpload() {
 
     try {
       // 2️⃣ Presign
-      const presignRes = await api.post<PresignResponse>(
-        "/media/presign",
-        {
-          fileName: file.name,
-          fileSize: file.size,
-          mimeType: file.type,
-          mediaType: "image",
-        },
-        { withCredentials: true },
-      );
+      const payload = buildPresignValidatePayload(file);
 
-      const { uploadUrl, objectKey } = presignRes.data;
+      const { uploadUrl, objectKey } =
+        await requestPresignValidate(payload);
+
 
       // 3️⃣ Upload to R2
       const uploadRes = await fetch(uploadUrl, {

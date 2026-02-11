@@ -22,35 +22,6 @@ const PUBLIC_API_BASE_URL = normalizeBaseUrl(
 );
 
 
-export async function updateUserAvatar(file: File) {
-  const formData = new FormData();
-  formData.append('file', file);
-
-  const res = await api.post('/users/update-avatar', formData, {
-    withCredentials: true,
-  });
-
-  return res.data as {
-    success: boolean;
-    avatarUrl: string;
-  };
-}
-
-export async function updateCover(file: File) {
-  const formData = new FormData();
-  formData.append('file', file);
-
-  const res = await api.post('/users/update-cover', formData, {
-    withCredentials: true,
-  });
-
-  return res.data as {
-    success: boolean;
-    coverUrl: string;
-  };
-}
-
-
 // ==============================
 // CSR axios client
 // ==============================
