@@ -8,12 +8,14 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { AuthModule } from '../auth/auth.module';
 import { MediaRepository } from './media.repository';
 import { MediaCleanupCron } from './cron/media-cleanup.cron';
+import { PostsVisibilityModule } from '../posts/visibility/posts-visibility.module';
 
 @Module({
   imports: [
     R2Module,
     PrismaModule,
     AuthModule, 
+    PostsVisibilityModule,
   ],
   controllers: [MediaController],
   providers: [
