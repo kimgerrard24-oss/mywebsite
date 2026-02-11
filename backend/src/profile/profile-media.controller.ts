@@ -20,7 +20,7 @@ import { GetCurrentProfileMediaParamsDto } from './dto/get-current-profile-media
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { SessionUser } from '../auth/services/validate-session.service';
 
-@Controller('users/me')
+@Controller('users')
 export class ProfileMediaController {
   constructor(private readonly service: ProfileMediaService) {}
 
@@ -28,7 +28,7 @@ export class ProfileMediaController {
   // PATCH /users/me/avatar
   // ==========================
   @UseGuards(AccessTokenCookieAuthGuard)
-  @Patch('avatar')
+  @Patch('me/avatar')
   async setAvatar(
     @CurrentUser() user: SessionUser,
     @Body() dto: SetAvatarDto,
@@ -40,7 +40,7 @@ export class ProfileMediaController {
   // PATCH /users/me/cover
   // ==========================
   @UseGuards(AccessTokenCookieAuthGuard)
-  @Patch('cover')
+  @Patch('me/cover')
   async setCover(
     @CurrentUser() user: SessionUser,
     @Body() dto: SetCoverDto,
@@ -52,7 +52,7 @@ export class ProfileMediaController {
   }
 
   // ==========================
-  // GET /users/me/:userId/profile-media
+  // GET /users/:userId/profile-media
   // ==========================
   @UseGuards(AccessTokenCookieAuthGuard)
   @Get(':userId/profile-media')
@@ -69,10 +69,10 @@ export class ProfileMediaController {
   }
 
   // ==========================
-  // POST /users/me/:mediaId/set-current
+  // POST /users/me/profile-media/:mediaId/set-current
   // ==========================
   @UseGuards(AccessTokenCookieAuthGuard)
-  @Post(':mediaId/set-current')
+  @Post('me/profile-media/:mediaId/set-current')
   async setCurrent(
     @Param('mediaId') mediaId: string,
     @Body() dto: SetCurrentProfileMediaDto,
@@ -86,7 +86,7 @@ export class ProfileMediaController {
   }
 
   // ==========================
-  // GET /users/me/:userId/profile-media/current
+  // GET /users/:userId/profile-media/current
   // ==========================
   @UseGuards(AccessTokenCookieAuthGuard)
   @Get(':userId/profile-media/current')
@@ -100,3 +100,4 @@ export class ProfileMediaController {
     );
   }
 }
+
