@@ -5,7 +5,12 @@ import { useCoverUpload } from "@/hooks/useCoverUpload";
 import { useCurrentProfileMedia } from "@/hooks/useCurrentProfileMedia";
 import { useAuth } from "@/context/AuthContext";
 
-export function CoverUploader() {
+type Props = {
+  currentMedia: ReturnType<typeof useCurrentProfileMedia>;
+};
+
+export function CoverUploader({ currentMedia }: Props) {
+
   const inputRef = useRef<HTMLInputElement>(null);
 
   const { user, refreshUser } = useAuth();

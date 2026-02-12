@@ -12,6 +12,7 @@ import type { UserProfile } from "@/types/user-profile";
 import { ProfileCard } from "@/components/profile/profile-ProfileCard";
 import { ProfileSkeleton } from "@/components/profile/ProfileSkeleton";
 import ProfilePosts from "@/components/profile/ProfilePosts";
+import { useCurrentProfileMedia } from "@/hooks/useCurrentProfileMedia";
 
 interface ProfilePageProps {
   initialProfile: UserProfile | null;
@@ -109,6 +110,7 @@ const ProfilePage: NextPage<ProfilePageProps> = ({
     isAuthenticated && !initialProfile
   );
   const [error, setError] = useState<string | null>(null);
+  const currentMedia = useCurrentProfileMedia(profile?.id ?? null);
 
   useEffect(() => {
     if (initialProfile || !isAuthenticated) return;
@@ -268,7 +270,10 @@ return (
 
         {!loading && !error && profile && (
   <>
-    <ProfileCard profile={profile} />
+    <ProfileCard
+  profile={profile}
+  currentMedia={currentMedia}
+/>
 
     <div className="mt-6 sm:mt-8">
       <ProfilePosts userId={profile.id} />

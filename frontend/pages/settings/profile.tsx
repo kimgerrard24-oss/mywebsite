@@ -16,11 +16,12 @@ type Props = {
 export default function ProfileSettingsPage({ user }: Props) {
   if (!user) return null;
 
-  const { data: currentMedia, loading: mediaLoading } =
-    useCurrentProfileMedia(user.id);
+ const currentMedia = useCurrentProfileMedia(user.id);
 
-  const avatarUrl = currentMedia?.avatar?.url ?? null;
-  const coverUrl = currentMedia?.cover?.url ?? null;
+const avatarUrl = currentMedia.data?.avatar?.url ?? null;
+const coverUrl = currentMedia.data?.cover?.url ?? null;
+const mediaLoading = currentMedia.loading;
+
 
   return (
     <>
@@ -59,7 +60,8 @@ export default function ProfileSettingsPage({ user }: Props) {
   <h2 className="text-lg font-medium">Profile Cover</h2>
 
   <div className="mt-4">
-    <CoverUploader />
+    <CoverUploader currentMedia={currentMedia} />
+
   </div>
 </section>
 
@@ -92,7 +94,8 @@ export default function ProfileSettingsPage({ user }: Props) {
 
 
             {/* Upload Button */}
-            <AvatarUploader />
+            <AvatarUploader currentMedia={currentMedia} />
+
           </div>
         </section>
 
