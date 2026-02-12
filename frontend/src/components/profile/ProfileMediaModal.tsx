@@ -6,6 +6,7 @@ import type { ProfileMediaItem } from "@/types/profile-media-feed";
 type Props = {
   items: ProfileMediaItem[];
   index: number;
+  loading?: boolean; 
   onClose: () => void;
   onNavigate: (index: number) => void;
 };
@@ -13,6 +14,7 @@ type Props = {
 export function ProfileMediaModal({
   items,
   index,
+  loading,
   onClose,
   onNavigate,
 }: Props) {
@@ -33,20 +35,29 @@ export function ProfileMediaModal({
 
   if (!media) return null;
 
-  return (
-    <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center">
-      <button
-        onClick={onClose}
-        className="absolute top-4 right-4 text-white text-2xl"
-      >
-        ✕
-      </button>
+ return (
+  <div className="fixed inset-0 z-50 bg-black/90 flex items-center justify-center">
 
+    <button
+      onClick={onClose}
+      className="absolute top-4 right-4 text-white text-2xl"
+    >
+      ✕
+    </button>
+
+    {loading || items.length === 0 ? (
+      <div className="text-white text-sm animate-pulse">
+        กำลังโหลดรูป...
+      </div>
+    ) : (
       <img
-        src={media.url}
+        src={items[index]?.url}
         alt=""
         className="max-h-[90vh] max-w-[90vw] object-contain"
       />
-    </div>
-  );
+    )}
+
+  </div>
+);
+
 }

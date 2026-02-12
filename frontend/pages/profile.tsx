@@ -270,9 +270,8 @@ return (
 
         {!loading && !error && profile && (
   <>
-    <ProfileCard
+<ProfileCard
   profile={profile}
-  currentMedia={currentMedia}
 />
 
     <div className="mt-6 sm:mt-8">
