@@ -60,6 +60,7 @@ export class MediaController {
       objectKey: dto.objectKey,
       mediaType: dto.mediaType,
       mimeType: dto.mimeType,
+      mediaCategory: dto.mediaCategory,
     });
   }
 
