@@ -207,46 +207,34 @@ if (!media || media.mediaCategory !== type) {
   }
 
   async getCurrentProfileMedia(
-    viewerId: string | null,
-    targetUserId: string,
-  ): Promise<GetCurrentProfileMediaResponseDto> {
-    const user = await this.repo.findUserWithCurrentMedia(targetUserId);
+  viewerId: string | null,
+  targetUserId: string,
+): Promise<GetCurrentProfileMediaResponseDto> {
 
-    const isOwner = viewerId === targetUserId;
+  const user = await this.repo.findUserWithCurrentMedia(targetUserId);
 
-    const isFollower =
-      viewerId &&
-      (await this.repo.checkFollower(viewerId, targetUserId));
-
-    const isBlocked =
-      viewerId &&
-      (await this.repo.checkBlockRelation(viewerId, targetUserId));
-
-    const decision = ProfileMediaPolicy.decideCurrentProfileMedia({
-      userExists: Boolean(user),
-      isOwner,
-      isPrivate: user?.isPrivate ?? false,
-      isFollower: Boolean(isFollower),
-      isBlocked: Boolean(isBlocked),
-      isBanned: user?.isBanned ?? false,
-      isActive: user?.active ?? false,
-    });
-
-    if (!decision.canView) {
-      if (decision.reason === 'NOT_FOUND') {
-        throw new ProfileMediaNotFoundError();
-      }
-
-      throw new ProfileMediaAccessDeniedError(decision.reason!);
-    }
-
-    return {
-      avatar: user?.avatarMedia
-        ? ProfileMediaMapper.toCurrentDto(user.avatarMedia, this.r2)
-        : null,
-      cover: user?.coverMedia
-        ? ProfileMediaMapper.toCurrentDto(user.coverMedia, this.r2)
-        : null,
-    };
+  if (!user) {
+    throw new ProfileMediaNotFoundError();
   }
+
+  const isBlocked =
+    viewerId &&
+    (await this.repo.checkBlockRelation(viewerId, targetUserId));
+
+  if (isBlocked) {
+    throw new ProfileMediaAccessDeniedError(
+      ProfileMediaAccessErrorCode.BLOCKED,
+    );
+  }
+
+  return {
+    avatar: user?.avatarMedia
+      ? ProfileMediaMapper.toCurrentDto(user.avatarMedia, this.r2)
+      : null,
+    cover: user?.coverMedia
+      ? ProfileMediaMapper.toCurrentDto(user.coverMedia, this.r2)
+      : null,
+  };
+}
+
 }
