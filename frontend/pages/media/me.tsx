@@ -5,6 +5,7 @@ import Head from "next/head";
 import { sessionCheckServerSide } from "@/lib/api/api";
 import type { MyMediaGalleryItem } from "@/types/my-media";
 import MyMediaGallery from "@/components/media/MyMediaGallery";
+import Link from "next/link";
 
 type MediaTypeTab = "all" | "image" | "video";
 
@@ -27,6 +28,31 @@ export default function MyMediaPage({
       </Head>
 
       <main className="mx-auto max-w-5xl p-6">
+
+        {/* ===== Top navigation ===== */}
+  <nav
+    aria-label="Media navigation"
+    className="mb-4"
+  >
+    <Link
+      href="/feed"
+      prefetch={false}
+      className="
+        inline-block
+        text-xs
+        sm:text-sm
+        text-blue-600
+        hover:underline
+        focus:outline-none
+        focus-visible:ring-2
+        focus-visible:ring-blue-500
+        rounded
+      "
+    >
+      ← Back to feed
+    </Link>
+  </nav>
+  
         <header className="mb-4">
           <h1 className="text-xl font-semibold">Your Media</h1>
           <p className="text-sm text-gray-600">

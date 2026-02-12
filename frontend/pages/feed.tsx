@@ -29,10 +29,11 @@ type FeedProps = {
 };
 
 export default function FeedPage({
-  user,
+  user: initialUser,
   feedItems,
   lang,
 }: FeedProps) {
+  const [user, setUser] = useState(initialUser);
   const router = useRouter();
   const t = getDictionary(lang);
 
@@ -52,6 +53,31 @@ export default function FeedPage({
     }
     router.replace("/");
   };
+
+  useEffect(() => {
+  let mounted = true;
+
+  async function syncUser() {
+    try {
+      const sessionRes = await api.get("/auth/session-check");
+      if (!sessionRes.data?.valid) return;
+
+      const meRes = await api.get("/users/me");
+      if (mounted && meRes.data) {
+        setUser(meRes.data);
+      }
+    } catch {
+      // fail silent
+    }
+  }
+
+  syncUser();
+
+  return () => {
+    mounted = false;
+  };
+}, []);
+
 
   useEffect(() => {
   function handleClick(e: MouseEvent) {

@@ -1,5 +1,7 @@
 // frontend/src/components/ui/Avatar.tsx
 
+import { useState } from "react";
+
 type Props = {
   avatarUrl?: string | null;
   name?: string | null;
@@ -13,6 +15,12 @@ export default function Avatar({
   size = 32,
   className = "",
 }: Props) {
+  const [error, setError] = useState(false);
+
+  const hasImage =
+    Boolean(avatarUrl && avatarUrl.trim().length > 0) &&
+    !error;
+
   const initial =
     name?.trim().charAt(0).toUpperCase() || "U";
 
@@ -26,13 +34,14 @@ export default function Avatar({
       style={{ width: size, height: size }}
       aria-hidden
     >
-      {avatarUrl ? (
+      {hasImage ? (
         <img
-          src={avatarUrl}
+          src={avatarUrl!}
           alt=""
           className="h-full w-full object-cover"
           loading="lazy"
           referrerPolicy="no-referrer"
+          onError={() => setError(true)}
         />
       ) : (
         <span
@@ -45,3 +54,4 @@ export default function Avatar({
     </div>
   );
 }
+

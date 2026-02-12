@@ -4,6 +4,7 @@ import Link from 'next/link';
 import ChatUnreadBadge from './ChatUnreadBadge';
 import { useChatUnreadCount } from '@/hooks/useChatUnreadCount';
 import type { ChatRoomItem as ChatRoom } from "@/types/chat-room";
+import Avatar from "@/components/ui/Avatar";
 
 type Props = {
   room: ChatRoom;
@@ -49,33 +50,12 @@ return (
         "
         aria-disabled="true"
       >
-        <div
-  className="
-    h-10
-    w-10
-    rounded-full
-    overflow-hidden
-    bg-gray-200
-    flex
-    items-center
-    justify-center
-    flex-shrink-0
-  "
-  aria-hidden
->
-  {peer?.avatarUrl ? (
-    <img
-      src={peer.avatarUrl}
-      alt=""
-      className="h-full w-full object-cover"
-      referrerPolicy="no-referrer"
-    />
-  ) : (
-    <span className="text-sm font-semibold text-gray-700">
-      {getInitial(peer?.displayName)}
-    </span>
-  )}
-</div>
+        <Avatar
+  avatarUrl={peer?.avatarUrl}
+  name={peer?.displayName}
+  size={40}
+/>
+
 
 
         <div className="flex flex-1 flex-col overflow-hidden">
