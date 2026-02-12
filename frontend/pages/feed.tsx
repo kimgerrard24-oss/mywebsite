@@ -21,6 +21,7 @@ import FeedRealtimeBridge from "@/components/feed/FeedRealtimeBridge";
 import { useFeedStore } from "@/stores/feed.store";
 import FeedActivityDropdown from '@/components/notifications/FeedActivityDropdown'; 
 import Avatar from "@/components/ui/Avatar";
+import { useUserStore } from "@/stores/user.store";
 
 type FeedProps = {
   user: any | null;
@@ -33,7 +34,7 @@ export default function FeedPage({
   feedItems,
   lang,
 }: FeedProps) {
-  const [user, setUser] = useState(initialUser);
+  const { user } = useUserStore();
   const router = useRouter();
   const t = getDictionary(lang);
 
@@ -53,31 +54,6 @@ export default function FeedPage({
     }
     router.replace("/");
   };
-
-  useEffect(() => {
-  let mounted = true;
-
-  async function syncUser() {
-    try {
-      const sessionRes = await api.get("/auth/session-check");
-      if (!sessionRes.data?.valid) return;
-
-      const meRes = await api.get("/users/me");
-      if (mounted && meRes.data) {
-        setUser(meRes.data);
-      }
-    } catch {
-      // fail silent
-    }
-  }
-
-  syncUser();
-
-  return () => {
-    mounted = false;
-  };
-}, []);
-
 
   useEffect(() => {
   function handleClick(e: MouseEvent) {

@@ -15,17 +15,7 @@ import { onAuthStateChanged } from "firebase/auth";
 import { getProfile } from "@/lib/api/auth";
 import { api } from "@/lib/api/api";
 import { connectSocket, resetSocket } from "@/lib/socket";
-
-interface UserProfile {
-  id: string;
-  email: string;
-  name: string | null;
-  displayName: string | null;
-  avatarUrl: string | null;
-  createdAt: string;
-  updatedAt: string;
-  coverUrl?: string | null;
-}
+import type { UserProfile } from "@/types/user-profile";
 
 interface AuthContextValue {
   user: UserProfile | null;

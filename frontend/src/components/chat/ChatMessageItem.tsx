@@ -8,6 +8,7 @@ import { useDeleteChatMessage } from "@/hooks/useDeleteChatMessage";
 import type { ChatMessage } from "@/types/chat-message";
 import ChatImagePreviewModal from "./ChatImagePreviewModal";
 import ReportDialog from "@/components/report/ReportDialog";
+import Avatar from "@/components/ui/Avatar";
 
 /**
  * UI-only extension
@@ -150,37 +151,11 @@ const sharedPostId =
     {!isOwn && (
   isBlocked ? (
     <div className="mr-2 flex-shrink-0 opacity-60 cursor-not-allowed">
-      <div
-  className="
-    h-8
-    w-8
-    rounded-full
-    overflow-hidden
-    bg-gray-200
-    flex
-    items-center
-    justify-center
-  "
-  aria-hidden
->
-  {message.sender.avatarUrl ? (
-    <img
-      src={message.sender.avatarUrl}
-      className="h-full w-full object-cover"
-      alt=""
-      loading="lazy"
-      referrerPolicy="no-referrer"
-    />
-  ) : (
-    <span className="text-[10px] font-semibold text-gray-700">
-      {(message.sender.displayName ?? "U")
-        .trim()
-        .charAt(0)
-        .toUpperCase()}
-    </span>
-  )}
-</div>
-
+      <Avatar
+  avatarUrl={message.sender.avatarUrl}
+  name={message.sender.displayName}
+  size={32}
+/>
     </div>
   ) : (
     <Link
