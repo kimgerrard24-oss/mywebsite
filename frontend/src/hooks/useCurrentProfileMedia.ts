@@ -113,10 +113,30 @@ export function useCurrentProfileMedia(userId: string | null) {
     await load(userId);
   }, [userId, load]);
 
+  const setAvatarLocally = useCallback((avatarUrl: string) => {
+  setState((prev) => {
+    if (!prev.data?.avatar) return prev;
+
+    return {
+      ...prev,
+      data: {
+        ...prev.data,
+        avatar: {
+          ...prev.data.avatar,
+          url: avatarUrl,
+        } as typeof prev.data.avatar, 
+      },
+    };
+  });
+}, []);
+
+
+
   return {
     data: state.data,
     loading: state.loading,
     error: state.error,
     refetch,
+    setAvatarLocally,
   };
 }

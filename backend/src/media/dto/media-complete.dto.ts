@@ -4,8 +4,10 @@ import {
   IsNotEmpty,
   IsOptional,
   IsString,
+  IsEnum,
   MaxLength,
 } from 'class-validator';
+import { ProfileMediaType } from '@prisma/client';
 
 export class MediaCompleteDto {
   @IsString()
@@ -18,6 +20,10 @@ export class MediaCompleteDto {
   @IsString()
   @MaxLength(255)
   mimeType!: string;
+
+  @IsOptional()
+  @IsEnum(ProfileMediaType)
+  mediaCategory?: ProfileMediaType;
 
   /**
    * ✅ OPTIONAL

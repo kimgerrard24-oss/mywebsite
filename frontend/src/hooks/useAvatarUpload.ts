@@ -91,6 +91,7 @@ export function useAvatarUpload() {
           objectKey,
           mediaType: "image",
           mimeType: file.type,
+          mediaCategory: "AVATAR",
         },
         { withCredentials: true },
       );
@@ -111,14 +112,19 @@ export function useAvatarUpload() {
        * ===============================
        */
       if (result?.avatarUrl) {
-        updateAvatar(result.avatarUrl);
-      }
+  // force cache-bust
+  const bustedUrl = `${result.avatarUrl}?t=${Date.now()}`;
 
-    } catch (err: any) {
-      const message =
-        typeof err?.response?.data?.message === "string"
-          ? err.response.data.message
-          : err?.message || "เกิดข้อผิดพลาดในการอัปโหลด";
+  updateAvatar(bustedUrl);
+}
+
+
+   } catch (err: any) {
+  const message =
+    err?.response?.data?.message ||
+    err?.message ||
+    "เกิดข้อผิดพลาดในการอัปโหลด";
+
 
       setError(message);
       throw err;

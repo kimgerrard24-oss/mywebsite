@@ -17,10 +17,26 @@ export async function getUserProfileMedia(params: {
   if (limit) search.set("limit", String(limit));
   if (type) search.set("type", type);
 
-  const res = await api.get<ProfileMediaFeedResponse>(
-    `/users/${userId}/profile-media?${search.toString()}`,
-    { withCredentials: true },
-  );
+  const queryString = search.toString();
+  const url = queryString
+    ? `/users/${userId}/profile-media?${queryString}`
+    : `/users/${userId}/profile-media`;
 
-  return res.data;
+  try {
+    const res = await api.get<ProfileMediaFeedResponse>(url, {
+      withCredentials: true,
+    });
+
+    return res.data;
+  } catch (err: any) {
+    const message =
+      err?.response?.data?.message ||
+      err?.message ||
+      "โหลดรูปไม่สำเร็จ";
+
+    throw new Error(
+      Array.isArray(message) ? message.join(", ") : message
+    );
+  }
 }
+

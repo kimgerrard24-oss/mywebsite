@@ -384,6 +384,7 @@ model Media {
   width       Int?
   height      Int?
   duration    Int?
+  mediaCategory ProfileMediaType? 
   profileType ProfileMediaType?
   thumbnailObjectKey String?  // objectKey ของ thumbnail image
   thumbnailWidth     Int?
@@ -403,6 +404,10 @@ model Media {
   @@index([mediaType])
   @@index([deletedAt])
   @@index([cleanupAt])
+  @@index([mediaCategory])
+  @@index([ownerUserId, deletedAt])
+  @@index([ownerUserId, mediaCategory, createdAt])
+  @@index([ownerUserId, profileType]) 
 }
 
 model Comment {

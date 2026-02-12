@@ -17,6 +17,7 @@ import { GetProfileMediaQueryDto } from "./dto/get-profile-media.query.dto";
 import { SetCurrentProfileMediaParams } from './types/profile-media.types';
 import { assertValidProfileMedia } from './profile-media.validation';
 import { GetCurrentProfileMediaResponseDto } from './dto/get-current-profile-media.response.dto';
+import { ProfileMediaAccessErrorCode } from './profile-media.error-codes';
 
 @Injectable()
 export class ProfileMediaService {
@@ -29,9 +30,9 @@ export class ProfileMediaService {
   async setAvatar(actorUserId: string, mediaId: string) {
     const media = await this.repo.findOwnedMedia(mediaId);
 
-    if (!media) {
-      throw new NotFoundException('Media not found');
-    }
+if (!media || media.deletedAt !== null) {
+  throw new ProfileMediaNotFoundError();
+}
 
     ProfileMediaPolicy.assertCanSetAvatar({
       mediaOwnerId: media.ownerUserId,
@@ -39,6 +40,12 @@ export class ProfileMediaService {
       mediaType: media.mediaType,
       deletedAt: media.deletedAt,
     });
+
+    if (media.mediaCategory !== 'AVATAR') {
+  throw new ProfileMediaAccessDeniedError(
+    ProfileMediaAccessErrorCode.INVALID_MEDIA_CATEGORY,
+  );
+}
 
     const user = await this.repo.setAvatarTransaction({
       userId: actorUserId,
@@ -68,17 +75,22 @@ export class ProfileMediaService {
   }) {
     const { actorUserId, mediaId } = params;
 
-    const media =
-      await this.repo.findMediaById(mediaId);
+const media = await this.repo.findMediaById(mediaId);
 
-    ProfileMediaPolicy.assertCanSetProfileMedia({
-      actorUserId,
-      media,
-    });
+if (!media || media.deletedAt !== null) {
+  throw new ProfileMediaNotFoundError();
+}
 
-    if (!media) {
-      throw new NotFoundException();
-    }
+ProfileMediaPolicy.assertCanSetProfileMedia({
+  actorUserId,
+  media,
+});
+
+if (media.mediaCategory !== 'COVER') {
+  throw new ProfileMediaAccessDeniedError(
+    ProfileMediaAccessErrorCode.INVALID_MEDIA_CATEGORY,
+  );
+}
 
     const result = await this.repo.setCover({
       userId: actorUserId,
@@ -159,7 +171,7 @@ export class ProfileMediaService {
     const { actorUserId, mediaId, type } = params;
 
     const media = await this.repo.findMediaById(mediaId);
-
+    
     const reason = assertValidProfileMedia(media, actorUserId);
 
     if (reason === 'NOT_FOUND') {
@@ -167,6 +179,12 @@ export class ProfileMediaService {
     }
 
     ProfileMediaPolicy.assertCanSetCurrent(reason);
+
+if (!media || media.mediaCategory !== type) {
+  throw new ProfileMediaAccessDeniedError(
+    ProfileMediaAccessErrorCode.INVALID_MEDIA_CATEGORY,
+  );
+}
 
     const updated = await this.repo.setCurrentProfileMedia({
       userId: actorUserId,
