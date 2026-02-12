@@ -12,6 +12,7 @@ import { getUserPosts } from "@/lib/api/posts";
 
 import type { PublicUserProfile } from "@/types/user-profile";
 import type { PostFeedItem } from "@/types/post-feed";
+import { useCurrentProfileMedia } from "@/hooks/useCurrentProfileMedia";
 
 type Props = {
   profile: PublicUserProfile;
@@ -19,6 +20,7 @@ type Props = {
 };
 
 export default function UserProfilePage({ profile }: Props) {
+  const currentMedia = useCurrentProfileMedia(profile.id);
   const siteUrl =
     process.env.NEXT_PUBLIC_SITE_URL || "https://www.phlyphant.com";
 
@@ -96,9 +98,11 @@ export default function UserProfilePage({ profile }: Props) {
           >
             <div className="relative">
               <ProfileCard
-                profile={profile}
-                isSelf={profile.isSelf === true}
-              />
+  profile={profile}
+  isSelf={profile.isSelf === true}
+  currentMedia={currentMedia}
+/>
+
             </div>
           </section>
 
