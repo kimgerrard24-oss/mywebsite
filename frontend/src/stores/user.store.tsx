@@ -9,9 +9,10 @@ import { useAuthContext } from "@/context/AuthContext";
 export type User = {
   id: string;
   email?: string | null;
+  displayName?: string | null;
   username?: string | null;
-  avatar?: string | null;
-  cover?: string | null;
+  avatarUrl?: string | null;
+  coverUrl?: string | null;
 };
 
 type UserContextValue = {
@@ -39,18 +40,21 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     }
 
     if (authUser) {
-      const username =
-        authUser.displayName?.trim() ||
-        (authUser.email ? authUser.email.split("@")[0] : null);
+      const displayName =
+  authUser.displayName?.trim() || null;
 
-     setUser({
+const username =
+  authUser.username?.trim() ||
+  (authUser.email ? authUser.email.split("@")[0] : null);
+
+setUser({
   id: authUser.id,
   email: authUser.email,
+  displayName,
   username,
-  avatar: authUser.avatarUrl || null,
-  cover: authUser.coverUrl || null,
+  avatarUrl: authUser.avatarUrl || null,
+  coverUrl: authUser.coverUrl || null,
 });
-
 
       setLoading(false);
       return;
@@ -62,26 +66,27 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
   }, [authUser, authLoading]);
 
    const updateAvatar = (avatarUrl: string) => {
-    setUser((prev) => {
-      if (!prev) return prev;
-
-      return {
-        ...prev,
-        avatar: avatarUrl,
-      };
-    });
-  };
-
-  const updateCover = (coverUrl: string) => {
   setUser((prev) => {
     if (!prev) return prev;
 
     return {
       ...prev,
-      cover: coverUrl,
+      avatarUrl,
     };
   });
 };
+
+const updateCover = (coverUrl: string) => {
+  setUser((prev) => {
+    if (!prev) return prev;
+
+    return {
+      ...prev,
+      coverUrl,
+    };
+  });
+};
+
 
   // Backend logout
   const logout = async () => {

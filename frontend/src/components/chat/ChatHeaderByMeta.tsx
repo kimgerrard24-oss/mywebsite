@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import ChatReportButton from "@/components/chat/ChatReportButton";
+import Avatar from "@/components/ui/Avatar";
 
 type Props = {
   meta: {
@@ -37,24 +38,17 @@ export default function ChatHeaderByMeta({ meta }: Props) {
           aria-label="Go to user profile"
           className="flex-shrink-0"
         >
-          <img
-            src={peer.avatarUrl ?? "/avatar-placeholder.png"}
-            alt={peer.displayName ?? "User avatar"}
-            className="
-              h-9 w-9 rounded-full
-              cursor-pointer
-              hover:opacity-90
-              transition
-            "
-            loading="lazy"
-          />
+          <Avatar
+  avatarUrl={peer.avatarUrl}
+  name={peer.displayName}
+  size={36}
+  className="cursor-pointer hover:opacity-90 transition"
+/>
+
         </Link>
       ) : (
-        <img
-          src="/avatar-placeholder.png"
-          alt=""
-          className="h-9 w-9 rounded-full"
-        />
+     <Avatar size={36} />
+
       )}
 
       <span className="flex-1 text-sm font-semibold truncate">
