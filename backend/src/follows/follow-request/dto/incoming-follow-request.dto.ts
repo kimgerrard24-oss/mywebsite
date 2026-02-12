@@ -1,4 +1,5 @@
 // backend/src/follows/follow-request/dto/incoming-follow-request.dto.ts
+import { buildCdnUrl } from '../../../media/utils/build-cdn-url.util';
 
 /**
  * Public-safe DTO for incoming follow requests
@@ -22,7 +23,10 @@ export class IncomingFollowRequestDto {
       requesterId: row.requester.id,
       username: row.requester.username,
       displayName: row.requester.displayName,
-      avatarUrl: row.requester.avatarUrl,
+      avatarUrl: row.requester.avatarMedia
+  ? buildCdnUrl(row.requester.avatarMedia.objectKey)
+  : null,
+
       createdAt: row.createdAt,
     };
   }
@@ -36,9 +40,12 @@ export type IncomingFollowRequestRow = {
   id: string;
   createdAt: Date;
   requester: {
-    id: string;
-    username: string;
-    displayName: string | null;
-    avatarUrl: string | null;
-  };
+  id: string;
+  username: string;
+  displayName: string | null;
+  avatarMedia: {
+    objectKey: string;
+  } | null;
+};
+
 };

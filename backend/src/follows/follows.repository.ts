@@ -135,7 +135,9 @@ export class FollowsRepository {
     select: {
       id: true,
       displayName: true,
-      avatarUrl: true,
+      avatarMedia: {
+        select: { objectKey: true },
+      },
 
       // ✅ viewer blocked follower?
       blockedBy: viewerUserId

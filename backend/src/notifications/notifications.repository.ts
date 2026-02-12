@@ -43,10 +43,13 @@ async findMany(params: {
 
     include: {
       actor: {
-        select: {
-          id: true,
-          displayName: true,
-          avatarUrl: true,
+  select: {
+    id: true,
+    displayName: true,
+    avatarMedia: {
+      select: { objectKey: true },
+    },
+
 
           // ✅ snapshot for frontend UX (optional but recommended)
           blockedBy: {
@@ -133,14 +136,17 @@ async create(params: {
     },
 
     include: {
-      actor: {
-        select: {
-          id: true,
-          displayName: true,
-          avatarUrl: true,
-        },
+  actor: {
+    select: {
+      id: true,
+      displayName: true,
+      avatarMedia: {
+        select: { objectKey: true },
       },
     },
+  },
+},
+
   });
 }
 

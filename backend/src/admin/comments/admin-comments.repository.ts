@@ -49,7 +49,9 @@ export class AdminCommentsRepository {
             id: true,
             username: true,
             displayName: true,
-            avatarUrl: true,
+            avatarMedia: {
+      select: { objectKey: true },
+    },
           },
         },
         post: {

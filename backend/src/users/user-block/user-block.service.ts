@@ -6,6 +6,7 @@ import {
 import { UserBlockRepository } from './user-block.repository';
 import { UserBlockPolicy } from './policy/user-block.policy';
 import { NotificationCacheService } from '../../notifications/cache/notification-cache.service';
+import { buildCdnUrl } from '../../media/utils/build-cdn-url.util';
 
 @Injectable()
 export class UserBlockService {
@@ -146,15 +147,18 @@ export class UserBlockService {
       : null;
 
     return {
-      items: sliced.map((r) => ({
-        id: r.user.id,
-        username: r.user.username,
-        displayName: r.user.displayName,
-        avatarUrl: r.user.avatarUrl,
-        blockedAt: r.createdAt.toISOString(),
-      })),
-      nextCursor,
-    };
+  items: sliced.map((r) => ({
+    id: r.user.id,
+    username: r.user.username,
+    displayName: r.user.displayName,
+    avatarUrl: r.user.avatarMedia
+      ? buildCdnUrl(r.user.avatarMedia.objectKey)
+      : null,
+    blockedAt: r.createdAt.toISOString(),
+  })),
+  nextCursor,
+};
+
   }
 }
 

@@ -26,7 +26,9 @@ export class ChatRepository {
               select: {
                 id: true,
                 displayName: true,
-                avatarUrl: true,
+                avatarMedia: {
+      select: { objectKey: true },
+    },
               },
             },
           },
@@ -58,7 +60,9 @@ export class ChatRepository {
               select: {
                 id: true,
                 displayName: true,
-                avatarUrl: true,
+                avatarMedia: {
+      select: { objectKey: true },
+    },
               },
             },
           },
@@ -123,7 +127,9 @@ async findChatRoomsByUser(userId: string) {
             select: {
               id: true,
               displayName: true,
-              avatarUrl: true,
+              avatarMedia: {
+      select: { objectKey: true },
+    },
             },
           },
         },
@@ -170,7 +176,9 @@ async findChatRoomsByUser(userId: string) {
               select: {
                 id: true,
                 displayName: true,
-                avatarUrl: true,
+                avatarMedia: {
+      select: { objectKey: true },
+    },
                 active: true,
                 isDisabled: true,
               },
@@ -241,7 +249,9 @@ async findChatRoomsByUser(userId: string) {
         select: {
           id: true,
           displayName: true,
-          avatarUrl: true,
+          avatarMedia: {
+      select: { objectKey: true },
+    },
         },
       },
 
@@ -275,7 +285,9 @@ async findChatRoomsByUser(userId: string) {
           select: {
             id: true,
             displayName: true,
-            avatarUrl: true,
+            avatarMedia: {
+      select: { objectKey: true },
+    },
           },
         },
         media: {
@@ -383,7 +395,9 @@ async findChatRoomsByUser(userId: string) {
         select: {
           id: true,
           displayName: true,
-          avatarUrl: true,
+          avatarMedia: {
+      select: { objectKey: true },
+    },
         },
       },
 

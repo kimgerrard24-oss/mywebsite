@@ -108,16 +108,19 @@ export class FollowRequestsRepository {
             skip: 1,
           }
         : {}),
-      include: {
-        requester: {
-          select: {
-            id: true,
-            username: true,
-            displayName: true,
-            avatarUrl: true,
-          },
-        },
+     include: {
+  requester: {
+    select: {
+      id: true,
+      username: true,
+      displayName: true,
+      avatarMedia: {
+        select: { objectKey: true },
       },
+    },
+  },
+},
+
     });
   }
 

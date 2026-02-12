@@ -3,6 +3,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../prisma/prisma.service';
 import { AuditService } from '../../auth/audit.service';
+import { buildCdnUrl } from '../../media/utils/build-cdn-url.util';
 
 @Injectable()
 export class MentionService {
@@ -62,7 +63,12 @@ export class MentionService {
         id: true,
         username: true,
         displayName: true,
-        avatarUrl: true,
+        avatarMedia: {
+  select: {
+    objectKey: true,
+  },
+},
+
       },
     });
 
@@ -85,7 +91,15 @@ export class MentionService {
       // must not affect mention UX
     }
 
-    return users;
+    return users.map((u) => ({
+  id: u.id,
+  username: u.username,
+  displayName: u.displayName,
+  avatarUrl: u.avatarMedia
+    ? buildCdnUrl(u.avatarMedia.objectKey)
+    : null,
+}));
+
   }
 
 }

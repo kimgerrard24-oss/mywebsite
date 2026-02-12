@@ -106,7 +106,9 @@ export class UserBlockRepository {
         id: string;
         displayName: string | null;
         username: string;
-        avatarUrl: string | null;
+         avatarMedia: {
+        objectKey: string;
+      } | null;
       };
     }>;
   }> {
@@ -140,7 +142,9 @@ export class UserBlockRepository {
               id: true,
               displayName: true,
               username: true,
-              avatarUrl: true,
+               avatarMedia: {
+      select: { objectKey: true },
+    },
             },
           },
         },

@@ -81,12 +81,15 @@ export class ChatMessageRepository {
     },
     include: {
       sender: {
-        select: {
-          id: true,
-          displayName: true,
-          avatarUrl: true,
-        },
-      },
+  select: {
+    id: true,
+    displayName: true,
+    avatarMedia: {
+      select: { objectKey: true },
+    },
+  },
+},
+
       media: {
         include: {
           media: true,
@@ -174,12 +177,15 @@ async findMessageById(params: {
     },
     include: {
       sender: {
-        select: {
-          id: true,
-          displayName: true,
-          avatarUrl: true,
-        },
-      },
+  select: {
+    id: true,
+    displayName: true,
+    avatarMedia: {
+      select: { objectKey: true },
+    },
+  },
+},
+
       media: {
         include: {
           media: true,

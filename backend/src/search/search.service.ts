@@ -12,6 +12,7 @@ import { SearchTagsQueryDto } from './dto/search-tags.query.dto';
 import { SearchTagsResponseDto } from './dto/search-tags.response.dto';
 import { mapTagToSearchDto } from '../common/mappers/tag.mapper';
 import { AuditService } from '../auth/audit.service';
+import { buildCdnUrl } from '../media/utils/build-cdn-url.util';
 
 @Injectable()
 export class SearchService {
@@ -87,7 +88,18 @@ export class SearchService {
       });
     } catch {}
 
-    return result;
+    return {
+  items: result.items.map((u) => ({
+    id: u.id,
+    username: u.username,
+    displayName: u.displayName,
+    avatarUrl: u.avatarMedia
+      ? buildCdnUrl(u.avatarMedia.objectKey)
+      : null,
+  })),
+  nextCursor: result.nextCursor,
+};
+
   }
 
 

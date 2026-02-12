@@ -49,6 +49,7 @@ import { UserTagSettingsUpdatePolicy } from './policies/user-tag-settings-update
 import { TagSettingsResponseDto } from './dto/tag-settings.response.dto';
 import { UserTagSettingsAudit } from './audit/user-tag-settings.audit';
 import { PostUserTagCreatePolicy } from '../posts/policy/post-user-tag-create.policy';
+import { buildCdnUrl } from '../media/utils/build-cdn-url.util';
 
 @Injectable()
 export class UsersService {
@@ -326,8 +327,14 @@ async getPublicProfile(params: {
     id: user.id,
     username: user.username,
     displayName: user.displayName,
-    avatarUrl: user.avatarUrl,
-    coverUrl: user.coverUrl ?? null,
+   avatarUrl: user.avatarMedia
+  ? buildCdnUrl(user.avatarMedia.objectKey)
+  : null,
+
+coverUrl: user.coverMedia
+  ? buildCdnUrl(user.coverMedia.objectKey)
+  : null,
+
     bio: user.bio,
     createdAt: user.createdAt.toISOString(),
 
@@ -430,13 +437,17 @@ async updateAvatar(params: {
 
   UserCoverPolicy.assertValidCoverFile(file);
 
+   const previousCoverUrl = user.coverMedia
+    ? buildCdnUrl(user.coverMedia.objectKey)
+    : null;
+
   let coverUrl: string;
 
   try {
     const result = await this.coverService.processAndUpload({
       userId,
       file,
-      previousCoverUrl: user.coverUrl ?? null,
+      previousCoverUrl,
     });
 
     coverUrl = result.coverUrl;

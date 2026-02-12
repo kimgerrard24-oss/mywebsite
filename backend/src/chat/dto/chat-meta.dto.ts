@@ -1,4 +1,6 @@
 // backend/src/chat/dto/chat-meta.dto.ts
+import { buildCdnUrl } from '../../media/utils/build-cdn-url.util';
+
 export class ChatMetaDto {
   id!: string;
   isGroup!: boolean;
@@ -26,8 +28,10 @@ export class ChatMetaDto {
             id: peerParticipant.user.id,
             displayName:
               peerParticipant.user.displayName,
-            avatarUrl:
-              peerParticipant.user.avatarUrl,
+           avatarUrl: peerParticipant.user.avatarMedia
+  ? buildCdnUrl(peerParticipant.user.avatarMedia.objectKey)
+  : null,
+
           }
         : null,
     };

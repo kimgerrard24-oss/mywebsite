@@ -1,4 +1,6 @@
 // backend/src/users/dto/user-response.dto.ts
+import { buildCdnUrl } from '../../media/utils/build-cdn-url.util';
+
 export class UserResponseDto {
   id!: string;
   displayName!: string | null;
@@ -11,9 +13,13 @@ export class UserResponseDto {
     return {
       id: user.id,
       displayName: user.displayName,
-      coverUrl: user.coverUrl,
+      coverUrl: user.coverMedia
+      ? buildCdnUrl(user.coverMedia.objectKey)
+      : null,
       bio: user.bio,
-      avatarUrl: user.avatarUrl,
+      avatarUrl: user.avatarMedia
+      ? buildCdnUrl(user.avatarMedia.objectKey)
+      : null,
       updatedAt: user.updatedAt,
     };
   }

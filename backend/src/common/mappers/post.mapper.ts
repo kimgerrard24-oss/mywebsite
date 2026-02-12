@@ -1,4 +1,5 @@
 // backend/src/common/mappers/post.mapper.ts
+import { buildCdnUrl } from '../../media/utils/build-cdn-url.util';
 
 /**
  * ==============================
@@ -15,9 +16,12 @@ type PostWithAuthor = {
   author: {
     id: string;
     displayName: string | null;
-    avatarUrl: string | null;
+    avatarMedia: {
+      objectKey: string;
+    } | null;
   };
 };
+
 
 /**
  * ==============================
@@ -50,7 +54,10 @@ export function mapPostToSearchDto(
     author: {
       id: post.author.id,
       displayName: post.author.displayName,
-      avatarUrl: post.author.avatarUrl,
+      avatarUrl: post.author.avatarMedia
+  ? buildCdnUrl(post.author.avatarMedia.objectKey)
+  : null,
+
     },
   };
 }

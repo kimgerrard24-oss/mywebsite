@@ -73,11 +73,14 @@ export class FeedRepository {
         commentCount: true,
 
         author: {
-          select: {
-            id: true,
-            displayName: true,
-            avatarUrl: true,
-            isPrivate: true,
+  select: {
+    id: true,
+    displayName: true,
+    avatarMedia: {
+      select: { objectKey: true },
+    },
+    isPrivate: true,
+
 
             followers: viewerUserId
               ? {

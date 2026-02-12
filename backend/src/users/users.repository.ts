@@ -14,6 +14,7 @@ import {
  } from '@prisma/client';
 import { createHash } from 'crypto';
 import { Prisma } from '@prisma/client';
+import { buildCdnUrl } from '../media/utils/build-cdn-url.util';
 
 export type MyTaggedPostRow = {
   id: string;
@@ -34,8 +35,13 @@ const publicUserSelect =
     id: true,
     username: true,
     displayName: true,
-    avatarUrl: true,
-    coverUrl: true,
+    avatarMedia: {
+  select: { objectKey: true },
+},
+coverMedia: {
+  select: { objectKey: true },
+},
+
     bio: true,
     createdAt: true,
 
@@ -130,8 +136,13 @@ export class UsersRepository {
         username: true,
         name: true,
         displayName: true,
-        avatarUrl: true,
-        coverUrl: true,
+       avatarMedia: {
+  select: { objectKey: true },
+},
+coverMedia: {
+  select: { objectKey: true },
+},
+
         bio: true,
         firebaseUid: true,
         createdAt: true,
@@ -171,8 +182,13 @@ async findPublicUserById(
       id: true,
       username: true,
       displayName: true,
-      avatarUrl: true,
-      coverUrl: true,
+     avatarMedia: {
+  select: { objectKey: true },
+},
+coverMedia: {
+  select: { objectKey: true },
+},
+
       bio: true,
       createdAt: true,
 
@@ -254,12 +270,15 @@ async findPublicUserById(
     });
   }
   
-  async updateAvatar(userId: string, avatarUrl: string) {
+ async updateAvatar(userId: string, mediaId: string | null) {
   return this.prisma.user.update({
-   where: { id: userId },
-  data: { avatarUrl },
+    where: { id: userId },
+    data: {
+      avatarMediaId: mediaId,
+    },
   });
-  }
+}
+
 
   // =====================================================
   // Minimal user state (for policy / auth decision)
@@ -282,7 +301,9 @@ async findPublicUserById(
       id: true,
       active: true,
       isDisabled: true,
-      coverUrl: true,
+      coverMedia: {
+  select: { objectKey: true },
+},
     },
   });
   }
@@ -367,7 +388,9 @@ async findPublicUserById(
       id: true,
       username: true,
       displayName: true,
-      avatarUrl: true,
+      avatarMedia: {
+  select: { objectKey: true },
+},
       createdAt: true,
       isDisabled: true,
     },
@@ -381,7 +404,7 @@ async findPublicUserById(
   id: string;
   active: boolean;
   isDisabled: boolean;
-  coverUrl: string | null;
+  coverMedia: { objectKey: string } | null;
  } | null> {
   return this.prisma.user.findUnique({
     where: { id: userId },
@@ -389,7 +412,10 @@ async findPublicUserById(
       id: true,
       active: true,
       isDisabled: true,
-      coverUrl: true,
+      coverMedia: {
+  select: { objectKey: true },
+},
+
     },
   });
  }
@@ -1142,7 +1168,9 @@ async searchUsersWithTagContext(params: {
       id: true,
       username: true,
       displayName: true,
-      avatarUrl: true,
+      avatarMedia: {
+  select: { objectKey: true },
+},
       isPrivate: true,
       isDisabled: true,
 
@@ -1203,7 +1231,9 @@ async searchUsersWithTagContext(params: {
     id: u.id,
     username: u.username,
     displayName: u.displayName,
-    avatarUrl: u.avatarUrl,
+    avatarUrl: u.avatarMedia
+    ? buildCdnUrl(u.avatarMedia.objectKey)
+    : null,
     isPrivate: u.isPrivate,
     isDisabled: u.isDisabled,
 

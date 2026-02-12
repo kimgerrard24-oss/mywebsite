@@ -1,6 +1,7 @@
 // backend/src/notifications/mapper/notification.mapper.ts
 
 import { NotificationItemDto } from '../dto/notification-item.dto';
+import { buildCdnUrl } from '../../media/utils/build-cdn-url.util';
 
 export class NotificationMapper {
   static toDto(row: any): NotificationItemDto {
@@ -36,7 +37,10 @@ export class NotificationMapper {
         ? {
             id: row.actor.id,
             displayName: row.actor.displayName ?? null,
-            avatarUrl: row.actor.avatarUrl ?? null,
+            avatarUrl: row.actor.avatarMedia
+  ? buildCdnUrl(row.actor.avatarMedia.objectKey)
+  : null,
+
 
             // 🔒 block snapshot (UX guard only)
             isBlocked,
