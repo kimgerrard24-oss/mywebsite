@@ -26,12 +26,16 @@ export type PostDetailRow = Prisma.PostGetPayload<{
     repostCount: true;
 
     author: {
+  select: {
+    id: true;
+    displayName: true;
+    avatarMedia: {
       select: {
-        id: true;
-        displayName: true;
-        avatarUrl: true;
+        objectKey: true;
       };
     };
+  };
+};
 
     media: {
       select: {
@@ -71,7 +75,12 @@ export type PostDetailRow = Prisma.PostGetPayload<{
             id: true;
             username: true;
             displayName: true;
-            avatarUrl: true;
+            avatarMedia: {
+  select: {
+    objectKey: true;
+  };
+};
+
             isDisabled: true;
             isBanned: true;
             active: true;
@@ -91,7 +100,12 @@ export type PostDetailRow = Prisma.PostGetPayload<{
           select: {
             id: true;
             displayName: true;
-            avatarUrl: true;
+            avatarMedia: {
+  select: {
+    objectKey: true;
+  };
+};
+
           };
         };
         media: {
@@ -287,7 +301,11 @@ async findPublicFeed(params: {
         select: {
           id: true,
           displayName: true,
-          avatarUrl: true,
+          avatarMedia: {
+      select: {
+        objectKey: true,
+      },
+    },
 
           // ===== privacy (UX only, not for feed gating) =====
           isPrivate: true,
@@ -348,7 +366,10 @@ async findPublicFeed(params: {
       select: {
         id: true,
         displayName: true,
-        avatarUrl: true,
+        avatarMedia: {
+  select: { objectKey: true }
+}
+
       },
     },
     media: {
@@ -382,7 +403,10 @@ async findPublicFeed(params: {
               id: true,
               username: true,
               displayName: true,
-              avatarUrl: true,
+              avatarMedia: {
+  select: { objectKey: true }
+},
+
               isDisabled: true,
               isBanned: true,
               active: true,
@@ -524,13 +548,17 @@ async findPostById(
       commentCount: true,
 
       author: {
-        select: {
-          id: true,
-          displayName: true,
-          avatarUrl: true,
-        },
+  select: {
+    id: true,
+    displayName: true,
+    avatarMedia: {
+      select: {
+        objectKey: true,
       },
+    },
 
+  },
+},
       media: {
         select: {
           id: true,
@@ -597,7 +625,10 @@ async findPostById(
         id: true,
         username: true,
         displayName: true,
-        avatarUrl: true,
+        avatarMedia: {
+  select: { objectKey: true }
+},
+
         isDisabled: true,
         isBanned: true,
         active: true,
@@ -630,7 +661,10 @@ originalPost: {
       select: {
         id: true,
         displayName: true,
-        avatarUrl: true,
+        avatarMedia: {
+  select: { objectKey: true }
+}
+
       },
     },
     media: {
@@ -903,7 +937,11 @@ async findUserPosts(params: {
         select: {
           id: true,
           displayName: true,
-          avatarUrl: true,
+           avatarMedia: {
+      select: {
+        objectKey: true,
+      },
+    },
           isPrivate: true,
 
           // ===== UX flags (viewer → author) =====
@@ -957,7 +995,10 @@ async findUserPosts(params: {
       select: {
         id: true,
         displayName: true,
-        avatarUrl: true,
+        avatarMedia: {
+  select: { objectKey: true }
+}
+
       },
     },
     media: {
@@ -990,7 +1031,10 @@ async findUserPosts(params: {
               id: true,
               username: true,
               displayName: true,
-              avatarUrl: true,
+              avatarMedia: {
+  select: { objectKey: true }
+},
+
               isDisabled: true,
               isBanned: true,
               active: true,
@@ -1152,7 +1196,11 @@ async findPostsByTag(params: {
         select: {
           id: true,
           displayName: true,
-          avatarUrl: true,
+          avatarMedia: {
+      select: {
+        objectKey: true,
+      },
+    },
 
           // ===== privacy (UX only) =====
           isPrivate: true,
@@ -1216,7 +1264,10 @@ async findPostsByTag(params: {
       select: {
         id: true,
         displayName: true,
-        avatarUrl: true,
+        avatarMedia: {
+  select: { objectKey: true }
+}
+
       },
     },
     media: {
@@ -1250,7 +1301,9 @@ async findPostsByTag(params: {
               id: true,
               username: true,
               displayName: true,
-              avatarUrl: true,
+              avatarMedia: {
+  select: { objectKey: true }
+},
               isDisabled: true,
               isBanned: true,
               active: true,
@@ -1415,7 +1468,11 @@ async findPublicPosts(params: {
         select: {
           id: true,
           displayName: true,
-          avatarUrl: true,
+           avatarMedia: {
+      select: {
+        objectKey: true,
+      },
+    },
 
           // ===== privacy (UX only, NOT feed gating) =====
           isPrivate: true,
@@ -1728,14 +1785,17 @@ async findPostForLike(params: {
   limit: number;
   viewerUserId?: string | null;
 }): Promise<{
-  rows: Array<{
-    createdAt: Date;
-    user: {
-      id: string;
-      displayName: string | null;
-      avatarUrl: string | null;
-    };
-  }>;
+ rows: Array<{
+  createdAt: Date;
+  user: {
+    id: string;
+    displayName: string | null;
+    avatarMedia: {
+      objectKey: string;
+    } | null;
+  };
+}>;
+
   nextCursor: string | null;
 }> {
   const { postId, cursor, limit, viewerUserId } = params;
@@ -1851,7 +1911,11 @@ async findPostForLike(params: {
         select: {
           id: true,
           displayName: true,
-          avatarUrl: true,
+          avatarMedia: {
+      select: {
+        objectKey: true,
+      },
+    },
         },
       },
     },
@@ -2186,7 +2250,10 @@ async loadCreatePostUserTagContexts(params: {
           id: true,
           username: true,
           displayName: true,
-          avatarUrl: true,
+          avatarMedia: {
+  select: { objectKey: true }
+},
+
           isDisabled: true,
           isBanned: true,
           active: true,
@@ -2487,7 +2554,11 @@ async findHiddenTaggedPosts(params: {
         select: {
           id: true,
           displayName: true,
-          avatarUrl: true,
+           avatarMedia: {
+      select: {
+        objectKey: true,
+      },
+    },
           isPrivate: true,
 
           followers: {
@@ -2531,7 +2602,10 @@ async findHiddenTaggedPosts(params: {
       select: {
         id: true,
         displayName: true,
-        avatarUrl: true,
+        avatarMedia: {
+  select: { objectKey: true }
+}
+
       },
     },
     media: {
@@ -2564,7 +2638,9 @@ async findHiddenTaggedPosts(params: {
               id: true,
               username: true,
               displayName: true,
-              avatarUrl: true,
+              avatarMedia: {
+  select: { objectKey: true }
+},
               isDisabled: true,
               isBanned: true,
               active: true,

@@ -72,7 +72,10 @@ export class PostFeedMapper {
       actor: {
         id: author?.id ?? 'unknown',
         displayName: author?.displayName ?? null,
-        avatarUrl: author?.avatarUrl ?? null,
+        avatarUrl: author?.avatarMedia
+  ? buildCdnUrl(author.avatarMedia.objectKey)
+  : null,
+
       },
     }
   : undefined,
@@ -84,7 +87,10 @@ export class PostFeedMapper {
       author: {
         id: author?.id ?? 'unknown',
         displayName: author?.displayName ?? null,
-        avatarUrl: author?.avatarUrl ?? null,
+        avatarUrl: author?.avatarMedia
+  ? buildCdnUrl(author.avatarMedia.objectKey)
+  : null,
+
 
         isFollowing:
           Array.isArray(author?.followers) &&
@@ -122,7 +128,12 @@ export class PostFeedMapper {
       author: {
         id: row.originalPost.author.id,
         displayName: row.originalPost.author.displayName ?? null,
-        avatarUrl: row.originalPost.author.avatarUrl ?? null,
+        avatarUrl: row.originalPost.author.avatarMedia
+  ? buildCdnUrl(
+      row.originalPost.author.avatarMedia.objectKey,
+    )
+  : null,
+
       },
       media: Array.isArray(row.originalPost.media)
         ? row.originalPost.media.map((pm: any) => ({

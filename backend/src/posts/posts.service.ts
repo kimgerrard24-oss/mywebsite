@@ -42,6 +42,7 @@ import { PostUserTagViewPolicy } from './policy/post-user-tag-view.policy';
 import { PostUserTagAcceptPolicy } from './policy/post-user-tag-accept.policy';
 import { PostUserTagRejectPolicy } from './policy/post-user-tag-reject.policy';
 import { PostUserTagCreatePolicy } from './policy/post-user-tag-create.policy';
+import { buildCdnUrl } from '../media/utils/build-cdn-url.util';
 
 @Injectable()
 export class PostsService {
@@ -1494,7 +1495,9 @@ if (post.originalPost) {
       items: rows.map((row) => ({
         userId: row.user.id,
         displayName: row.user.displayName ?? null,
-        avatarUrl: row.user.avatarUrl ?? null,
+         avatarUrl: row.user.avatarMedia
+    ? buildCdnUrl(row.user.avatarMedia.objectKey)
+    : null,
         likedAt: row.createdAt.toISOString(),
       })),
       nextCursor,
@@ -1985,7 +1988,9 @@ async updateTag(params: {
         id: r.taggedUser.id,
         username: r.taggedUser.username,
         displayName: r.taggedUser.displayName,
-        avatarUrl: r.taggedUser.avatarUrl,
+        avatarUrl: r.taggedUser.avatarMedia
+      ? buildCdnUrl(r.taggedUser.avatarMedia.objectKey)
+      : null,
       },
     });
   }

@@ -122,7 +122,10 @@ const userTags = Array.isArray(post.userTags)
             id: t.taggedUser.id,
             username: t.taggedUser.username,
             displayName: t.taggedUser.displayName,
-            avatarUrl: t.taggedUser.avatarUrl,
+            avatarUrl: t.taggedUser.avatarMedia
+  ? buildCdnUrl(t.taggedUser.avatarMedia.objectKey)
+  : null,
+
           },
         };
       })
@@ -146,7 +149,10 @@ const userTags = Array.isArray(post.userTags)
             author: {
               id: post.originalPost.author.id,
               displayName: post.originalPost.author.displayName,
-              avatarUrl: post.originalPost.author.avatarUrl,
+              avatarUrl: post.originalPost.author.avatarMedia
+  ? buildCdnUrl(post.originalPost.author.avatarMedia.objectKey)
+  : null,
+
             },
             media: Array.isArray(post.originalPost.media)
               ? post.originalPost.media.map((pm: any) => ({
@@ -164,7 +170,10 @@ const userTags = Array.isArray(post.userTags)
       author: {
         id: post.author.id,
         displayName: post.author.displayName,
-        avatarUrl: post.author.avatarUrl,
+        avatarUrl: post.author.avatarMedia
+  ? buildCdnUrl(post.author.avatarMedia.objectKey)
+  : null,
+
       },
 
       media: Array.isArray(post.media)
