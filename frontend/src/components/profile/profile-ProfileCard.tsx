@@ -12,13 +12,12 @@ import CancelFollowRequestButton from "@/components/follows/CancelFollowRequestB
 import { useCurrentProfileMedia } from "@/hooks/useCurrentProfileMedia";
 import { AvatarClickable } from "@/components/profile/AvatarClickable";
 import { CoverClickable } from "@/components/profile/CoverClickable";
-import { useProfileMediaFeed } from "@/hooks/useProfileMediaFeed";
+import { useProfileMedia } from "@/hooks/useProfileMedia";
 import { ProfileMediaModal } from "@/components/profile/ProfileMediaModal";
 
 export interface ProfileCardProps {
   profile: UserProfile | PublicUserProfile | null;
   isSelf?: boolean;
-  currentMedia: ReturnType<typeof useCurrentProfileMedia>;
 }
 
 function isPublicUserProfile(
@@ -40,19 +39,17 @@ const formatDate = (iso: string) => {
 export const ProfileCard: React.FC<ProfileCardProps> = ({
   profile,
   isSelf = true,
-  currentMedia,
 }) => {
   if (!profile) return null;
-  const { data: mediaData } = currentMedia;
+  const { data: currentMedia, loading: mediaLoading } =
+  useCurrentProfileMedia(profile.id);
 
-  const {
-  items: mediaItems,
-  loadMore,
-  hasMore,
-} = useProfileMediaFeed(profile.id);
+const avatarMedia = useProfileMedia(profile.id, "AVATAR");
+const coverMedia = useProfileMedia(profile.id, "COVER");
 
 const [viewerIndex, setViewerIndex] = React.useState<number | null>(null);
-
+const [viewerType, setViewerType] =
+  React.useState<"AVATAR" | "COVER" | null>(null);
 
   const router = useRouter();
   const displayName =
@@ -109,32 +106,18 @@ const isPrivateLocked =
         shadow-sm
       "
     >
-
-{/* ===== Cover ===== */}
+ {/* ===== Cover ===== */}
 <CoverClickable
-  coverUrl={mediaData?.cover?.url}
+  coverUrl={currentMedia?.cover?.url}
   onClick={() => {
-    if (!mediaData?.cover?.mediaId) return;
+    setViewerType("COVER");
+    setViewerIndex(0);
 
-    // 🔥 guard กัน feed ยังไม่โหลด
-    if (mediaItems.length === 0) {
-      loadMore();
-      return;
-    }
-
-    const index = mediaItems.findIndex(
-      (m) => m.id === mediaData.cover!.mediaId
-    );
-
-    if (index !== -1) {
-      setViewerIndex(index);
+    if (coverMedia.items.length === 0) {
+      coverMedia.loadMore();
     }
   }}
 />
-
-
-
-
 
       <div
         className="
@@ -175,32 +158,20 @@ const isPrivateLocked =
     gap-2
   "
 >
- <AvatarClickable
-  avatarUrl={mediaData?.avatar?.url}
+<AvatarClickable
+  avatarUrl={currentMedia?.avatar?.url}
   displayName={displayName}
   onClick={() => {
-    if (!mediaData?.avatar?.mediaId) return;
+    setViewerType("AVATAR");
+    setViewerIndex(0);
 
-    // 🔥 guard กัน feed ยังไม่โหลด
-    if (mediaItems.length === 0) {
-      loadMore();
-      return;
-    }
-
-    const index = mediaItems.findIndex(
-      (m) => m.id === mediaData.avatar!.mediaId
-    );
-
-    if (index !== -1) {
-      setViewerIndex(index);
+    if (avatarMedia.items.length === 0) {
+      avatarMedia.loadMore();
     }
   }}
 />
 
-
-
 </div>
-
 
             <div className="flex flex-col gap-0.5 sm:gap-1 min-w-0">
               <h1
@@ -420,22 +391,29 @@ const isPrivateLocked =
 
       </div>
 
-{viewerIndex !== null && (
+{viewerIndex !== null && viewerType && (
   <ProfileMediaModal
-    items={mediaItems}
-    index={viewerIndex}
-    onClose={() => setViewerIndex(null)}
-    onNavigate={(newIndex) => {
-      setViewerIndex(newIndex);
+  items={
+    viewerType === "COVER"
+      ? coverMedia.items
+      : avatarMedia.items
+  }
+  loading={
+    viewerType === "COVER"
+      ? coverMedia.loading
+      : avatarMedia.loading
+  }
+  index={viewerIndex}
+  onClose={() => {
+    setViewerIndex(null);
+    setViewerType(null);
+  }}
+  onNavigate={(newIndex) => {
+    setViewerIndex(newIndex);
+  }}
+/>
 
-      // preload next page when near end
-      if (newIndex >= mediaItems.length - 2 && hasMore) {
-        loadMore();
-      }
-    }}
-  />
 )}
-
     </section>
   );
 };

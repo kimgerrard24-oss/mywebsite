@@ -97,11 +97,11 @@ export default function UserProfilePage({ profile }: Props) {
             "
           >
             <div className="relative">
-              <ProfileCard
+<ProfileCard
   profile={profile}
   isSelf={profile.isSelf === true}
-  currentMedia={currentMedia}
 />
+
 
             </div>
           </section>
