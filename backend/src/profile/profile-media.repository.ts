@@ -21,20 +21,34 @@ export class ProfileMediaRepository {
     const { userId, mediaId } = params;
 
     return this.prisma.$transaction(async (tx) => {
-      await tx.media.update({
-        where: { id: mediaId },
-        data: { profileType: 'AVATAR' },
-      });
 
-      const user = await tx.user.update({
-        where: { id: userId },
-        data: { avatarMediaId: mediaId },
-        include: { avatarMedia: true },
-      });
+  // unset previous avatar
+  await tx.media.updateMany({
+    where: {
+      ownerUserId: userId,
+      profileType: 'AVATAR',
+    },
+    data: {
+      profileType: null,
+    },
+  });
 
-      return user;
-    });
-  }
+  // set new avatar
+  await tx.media.update({
+    where: { id: mediaId },
+    data: { profileType: 'AVATAR' },
+  });
+
+  const user = await tx.user.update({
+    where: { id: userId },
+    data: { avatarMediaId: mediaId },
+    include: { avatarMedia: true },
+  });
+
+  return user;
+});
+  
+}
 
   async setCover(params: {
   userId: string;
@@ -43,12 +57,15 @@ export class ProfileMediaRepository {
   const { userId, mediaId } = params;
 
   return this.prisma.$transaction(async (tx) => {
-    await tx.media.update({
-      where: { id: mediaId },
-      data: {
-        profileType: ProfileMediaType.COVER,
-      },
-    });
+    await tx.media.updateMany({
+  where: {
+    ownerUserId: userId,
+    profileType: 'COVER',
+  },
+  data: {
+    profileType: null,
+  },
+});
 
     const user = await tx.user.update({
       where: { id: userId },
@@ -119,7 +136,7 @@ export class ProfileMediaRepository {
       where: {
   ownerUserId: userId,
   deletedAt: null,
-  ...(type && { profileType: type }),
+  ...(type && { mediaCategory: type }),
 },
 
       orderBy: {

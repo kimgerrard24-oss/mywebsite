@@ -11,7 +11,7 @@ export function AvatarUploader() {
   const { user, refreshUser } = useAuth();
 
   const userId = user?.id ?? null;
-  const { refetch } = useCurrentProfileMedia(userId);
+  const { refetch, setAvatarLocally } = useCurrentProfileMedia(userId);
 
   const [success, setSuccess] = useState(false);
 
@@ -26,9 +26,15 @@ export function AvatarUploader() {
     try {
       await upload(file);
 
-      await refreshUser();
+// Optimistic update (instant UI)
+if (user) {
+  const newUrl = `${user.avatarUrl}?t=${Date.now()}`;
+  setAvatarLocally(newUrl);
+}
 
-      await refetch();
+await refreshUser();
+await refetch();
+
 
       setSuccess(true);
     } catch {

@@ -80,6 +80,7 @@ export function useCoverUpload() {
           objectKey,
           mediaType: "image",
           mimeType: file.type,
+          mediaCategory: "COVER",
         },
         { withCredentials: true },
       );
@@ -94,11 +95,12 @@ export function useCoverUpload() {
         updateCover(result.coverUrl);
       }
 
-    } catch (err: any) {
-      const message =
-        typeof err?.response?.data?.message === "string"
-          ? err.response.data.message
-          : err?.message || "เกิดข้อผิดพลาดในการอัปโหลด";
+  } catch (err: any) {
+  const message =
+    err?.response?.data?.message ||
+    err?.message ||
+    "เกิดข้อผิดพลาดในการอัปโหลด";
+
 
       setError(message);
       throw err;

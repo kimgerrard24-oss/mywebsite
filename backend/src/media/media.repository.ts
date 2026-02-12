@@ -3,6 +3,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { Media, MediaType } from '@prisma/client';
+import { ProfileMediaType } from '@prisma/client';
 
 @Injectable()
 export class MediaRepository {
@@ -15,6 +16,7 @@ export class MediaRepository {
     objectKey: string;
     mediaType: MediaType;
     mimeType: string;
+    mediaCategory?: ProfileMediaType | null;
   }): Promise<Media> {
     return this.prisma.media.create({
       data: {
@@ -22,6 +24,8 @@ export class MediaRepository {
         objectKey: params.objectKey,
         mediaType: params.mediaType,
         mimeType: params.mimeType,
+        mediaCategory: params.mediaCategory ?? null,
+        profileType: null,
       },
     });
   }

@@ -281,6 +281,7 @@ CREATE TABLE "Media" (
     "width" INTEGER,
     "height" INTEGER,
     "duration" INTEGER,
+    "mediaCategory" "ProfileMediaType",
     "profileType" "ProfileMediaType",
     "thumbnailObjectKey" TEXT,
     "thumbnailWidth" INTEGER,
@@ -830,6 +831,18 @@ CREATE INDEX "Media_deletedAt_idx" ON "Media"("deletedAt");
 
 -- CreateIndex
 CREATE INDEX "Media_cleanupAt_idx" ON "Media"("cleanupAt");
+
+-- CreateIndex
+CREATE INDEX "Media_mediaCategory_idx" ON "Media"("mediaCategory");
+
+-- CreateIndex
+CREATE INDEX "Media_ownerUserId_deletedAt_idx" ON "Media"("ownerUserId", "deletedAt");
+
+-- CreateIndex
+CREATE INDEX "Media_ownerUserId_mediaCategory_createdAt_idx" ON "Media"("ownerUserId", "mediaCategory", "createdAt");
+
+-- CreateIndex
+CREATE INDEX "Media_ownerUserId_profileType_idx" ON "Media"("ownerUserId", "profileType");
 
 -- CreateIndex
 CREATE INDEX "Comment_postId_createdAt_idx" ON "Comment"("postId", "createdAt");

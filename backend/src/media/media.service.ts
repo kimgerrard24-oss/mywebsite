@@ -14,6 +14,7 @@ import { MediaMetadataDto } from './dto/media-metadata.dto';
 import { MediaMetadataMapper } from './mappers/media-metadata.mapper';
 import { AuditLogService } from '../users/audit/audit-log.service';
 import { generateAndUploadVideoThumbnail } from './utils/generate-and-upload-video-thumbnail';
+import { ProfileMediaType } from '@prisma/client';
 
 import {
   MyMediaGalleryQueryDto,
@@ -91,8 +92,23 @@ async completeUpload(params: {
   objectKey: string;
   mediaType: 'image' | 'video';
   mimeType: string;
+  mediaCategory?: ProfileMediaType;
 }) {
-  const { actorUserId, objectKey, mediaType, mimeType } = params;
+  const {
+  actorUserId,
+  objectKey,
+  mediaType,
+  mimeType,
+  mediaCategory,
+} = params;
+
+
+   if (
+    mediaCategory &&
+    !Object.values(ProfileMediaType).includes(mediaCategory)
+  ) {
+    throw new BadRequestException('Invalid media category');
+  }
 
   // =========================
   // 1️⃣ Duplicate / replay guard
@@ -123,6 +139,7 @@ async completeUpload(params: {
         ? MediaType.IMAGE
         : MediaType.VIDEO,
     mimeType,
+    mediaCategory: mediaCategory ?? null,
   });
 
 // =========================

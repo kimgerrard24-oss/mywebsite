@@ -12,7 +12,8 @@ import CancelFollowRequestButton from "@/components/follows/CancelFollowRequestB
 import { useCurrentProfileMedia } from "@/hooks/useCurrentProfileMedia";
 import { AvatarClickable } from "@/components/profile/AvatarClickable";
 import { CoverClickable } from "@/components/profile/CoverClickable";
-import AvatarCoverPreviewModal from "@/components/profile/AvatarCoverPreviewModal";
+import { useProfileMediaFeed } from "@/hooks/useProfileMediaFeed";
+import { ProfileMediaModal } from "@/components/profile/ProfileMediaModal";
 
 export interface ProfileCardProps {
   profile: UserProfile | PublicUserProfile | null;
@@ -42,6 +43,15 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
   if (!profile) return null;
   const { data: currentMedia, loading: mediaLoading } =
   useCurrentProfileMedia(profile.id);
+
+  const {
+  items: mediaItems,
+  loadMore,
+  hasMore,
+} = useProfileMediaFeed(profile.id);
+
+const [viewerIndex, setViewerIndex] = React.useState<number | null>(null);
+
 
   const router = useRouter();
   const displayName =
@@ -81,8 +91,6 @@ const isPrivateLocked =
   !isSelf &&
   !isFollowing;
 
-  const [previewUrl, setPreviewUrl] = React.useState<string | null>(null);
-
   return (
     <section
       aria-labelledby="profile-heading"
@@ -104,11 +112,16 @@ const isPrivateLocked =
 <CoverClickable
   coverUrl={currentMedia?.cover?.url}
   onClick={() => {
-    if (currentMedia?.cover?.url) {
-      setPreviewUrl(currentMedia.cover.url);
+    const index = mediaItems.findIndex(
+      (m) => m.profileType === "COVER"
+    );
+
+    if (index !== -1) {
+      setViewerIndex(index);
     }
   }}
 />
+
 
 
       <div
@@ -150,15 +163,21 @@ const isPrivateLocked =
     gap-2
   "
 >
-  <AvatarClickable
-    avatarUrl={currentMedia?.avatar?.url}
-    displayName={displayName}
-    onClick={() => {
-      if (currentMedia?.avatar?.url) {
-        setPreviewUrl(currentMedia.avatar.url);
-      }
-    }}
-  />
+ <AvatarClickable
+  avatarUrl={currentMedia?.avatar?.url}
+  displayName={displayName}
+  onClick={() => {
+    const index = mediaItems.findIndex(
+      (m) => m.profileType === "AVATAR"
+    );
+
+    if (index !== -1) {
+      setViewerIndex(index);
+    }
+  }}
+/>
+
+
  
 </div>
 
@@ -380,10 +399,20 @@ const isPrivateLocked =
   )}
 
       </div>
-      {previewUrl && (
-  <AvatarCoverPreviewModal
-    imageUrl={previewUrl}
-    onClose={() => setPreviewUrl(null)}
+
+{viewerIndex !== null && (
+  <ProfileMediaModal
+    items={mediaItems}
+    index={viewerIndex}
+    onClose={() => setViewerIndex(null)}
+    onNavigate={(newIndex) => {
+      setViewerIndex(newIndex);
+
+      // preload next page when near end
+      if (newIndex >= mediaItems.length - 2 && hasMore) {
+        loadMore();
+      }
+    }}
   />
 )}
 

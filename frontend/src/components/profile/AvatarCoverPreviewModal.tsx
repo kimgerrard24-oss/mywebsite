@@ -1,6 +1,6 @@
 // frontend/src/components/profile/AvatarCoverPreviewModal.tsx
 
-import React from "react";
+import React, { useEffect } from "react";
 
 type Props = {
   imageUrl: string;
@@ -11,6 +11,22 @@ export default function AvatarCoverPreviewModal({
   imageUrl,
   onClose,
 }: Props) {
+
+  // ✅ ปิดด้วยปุ่ม ESC
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [onClose]);
+
   return (
     <div
       className="
@@ -30,7 +46,10 @@ export default function AvatarCoverPreviewModal({
           rounded-lg
           shadow-lg
         "
+        onClick={(e) => e.stopPropagation()} 
+        // ✅ กันไม่ให้คลิกที่รูปแล้ว modal ปิด
       />
     </div>
   );
 }
+
