@@ -18,6 +18,7 @@ import { ProfileMediaModal } from "@/components/profile/ProfileMediaModal";
 export interface ProfileCardProps {
   profile: UserProfile | PublicUserProfile | null;
   isSelf?: boolean;
+  currentMedia: ReturnType<typeof useCurrentProfileMedia>;
 }
 
 function isPublicUserProfile(
@@ -39,10 +40,10 @@ const formatDate = (iso: string) => {
 export const ProfileCard: React.FC<ProfileCardProps> = ({
   profile,
   isSelf = true,
+  currentMedia,
 }) => {
   if (!profile) return null;
-  const { data: currentMedia, loading: mediaLoading } =
-  useCurrentProfileMedia(profile.id);
+  const { data: mediaData } = currentMedia;
 
   const {
   items: mediaItems,
@@ -108,12 +109,21 @@ const isPrivateLocked =
         shadow-sm
       "
     >
- {/* ===== Cover ===== */}
+
+{/* ===== Cover ===== */}
 <CoverClickable
-  coverUrl={currentMedia?.cover?.url}
+  coverUrl={mediaData?.cover?.url}
   onClick={() => {
+    if (!mediaData?.cover?.mediaId) return;
+
+    // 🔥 guard กัน feed ยังไม่โหลด
+    if (mediaItems.length === 0) {
+      loadMore();
+      return;
+    }
+
     const index = mediaItems.findIndex(
-      (m) => m.profileType === "COVER"
+      (m) => m.id === mediaData.cover!.mediaId
     );
 
     if (index !== -1) {
@@ -121,6 +131,8 @@ const isPrivateLocked =
     }
   }}
 />
+
+
 
 
 
@@ -164,11 +176,19 @@ const isPrivateLocked =
   "
 >
  <AvatarClickable
-  avatarUrl={currentMedia?.avatar?.url}
+  avatarUrl={mediaData?.avatar?.url}
   displayName={displayName}
   onClick={() => {
+    if (!mediaData?.avatar?.mediaId) return;
+
+    // 🔥 guard กัน feed ยังไม่โหลด
+    if (mediaItems.length === 0) {
+      loadMore();
+      return;
+    }
+
     const index = mediaItems.findIndex(
-      (m) => m.profileType === "AVATAR"
+      (m) => m.id === mediaData.avatar!.mediaId
     );
 
     if (index !== -1) {
@@ -178,7 +198,7 @@ const isPrivateLocked =
 />
 
 
- 
+
 </div>
 
 

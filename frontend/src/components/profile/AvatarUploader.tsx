@@ -5,13 +5,17 @@ import { useAvatarUpload } from "@/hooks/useAvatarUpload";
 import { useCurrentProfileMedia } from "@/hooks/useCurrentProfileMedia";
 import { useAuth } from "@/context/AuthContext";
 
-export function AvatarUploader() {
+type Props = {
+  currentMedia: ReturnType<typeof useCurrentProfileMedia>;
+};
+
+export function AvatarUploader({ currentMedia }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
   const { upload, loading, error } = useAvatarUpload();
   const { user, refreshUser } = useAuth();
 
   const userId = user?.id ?? null;
-  const { refetch, setAvatarLocally } = useCurrentProfileMedia(userId);
+  const { refetch, setAvatarLocally } = currentMedia;
 
   const [success, setSuccess] = useState(false);
 
