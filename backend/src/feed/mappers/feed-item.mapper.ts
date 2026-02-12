@@ -1,6 +1,7 @@
 // backend/src/feed/mappers/feed-item.mapper.ts
 
 import { FeedItemDto } from '../dto/feed-item.dto';
+import { buildCdnUrl } from '../../media/utils/build-cdn-url.util';
 
 export class FeedItemMapper {
   static toDto(row: any): FeedItemDto {
@@ -15,7 +16,9 @@ export class FeedItemMapper {
       author: {
         id: row.author.id,
         displayName: row.author.displayName,
-        avatarUrl: row.author.avatarUrl,
+avatarUrl: row.author.avatarMedia
+  ? buildCdnUrl(row.author.avatarMedia.objectKey)
+  : null,
         isPrivate: row.author.isPrivate,
         isFollowing: Array.isArray(row.author.followers) && row.author.followers.length > 0,
         isFollowRequested:

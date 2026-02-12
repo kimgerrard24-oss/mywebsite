@@ -184,7 +184,10 @@ export class CommentsRepository {
   select: {
     id: true,
     displayName: true,
-    avatarUrl: true,
+    avatarMedia: {
+      select: { objectKey: true },
+    },
+
 
     blockedBy: viewerUserId
       ? {

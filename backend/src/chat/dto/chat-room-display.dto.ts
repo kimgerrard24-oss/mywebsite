@@ -1,4 +1,6 @@
 // backend/src/chat/dto/chat-room-display.dto.ts
+import { buildCdnUrl } from '../../media/utils/build-cdn-url.util';
+
 export class ChatRoomDisplayDto {
   id!: string;
   isGroup!: boolean;
@@ -27,8 +29,10 @@ export class ChatRoomDisplayDto {
       isGroup: false,
       displayName:
         peer?.user?.displayName ?? 'User',
-      displayAvatarUrl:
-        peer?.user?.avatarUrl ?? null,
+     displayAvatarUrl: peer?.user?.avatarMedia
+  ? buildCdnUrl(peer.user.avatarMedia.objectKey)
+  : null,
+
     };
   }
 }

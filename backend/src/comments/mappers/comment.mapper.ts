@@ -1,5 +1,6 @@
 // backend/src/comments/mappers/comment.mapper.ts
 import { CommentItemDto } from '../dto/comment-item.dto';
+import { buildCdnUrl } from '../../media/utils/build-cdn-url.util';
 
 export class CommentMapper {
   /**
@@ -92,7 +93,9 @@ export class CommentMapper {
       author: {
         id: comment.author.id,
         displayName: comment.author.displayName ?? null,
-        avatarUrl: comment.author.avatarUrl ?? null,
+avatarUrl: comment.author.avatarMedia
+  ? buildCdnUrl(comment.author.avatarMedia.objectKey)
+  : null,
         isBlocked,
         hasBlockedViewer,
       },

@@ -69,10 +69,13 @@ export class FollowingRepository {
 
       include: {
         following: {
-          select: {
-            id: true,
-            displayName: true,
-            avatarUrl: true,
+  select: {
+    id: true,
+    displayName: true,
+    avatarMedia: {
+      select: { objectKey: true },
+    },
+
 
             // ===== viewer-aware block state (UX only) =====
             ...(viewerUserId

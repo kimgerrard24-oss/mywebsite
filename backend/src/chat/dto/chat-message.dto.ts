@@ -80,7 +80,9 @@ export class ChatMessageDto {
       sender: {
         id: row.sender?.id,
         displayName: row.sender?.displayName ?? null,
-        avatarUrl: row.sender?.avatarUrl ?? null,
+avatarUrl: row.sender?.avatarMedia
+  ? buildCdnUrl(row.sender.avatarMedia.objectKey)
+  : null,
 
         // ✅ MUST be computed in query/service layer
         isBlockedByViewer:

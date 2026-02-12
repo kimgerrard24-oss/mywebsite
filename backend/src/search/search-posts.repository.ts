@@ -72,12 +72,15 @@ export class SearchPostsRepository {
         content: true,
         createdAt: true,
         author: {
-          select: {
-            id: true,
-            displayName: true,
-            avatarUrl: true,
-          },
-        },
+  select: {
+    id: true,
+    displayName: true,
+    avatarMedia: {
+      select: { objectKey: true },
+    },
+  },
+},
+
       },
     });
 

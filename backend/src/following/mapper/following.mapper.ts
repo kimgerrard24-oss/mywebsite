@@ -1,5 +1,6 @@
 // backend/src/following/mapper/following.mapper.ts
 import { FollowingResponseDto } from '../dto/following.response.dto';
+import { buildCdnUrl } from '../../media/utils/build-cdn-url.util';
 
 export class FollowingMapper {
   static toResponse(
@@ -24,7 +25,9 @@ export class FollowingMapper {
         return {
           userId: following.id,
           displayName: following.displayName ?? null,
-          avatarUrl: following.avatarUrl ?? null,
+avatarUrl: following.avatarMedia
+  ? buildCdnUrl(following.avatarMedia.objectKey)
+  : null,
           followedAt: row.createdAt.toISOString(),
 
           // 🔒 viewer-aware flags (UX only)

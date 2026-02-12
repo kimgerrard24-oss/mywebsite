@@ -1,4 +1,6 @@
 // backend/src/chat/dto/chat-room-list.dto.ts
+import { buildCdnUrl } from '../../media/utils/build-cdn-url.util';
+
 export class ChatRoomListDto {
   id!: string;
 
@@ -30,8 +32,10 @@ export class ChatRoomListDto {
             id: peerParticipant.user.id,
             displayName:
               peerParticipant.user.displayName,
-            avatarUrl:
-              peerParticipant.user.avatarUrl,
+            avatarUrl: peerParticipant.user.avatarMedia
+  ? buildCdnUrl(peerParticipant.user.avatarMedia.objectKey)
+  : null,
+
           }
         : null,
 

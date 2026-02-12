@@ -62,11 +62,14 @@ export class SearchUsersRepository {
       }),
 
       select: {
-        id: true,
-        username: true,
-        displayName: true,
-        avatarUrl: true,
-      },
+  id: true,
+  username: true,
+  displayName: true,
+  avatarMedia: {
+    select: { objectKey: true },
+  },
+},
+
     });
 
     const hasNext = users.length > limit;

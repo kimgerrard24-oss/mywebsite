@@ -1,4 +1,5 @@
 // src/users/dto/user-profile.dto.ts
+import { buildCdnUrl } from '../../media/utils/build-cdn-url.util';
 
 export class UserProfileDto {
   id: string;
@@ -14,7 +15,6 @@ export class UserProfileDto {
   updatedAt: Date;
   isSelf: boolean;
 
-  // ✅ เพิ่ม: statistics (optional / fail-soft)
   stats?: {
     followers: number;
     following: number;
@@ -32,8 +32,13 @@ export class UserProfileDto {
     this.firebaseUid = user.firebaseUid ?? null;
     this.name = user.name ?? null;
     this.displayName = user.displayName ?? null;
-    this.avatarUrl = user.avatarUrl ?? null;
-    this.coverUrl = user.coverUrl ?? null;
+   this.avatarUrl = user.avatarMedia
+  ? buildCdnUrl(user.avatarMedia.objectKey)
+  : null;
+
+this.coverUrl = user.coverMedia
+  ? buildCdnUrl(user.coverMedia.objectKey)
+  : null;
     this.bio = user.bio ?? null;
     this.createdAt = user.createdAt;
     this.updatedAt = user.updatedAt;

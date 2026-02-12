@@ -54,7 +54,9 @@ export class AdminUsersRepository {
             active: true,
             createdAt: true,
             displayName: true,
-            avatarUrl: true,
+            avatarMedia: {
+      select: { objectKey: true },
+    },
           },
         }),
         this.prisma.user.count({ where }),
@@ -103,7 +105,9 @@ export class AdminUsersRepository {
         id: true,
         username: true,
         displayName: true,
-        avatarUrl: true,
+        avatarMedia: {
+      select: { objectKey: true },
+    },
         role: true,
         isDisabled: true,
         createdAt: true,

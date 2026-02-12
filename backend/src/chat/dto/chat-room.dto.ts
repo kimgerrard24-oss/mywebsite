@@ -1,4 +1,5 @@
 // backend/src/chat/dto/chat-room.dto.ts
+import { buildCdnUrl } from '../../media/utils/build-cdn-url.util';
 
 export class ChatRoomDto {
   id!: string;
@@ -30,7 +31,10 @@ export class ChatRoomDto {
         .map((p: any) => ({
           id: p.user.id,
           displayName: p.user.displayName,
-          avatarUrl: p.user.avatarUrl,
+          avatarUrl: p.user.avatarMedia
+  ? buildCdnUrl(p.user.avatarMedia.objectKey)
+  : null,
+
 
           // ✅ must be computed earlier (query/service)
           isBlockedByViewer:
