@@ -64,7 +64,7 @@ CREATE TYPE "SecurityEventType" AS ENUM ('LOGIN_SUCCESS', 'LOGIN_FAILED', 'PASSW
 CREATE TYPE "VerificationScope" AS ENUM ('ACCOUNT_LOCK', 'PROFILE_EXPORT', 'EMAIL_CHANGE', 'PASSWORD_CHANGE', 'PHONE_CHANGE', 'EMAIL_VERIFY');
 
 -- CreateEnum
-CREATE TYPE "PostType" AS ENUM ('POST', 'REPOST');
+CREATE TYPE "PostType" AS ENUM ('POST', 'REPOST', 'PROFILE_UPDATE', 'COVER_UPDATE');
 
 -- CreateTable
 CREATE TABLE "User" (
@@ -786,6 +786,12 @@ CREATE INDEX "Post_deletedSource_deletedAt_idx" ON "Post"("deletedSource", "dele
 
 -- CreateIndex
 CREATE INDEX "Post_deletedById_deletedAt_idx" ON "Post"("deletedById", "deletedAt");
+
+-- CreateIndex
+CREATE INDEX "Post_type_publishedAt_idx" ON "Post"("type", "publishedAt");
+
+-- CreateIndex
+CREATE INDEX "Post_authorId_type_publishedAt_idx" ON "Post"("authorId", "type", "publishedAt");
 
 -- CreateIndex
 CREATE INDEX "PostVisibilityRule_postId_rule_idx" ON "PostVisibilityRule"("postId", "rule");

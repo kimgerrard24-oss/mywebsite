@@ -8,11 +8,16 @@ import { ProfileMediaType } from "@prisma/client";
 export class ProfileMediaRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findOwnedMedia(mediaId: string) {
-    return this.prisma.media.findUnique({
-      where: { id: mediaId },
-    });
-  }
+  async findOwnedMedia(mediaId: string, ownerUserId: string) {
+  return this.prisma.media.findFirst({
+    where: {
+      id: mediaId,
+      ownerUserId,
+      deletedAt: null,
+    },
+  });
+}
+
 
   async setAvatarTransaction(params: {
     userId: string;
@@ -66,6 +71,12 @@ export class ProfileMediaRepository {
     profileType: null,
   },
 });
+
+await tx.media.update({
+  where: { id: mediaId },
+  data: { profileType: 'COVER' },
+});
+
 
     const user = await tx.user.update({
       where: { id: userId },

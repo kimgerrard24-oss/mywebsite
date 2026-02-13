@@ -57,10 +57,17 @@ export class PostFeedMapper {
     const isHiddenByTaggedUser =
         Boolean(myTag?.isHiddenByTaggedUser === true);
         
-    const isRepost = row.type === 'REPOST';
+    const type = row.type as
+  | 'POST'
+  | 'REPOST'
+  | 'PROFILE_UPDATE'
+  | 'COVER_UPDATE';
+
+    const isRepost = type === 'REPOST';
+
 
     return {
-      type: isRepost ? 'repost' : 'post',
+      type,
       id: row.id,
       content: row.content,
       createdAt: row.createdAt.toISOString(),

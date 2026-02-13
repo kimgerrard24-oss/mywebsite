@@ -142,6 +142,29 @@ export class NotificationsService {
       break;
     }
 
+    case 'profile_avatar_liked':
+case 'profile_cover_liked': {
+  const p = payload as any;
+  if (!p?.postId) {
+    throw new Error(
+      `Invalid payload for ${type} notification`,
+    );
+  }
+  break;
+}
+
+case 'profile_avatar_commented':
+case 'profile_cover_commented': {
+  const p = payload as any;
+  if (!p?.postId || !p?.commentId) {
+    throw new Error(
+      `Invalid payload for ${type} notification`,
+    );
+  }
+  break;
+}
+
+
     case 'appeal_resolved': {
       const p = payload as any;
       if (!p?.appealId || !p?.decision) {

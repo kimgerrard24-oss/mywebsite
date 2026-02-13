@@ -86,6 +86,19 @@ if (targetType === 'CHAT_MESSAGE')
     ? `/posts/${item.entityId}`
     : null;
 
+    case 'profile_avatar_liked':
+case 'profile_cover_liked':
+  return item.entityId
+    ? `/posts/${item.entityId}`
+    : null;
+
+case 'profile_avatar_commented':
+case 'profile_cover_commented':
+  return item.payload?.postId && item.entityId
+    ? `/posts/${item.payload.postId}#comment-${item.entityId}`
+    : null;
+
+
       
       case 'post_tagged_auto_accepted':
       case 'post_tagged_request':
@@ -184,6 +197,19 @@ if (targetType === 'CHAT_MESSAGE')
 
       case 'chat_message':
         return 'sent you a message';
+
+      case 'profile_avatar_liked':
+        return 'liked your profile photo';
+
+      case 'profile_cover_liked':
+        return 'liked your cover photo';
+
+      case 'profile_avatar_commented':
+        return 'commented on your profile photo';
+
+      case 'profile_cover_commented':
+        return 'commented on your cover photo';
+
 
       case 'moderation_action': {
         const action = item.payload?.actionType;

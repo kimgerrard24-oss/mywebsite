@@ -136,6 +136,7 @@ const originalAuthor = post.originalPost?.author;
   />
 </Link>
 
+
           {/* ===== Name + Time ===== */}
           <div className="flex min-w-0 flex-col leading-tight">
             <Link
@@ -152,6 +153,19 @@ const originalAuthor = post.originalPost?.author;
             >
               {actor?.displayName ?? "Unknown user"}
             </Link>
+
+            {post.type === "PROFILE_UPDATE" && (
+  <span className="text-xs text-gray-500">
+    ได้อัปเดตรูปโปรไฟล์
+  </span>
+)}
+
+{post.type === "COVER_UPDATE" && (
+  <span className="text-xs text-gray-500">
+    ได้อัปเดตรูปปก
+  </span>
+)}
+
 
             {isRepost && originalAuthor && (
   <span className="text-xs text-gray-500">

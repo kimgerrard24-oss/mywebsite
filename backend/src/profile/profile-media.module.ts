@@ -9,6 +9,7 @@ import { AuditModule } from '../users/audit/audit.module';
 import { R2Module } from '../r2/r2.module';
 import { UsersModule } from '../users/users.module';
 import { AuthModule } from '../auth/auth.module';
+import { PostsModule } from '../posts/posts.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { AuthModule } from '../auth/auth.module';
     R2Module,
     UsersModule,
     AuthModule,
+    PostsModule,
   ],
   controllers: [ProfileMediaController],
   providers: [

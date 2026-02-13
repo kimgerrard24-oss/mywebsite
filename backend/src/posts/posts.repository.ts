@@ -7,6 +7,7 @@ import {
   UserTagSetting,
   UserTagApprovalMode,
   Prisma,
+  PostType,
   PostUserTagStatus,
  } from '@prisma/client';
 
@@ -694,6 +695,7 @@ originalPost: {
     id: string;
     authorId: string;
     isDeleted: boolean;
+    type: PostType;
   } | null> {
     return this.prisma.post.findUnique({
       where: { id: postId },
@@ -701,6 +703,7 @@ originalPost: {
         id: true,
         authorId: true,
         isDeleted: true,
+        type: true,
       },
     });
   }

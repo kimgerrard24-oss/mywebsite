@@ -46,6 +46,7 @@ export class CommentsRepository {
       isHidden: true,
       isDeleted: true,
       isPublished: true,
+      type: true,
     },
   });
 }
