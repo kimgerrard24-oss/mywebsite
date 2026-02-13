@@ -43,6 +43,8 @@ import { PostUserTagAcceptPolicy } from './policy/post-user-tag-accept.policy';
 import { PostUserTagRejectPolicy } from './policy/post-user-tag-reject.policy';
 import { PostUserTagCreatePolicy } from './policy/post-user-tag-create.policy';
 import { buildCdnUrl } from '../media/utils/build-cdn-url.util';
+import { NotificationPayloadMap } from '../notifications/types/notification-payload.type';
+import { PostType } from '@prisma/client';
 
 @Injectable()
 export class PostsService {
@@ -67,6 +69,7 @@ async createPost(params: {
   authorId: string;
   dto?: CreatePostDto;
   content?: string;
+  typeOverride?: PostType;
 }) {
   const { authorId } = params;
 
@@ -209,7 +212,10 @@ if (repostOfPostId) {
           content,
           visibility,
 
-          type: repostOfPostId ? 'REPOST' : 'POST',
+          type:
+  params.typeOverride ??
+  (repostOfPostId ? 'REPOST' : 'POST'),
+
           originalPostId: repostOfPostId ?? null,
         },
         select: {
@@ -610,6 +616,47 @@ if (viewerUserId && visiblePosts.length > 0) {
   };
 }
 
+async deletePreviousProfileUpdatePosts(params: {
+  userId: string;
+  type: PostType;
+}) {
+  const { userId, type } = params;
+
+  // safeguard: allow only profile-related types
+  if (
+    type !== PostType.PROFILE_UPDATE &&
+    type !== PostType.COVER_UPDATE
+  ) {
+    return;
+  }
+
+  const posts = await this.prisma.post.findMany({
+    where: {
+      authorId: userId,
+      type,
+      isDeleted: false,
+    },
+    select: {
+      id: true,
+    },
+  });
+
+  if (!posts.length) return;
+
+  await this.prisma.post.updateMany({
+    where: {
+      id: {
+        in: posts.map((p) => p.id),
+      },
+    },
+    data: {
+      isDeleted: true,
+      deletedAt: new Date(),
+    },
+  });
+}
+
+
  async getPostDetail(params: {
   postId: string;
   viewer: { userId: string; jti: string } | null;
@@ -753,6 +800,10 @@ async deletePost(params: { postId: string; actorUserId: string }) {
   // =========================
   await this.prisma.$transaction(async (tx) => {
     // ✅ 1) mark media.deletedAt
+     if (
+    post.type !== 'PROFILE_UPDATE' &&
+    post.type !== 'COVER_UPDATE'
+  ) {
     await tx.media.updateMany({
       where: {
         posts: {
@@ -767,6 +818,7 @@ async deletePost(params: { postId: string; actorUserId: string }) {
         ),
       },
     });
+  }
 
     // -------------------------
     // 2) soft delete post (via repo, tx-safe)
@@ -1361,20 +1413,31 @@ if (post.originalPost) {
   // 6) CREATE NOTIFICATION (only when liked, fail-soft)
   // =================================================
   if (result.liked === true && post.authorId !== userId) {
-    try {
-      await this.notifications.createNotification({
-        userId: post.authorId,
-        actorUserId: userId,
-        type: 'like',
-        entityId: postId,
-        payload: {
-          postId,
-        },
-      });
-    } catch {
-      // ❗ notification fail must not affect like
+  try {
+    let type: keyof NotificationPayloadMap = 'like';
+
+    if (post.type === PostType.PROFILE_UPDATE) {
+      type = 'profile_avatar_liked';
     }
+
+    if (post.type === PostType.COVER_UPDATE) {
+      type = 'profile_cover_liked';
+    }
+
+    await this.notifications.createNotification({
+      userId: post.authorId,
+      actorUserId: userId,
+      type,
+      entityId: postId,
+      payload: {
+        postId,
+      },
+    });
+  } catch {
+    // notification fail must not break like
   }
+}
+
 
   // =================================================
   // 7) DOMAIN EVENT (fan-out workers)

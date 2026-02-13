@@ -14,6 +14,8 @@ import { NotificationsService } from '../notifications/notifications.service';
 import { parseHashtags } from '../posts/utils/parse-hashtags.util';
 import { AuditService } from '../auth/audit.service'
 import { PostsVisibilityService } from '../posts/visibility/posts-visibility.service';
+import { PostType } from '@prisma/client';
+import { NotificationPayloadMap } from '../notifications/types/notification-payload.type';
 
 @Injectable()
 export class CommentsService {
@@ -152,15 +154,27 @@ if (!decision.canView) {
         });
 
       if (canNotify) {
-        await this.notifications.createNotification({
-          userId: post.authorId,
-          actorUserId: authorId,
-          type: 'comment',
-          entityId: postId,
-          payload: {
-            postId,
-          },
-        });
+        let type: keyof NotificationPayloadMap = 'comment';
+
+if (post.type === PostType.PROFILE_UPDATE) {
+  type = 'profile_avatar_commented';
+}
+
+if (post.type === PostType.COVER_UPDATE) {
+  type = 'profile_cover_commented';
+}
+
+await this.notifications.createNotification({
+  userId: post.authorId,
+  actorUserId: authorId,
+  type,
+  entityId: created.id,
+  payload: {
+    postId,
+    commentId: created.id,
+  },
+});
+
       }
     } catch {
       // ❗ notification fail must not break comment
@@ -181,15 +195,16 @@ if (!decision.canView) {
 
         if (canNotify) {
           await this.notifications.createNotification({
-            userId,
-            actorUserId: authorId,
-            type: 'comment_mention',
-            entityId: created.id,
-            payload: {
-              postId,
-              commentId: created.id,
-            },
-          });
+  userId, 
+  actorUserId: authorId,
+  type: 'comment_mention', 
+  entityId: created.id,
+  payload: {
+    postId,
+    commentId: created.id,
+  },
+});
+
         }
       } catch {
         /**

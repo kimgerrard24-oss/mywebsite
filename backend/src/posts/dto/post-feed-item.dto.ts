@@ -8,7 +8,12 @@ export class PostFeedItemDto {
   isTaggedUser!: boolean;
   isHiddenByTaggedUser!: boolean;
 
-  type?: 'post' | 'repost';
+  type!:
+  | 'POST'
+  | 'REPOST'
+  | 'PROFILE_UPDATE'
+  | 'COVER_UPDATE';
+
 
    repost?: {
     repostId: string;

@@ -14,6 +14,10 @@ export type NotificationType =
   | 'appeal_resolved'
   | 'post_tagged_auto_accepted'
   | 'post_tagged_request'
+  | 'profile_avatar_liked'
+  | 'profile_cover_liked'
+  | 'profile_avatar_commented'
+  | 'profile_cover_commented'
   | string; 
 /**
  * Payload map by notification type (type-safe where known)
@@ -79,6 +83,11 @@ export type NotificationPayloadMap = {
     decision: 'APPROVED' | 'REJECTED';
   };
 
+  profile_avatar_liked: { postId: string };
+  profile_cover_liked: { postId: string };
+  profile_avatar_commented: { postId: string; commentId: string };
+  profile_cover_commented: { postId: string; commentId: string };
+
   /**
    * fallback for unknown / future types
    */
@@ -136,6 +145,10 @@ export type NotificationItem =
   | BaseNotificationItem<'post_tagged_auto_accepted'>
   | BaseNotificationItem<'post_tagged_request'>
   | BaseNotificationItem<'appeal_resolved'>
+  | BaseNotificationItem<'profile_avatar_liked'>
+  | BaseNotificationItem<'profile_cover_liked'>
+  | BaseNotificationItem<'profile_avatar_commented'>
+  | BaseNotificationItem<'profile_cover_commented'>
   | BaseNotificationItem<string>; 
 
 export type NotificationResponse = {

@@ -90,4 +90,23 @@ export type NotificationPayloadMap = {
     postId: string;
   };
 
+  profile_avatar_liked: {
+  postId: string;
+};
+
+profile_cover_liked: {
+  postId: string;
+};
+
+profile_avatar_commented: {
+  postId: string;
+  commentId: string;
+};
+
+profile_cover_commented: {
+  postId: string;
+  commentId: string;
+};
+
+
 };

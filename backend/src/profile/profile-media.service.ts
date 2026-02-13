@@ -18,6 +18,8 @@ import { SetCurrentProfileMediaParams } from './types/profile-media.types';
 import { assertValidProfileMedia } from './profile-media.validation';
 import { GetCurrentProfileMediaResponseDto } from './dto/get-current-profile-media.response.dto';
 import { ProfileMediaAccessErrorCode } from './profile-media.error-codes';
+import { PostsService } from '../posts/posts.service';
+import { PostVisibility, PostType } from '@prisma/client';
 
 @Injectable()
 export class ProfileMediaService {
@@ -25,12 +27,17 @@ export class ProfileMediaService {
     private readonly repo: ProfileMediaRepository,
     private readonly audit: AuditLogService,
     private readonly r2: R2Service,
+    private readonly postsService: PostsService,
   ) {}
 
   async setAvatar(actorUserId: string, mediaId: string) {
-    const media = await this.repo.findOwnedMedia(mediaId);
+    const media = await this.repo.findOwnedMedia(
+  mediaId,
+  actorUserId,
+);
 
-if (!media || media.deletedAt !== null) {
+
+if (!media) {
   throw new ProfileMediaNotFoundError();
 }
 
@@ -51,6 +58,28 @@ if (!media || media.deletedAt !== null) {
       userId: actorUserId,
       mediaId,
     });
+
+    try {
+  await this.postsService.deletePreviousProfileUpdatePosts({
+    userId: actorUserId,
+    type: PostType.PROFILE_UPDATE,
+  });
+} catch {}
+
+
+   try {
+  await this.postsService.createPost({
+    authorId: actorUserId,
+    typeOverride: PostType.PROFILE_UPDATE,
+    dto: {
+      content: '',
+      mediaIds: [mediaId],
+      visibility: PostVisibility.PUBLIC,
+    },
+  });
+} catch {
+  // ❗ profile update must never fail because post creation failed
+}
 
     const avatarUrl = this.r2.buildPublicUrl(
       user.avatarMedia?.objectKey!,
@@ -75,9 +104,13 @@ if (!media || media.deletedAt !== null) {
   }) {
     const { actorUserId, mediaId } = params;
 
-const media = await this.repo.findMediaById(mediaId);
+const media = await this.repo.findOwnedMedia(
+  mediaId,
+  actorUserId,
+);
 
-if (!media || media.deletedAt !== null) {
+
+if (!media) {
   throw new ProfileMediaNotFoundError();
 }
 
@@ -96,6 +129,30 @@ if (media.mediaCategory !== 'COVER') {
       userId: actorUserId,
       mediaId,
     });
+
+    try {
+  await this.postsService.deletePreviousProfileUpdatePosts({
+    userId: actorUserId,
+    type: PostType.COVER_UPDATE,
+  });
+} catch {}
+
+
+    try {
+  await this.postsService.createPost({
+    authorId: actorUserId,
+    typeOverride: PostType.COVER_UPDATE,
+    dto: {
+      content: '',
+      mediaIds: [mediaId],
+      visibility: PostVisibility.PUBLIC,
+    },
+  });
+} catch {
+  // ❗ profile update must never fail because post creation failed
+}
+
+
 
     // Audit (fail-soft)
     try {

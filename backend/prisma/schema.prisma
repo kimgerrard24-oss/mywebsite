@@ -306,6 +306,8 @@ model Post {
   @@index([isDeleted, deletedAt])
   @@index([deletedSource, deletedAt])
   @@index([deletedById, deletedAt])
+  @@index([type, publishedAt])
+  @@index([authorId, type, publishedAt])
 }
 
 model PostVisibilityRule {
@@ -1225,4 +1227,7 @@ model PostShareStat {
 enum PostType {
   POST
   REPOST
+  PROFILE_UPDATE
+  COVER_UPDATE
 }
+

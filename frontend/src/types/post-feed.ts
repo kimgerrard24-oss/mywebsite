@@ -18,7 +18,12 @@ export type PostFeedItem = {
    /**
    * 🆕 post type
    */
-  type: 'post' | 'repost';
+  type:
+  | 'post'
+  | 'repost'
+  | 'PROFILE_UPDATE'
+  | 'COVER_UPDATE';
+
 
    /**
    * 🆕 repost metadata (Facebook-style)
