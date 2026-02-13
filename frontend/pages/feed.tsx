@@ -34,10 +34,13 @@ export default function FeedPage({
   feedItems,
   lang,
 }: FeedProps) {
-  const { user: storeUser } = useUserStore();
-  const user = storeUser ?? initialUser;
+
+ const { user: storeUser, loading } = useUserStore();
+ const user = !loading ? storeUser : null;
+
   const router = useRouter();
   const t = getDictionary(lang);
+
 
   const [feedMode, setFeedMode] = useState<"text" | "video">("video");
   const refreshFeedRef = useRef<() => void>(() => {});
