@@ -45,7 +45,7 @@ export default function PostDetailView({
       className="
         fixed inset-0 z-50
         bg-black/80 backdrop-blur-sm
-        flex items-center justify-center
+        flex items-start justify-center pt-16
         px-4
       "
       role="dialog"
@@ -56,6 +56,35 @@ export default function PostDetailView({
         className="absolute inset-0"
         onClick={onClose}
       />
+
+      {/* Floating Close Button (Outside Card) */}
+<button
+  onClick={onClose}
+  aria-label="Close post viewer"
+  className="
+    fixed
+    top-6
+    right-6
+    z-[60]
+    h-10
+    w-10
+    flex
+    items-center
+    justify-center
+    rounded-full
+    bg-black/70
+    text-white
+    text-lg
+    hover:bg-black
+    transition
+    focus:outline-none
+    focus-visible:ring-2
+    focus-visible:ring-white
+  "
+>
+  ✕
+</button>
+
 
       {/* Modal content */}
       <div
@@ -72,23 +101,7 @@ export default function PostDetailView({
           animate-fadeIn
         "
       >
-        {/* Close button */}
-        <button
-          onClick={onClose}
-          className="
-            absolute
-            top-3
-            right-3
-            text-gray-500
-            hover:text-black
-            text-xl
-            z-20
-          "
-          aria-label="Close post viewer"
-        >
-          ✕
-        </button>
-
+       
         {/* Real Post */}
         <PostDetail
           post={post}
