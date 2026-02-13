@@ -20,6 +20,7 @@ import { GetCurrentProfileMediaResponseDto } from './dto/get-current-profile-med
 import { ProfileMediaAccessErrorCode } from './profile-media.error-codes';
 import { PostsService } from '../posts/posts.service';
 import { PostVisibility, PostType } from '@prisma/client';
+import { PostsVisibilityService } from '../posts/visibility/posts-visibility.service';
 
 @Injectable()
 export class ProfileMediaService {
@@ -28,6 +29,7 @@ export class ProfileMediaService {
     private readonly audit: AuditLogService,
     private readonly r2: R2Service,
     private readonly postsService: PostsService,
+    private readonly postsVisibility: PostsVisibilityService,
   ) {}
 
   async setAvatar(actorUserId: string, mediaId: string) {
@@ -215,13 +217,49 @@ if (media.mediaCategory !== 'COVER') {
     const hasNext = media.length > (query.limit ?? 20);
     const items = hasNext ? media.slice(0, -1) : media;
 
-   return {
-  items: items.map((m) =>
-    ProfileMediaMapper.toDto(m, this.r2),
-  ),
-  nextCursor: hasNext ? items[items.length - 1].id : null,
-};
+   /* =========================================================
+   🔒 POST VISIBILITY GUARD (AUTHORITATIVE)
+========================================================= */
 
+const mappedItems = await Promise.all(
+  items.map(async (m) => {
+    const dto = ProfileMediaMapper.toDto(m, this.r2);
+
+    // ถ้าไม่มี postId → return ปกติ
+    if (!dto.postId) {
+      return dto;
+    }
+
+    try {
+      const decision =
+        await this.postsVisibility.validateVisibility({
+          postId: dto.postId,
+          viewerUserId: viewerId,
+        });
+
+      if (!decision.canView) {
+        return {
+          ...dto,
+          postId: null, // 🔒 strip post
+        };
+      }
+
+      return dto;
+    } catch {
+      return {
+        ...dto,
+        postId: null,
+      };
+    }
+  }),
+);
+
+return {
+  items: mappedItems,
+  nextCursor: hasNext
+    ? items[items.length - 1].id
+    : null,
+};
   }
 
    async setCurrentProfileMedia(params: SetCurrentProfileMediaParams) {

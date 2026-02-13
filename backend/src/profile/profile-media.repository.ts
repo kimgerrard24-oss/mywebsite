@@ -136,30 +136,55 @@ await tx.media.update({
   }
 
   async findProfileMedia(params: {
-    userId: string;
-    type?: ProfileMediaType;
-    cursor?: string;
-    limit: number;
-  }) {
-    const { userId, type, cursor, limit } = params;
+  userId: string;
+  type?: ProfileMediaType;
+  cursor?: string;
+  limit: number;
+}) {
+  const { userId, type, cursor, limit } = params;
 
-    return this.prisma.media.findMany({
-      where: {
-  ownerUserId: userId,
-  deletedAt: null,
-  ...(type && { mediaCategory: type }),
-},
-
-      orderBy: {
-        createdAt: "desc",
+  return this.prisma.media.findMany({
+    where: {
+      ownerUserId: userId,
+      deletedAt: null,
+      ...(type && { mediaCategory: type }),
+    },
+    orderBy: { createdAt: "desc" },
+    take: limit + 1,
+    ...(cursor && {
+      skip: 1,
+      cursor: { id: cursor },
+    }),
+    include: {
+      posts: {
+        where: {
+          post: {
+            type: {
+              in: ['PROFILE_UPDATE', 'COVER_UPDATE'],
+            },
+          },
+        },
+        orderBy: {
+          createdAt: 'desc',
+        },
+        take: 1,
+        select: {
+          post: {
+            select: {
+              id: true,
+              type: true,
+              isDeleted: true,
+              isHidden: true,
+              visibility: true,
+              authorId: true,
+            },
+          },
+        },
       },
-      take: limit + 1,
-      ...(cursor && {
-        skip: 1,
-        cursor: { id: cursor },
-      }),
-    });
-  }
+    },
+  });
+}
+
 
   async findMediaById(mediaId: string) {
     return this.prisma.media.findUnique({

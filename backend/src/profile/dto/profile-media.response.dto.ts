@@ -8,6 +8,7 @@ export interface ProfileMediaItemDto {
   thumbnailUrl?: string | null;
   type: ProfileMediaType;
   createdAt: Date;
+  postId: string | null;
 }
 
 export interface ProfileMediaResponseDto {

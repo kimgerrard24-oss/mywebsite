@@ -75,7 +75,9 @@ export class MediaRepository {
                   select: {
                     id: true,
                     username: true,
-                    avatarUrl: true,
+                    avatarMedia: {
+      select: { objectKey: true },
+    },
                   },
                 },
               },
