@@ -2,18 +2,18 @@
 
 import { useEffect, useRef, useState, useCallback } from "react";
 import { api } from "@/lib/api/api";
+import type { ProfileMediaItem } 
+  from "@/types/profile-media-feed";
 
 export type ProfileMediaType = "AVATAR" | "COVER";
 
-export interface ProfileMediaItem {
-  id: string;
-  url: string;
-  createdAt: string;
-  type: ProfileMediaType;
-}
-
 interface ApiResponse {
-  items: ProfileMediaItem[];
+  items: {
+    id: string;
+    url: string;
+    createdAt: string;
+    postId: string; 
+  }[];
   nextCursor: string | null;
 }
 
@@ -102,9 +102,13 @@ export function useProfileMedia(
         const data = res.data;
 
         const mappedItems: ProfileMediaItem[] = data.items.map((item) => ({
-  ...item,
-  type, // ✅ inject type จาก hook param
+  id: item.id,
+  url: item.url,
+  createdAt: item.createdAt,
+  postId: item.postId,  
+  type,                 
 }));
+
 
 setState((prev) => ({
   ...prev,

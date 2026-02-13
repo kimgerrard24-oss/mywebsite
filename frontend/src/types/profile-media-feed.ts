@@ -14,6 +14,7 @@ export type ProfileMediaItem = {
 
   // media.profileType (current marker)
   profileType?: ProfileMediaCategory | null;
+  postId: string;
 };
 
 export type ProfileMediaFeedResponse = {

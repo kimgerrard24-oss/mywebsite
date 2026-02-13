@@ -17,22 +17,25 @@ export class ProfileMediaMapper {
      GRID LIST MAPPER (GET /profile-media)
   ========================================================== */
 
-  static toDto(
-    media: Media,
-    r2?: R2Service,
-  ): ProfileMediaItemDto {
+  static toDto(media: any, r2?: R2Service): ProfileMediaItemDto {
     const buildUrl = (key: string) =>
       r2 ? r2.buildPublicUrl(key) : `${process.env.CDN_BASE_URL}/${key}`;
 
-    return {
-      id: media.id,
-      url: buildUrl(media.objectKey),
-      thumbnailUrl: media.thumbnailObjectKey
-        ? buildUrl(media.thumbnailObjectKey)
-        : null,
-      type: media.profileType!,
-      createdAt: media.createdAt,
-    };
+  return {
+  id: media.id,
+  url: buildUrl(media.objectKey),
+  thumbnailUrl: media.thumbnailObjectKey
+    ? buildUrl(media.thumbnailObjectKey)
+    : null,
+  type: media.profileType!,
+  createdAt: media.createdAt,
+  postId:
+    media.posts?.[0]?.post?.isDeleted ||
+    media.posts?.[0]?.post?.isHidden
+      ? null
+      : media.posts?.[0]?.post?.id ?? null,
+};
+
   }
 
   /* =========================================================
