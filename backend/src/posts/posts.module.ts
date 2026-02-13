@@ -62,6 +62,7 @@ import { PostsShareStatsModule } from './posts-share-stats/posts-share-stats.mod
 exports: [
     PostsService,
     PostVisibilityService,
+    PostsVisibilityModule,
   ],
 })
 export class PostsModule {}
