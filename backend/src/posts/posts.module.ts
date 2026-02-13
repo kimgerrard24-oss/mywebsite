@@ -60,6 +60,7 @@ import { PostsShareStatsModule } from './posts-share-stats/posts-share-stats.mod
     PostUserTagViewPolicy,
   ],
 exports: [
+    PostsService,
     PostVisibilityService,
   ],
 })
