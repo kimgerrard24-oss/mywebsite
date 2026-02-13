@@ -164,32 +164,36 @@ export default function MediaViewer({ mediaId, onClose }: Props) {
           {usedPost ? (
             <>
               {/* Author */}
-              <header className="mb-3 flex items-center gap-2">
-  <Avatar
-    avatarUrl={usedPost.author.avatarUrl}
-    name={
-      usedPost.author.displayName ??
-      usedPost.author.username
-    }
-    size={32}
-  />
+  <header className="mb-3">
+  <Link
+    href={`/users/${usedPost.author.id}`}
+    className="flex items-center gap-2 hover:underline"
+  >
+    <Avatar
+      avatarUrl={usedPost.author.avatarUrl}
+      name={
+        usedPost.author.displayName ??
+        usedPost.author.username
+      }
+      size={32}
+    />
 
-  <div className="flex flex-col">
-    <span className="font-medium">
-      {usedPost.author.displayName ??
-        `@${usedPost.author.username}`}
-    </span>
+    <div className="flex flex-col">
+      <span className="font-medium">
+        {usedPost.author.displayName ??
+          `@${usedPost.author.username}`}
+      </span>
 
-                  <time
-                    dateTime={usedPost.createdAt}
-                    className="text-xs text-gray-500"
-                  >
-                    {new Date(
-                      usedPost.createdAt,
-                    ).toLocaleString()}
-                  </time>
-                </div>
-              </header>
+      <time
+        dateTime={usedPost.createdAt}
+        className="text-xs text-gray-500"
+      >
+        {new Date(usedPost.createdAt).toLocaleString()}
+      </time>
+    </div>
+  </Link>
+</header>
+
 
               {/* Caption */}
               <p className="whitespace-pre-wrap text-gray-800">
