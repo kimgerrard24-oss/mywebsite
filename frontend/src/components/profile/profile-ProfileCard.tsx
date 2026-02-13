@@ -41,8 +41,12 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
   isSelf = true,
 }) => {
   if (!profile) return null;
-  const { data: currentMedia, loading: mediaLoading } =
-  useCurrentProfileMedia(profile.id);
+  const {
+  data: currentMedia,
+  loading: mediaLoading,
+  refetch: refetchCurrentMedia,
+} = useCurrentProfileMedia(profile.id);
+
 
 const avatarMedia = useProfileMedia(profile.id, "AVATAR");
 const coverMedia = useProfileMedia(profile.id, "COVER");
@@ -404,10 +408,14 @@ const isPrivateLocked =
       : avatarMedia.loading
   }
   index={viewerIndex}
-  onClose={() => {
-    setViewerIndex(null);
-    setViewerType(null);
-  }}
+  onClose={async () => {
+  setViewerIndex(null);
+  setViewerType(null);
+
+  // 🔥 force reload avatar/cover after possible deletion
+  await refetchCurrentMedia();
+}}
+
   onNavigate={(newIndex) => {
     setViewerIndex(newIndex);
   }}

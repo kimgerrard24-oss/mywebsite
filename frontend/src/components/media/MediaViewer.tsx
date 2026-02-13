@@ -164,7 +164,7 @@ export default function MediaViewer({ mediaId, onClose }: Props) {
           {usedPost ? (
             <>
               {/* Author */}
-  <header className="mb-3">
+ <header className="mb-3 flex flex-col gap-1">
   <Link
     href={`/users/${usedPost.author.id}`}
     className="flex items-center gap-2 hover:underline"
@@ -178,21 +178,20 @@ export default function MediaViewer({ mediaId, onClose }: Props) {
       size={32}
     />
 
-    <div className="flex flex-col">
-      <span className="font-medium">
-        {usedPost.author.displayName ??
-          `@${usedPost.author.username}`}
-      </span>
-
-      <time
-        dateTime={usedPost.createdAt}
-        className="text-xs text-gray-500"
-      >
-        {new Date(usedPost.createdAt).toLocaleString()}
-      </time>
-    </div>
+    <span className="font-medium">
+      {usedPost.author.displayName ??
+        `@${usedPost.author.username}`}
+    </span>
   </Link>
+
+  <time
+    dateTime={usedPost.createdAt}
+    className="text-xs text-gray-500"
+  >
+    {new Date(usedPost.createdAt).toLocaleString()}
+  </time>
 </header>
+
 
 
               {/* Caption */}
