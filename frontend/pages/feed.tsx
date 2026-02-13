@@ -35,8 +35,8 @@ export default function FeedPage({
   lang,
 }: FeedProps) {
 
- const { user: storeUser, loading } = useUserStore();
- const user = !loading ? storeUser : null;
+ const { user: storeUser } = useUserStore();
+ const user = storeUser ?? initialUser;
 
   const router = useRouter();
   const t = getDictionary(lang);
