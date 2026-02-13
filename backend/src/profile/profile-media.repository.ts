@@ -281,4 +281,44 @@ async clearCover(userId: string) {
   });
 }
 
+async deleteProfileMediaAtomic(params: {
+  userId: string;
+  mediaId: string;
+}) {
+  const { userId, mediaId } = params;
+
+  return this.prisma.$transaction(async (tx) => {
+    // 1️⃣ soft delete media
+    await tx.media.update({
+      where: { id: mediaId },
+      data: {
+        deletedAt: new Date(),
+        profileType: null,
+      },
+    });
+
+    // 2️⃣ clear avatar reference if matches
+    await tx.user.updateMany({
+      where: {
+        id: userId,
+        avatarMediaId: mediaId,
+      },
+      data: {
+        avatarMediaId: null,
+      },
+    });
+
+    // 3️⃣ clear cover reference if matches
+    await tx.user.updateMany({
+      where: {
+        id: userId,
+        coverMediaId: mediaId,
+      },
+      data: {
+        coverMediaId: null,
+      },
+    });
+  });
+}
+
 }

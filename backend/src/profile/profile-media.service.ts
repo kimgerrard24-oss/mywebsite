@@ -301,7 +301,7 @@ if (!media || media.mediaCategory !== type) {
     };
   }
 
-  async deleteProfileMedia(params: {
+ async deleteProfileMedia(params: {
   actorUserId: string;
   mediaId: string;
 }) {
@@ -316,15 +316,18 @@ if (!media || media.mediaCategory !== type) {
     throw new ProfileMediaNotFoundError();
   }
 
-  await this.repo.softDeleteMedia(mediaId);
+  // 🔥 ใช้ transaction เพื่อป้องกัน dangling state
+  await this.repo.deleteProfileMediaAtomic({
+    userId: actorUserId,
+    mediaId,
+  });
 
-  if (media.profileType === 'AVATAR') {
-    await this.repo.clearAvatar(actorUserId);
-  }
-
-  if (media.profileType === 'COVER') {
-    await this.repo.clearCover(actorUserId);
-  }
+  await this.audit.log({
+    userId: actorUserId,
+    action: 'PROFILE_MEDIA_DELETED',
+    success: true,
+    targetId: mediaId,
+  }).catch(() => {});
 
   return { success: true };
 }
