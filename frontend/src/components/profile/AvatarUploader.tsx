@@ -30,9 +30,15 @@ export function AvatarUploader({ currentMedia }: Props) {
     try {
       await upload(file);
 
-      await refreshUser();
-      
-      await refetch();
+// Optimistic update (instant UI)
+if (user) {
+  const newUrl = `${user.avatarUrl}?t=${Date.now()}`;
+  setAvatarLocally(newUrl);
+}
+
+await refreshUser();
+await refetch();
+
 
       setSuccess(true);
     } catch {
