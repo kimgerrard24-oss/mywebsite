@@ -187,70 +187,7 @@ async getPublicProfile(
     return UserResponseDto.fromUser(user);
   }
 
-@Post('update-avatar')
-@HttpCode(200)
-@RateLimit('updateAvatar')
-@UseGuards(AccessTokenCookieAuthGuard)
-@UseInterceptors(FileInterceptor('file', avatarMulterConfig))
-async updateAvatar(
-  @UploadedFile(new ImageValidationPipe())
-  file: Express.Multer.File | undefined,
-  @Req() req: Request,
-) {
   
-  if (!file) {
-    throw new BadRequestException('Avatar file is required');
-  }
-
-  const user = req.user as { userId: string };
-
-  if (!user?.userId) {
-    throw new UnauthorizedException('Authentication required');
-  }
-
-  return this.usersService.updateAvatar({
-    userId: user.userId,
-    file,
-  });
-}
-
- @Post('update-cover')
- @HttpCode(200)
- @RateLimit('updateCover')
- @UseGuards(AccessTokenCookieAuthGuard)
- @UseInterceptors(FileInterceptor('file', coverMulterConfig))
- async updateCover(
-  @UploadedFile(new ImageValidationPipe())
-  file: Express.Multer.File | undefined,
-  @Req() req: Request,
-  ) {
-  // 🔥 DEBUG LOG (ชั่วคราว)
-  console.log('🔥 update-cover HIT', {
-    hasFile: !!file,
-    bodyKeys: Object.keys((req as any).body ?? {}),
-    contentType: req.headers['content-type'],
-  });
-
-  if (!file) {
-    throw new BadRequestException('Cover image is required');
-  }
-
-  const user = req.user as { userId: string };
-
-  if (!user?.userId) {
-    throw new UnauthorizedException('Authentication required');
-  }
-
-  const result = await this.usersService.updateCover({
-    userId: user.userId,
-    file,
-  });
-
-  return {
-    coverUrl: result.coverUrl,
-  };
- }
-
  @Post('me/verify-credential')
 @UseGuards(AccessTokenCookieAuthGuard)
 @HttpCode(200)
