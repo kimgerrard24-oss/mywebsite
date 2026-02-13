@@ -27,16 +27,17 @@ export class ProfileMediaRepository {
 
     return this.prisma.$transaction(async (tx) => {
 
-  // unset previous avatar
   await tx.media.updateMany({
-    where: {
-      ownerUserId: userId,
-      profileType: 'AVATAR',
-    },
-    data: {
-      profileType: null,
-    },
-  });
+  where: {
+    ownerUserId: userId,
+    profileType: 'AVATAR',
+    deletedAt: null,
+  },
+  data: {
+    profileType: null,
+  },
+});
+
 
   // set new avatar
   await tx.media.update({
@@ -66,6 +67,7 @@ export class ProfileMediaRepository {
   where: {
     ownerUserId: userId,
     profileType: 'COVER',
+    deletedAt: null,
   },
   data: {
     profileType: null,
@@ -244,11 +246,39 @@ await tx.media.update({
     return this.prisma.user.findUnique({
       where: { id: userId },
       include: {
-        avatarMedia: true,
-        coverMedia: true,
-      },
+         avatarMedia: true,
+         coverMedia: true,
+      }
     });
-  }
+   }
 
+   async softDeleteMedia(mediaId: string) {
+  return this.prisma.media.update({
+    where: { id: mediaId },
+    data: {
+      deletedAt: new Date(),
+      profileType: null,
+    },
+  });
+}
+
+async clearAvatar(userId: string) {
+  return this.prisma.user.update({
+    where: { id: userId },
+    data: {
+      avatarMediaId: null,
+    },
+  });
+}
+
+
+async clearCover(userId: string) {
+  return this.prisma.user.update({
+    where: { id: userId },
+    data: {
+      coverMediaId: null,
+    },
+  });
+}
 
 }

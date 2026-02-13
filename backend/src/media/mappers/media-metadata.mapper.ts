@@ -91,14 +91,15 @@ export class MediaMetadataMapper {
               content: relatedPost.content,
               createdAt:
                 relatedPost.createdAt.toISOString(),
-              author: {
-                id: relatedPost.author.id,
-                username:
-                  relatedPost.author.username,
-                avatarUrl:
-                  relatedPost.author.avatarUrl ??
-                  null,
-              },
+             author: {
+  id: relatedPost.author.id,
+  username: relatedPost.author.username,
+  displayName: relatedPost.author.displayName ?? null, // ✅ เพิ่ม
+  avatarUrl: relatedPost.author.avatarMedia?.objectKey
+    ? buildCdnUrl(relatedPost.author.avatarMedia.objectKey)
+    : null,
+},
+
             },
           }
         : {}),

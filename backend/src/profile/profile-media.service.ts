@@ -301,6 +301,35 @@ if (!media || media.mediaCategory !== type) {
     };
   }
 
+  async deleteProfileMedia(params: {
+  actorUserId: string;
+  mediaId: string;
+}) {
+  const { actorUserId, mediaId } = params;
+
+  const media = await this.repo.findOwnedMedia(
+    mediaId,
+    actorUserId,
+  );
+
+  if (!media) {
+    throw new ProfileMediaNotFoundError();
+  }
+
+  await this.repo.softDeleteMedia(mediaId);
+
+  if (media.profileType === 'AVATAR') {
+    await this.repo.clearAvatar(actorUserId);
+  }
+
+  if (media.profileType === 'COVER') {
+    await this.repo.clearCover(actorUserId);
+  }
+
+  return { success: true };
+}
+
+
   async getCurrentProfileMedia(
   viewerId: string | null,
   targetUserId: string,
@@ -323,13 +352,17 @@ if (!media || media.mediaCategory !== type) {
   }
 
   return {
-    avatar: user?.avatarMedia
+  avatar:
+    user?.avatarMedia && !user.avatarMedia.deletedAt
       ? ProfileMediaMapper.toCurrentDto(user.avatarMedia, this.r2)
       : null,
-    cover: user?.coverMedia
+
+  cover:
+    user?.coverMedia && !user.coverMedia.deletedAt
       ? ProfileMediaMapper.toCurrentDto(user.coverMedia, this.r2)
       : null,
-  };
+};
+
 }
 
 }

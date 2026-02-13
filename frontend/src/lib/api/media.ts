@@ -32,6 +32,7 @@ export type MediaMetadataResponse = {
     author: {
       id: string;
       username: string;
+      displayName?: string | null;
       avatarUrl: string | null;
     };
   };

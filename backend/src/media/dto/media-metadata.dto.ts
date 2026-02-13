@@ -18,5 +18,17 @@ export class MediaMetadataDto {
   createdAt!: string;
   isOwner!: boolean;
   canAppeal?: boolean;
+
+  usedPost?: {
+    id: string;
+    content: string;
+    createdAt: string;
+    author: {
+      id: string;
+      username: string;
+      displayName?: string | null;   // ✅ เพิ่ม
+      avatarUrl?: string | null;
+    };
+  };
 }
 

@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { getMediaById } from "@/lib/api/media";
 import type { MediaMetadataResponse } from "@/lib/api/media";
+import Avatar from "@/components/ui/Avatar";
 
 type Props = {
   mediaId: string;
@@ -164,20 +165,21 @@ export default function MediaViewer({ mediaId, onClose }: Props) {
             <>
               {/* Author */}
               <header className="mb-3 flex items-center gap-2">
-                <Image
-                  src={
-                    usedPost.author.avatarUrl ??
-                    "/avatar-placeholder.png"
-                  }
-                  alt={`Avatar of ${usedPost.author.username}`}
-                  width={32}
-                  height={32}
-                  className="rounded-full"
-                />
-                <div className="flex flex-col">
-                  <span className="font-medium">
-                    @{usedPost.author.username}
-                  </span>
+  <Avatar
+    avatarUrl={usedPost.author.avatarUrl}
+    name={
+      usedPost.author.displayName ??
+      usedPost.author.username
+    }
+    size={32}
+  />
+
+  <div className="flex flex-col">
+    <span className="font-medium">
+      {usedPost.author.displayName ??
+        `@${usedPost.author.username}`}
+    </span>
+
                   <time
                     dateTime={usedPost.createdAt}
                     className="text-xs text-gray-500"
