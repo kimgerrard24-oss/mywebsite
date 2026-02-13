@@ -199,8 +199,17 @@ async getMe(userId: string): Promise<MeUserProfileDto> {
       displayName: true,
       username: true,
       name: true,
-      avatarUrl: true,
-      coverUrl: true,
+      avatarMedia: {
+    select: {
+      objectKey: true,
+    },
+  },
+
+  coverMedia: {
+    select: {
+      objectKey: true,
+    },
+  },
       bio: true,
       createdAt: true,
       updatedAt: true,
@@ -232,8 +241,13 @@ return {
   isEmailVerified: user.isEmailVerified,
   username: user.username, 
   displayName: user.displayName,
-  avatarUrl: user.avatarUrl,
-  coverUrl: user.coverUrl ?? null,
+  avatarUrl: user.avatarMedia
+    ? buildCdnUrl(user.avatarMedia.objectKey)
+    : null,
+
+  coverUrl: user.coverMedia
+    ? buildCdnUrl(user.coverMedia.objectKey)
+    : null,
   bio: user.bio,
   createdAt: user.createdAt.toISOString(),
   isPrivate: user.isPrivate,
