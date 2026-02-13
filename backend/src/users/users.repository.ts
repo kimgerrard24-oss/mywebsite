@@ -270,16 +270,6 @@ coverMedia: {
     });
   }
   
- async updateAvatar(userId: string, mediaId: string | null) {
-  return this.prisma.user.update({
-    where: { id: userId },
-    data: {
-      avatarMediaId: mediaId,
-    },
-  });
-}
-
-
   // =====================================================
   // Minimal user state (for policy / auth decision)
   // =====================================================
@@ -308,16 +298,6 @@ coverMedia: {
   });
   }
   
-  async updateCover(userId: string, coverUrl: string) {
-  await this.prisma.user.update({
-    where: { id: userId },
-    data: {
-      coverUrl,
-      updatedAt: new Date(),
-    },
-  });
-  }
-
  async searchUsers(params: {
   query: string;
   limit: number;
