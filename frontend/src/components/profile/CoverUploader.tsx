@@ -10,14 +10,11 @@ type Props = {
 };
 
 export function CoverUploader({ currentMedia }: Props) {
-
   const inputRef = useRef<HTMLInputElement>(null);
 
   const { user, refreshUser } = useAuth();
-  const userId = user?.id ?? null;
-
   const { upload, loading, error } = useCoverUpload();
-  const { data, refetch } = useCurrentProfileMedia(userId);
+  const { data, refetch } = currentMedia; // ✅ ใช้จาก props
 
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -43,17 +40,12 @@ export function CoverUploader({ currentMedia }: Props) {
 
     try {
       await upload(file);
-
-      // ✅ refresh auth user (if coverUrl stored there)
       await refreshUser();
-
-      // ✅ refetch profile media current
-      await refetch();
+      await refetch(); // ✅ ตอนนี้ refetch ตัวเดียวกับหน้า parent
 
       setSuccess(true);
       setPreviewUrl(null);
     } catch {
-      // error handled by hook
     } finally {
       if (inputRef.current) {
         inputRef.current.value = "";
@@ -65,6 +57,7 @@ export function CoverUploader({ currentMedia }: Props) {
     previewUrl ??
     data?.cover?.url ??
     null;
+
 
   return (
     <article className="flex flex-col gap-4">
