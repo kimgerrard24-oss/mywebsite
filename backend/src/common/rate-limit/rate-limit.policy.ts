@@ -47,6 +47,7 @@ export type RateLimitAction =
   | 'emailChangeConfirm'
   | 'resendEmailVerify'
   | 'profileExport'
+  | 'deleteProfileMedia'
   | 'postLike'
   | 'userModerationRead'
   | 'mediaComplete'
@@ -1463,6 +1464,28 @@ mediaGallery: {
     maxViolations: 5,     // ต้อง spam ต่อเนื่องจริง
     windowSec: 86400,     // ภายใน 24 ชม.
     longBlockSec: 3600,   // block 1 ชม.
+  },
+},
+
+deleteProfileMedia: {
+  /**
+   * Delete avatar / cover
+   * Destructive action
+   * Must be low-frequency
+   */
+  windowSec: 300,         // 5 minutes window
+  max: 10,                // max 5 deletions per 5 min
+  blockDurationSec: 900,  // block 15 minutes
+
+  // legacy (still used in service)
+  points: 10,
+  duration: 300,
+  blockDuration: 900,
+
+  escalation: {
+    maxViolations: 3,     // ถ้าโดน block 3 รอบ
+    windowSec: 86400,     // ภายใน 24 ชม.
+    longBlockSec: 21600,  // block 6 ชม.
   },
 },
 

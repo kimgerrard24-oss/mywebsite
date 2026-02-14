@@ -3,6 +3,7 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { ProfileMediaType } from "@prisma/client";
+import { DeleteSource } from '@prisma/client';
 
 @Injectable()
 export class ProfileMediaRepository {
@@ -281,44 +282,61 @@ async clearCover(userId: string) {
   });
 }
 
-async deleteProfileMediaAtomic(params: {
-  userId: string;
-  mediaId: string;
-}) {
-  const { userId, mediaId } = params;
 
-  return this.prisma.$transaction(async (tx) => {
-    // 1️⃣ soft delete media
-    await tx.media.update({
+ async loadDeleteContext(mediaId: string, actorUserId: string) {
+    const media = await this.prisma.media.findUnique({
       where: { id: mediaId },
-      data: {
-        deletedAt: new Date(),
-        profileType: null,
+      select: {
+        id: true,
+        ownerUserId: true,
+        deletedAt: true,
       },
     });
 
-    // 2️⃣ clear avatar reference if matches
-    await tx.user.updateMany({
+    if (!media) return null;
+
+    const block = await this.prisma.userBlock.findFirst({
       where: {
-        id: userId,
-        avatarMediaId: mediaId,
-      },
-      data: {
-        avatarMediaId: null,
+        OR: [
+          { blockerId: actorUserId, blockedId: media.ownerUserId },
+          { blockerId: media.ownerUserId, blockedId: actorUserId },
+        ],
       },
     });
 
-    // 3️⃣ clear cover reference if matches
-    await tx.user.updateMany({
-      where: {
-        id: userId,
-        coverMediaId: mediaId,
-      },
-      data: {
-        coverMediaId: null,
-      },
-    });
-  });
-}
+    return {
+      media,
+      isOwner: media.ownerUserId === actorUserId,
+      isBlocked: Boolean(block),
+    };
+  }
 
+  async deleteProfileMediaAtomic(params: {
+    mediaId: string;
+    userId: string;
+  }) {
+    const { mediaId, userId } = params;
+
+    return this.prisma.$transaction(async (tx) => {
+      await tx.media.update({
+        where: { id: mediaId },
+        data: {
+          deletedAt: new Date(),
+          deletedSource: DeleteSource.USER,
+          profileType: null,
+          cleanupAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 7),
+        },
+      });
+
+      await tx.user.updateMany({
+        where: { id: userId, avatarMediaId: mediaId },
+        data: { avatarMediaId: null },
+      });
+
+      await tx.user.updateMany({
+        where: { id: userId, coverMediaId: mediaId },
+        data: { coverMediaId: null },
+      });
+    });
+  }
 }

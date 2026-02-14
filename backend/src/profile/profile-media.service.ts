@@ -21,6 +21,13 @@ import { ProfileMediaAccessErrorCode } from './profile-media.error-codes';
 import { PostsService } from '../posts/posts.service';
 import { PostVisibility, PostType } from '@prisma/client';
 import { PostsVisibilityService } from '../posts/visibility/posts-visibility.service';
+import { ProfileMediaDeleteErrorCode } from './profile-media.error-codes';
+import { ProfileMediaRealtimeService } from './events/profile-media.realtime.service';
+import { ProfileMediaDeletePolicy } from './policy/profile-media-delete.policy';
+import {
+  ProfileMediaDeleteAccessDeniedError,
+  ProfileMediaDeleteNotFoundError,
+} from './profile-media-delete.errors';
 
 @Injectable()
 export class ProfileMediaService {
@@ -30,6 +37,7 @@ export class ProfileMediaService {
     private readonly r2: R2Service,
     private readonly postsService: PostsService,
     private readonly postsVisibility: PostsVisibilityService,
+    private readonly realtime: ProfileMediaRealtimeService,
   ) {}
 
   async setAvatar(actorUserId: string, mediaId: string) {
@@ -301,38 +309,6 @@ if (!media || media.mediaCategory !== type) {
     };
   }
 
- async deleteProfileMedia(params: {
-  actorUserId: string;
-  mediaId: string;
-}) {
-  const { actorUserId, mediaId } = params;
-
-  const media = await this.repo.findOwnedMedia(
-    mediaId,
-    actorUserId,
-  );
-
-  if (!media) {
-    throw new ProfileMediaNotFoundError();
-  }
-
-  // 🔥 ใช้ transaction เพื่อป้องกัน dangling state
-  await this.repo.deleteProfileMediaAtomic({
-    userId: actorUserId,
-    mediaId,
-  });
-
-  await this.audit.log({
-    userId: actorUserId,
-    action: 'PROFILE_MEDIA_DELETED',
-    success: true,
-    targetId: mediaId,
-  }).catch(() => {});
-
-  return { success: true };
-}
-
-
   async getCurrentProfileMedia(
   viewerId: string | null,
   targetUserId: string,
@@ -368,4 +344,55 @@ if (!media || media.mediaCategory !== type) {
 
 }
 
+ async deleteProfileMedia(params: {
+    actorUserId: string;
+    mediaId: string;
+  }) {
+    const { actorUserId, mediaId } = params;
+
+    const context = await this.repo.loadDeleteContext(
+      mediaId,
+      actorUserId,
+    );
+
+    if (!context) {
+      throw new ProfileMediaNotFoundError();
+    }
+
+    const decision = ProfileMediaDeletePolicy.decide({
+      mediaExists: Boolean(context.media),
+      isOwner: context.isOwner,
+      isBlocked: context.isBlocked,
+      isDeleted: Boolean(context.media.deletedAt),
+    });
+
+   if (!decision.allowed) {
+  if (decision.reason === 'NOT_FOUND') {
+    throw new ProfileMediaDeleteNotFoundError();
+  }
+
+  throw new ProfileMediaDeleteAccessDeniedError(
+    ProfileMediaDeleteErrorCode[
+      decision.reason as keyof typeof ProfileMediaDeleteErrorCode
+    ],
+  );
+}
+
+
+    await this.repo.deleteProfileMediaAtomic({
+      mediaId,
+      userId: actorUserId,
+    });
+
+    await this.audit.log({
+      userId: actorUserId,
+      action: 'PROFILE_MEDIA_DELETED',
+      success: true,
+      targetId: mediaId,
+    }).catch(() => {});
+
+    this.realtime.emitProfileMediaDeleted(actorUserId, mediaId);
+
+    return { success: true };
+  }
 }

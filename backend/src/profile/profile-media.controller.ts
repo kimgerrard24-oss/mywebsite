@@ -7,6 +7,7 @@ import {
   Post,
   UseGuards,
   Get,
+  Delete,
   Param,
   Query,
 } from '@nestjs/common';
@@ -20,6 +21,7 @@ import { GetCurrentProfileMediaParamsDto } from './dto/get-current-profile-media
 import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { SessionUser } from '../auth/services/validate-session.service';
 import { RateLimit } from '../common/rate-limit/rate-limit.decorator';
+import { DeleteProfileMediaParamsDto } from './dto/delete-profile-media.params.dto';
 
 @Controller('users')
 export class ProfileMediaController {
@@ -104,6 +106,19 @@ export class ProfileMediaController {
       user?.userId ?? null,
       params.userId,
     );
+  }
+
+   @UseGuards(AccessTokenCookieAuthGuard)
+  @RateLimit('deleteProfileMedia')
+  @Delete('me/profile-media/:mediaId')
+  async deleteProfileMedia(
+    @Param() params: DeleteProfileMediaParamsDto,
+    @CurrentUser() user: SessionUser,
+  ) {
+    return this.service.deleteProfileMedia({
+      actorUserId: user.userId,
+      mediaId: params.mediaId,
+    });
   }
 }
 

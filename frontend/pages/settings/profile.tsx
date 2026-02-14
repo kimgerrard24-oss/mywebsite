@@ -8,6 +8,7 @@ import Link from "next/link";
 import { AvatarUploader } from "@/components/profile/AvatarUploader";
 import { CoverUploader } from "@/components/profile/CoverUploader";
 import { useCurrentProfileMedia } from "@/hooks/useCurrentProfileMedia";
+import { DeleteProfileMediaButton } from "@/components/profile/DeleteProfileMediaButton";
 
 type Props = {
   user: UserProfile | null;
@@ -59,11 +60,17 @@ const mediaLoading = currentMedia.loading;
        <section className="mt-8">
   <h2 className="text-lg font-medium">Profile Cover</h2>
 
-  <div className="mt-4">
+  <div className="mt-4 flex flex-col gap-4">
     <CoverUploader currentMedia={currentMedia} />
 
+    {currentMedia.data?.cover?.mediaId && (
+      <DeleteProfileMediaButton
+        mediaId={currentMedia.data.cover.mediaId}
+      />
+    )}
   </div>
 </section>
+
 
 
         {/* ==============================
@@ -72,7 +79,7 @@ const mediaLoading = currentMedia.loading;
         <section className="mt-10">
           <h2 className="text-lg font-medium">Profile Avatar</h2>
 
-          <div className="mt-4 flex items-center gap-6">
+          <div className="mt-4 flex items-start gap-6">
             {/* Avatar Preview */}
          <div className="relative h-24 w-24">
   {mediaLoading ? (
@@ -94,7 +101,16 @@ const mediaLoading = currentMedia.loading;
 
 
             {/* Upload Button */}
-            <AvatarUploader currentMedia={currentMedia} />
+            <div className="flex flex-col gap-3">
+  <AvatarUploader currentMedia={currentMedia} />
+
+  {currentMedia.data?.avatar?.mediaId && (
+    <DeleteProfileMediaButton
+      mediaId={currentMedia.data.avatar.mediaId}
+    />
+  )}
+</div>
+
 
           </div>
         </section>
