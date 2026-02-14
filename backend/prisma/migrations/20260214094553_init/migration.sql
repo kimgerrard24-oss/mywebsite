@@ -66,6 +66,9 @@ CREATE TYPE "VerificationScope" AS ENUM ('ACCOUNT_LOCK', 'PROFILE_EXPORT', 'EMAI
 -- CreateEnum
 CREATE TYPE "PostType" AS ENUM ('POST', 'REPOST', 'PROFILE_UPDATE', 'COVER_UPDATE');
 
+-- CreateEnum
+CREATE TYPE "ProfileDraftStatus" AS ENUM ('DRAFT', 'PUBLISHED', 'CANCELLED', 'EXPIRED');
+
 -- CreateTable
 CREATE TABLE "User" (
     "id" TEXT NOT NULL,
@@ -733,6 +736,24 @@ CREATE TABLE "PostShareStat" (
     CONSTRAINT "PostShareStat_pkey" PRIMARY KEY ("postId")
 );
 
+-- CreateTable
+CREATE TABLE "ProfileUpdateDraft" (
+    "id" TEXT NOT NULL,
+    "userId" TEXT NOT NULL,
+    "type" "ProfileMediaType" NOT NULL,
+    "mediaId" TEXT NOT NULL,
+    "content" TEXT,
+    "visibility" "PostVisibility" NOT NULL DEFAULT 'PUBLIC',
+    "metadata" JSONB,
+    "status" "ProfileDraftStatus" NOT NULL DEFAULT 'DRAFT',
+    "deletedAt" TIMESTAMP(3),
+    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updatedAt" TIMESTAMP(3) NOT NULL,
+    "expiresAt" TIMESTAMP(3),
+
+    CONSTRAINT "ProfileUpdateDraft_pkey" PRIMARY KEY ("id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "User_email_key" ON "User"("email");
 
@@ -1141,6 +1162,18 @@ CREATE INDEX "ShareLink_postId_createdAt_idx" ON "ShareLink"("postId", "createdA
 -- CreateIndex
 CREATE UNIQUE INDEX "ShareLink_postId_creatorId_key" ON "ShareLink"("postId", "creatorId");
 
+-- CreateIndex
+CREATE INDEX "ProfileUpdateDraft_userId_status_idx" ON "ProfileUpdateDraft"("userId", "status");
+
+-- CreateIndex
+CREATE INDEX "ProfileUpdateDraft_userId_type_status_idx" ON "ProfileUpdateDraft"("userId", "type", "status");
+
+-- CreateIndex
+CREATE INDEX "ProfileUpdateDraft_expiresAt_idx" ON "ProfileUpdateDraft"("expiresAt");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "ProfileUpdateDraft_userId_type_status_key" ON "ProfileUpdateDraft"("userId", "type", "status");
+
 -- AddForeignKey
 ALTER TABLE "User" ADD CONSTRAINT "User_avatarMediaId_fkey" FOREIGN KEY ("avatarMediaId") REFERENCES "Media"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
@@ -1386,3 +1419,9 @@ ALTER TABLE "ShareLink" ADD CONSTRAINT "ShareLink_disabledByAdminId_fkey" FOREIG
 
 -- AddForeignKey
 ALTER TABLE "PostShareStat" ADD CONSTRAINT "PostShareStat_postId_fkey" FOREIGN KEY ("postId") REFERENCES "Post"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ProfileUpdateDraft" ADD CONSTRAINT "ProfileUpdateDraft_userId_fkey" FOREIGN KEY ("userId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "ProfileUpdateDraft" ADD CONSTRAINT "ProfileUpdateDraft_mediaId_fkey" FOREIGN KEY ("mediaId") REFERENCES "Media"("id") ON DELETE CASCADE ON UPDATE CASCADE;

@@ -43,6 +43,8 @@ import { FeedModule } from './feed/feed.module';
 import { EventsModule } from './core/events/events.module';
 import { SharesModule } from './shares/shares.module';
 import { ProfileMediaModule } from './profile/profile-media.module';
+import { CoverUpdateModule } from './profile-update/cover-update.module';
+import { ProfileUpdateModule } from './profile-update/profile-update.module';
 
 
 @Module({
@@ -64,6 +66,8 @@ import { ProfileMediaModule } from './profile/profile-media.module';
     ChatModule,
     AppealsModule,
     SecuritiesModule,
+    CoverUpdateModule,
+    ProfileUpdateModule,
     AuditModule,
     SecurityModule,
     ReportsModule,

@@ -92,6 +92,7 @@ model User {
   // ===== Media / OAuth =====
   media               Media[]
   oauthAccounts       OAuthAccount[]
+  profileUpdateDrafts ProfileUpdateDraft[]
 
   // ===== Auth / Session =====
   refreshTokens RefreshToken[]
@@ -404,6 +405,7 @@ model Media {
   cleanupFailCount Int        @default(0)
   lastCleanupError String?
   posts       PostMedia[]
+  profileUpdateDrafts ProfileUpdateDraft[]
   chatMessageMedia ChatMessageMedia[]
   @@index([ownerUserId])
   @@index([mediaType])
@@ -1235,3 +1237,38 @@ enum PostType {
   COVER_UPDATE
 }
 
+model ProfileUpdateDraft {
+  id        String   @id @default(uuid())
+
+  userId    String
+  type      ProfileMediaType
+
+  mediaId   String
+  content   String?
+  visibility PostVisibility @default(PUBLIC)
+
+  metadata  Json?
+
+  status    ProfileDraftStatus @default(DRAFT)
+
+  deletedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  expiresAt DateTime?
+
+  user  User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  media Media @relation(fields: [mediaId], references: [id], onDelete: Cascade)
+  
+  @@unique([userId, type, status])
+  @@index([userId, status])
+  @@index([userId, type, status])
+  @@index([expiresAt])
+}
+
+enum ProfileDraftStatus {
+  DRAFT
+  PUBLISHED
+  CANCELLED
+  EXPIRED
+}
