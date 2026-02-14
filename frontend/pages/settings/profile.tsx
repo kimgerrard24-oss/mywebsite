@@ -64,10 +64,14 @@ const mediaLoading = currentMedia.loading;
     <CoverUploader currentMedia={currentMedia} />
 
     {currentMedia.data?.cover?.mediaId && (
-      <DeleteProfileMediaButton
-        mediaId={currentMedia.data.cover.mediaId}
-      />
-    )}
+  <DeleteProfileMediaButton
+    mediaId={currentMedia.data.cover.mediaId}
+    onDeleted={() => {
+      currentMedia.refetch();
+    }}
+  />
+)}
+
   </div>
 </section>
 
@@ -105,10 +109,14 @@ const mediaLoading = currentMedia.loading;
   <AvatarUploader currentMedia={currentMedia} />
 
   {currentMedia.data?.avatar?.mediaId && (
-    <DeleteProfileMediaButton
-      mediaId={currentMedia.data.avatar.mediaId}
-    />
-  )}
+  <DeleteProfileMediaButton
+    mediaId={currentMedia.data.avatar.mediaId}
+    onDeleted={() => {
+      currentMedia.refetch();
+    }}
+  />
+)}
+
 </div>
 
 

@@ -7,8 +7,16 @@ export type PostVisibility =
   | "PRIVATE"
   | "CUSTOM";
 
+  export type PostType =
+  | "POST"
+  | "REPOST"
+  | "PROFILE_UPDATE"
+  | "COVER_UPDATE";
+
+
 export type PostDetail = {
   id: string;
+  type: PostType;
   content: string;
   createdAt: string;
   visibility: PostVisibility;

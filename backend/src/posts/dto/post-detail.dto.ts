@@ -1,10 +1,11 @@
 // backend/src/posts/dto/post-detail.dto.ts
 
-import { MediaType, PostVisibility } from '@prisma/client';
+import { MediaType, PostVisibility, PostType } from '@prisma/client';
 import { buildCdnUrl } from '../../media/utils/build-cdn-url.util';
 
 export class PostDetailDto {
   id!: string;
+  type!: PostType;
   content!: string;
   createdAt!: Date;
   visibility!: PostVisibility;
@@ -134,6 +135,7 @@ const userTags = Array.isArray(post.userTags)
 
     return {
       id: post.id,
+      type: post.type,
       content: post.content,
       createdAt: post.createdAt,
       visibility: post.visibility,
