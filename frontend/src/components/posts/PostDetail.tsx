@@ -182,17 +182,25 @@ const closeLikes = () => {
             {new Date(post.createdAt).toLocaleString()}
           </time>
 
-{post.type === "PROFILE_UPDATE" || post.type === "COVER_UPDATE" ? (
-  post.media?.[0]?.id && post.canDelete && (
+{post.type === "PROFILE_UPDATE" ||
+ post.type === "COVER_UPDATE" ? (
+  post.canDelete && post.media?.[0]?.id ? (
     <DeleteProfileMediaButton
-      mediaId={post.media[0].id}
-      onDeleted={() => {
-        router.replace("/profile");
-      }}
+  mediaId={post.media[0].id}
+  onDeleted={() => {
+    router.replace(router.asPath);
+  }}
+/>
+
+  ) : (
+    <PostActionMenu
+      postId={post.id}
+      canDelete={false}
+      canEdit={false}
+      canReport={!isBlocked}
     />
   )
 ) : (
-
   <PostActionMenu
     postId={post.id}
     canDelete={!isBlocked && post.canDelete}
@@ -204,7 +212,6 @@ const closeLikes = () => {
     }}
   />
 )}
-
 
         </div>
       </header>
