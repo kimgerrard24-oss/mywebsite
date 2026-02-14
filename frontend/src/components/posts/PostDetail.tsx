@@ -13,6 +13,7 @@ import RepostComposerModal from "@/components/repost/RepostComposerModal";
 import PostCard from "@/components/posts/PostCard";
 import PostShareMenu from "@/components/posts/PostShareMenu";
 import { getDisplayName } from "@/utils/getDisplayName";
+import PostLikeButton from "@/components/posts/PostLikeButton";
 
 type Props = {
   post: PostDetailType;
@@ -30,13 +31,17 @@ export default function PostDetail({ post, embedded }: Props) {
   post.userTags?.filter((t) => t.status === "ACCEPTED") ?? [];
   
   const {
-    likeCount,
-    likes,
-    likesLoading,
-    likesError,
-    hasMoreLikes,
-    loadLikes,
-  } = usePostLike({
+  liked,
+  likeCount,
+  loading: likeLoading,
+  toggleLike,
+  likes,
+  likesLoading,
+  likesError,
+  hasMoreLikes,
+  loadLikes,
+} = usePostLike({
+
     postId: post.id,
     initialLiked: post.isLikedByViewer ?? false,
     initialLikeCount: post.likeCount ?? 0,
@@ -259,6 +264,19 @@ const closeLikes = () => {
   aria-label="Post actions"
 >
   {/* 👍 Likes (left) */}
+  <div className="flex items-center gap-4">
+  <div className={isBlocked ? "opacity-50 pointer-events-none" : ""}>
+    <PostLikeButton
+      liked={liked}
+      likeCount={likeCount}
+      loading={likeLoading}
+      onClick={() => {
+        if (isBlocked) return;
+        toggleLike();
+      }}
+    />
+  </div>
+
   <button
     type="button"
     onClick={openLikes}
@@ -266,8 +284,10 @@ const closeLikes = () => {
     aria-disabled={isBlocked}
     className={isBlocked ? "opacity-60 cursor-not-allowed" : undefined}
   >
-    {likeCount} likes
+    ดูรายชื่อคนกดไลค์
   </button>
+</div>
+
 
  {/* 🔗 Share + Repost (right) */}
 <div className="flex items-center gap-2">

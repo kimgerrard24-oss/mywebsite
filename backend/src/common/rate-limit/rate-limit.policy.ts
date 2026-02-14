@@ -12,6 +12,10 @@ export type RateLimitAction =
   | 'followUser'
   | 'updateAvatar'
   | 'updateCover'
+  | 'coverUpdateDraft'
+  | 'coverUpdatePublish'
+  | 'profileUpdateDraft'
+  | 'profileUpdatePublish'
   | 'unfollowUser'
   | 'commentUpdate'   
   | 'commentDelete'
@@ -1486,6 +1490,93 @@ deleteProfileMedia: {
     maxViolations: 3,     // ถ้าโดน block 3 รอบ
     windowSec: 86400,     // ภายใน 24 ชม.
     longBlockSec: 21600,  // block 6 ชม.
+  },
+},
+
+profileUpdateDraft: {
+  /**
+   * Draft save
+   * High frequency allowed (typing / editing)
+   * Not destructive
+   */
+  windowSec: 60,
+  max: 30,
+  blockDurationSec: 120,
+
+  // legacy
+  points: 30,
+  duration: 60,
+  blockDuration: 120,
+
+  escalation: {
+    maxViolations: 5,
+    windowSec: 86400,
+    longBlockSec: 3600,
+  },
+},
+
+profileUpdatePublish: {
+  /**
+   * Publish profile update
+   * Destructive / visible action
+   * Must be stricter
+   */
+  windowSec: 300,       // 5 minutes
+  max: 10,
+  blockDurationSec: 900,
+
+  // legacy
+  points: 10,
+  duration: 300,
+  blockDuration: 900,
+
+  escalation: {
+    maxViolations: 3,
+    windowSec: 86400,
+    longBlockSec: 21600,
+  },
+},
+
+coverUpdateDraft: {
+  /**
+   * Cover draft save
+   * User may crop / adjust multiple times
+   */
+  windowSec: 60,
+  max: 20,
+  blockDurationSec: 120,
+
+  // legacy
+  points: 20,
+  duration: 60,
+  blockDuration: 120,
+
+  escalation: {
+    maxViolations: 5,
+    windowSec: 86400,
+    longBlockSec: 3600,
+  },
+},
+
+coverUpdatePublish: {
+  /**
+   * Cover publish
+   * Storage + media + DB update
+   * Must be limited
+   */
+  windowSec: 300,
+  max: 10,
+  blockDurationSec: 900,
+
+  // legacy
+  points: 10,
+  duration: 300,
+  blockDuration: 900,
+
+  escalation: {
+    maxViolations: 3,
+    windowSec: 86400,
+    longBlockSec: 21600,
   },
 },
 

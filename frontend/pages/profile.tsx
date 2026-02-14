@@ -13,6 +13,8 @@ import { ProfileCard } from "@/components/profile/profile-ProfileCard";
 import { ProfileSkeleton } from "@/components/profile/ProfileSkeleton";
 import ProfilePosts from "@/components/profile/ProfilePosts";
 import { useCurrentProfileMedia } from "@/hooks/useCurrentProfileMedia";
+import ProfileUpdateModal from "@/components/profile/ProfileUpdateModal";
+import CoverUpdateModal from "@/components/profile/CoverUpdateModal";
 
 interface ProfilePageProps {
   initialProfile: UserProfile | null;
@@ -277,6 +279,9 @@ return (
     <div className="mt-6 sm:mt-8">
       <ProfilePosts userId={profile.id} />
     </div>
+
+    <ProfileUpdateModal />
+    <CoverUpdateModal />
   </>
 )}
 
