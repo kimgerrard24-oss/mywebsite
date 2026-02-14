@@ -24,6 +24,7 @@ export default function PostDetailPage({ post }: Props) {
   // 🆕 Comment state (UI-only, fail-soft)
   // ==============================
   const [commentCount, setCommentCount] = useState<number>(0);
+  const [commentListKey, setCommentListKey] = useState(0);
 
   const firstMedia = post.media?.[0];
   const mediaSrc = firstMedia?.cdnUrl ?? firstMedia?.url;
@@ -141,21 +142,25 @@ export default function PostDetailPage({ post }: Props) {
         className="mt-6"
         aria-label="Post comments"
       >
-        <CommentComposer
-          postId={post.id}
-          onCreated={() => {
-            setCommentCount((c) => c + 1);
-          }}
-        />
+       <CommentComposer
+  postId={post.id}
+  onCreated={() => {
+    setCommentCount((c) => c + 1);
+    setCommentListKey((k) => k + 1); // 🔥 force remount
+  }}
+/>
+
 
         <CommentList
-          postId={post.id}
-          onDeleted={() => {
-            setCommentCount((c) =>
-              Math.max(0, c - 1)
-            );
-          }}
-        />
+  key={commentListKey}
+  postId={post.id}
+  onDeleted={() => {
+    setCommentCount((c) =>
+      Math.max(0, c - 1)
+    );
+  }}
+/>
+
       </section>
     </article>
   </PostVisibilityGuard>
