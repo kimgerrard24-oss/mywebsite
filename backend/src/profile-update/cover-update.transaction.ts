@@ -9,28 +9,38 @@ import { PostType } from '@prisma/client';
 export class CoverUpdateTransaction {
   constructor(
     private readonly prisma: PrismaService,
-    private readonly postsService: PostsService,
   ) {}
 
-  async publish(params: { userId: string; draft: any }) {
+  async publish(params: {
+  userId: string;
+  draft: any;
+  notifyFollowers?: boolean;
+}) {
     const { userId, draft } = params;
 
     return this.prisma.$transaction(async (tx) => {
+      // 1️⃣ update cover field
       await tx.user.update({
         where: { id: userId },
         data: { coverMediaId: draft.mediaId },
       });
 
-      const post = await this.postsService.createPost({
-        authorId: userId,
-        typeOverride: PostType.COVER_UPDATE,
-        dto: {
+      // 2️⃣ create post directly
+      const post = await tx.post.create({
+        data: {
+          authorId: userId,
           content: draft.content ?? '',
-          mediaIds: [draft.mediaId],
+          type: 'COVER_UPDATE',
           visibility: draft.visibility,
+          media: {
+            create: {
+              mediaId: draft.mediaId,
+            },
+          },
         },
       });
 
+      // 3️⃣ mark draft published
       await tx.profileUpdateDraft.update({
         where: { id: draft.id },
         data: { status: 'PUBLISHED' },

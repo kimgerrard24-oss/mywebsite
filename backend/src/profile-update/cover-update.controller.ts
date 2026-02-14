@@ -33,8 +33,9 @@ export class CoverUpdateController {
   @Post('publish')
   publish(
   @CurrentUser() user: SessionUser,
-   ) {
-  return this.service.publish(user.userId);
- }
+  @Body() dto: PublishCoverUpdateDto,
+  )   {
+  return this.service.publish(user.userId, dto);
+  }
 
 }

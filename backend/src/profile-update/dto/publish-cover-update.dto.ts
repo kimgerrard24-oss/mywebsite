@@ -1,3 +1,10 @@
 // backend/src/profile-update/dto/publish-cover-update.dto.ts
 
-export class PublishCoverUpdateDto {}
+import { IsOptional, IsBoolean } from 'class-validator';
+
+export class PublishCoverUpdateDto {
+  @IsOptional()
+  @IsBoolean()
+  notifyFollowers?: boolean;
+}
+

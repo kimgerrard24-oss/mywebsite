@@ -5,33 +5,60 @@ import { ProfileUpdateRepository } from './profile-update.repository';
 import { ProfileUpdateTransaction } from './profile-update.transaction';
 import { validateDraftContent } from './validation/profile-update.validation';
 import { AuditLogService } from '../users/audit/audit-log.service';
+import { ProfileMediaRepository } from '../profile/profile-media.repository';
+import { ProfileUpdateDraftNotFoundError } from './errors/profile-update.errors';
+import {
+  ProfileMediaType,
+  PostVisibility,
+} from '@prisma/client';
+import { CreateProfileUpdateDto } from './dto/create-profile-update.dto';
+import { PublishProfileUpdateDto } from './dto/publish-profile-update.dto';
 
 @Injectable()
 export class ProfileUpdateService {
   constructor(
     private readonly repo: ProfileUpdateRepository,
     private readonly tx: ProfileUpdateTransaction,
+    private readonly mediaRepo: ProfileMediaRepository,
     private readonly audit: AuditLogService,
   ) {}
 
-  async createOrUpdateDraft(userId: string, dto: any) {
+  async createOrUpdateDraft(
+    userId: string,
+    dto: CreateProfileUpdateDto,
+  ) {
     validateDraftContent(dto.content);
 
-    const draft = await this.repo.upsertDraft({
+    // ✅ Validate media ownership
+    const media = await this.mediaRepo.findOwnedMedia(
+      dto.mediaId,
       userId,
-      type: dto.type,
+    );
+
+    if (!media) {
+      throw new Error('MEDIA_NOT_FOUND_OR_NOT_OWNED');
+    }
+
+    return this.repo.upsertDraft({
+      userId,
+      type: dto.type as ProfileMediaType,
       mediaId: dto.mediaId,
       content: dto.content,
-      visibility: dto.visibility ?? 'PUBLIC',
+      visibility: dto.visibility ?? PostVisibility.PUBLIC,
     });
-
-    return draft;
   }
 
-  async publish(userId: string, dto: any) {
-    const draft = await this.repo.findDraft(userId, dto.type);
+  async publish(
+    userId: string,
+    dto: PublishProfileUpdateDto,
+  ) {
+    const draft = await this.repo.findDraft(
+      userId,
+      dto.type,
+    );
+
     if (!draft) {
-      throw new Error('DRAFT_NOT_FOUND');
+      throw new ProfileUpdateDraftNotFoundError();
     }
 
     const post = await this.tx.publish({
@@ -48,5 +75,5 @@ export class ProfileUpdateService {
 
     return { postId: post.id };
   }
-  
 }
+
