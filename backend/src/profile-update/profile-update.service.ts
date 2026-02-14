@@ -40,7 +40,7 @@ export class ProfileUpdateService {
 
   return this.repo.upsertDraft({
     userId,
-    type: ProfileMediaType.AVATAR, // 🔥 สำคัญมาก
+    type: ProfileMediaType.AVATAR, 
     mediaId: dto.mediaId,
     content: dto.content,
     visibility: dto.visibility ?? PostVisibility.PUBLIC,

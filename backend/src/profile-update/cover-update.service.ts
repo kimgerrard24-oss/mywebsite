@@ -40,7 +40,7 @@ export class CoverUpdateService {
 
     return this.repo.upsertDraft({
       userId,
-      type: ProfileMediaType.COVER, // 🔥 สำคัญ
+      type: ProfileMediaType.COVER, 
       mediaId: dto.mediaId,
       content: dto.content,
       visibility: dto.visibility ?? PostVisibility.PUBLIC,
