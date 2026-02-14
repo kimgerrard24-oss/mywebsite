@@ -12,30 +12,32 @@ import { RateLimit } from '../common/rate-limit/rate-limit.decorator';
 import type { SessionUser } from '../auth/services/validate-session.service';
 import { CoverUpdateService } from './cover-update.service';
 import { CreateCoverUpdateDto } from './dto/create-cover-update.dto';
-import { PublishCoverUpdateDto } from './dto/publish-cover-update.dto';
 
 @Controller('users/me/cover-update')
 export class CoverUpdateController {
-  constructor(private readonly service: CoverUpdateService) {}
+  constructor(
+    private readonly service: CoverUpdateService,
+  ) {}
 
   @UseGuards(AccessTokenCookieAuthGuard)
   @RateLimit('coverUpdateDraft')
   @Post('draft')
-  createDraft(
+  async createDraft(
     @CurrentUser() user: SessionUser,
     @Body() dto: CreateCoverUpdateDto,
   ) {
-    return this.service.createOrUpdateDraft(user.userId, dto);
+    return this.service.createOrUpdateDraft(
+      user.userId,
+      dto,
+    );
   }
 
   @UseGuards(AccessTokenCookieAuthGuard)
   @RateLimit('coverUpdatePublish')
   @Post('publish')
-  publish(
-  @CurrentUser() user: SessionUser,
-  @Body() dto: PublishCoverUpdateDto,
-  )   {
-  return this.service.publish(user.userId, dto);
+  async publish(
+    @CurrentUser() user: SessionUser,
+  ) {
+    return this.service.publish(user.userId);
   }
-
 }

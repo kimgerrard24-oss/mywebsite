@@ -2,14 +2,18 @@
 
 import { api } from "./api";
 import type {
-  CreateCoverDraftRequest,
   CoverUpdateDraft,
-  PublishCoverDraftResponse,
+  PostVisibility,
 } from "@/types/cover-update";
 
-export async function createCoverUpdateDraft(
-  payload: CreateCoverDraftRequest,
-): Promise<CoverUpdateDraft> {
+/**
+ * Create or update cover update draft
+ */
+export async function createCoverUpdateDraft(payload: {
+  mediaId: string;
+  content?: string;
+  visibility?: PostVisibility;
+}): Promise<CoverUpdateDraft> {
   const res = await api.post<CoverUpdateDraft>(
     "/users/me/cover-update/draft",
     payload,
@@ -19,10 +23,15 @@ export async function createCoverUpdateDraft(
   return res.data;
 }
 
-export async function publishCoverUpdate(): Promise<PublishCoverDraftResponse> {
-  const res = await api.post<PublishCoverDraftResponse>(
+/**
+ * Publish current cover update draft
+ */
+export async function publishCoverUpdate(): Promise<{
+  postId: string;
+}> {
+  const res = await api.post<{ postId: string }>(
     "/users/me/cover-update/publish",
-    {},
+    {}, // publish ไม่มี body
     { withCredentials: true },
   );
 

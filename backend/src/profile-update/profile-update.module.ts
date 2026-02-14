@@ -9,6 +9,7 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { UsersModule } from '../users/users.module';
 import { AuthModule } from '../auth/auth.module';
 import { AuditModule } from '../users/audit/audit.module';
+import { ProfileMediaModule } from '../profile/profile-media.module';
 
 @Module({
   imports: [
@@ -16,6 +17,7 @@ import { AuditModule } from '../users/audit/audit.module';
     UsersModule,
     AuthModule,
     AuditModule,
+    ProfileMediaModule,
   ],
   controllers: [ProfileUpdateController],
   providers: [

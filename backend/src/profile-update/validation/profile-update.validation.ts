@@ -2,8 +2,21 @@
 
 import { BadRequestException } from '@nestjs/common';
 
-export function validateDraftContent(content?: string) {
-  if (content && content.trim().length === 0) {
+const MAX_PROFILE_UPDATE_CONTENT_LENGTH = 1000;
+
+export function validateProfileUpdateContent(content?: string) {
+  if (content === undefined || content === null) {
+    return;
+  }
+
+  const trimmed = content.trim();
+
+  if (trimmed.length === 0) {
     throw new BadRequestException('CONTENT_EMPTY');
   }
+
+  if (trimmed.length > MAX_PROFILE_UPDATE_CONTENT_LENGTH) {
+    throw new BadRequestException('CONTENT_TOO_LONG');
+  }
 }
+

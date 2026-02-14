@@ -1,10 +1,10 @@
 // backend/src/profile-update/dto/publish-profile-update.dto.ts
 
-import { IsEnum } from 'class-validator';
-import { ProfileMediaType } from '@prisma/client';
+import { IsOptional, IsBoolean } from 'class-validator';
 
 export class PublishProfileUpdateDto {
-  @IsEnum(ProfileMediaType)
-  type!: ProfileMediaType;
+  @IsOptional()
+  @IsBoolean()
+  notifyFollowers?: boolean;
 }
 

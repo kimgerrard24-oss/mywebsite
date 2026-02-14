@@ -4,20 +4,23 @@
 
 import { useState } from "react";
 import { publishProfileUpdate } from "@/lib/api/profile-update";
-import type { PublishDraftRequest } from "@/types/profile-update";
 
 export function useProfileUpdatePublish() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const publish = async (payload: PublishDraftRequest) => {
+  const publish = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      return await publishProfileUpdate(payload);
+      return await publishProfileUpdate();
     } catch (err: any) {
-      setError(err?.response?.data?.message ?? "Publish failed");
+      setError(
+        err?.response?.data?.message ??
+          err?.message ??
+          "Failed to publish",
+      );
       return null;
     } finally {
       setLoading(false);
@@ -26,3 +29,4 @@ export function useProfileUpdatePublish() {
 
   return { publish, loading, error };
 }
+

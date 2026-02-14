@@ -8,8 +8,7 @@ import { useProfileUpdateStore } from "@/stores/profile-update.store";
 export default function ProfileUpdateModal() {
   const { draft, clear } = useProfileUpdateStore();
 
-  // เปิด modal เมื่อมี draft และเป็น AVATAR
-  if (!draft || draft.type !== "AVATAR") return null;
+  if (!draft) return null;
 
   return (
     <div className="fixed inset-0 bg-black/40 flex justify-center items-center z-50">
@@ -19,4 +18,6 @@ export default function ProfileUpdateModal() {
     </div>
   );
 }
+
+
 

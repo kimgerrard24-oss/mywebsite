@@ -1,16 +1,19 @@
 // backend/src/profile-update/profile-update.policy.ts
 
+import { ForbiddenException } from '@nestjs/common';
+
 export class ProfileUpdatePolicy {
   static assertCanCreateDraft(context: {
     isOwner: boolean;
     isBanned: boolean;
-  }) {
+  }): void {
     if (!context.isOwner) {
-      throw new Error('NOT_OWNER');
+      throw new ForbiddenException('PROFILE_UPDATE_NOT_OWNER');
     }
 
     if (context.isBanned) {
-      throw new Error('USER_BANNED');
+      throw new ForbiddenException('PROFILE_UPDATE_USER_BANNED');
     }
   }
 }
+

@@ -18,17 +18,13 @@ export type ProfileUpdateDraft = {
   updatedAt: string;
 };
 
-export type CreateDraftRequest = {
+export type CreateProfileDraftRequest = {
   mediaId: string;
-  type: ProfileMediaType;
   content?: string;
   visibility?: PostVisibility;
 };
 
-export type PublishDraftRequest = {
-  type: ProfileMediaType;
-};
-
-export type PublishDraftResponse = {
+export type PublishProfileDraftResponse = {
   postId: string;
 };
+

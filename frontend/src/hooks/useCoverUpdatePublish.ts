@@ -9,15 +9,18 @@ export function useCoverUpdatePublish() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const publish = async (): Promise<string | null> => {
+  const publish = async () => {
     try {
       setLoading(true);
       setError(null);
 
-      const res = await publishCoverUpdate();
-      return res.postId;
+      return await publishCoverUpdate();
     } catch (err: any) {
-      setError(err?.response?.data?.message ?? "Publish failed");
+      setError(
+        err?.response?.data?.message ??
+          err?.message ??
+          "Failed to publish",
+      );
       return null;
     } finally {
       setLoading(false);

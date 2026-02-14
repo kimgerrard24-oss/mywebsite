@@ -12,10 +12,10 @@ export default function CoverUpdateActions({
   loading: boolean;
 }) {
   return (
-    <div className="flex gap-2">
+    <div className="flex justify-end gap-2">
       <button
         onClick={onSave}
-        className="px-4 py-2 bg-gray-200 rounded-lg"
+        className="px-4 py-2 rounded-md border"
       >
         Save Draft
       </button>
@@ -23,7 +23,7 @@ export default function CoverUpdateActions({
       <button
         onClick={onPublish}
         disabled={loading}
-        className="px-4 py-2 bg-blue-600 text-white rounded-lg"
+        className="px-4 py-2 rounded-md bg-blue-600 text-white"
       >
         {loading ? "Publishing..." : "Publish"}
       </button>
