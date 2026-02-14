@@ -10,7 +10,6 @@ import { R2Module } from '../r2/r2.module';
 import { UsersModule } from '../users/users.module';
 import { AuthModule } from '../auth/auth.module';
 import { PostsModule } from '../posts/posts.module';
-import { ProfileMediaRealtimeService } from './events/profile-media.realtime.service';
 
 @Module({
   imports: [
@@ -25,7 +24,6 @@ import { ProfileMediaRealtimeService } from './events/profile-media.realtime.ser
   providers: [
     ProfileMediaService, 
     ProfileMediaRepository,
-    ProfileMediaRealtimeService,
   ],
 })
 export class ProfileMediaModule {}

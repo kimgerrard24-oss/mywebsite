@@ -22,7 +22,6 @@ import { PostsService } from '../posts/posts.service';
 import { PostVisibility, PostType } from '@prisma/client';
 import { PostsVisibilityService } from '../posts/visibility/posts-visibility.service';
 import { ProfileMediaDeleteErrorCode } from './profile-media.error-codes';
-import { ProfileMediaRealtimeService } from './events/profile-media.realtime.service';
 import { ProfileMediaDeletePolicy } from './policy/profile-media-delete.policy';
 import {
   ProfileMediaDeleteAccessDeniedError,
@@ -37,7 +36,6 @@ export class ProfileMediaService {
     private readonly r2: R2Service,
     private readonly postsService: PostsService,
     private readonly postsVisibility: PostsVisibilityService,
-    private readonly realtime: ProfileMediaRealtimeService,
   ) {}
 
   async setAvatar(actorUserId: string, mediaId: string) {
@@ -390,8 +388,6 @@ if (!media || media.mediaCategory !== type) {
       success: true,
       targetId: mediaId,
     }).catch(() => {});
-
-    this.realtime.emitProfileMediaDeleted(actorUserId, mediaId);
 
     return { success: true };
   }
