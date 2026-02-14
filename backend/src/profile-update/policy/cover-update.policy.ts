@@ -1,20 +1,29 @@
 // backend/src/profile-update/policy/cover-update.policy.ts
 
-import { CoverUpdateErrorCode } from '../errors/cover-update.error-codes';
-import { CoverUpdateAccessDeniedError } from '../errors/cover-update.errors';
+import { ForbiddenException } from '@nestjs/common';
+import { ProfileMediaType } from '@prisma/client';
 
 export class CoverUpdatePolicy {
-  static assertValidMedia(media: any, userId: string) {
+  static assertValidMedia(context: {
+    media: {
+      ownerUserId: string;
+      mediaCategory: ProfileMediaType | null;
+    } | null;
+    userId: string;
+  }): void {
+    const { media, userId } = context;
+
     if (!media || media.ownerUserId !== userId) {
-      throw new CoverUpdateAccessDeniedError(
-        CoverUpdateErrorCode.MEDIA_NOT_OWNED,
+      throw new ForbiddenException(
+        'COVER_UPDATE_MEDIA_NOT_OWNED',
       );
     }
 
-    if (media.mediaCategory !== 'COVER') {
-      throw new CoverUpdateAccessDeniedError(
-        CoverUpdateErrorCode.INVALID_MEDIA_CATEGORY,
+    if (media.mediaCategory !== ProfileMediaType.COVER) {
+      throw new ForbiddenException(
+        'COVER_UPDATE_INVALID_MEDIA_CATEGORY',
       );
     }
   }
 }
+

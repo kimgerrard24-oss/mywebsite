@@ -2,12 +2,13 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useCoverUpdateDraft } from "@/hooks/useCoverUpdateDraft";
 import { useCoverUpdatePublish } from "@/hooks/useCoverUpdatePublish";
 import { useCoverUpdateStore } from "@/stores/cover-update.store";
 import CoverUpdateVisibilitySelector from "./CoverUpdateVisibilitySelector";
 import CoverUpdateActions from "./CoverUpdateActions";
+import type { PostVisibility } from "@/types/cover-update";
 
 export default function CoverUpdateComposer({
   onClose,
@@ -20,10 +21,24 @@ export default function CoverUpdateComposer({
 
   const [content, setContent] = useState("");
   const [visibility, setVisibility] =
-    useState<"PUBLIC" | "FOLLOWERS" | "PRIVATE" | "CUSTOM">(
-      "PUBLIC",
-    );
+    useState<PostVisibility>("PUBLIC");
 
+  /**
+   * ✅ Sync draft → local state
+   * Production-grade behavior:
+   * - Restore existing draft content
+   * - Restore existing draft visibility
+   */
+  useEffect(() => {
+    if (!draft) return;
+
+    setContent(draft.content ?? "");
+    setVisibility(draft.visibility ?? "PUBLIC");
+  }, [draft]);
+
+  /**
+   * Save Draft
+   */
   const handleSaveDraft = async () => {
     if (!draft) return;
 
@@ -33,14 +48,23 @@ export default function CoverUpdateComposer({
       visibility,
     });
 
-    if (result) setDraft(result);
+    if (result) {
+      setDraft(result);
+    }
   };
 
+  /**
+   * Publish Draft
+   */
   const handlePublish = async () => {
-    const postId = await publish();
+    if (!draft) return;
 
-    if (postId) {
+    const res = await publish();
+
+    if (res) {
       clear();
+      setContent("");
+      setVisibility("PUBLIC");
       onClose();
     }
   };

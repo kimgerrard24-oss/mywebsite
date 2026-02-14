@@ -7,14 +7,11 @@ import {
   IsUUID,
   MaxLength,
 } from 'class-validator';
-import { ProfileMediaType, PostVisibility } from '@prisma/client';
+import { PostVisibility } from '@prisma/client';
 
 export class CreateProfileUpdateDto {
   @IsUUID()
   mediaId!: string;
-
-  @IsEnum(ProfileMediaType)
-  type!: ProfileMediaType;
 
   @IsOptional()
   @IsString()

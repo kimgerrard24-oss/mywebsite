@@ -1,13 +1,19 @@
 // frontend/src/types/cover-update.ts
 
+export type ProfileMediaType = "AVATAR" | "COVER";
+
+export type PostVisibility =
+  | "PUBLIC"
+  | "FOLLOWERS"
+  | "PRIVATE"
+  | "CUSTOM";
+
 export type CoverUpdateDraft = {
   id: string;
-  userId: string;
-  type: "COVER";
+  type: ProfileMediaType;
   mediaId: string;
   content?: string | null;
-  visibility: "PUBLIC" | "FOLLOWERS" | "PRIVATE" | "CUSTOM";
-  status: "DRAFT" | "PUBLISHED" | "CANCELLED" | "EXPIRED";
+  visibility: PostVisibility;
   createdAt: string;
   updatedAt: string;
 };
@@ -15,7 +21,7 @@ export type CoverUpdateDraft = {
 export type CreateCoverDraftRequest = {
   mediaId: string;
   content?: string;
-  visibility?: "PUBLIC" | "FOLLOWERS" | "PRIVATE" | "CUSTOM";
+  visibility?: PostVisibility;
 };
 
 export type PublishCoverDraftResponse = {

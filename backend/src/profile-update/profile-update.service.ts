@@ -3,7 +3,7 @@
 import { Injectable } from '@nestjs/common';
 import { ProfileUpdateRepository } from './profile-update.repository';
 import { ProfileUpdateTransaction } from './profile-update.transaction';
-import { validateDraftContent } from './validation/profile-update.validation';
+import { validateProfileUpdateContent } from './validation/profile-update.validation';
 import { AuditLogService } from '../users/audit/audit-log.service';
 import { ProfileMediaRepository } from '../profile/profile-media.repository';
 import { ProfileUpdateDraftNotFoundError } from './errors/profile-update.errors';
@@ -23,57 +23,55 @@ export class ProfileUpdateService {
     private readonly audit: AuditLogService,
   ) {}
 
-  async createOrUpdateDraft(
-    userId: string,
-    dto: CreateProfileUpdateDto,
-  ) {
-    validateDraftContent(dto.content);
+ async createOrUpdateDraft(
+  userId: string,
+  dto: CreateProfileUpdateDto,
+) {
+  validateProfileUpdateContent(dto.content);
 
-    // ✅ Validate media ownership
-    const media = await this.mediaRepo.findOwnedMedia(
-      dto.mediaId,
-      userId,
-    );
+  const media = await this.mediaRepo.findOwnedMedia(
+    dto.mediaId,
+    userId,
+  );
 
-    if (!media) {
-      throw new Error('MEDIA_NOT_FOUND_OR_NOT_OWNED');
-    }
-
-    return this.repo.upsertDraft({
-      userId,
-      type: dto.type as ProfileMediaType,
-      mediaId: dto.mediaId,
-      content: dto.content,
-      visibility: dto.visibility ?? PostVisibility.PUBLIC,
-    });
+  if (!media) {
+    throw new Error('MEDIA_NOT_FOUND_OR_NOT_OWNED');
   }
 
-  async publish(
-    userId: string,
-    dto: PublishProfileUpdateDto,
-  ) {
-    const draft = await this.repo.findDraft(
-      userId,
-      dto.type,
-    );
+  return this.repo.upsertDraft({
+    userId,
+    type: ProfileMediaType.AVATAR, 
+    mediaId: dto.mediaId,
+    content: dto.content,
+    visibility: dto.visibility ?? PostVisibility.PUBLIC,
+  });
+}
 
-    if (!draft) {
-      throw new ProfileUpdateDraftNotFoundError();
-    }
 
-    const post = await this.tx.publish({
-      userId,
-      draft,
-    });
+  async publish(userId: string) {
+  const draft = await this.repo.findDraft(
+    userId,
+    ProfileMediaType.AVATAR,
+  );
 
-    await this.audit.log({
-      userId,
-      action: 'PROFILE_UPDATE_PUBLISHED',
-      success: true,
-      targetId: post.id,
-    });
-
-    return { postId: post.id };
+  if (!draft) {
+    throw new ProfileUpdateDraftNotFoundError();
   }
+
+  const post = await this.tx.publish({
+    userId,
+    draft,
+  });
+
+  await this.audit.log({
+    userId,
+    action: 'PROFILE_UPDATE_PUBLISHED',
+    success: true,
+    targetId: post.id,
+  });
+
+  return { postId: post.id };
+}
+
 }
 

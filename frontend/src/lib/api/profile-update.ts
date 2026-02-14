@@ -2,15 +2,18 @@
 
 import { api } from "./api";
 import type {
-  CreateDraftRequest,
   ProfileUpdateDraft,
-  PublishDraftRequest,
-  PublishDraftResponse,
+  PostVisibility,
 } from "@/types/profile-update";
 
-export async function createProfileUpdateDraft(
-  payload: CreateDraftRequest,
-): Promise<ProfileUpdateDraft> {
+/**
+ * Create or update profile update draft
+ */
+export async function createProfileUpdateDraft(payload: {
+  mediaId: string;
+  content?: string;
+  visibility?: PostVisibility;
+}): Promise<ProfileUpdateDraft> {
   const res = await api.post<ProfileUpdateDraft>(
     "/users/me/profile-update/draft",
     payload,
@@ -20,14 +23,18 @@ export async function createProfileUpdateDraft(
   return res.data;
 }
 
-export async function publishProfileUpdate(
-  payload: PublishDraftRequest,
-): Promise<PublishDraftResponse> {
-  const res = await api.post<PublishDraftResponse>(
+/**
+ * Publish current profile update draft
+ */
+export async function publishProfileUpdate(): Promise<{
+  postId: string;
+}> {
+  const res = await api.post<{ postId: string }>(
     "/users/me/profile-update/publish",
-    payload,
+    {}, // publish ไม่มี body
     { withCredentials: true },
   );
 
   return res.data;
 }
+

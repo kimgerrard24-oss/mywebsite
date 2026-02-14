@@ -2,12 +2,13 @@
 
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useProfileUpdateDraft } from "@/hooks/useProfileUpdateDraft";
 import { useProfileUpdatePublish } from "@/hooks/useProfileUpdatePublish";
 import { useProfileUpdateStore } from "@/stores/profile-update.store";
 import ProfileUpdateVisibilitySelector from "./ProfileUpdateVisibilitySelector";
 import ProfileUpdateActions from "./ProfileUpdateActions";
+import type { PostVisibility } from "@/types/profile-update";
 
 export default function ProfileUpdateComposer({
   onClose,
@@ -20,28 +21,50 @@ export default function ProfileUpdateComposer({
 
   const [content, setContent] = useState("");
   const [visibility, setVisibility] =
-    useState<"PUBLIC" | "FOLLOWERS" | "PRIVATE" | "CUSTOM">(
-      "PUBLIC",
-    );
+    useState<PostVisibility>("PUBLIC");
 
+  /**
+   * ✅ Sync draft → local state
+   * Production-grade behavior:
+   * - Restore existing draft content
+   * - Restore existing draft visibility
+   */
+  useEffect(() => {
+    if (!draft) return;
+
+    setContent(draft.content ?? "");
+    setVisibility(draft.visibility ?? "PUBLIC");
+  }, [draft]);
+
+  /**
+   * Save Draft
+   */
   const handleSaveDraft = async () => {
+    if (!draft) return;
+
     const result = await createDraft({
-      mediaId: draft!.mediaId,
-      type: draft!.type,
+      mediaId: draft.mediaId,
       content,
       visibility,
     });
 
-    if (result) setDraft(result);
+    if (result) {
+      setDraft(result);
+    }
   };
 
+  /**
+   * Publish Draft
+   */
   const handlePublish = async () => {
     if (!draft) return;
 
-    const res = await publish({ type: draft.type });
+    const res = await publish();
 
     if (res) {
       clear();
+      setContent("");
+      setVisibility("PUBLIC");
       onClose();
     }
   };
@@ -68,4 +91,6 @@ export default function ProfileUpdateComposer({
     </div>
   );
 }
+
+
 

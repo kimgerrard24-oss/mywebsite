@@ -2,8 +2,21 @@
 
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { PostsService } from '../posts/posts.service';
-import { PostType } from '@prisma/client';
+import {
+  PostType,
+  PostVisibility,
+  ProfileDraftStatus,
+  ProfileUpdateDraft,
+} from '@prisma/client';
+
+interface PublishCoverUpdateParams {
+  userId: string;
+  draft: Pick<
+    ProfileUpdateDraft,
+    'id' | 'mediaId' | 'content' | 'visibility'
+  >;
+  notifyFollowers?: boolean;
+}
 
 @Injectable()
 export class CoverUpdateTransaction {
@@ -11,27 +24,30 @@ export class CoverUpdateTransaction {
     private readonly prisma: PrismaService,
   ) {}
 
-  async publish(params: {
-  userId: string;
-  draft: any;
-  notifyFollowers?: boolean;
-}) {
+  async publish(params: PublishCoverUpdateParams) {
     const { userId, draft } = params;
 
     return this.prisma.$transaction(async (tx) => {
-      // 1️⃣ update cover field
+
+      /**
+       * 1️⃣ Update authoritative cover state
+       */
       await tx.user.update({
         where: { id: userId },
-        data: { coverMediaId: draft.mediaId },
+        data: {
+          coverMediaId: draft.mediaId,
+        },
       });
 
-      // 2️⃣ create post directly
+      /**
+       * 2️⃣ Create cover update post
+       */
       const post = await tx.post.create({
         data: {
           authorId: userId,
           content: draft.content ?? '',
-          type: 'COVER_UPDATE',
-          visibility: draft.visibility,
+          type: PostType.COVER_UPDATE,
+          visibility: draft.visibility as PostVisibility,
           media: {
             create: {
               mediaId: draft.mediaId,
@@ -40,10 +56,14 @@ export class CoverUpdateTransaction {
         },
       });
 
-      // 3️⃣ mark draft published
+      /**
+       * 3️⃣ Mark draft as published
+       */
       await tx.profileUpdateDraft.update({
         where: { id: draft.id },
-        data: { status: 'PUBLISHED' },
+        data: {
+          status: ProfileDraftStatus.PUBLISHED,
+        },
       });
 
       return post;

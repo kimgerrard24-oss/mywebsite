@@ -6,13 +6,13 @@ import { CoverUpdateService } from './cover-update.service';
 import { CoverUpdateRepository } from './cover-update.repository';
 import { CoverUpdateTransaction } from './cover-update.transaction';
 import { PrismaService } from '../prisma/prisma.service';
-import { PostsService } from '../posts/posts.service';
 import { AuditLogService } from '../users/audit/audit-log.service';
 import { ProfileMediaRepository } from '../profile/profile-media.repository';
 import { AuthModule } from '../auth/auth.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { UsersModule } from '../users/users.module';
 import { AuditModule } from '../users/audit/audit.module';
+import { ProfileMediaModule } from '../profile/profile-media.module';
 
 @Module({
   imports: [
@@ -20,6 +20,7 @@ import { AuditModule } from '../users/audit/audit.module';
       AuthModule, 
       UsersModule,
       AuditModule,
+      ProfileMediaModule,
       ],
   controllers: [CoverUpdateController],
   providers: [
@@ -27,7 +28,6 @@ import { AuditModule } from '../users/audit/audit.module';
     CoverUpdateRepository,
     CoverUpdateTransaction,
     PrismaService,
-    PostsService,
     AuditLogService,
     ProfileMediaRepository,
   ],

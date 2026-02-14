@@ -25,5 +25,6 @@ import { PostsModule } from '../posts/posts.module';
     ProfileMediaService, 
     ProfileMediaRepository,
   ],
+  exports: [ProfileMediaRepository],
 })
 export class ProfileMediaModule {}

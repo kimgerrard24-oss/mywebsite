@@ -31,10 +31,8 @@ export class ProfileUpdateController {
   @UseGuards(AccessTokenCookieAuthGuard)
   @RateLimit('profileUpdatePublish')
   @Post('publish')
-  async publish(
-    @CurrentUser() user: SessionUser,
-    @Body() dto: PublishProfileUpdateDto,
-  ) {
-    return this.service.publish(user.userId, dto);
-  }
+async publish(@CurrentUser() user: SessionUser) {
+  return this.service.publish(user.userId);
+}
+
 }

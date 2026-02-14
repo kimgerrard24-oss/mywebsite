@@ -1,6 +1,12 @@
 // backend/src/profile-update/dto/create-cover-update.dto.ts
 
-import { IsUUID, IsOptional, IsString, IsEnum } from 'class-validator';
+import {
+  IsEnum,
+  IsOptional,
+  IsString,
+  IsUUID,
+  MaxLength,
+} from 'class-validator';
 import { PostVisibility } from '@prisma/client';
 
 export class CreateCoverUpdateDto {
@@ -9,9 +15,11 @@ export class CreateCoverUpdateDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(500)
   content?: string;
 
   @IsOptional()
   @IsEnum(PostVisibility)
   visibility?: PostVisibility;
 }
+
