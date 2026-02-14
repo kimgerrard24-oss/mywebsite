@@ -6,9 +6,13 @@ import { useDeleteProfileMedia } from "@/hooks/useDeleteProfileMedia";
 
 type Props = {
   mediaId: string;
+  onDeleted?: () => void;
 };
 
-export function DeleteProfileMediaButton({ mediaId }: Props) {
+export function DeleteProfileMediaButton({
+  mediaId,
+  onDeleted,
+}: Props) {
   const { deleteProfileMedia, loading, error } =
     useDeleteProfileMedia();
 
@@ -21,7 +25,11 @@ export function DeleteProfileMediaButton({ mediaId }: Props) {
 
     if (!confirmed) return;
 
-    await deleteProfileMedia(mediaId);
+    const success = await deleteProfileMedia(mediaId);
+
+    if (success) {
+      onDeleted?.();
+    }
   };
 
   return (
@@ -40,3 +48,4 @@ export function DeleteProfileMediaButton({ mediaId }: Props) {
     </div>
   );
 }
+
