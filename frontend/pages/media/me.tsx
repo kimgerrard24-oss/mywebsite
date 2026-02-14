@@ -35,7 +35,7 @@ export default function MyMediaPage({
     className="mb-4"
   >
     <Link
-      href="/feed"
+      href="/profile"
       prefetch={false}
       className="
         inline-block
@@ -49,7 +49,7 @@ export default function MyMediaPage({
         rounded
       "
     >
-      ← Back to feed
+      ← Back to Profile
     </Link>
   </nav>
   
