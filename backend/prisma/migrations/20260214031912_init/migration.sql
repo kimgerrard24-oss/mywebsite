@@ -278,6 +278,8 @@ CREATE TABLE "Media" (
     "thumbnailKey" TEXT,
     "mediaType" "MediaType" NOT NULL,
     "mimeType" TEXT NOT NULL,
+    "deletedSource" "DeleteSource",
+    "deletedReason" TEXT,
     "width" INTEGER,
     "height" INTEGER,
     "duration" INTEGER,
@@ -294,6 +296,22 @@ CREATE TABLE "Media" (
 
     CONSTRAINT "Media_pkey" PRIMARY KEY ("id")
 );
+
+-- =====================================================
+-- Profile Media Constraints (Production Critical)
+-- =====================================================
+
+-- 1 user มี AVATAR active ได้แค่ 1
+CREATE UNIQUE INDEX "unique_active_avatar_per_user"
+ON "Media" ("ownerUserId")
+WHERE "profileType" = 'AVATAR'
+AND "deletedAt" IS NULL;
+
+-- 1 user มี COVER active ได้แค่ 1
+CREATE UNIQUE INDEX "unique_active_cover_per_user"
+ON "Media" ("ownerUserId")
+WHERE "profileType" = 'COVER'
+AND "deletedAt" IS NULL;
 
 -- CreateTable
 CREATE TABLE "Comment" (
@@ -849,6 +867,9 @@ CREATE INDEX "Media_ownerUserId_mediaCategory_createdAt_idx" ON "Media"("ownerUs
 
 -- CreateIndex
 CREATE INDEX "Media_ownerUserId_profileType_idx" ON "Media"("ownerUserId", "profileType");
+
+-- CreateIndex
+CREATE INDEX "Media_ownerUserId_profileType_deletedAt_idx" ON "Media"("ownerUserId", "profileType", "deletedAt");
 
 -- CreateIndex
 CREATE INDEX "Comment_postId_createdAt_idx" ON "Comment"("postId", "createdAt");

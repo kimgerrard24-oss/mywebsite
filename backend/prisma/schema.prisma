@@ -382,7 +382,10 @@ model Media {
   thumbnailKey String?    @unique 
   mediaType   MediaType
   mimeType    String
-  
+
+  deletedSource DeleteSource?
+  deletedReason String?
+
   width       Int?
   height      Int?
   duration    Int?
@@ -410,6 +413,7 @@ model Media {
   @@index([ownerUserId, deletedAt])
   @@index([ownerUserId, mediaCategory, createdAt])
   @@index([ownerUserId, profileType]) 
+  @@index([ownerUserId, profileType, deletedAt])
 }
 
 model Comment {
