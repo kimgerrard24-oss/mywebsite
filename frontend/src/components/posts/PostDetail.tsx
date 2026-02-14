@@ -13,7 +13,6 @@ import RepostComposerModal from "@/components/repost/RepostComposerModal";
 import PostCard from "@/components/posts/PostCard";
 import PostShareMenu from "@/components/posts/PostShareMenu";
 import { getDisplayName } from "@/utils/getDisplayName";
-import { DeleteProfileMediaButton } from "@/components/profile/DeleteProfileMediaButton";
 
 type Props = {
   post: PostDetailType;
@@ -182,27 +181,10 @@ const closeLikes = () => {
             {new Date(post.createdAt).toLocaleString()}
           </time>
 
-{post.type === "PROFILE_UPDATE" ||
- post.type === "COVER_UPDATE" ? (
-  post.canDelete && post.media?.[0]?.id ? (
-    <DeleteProfileMediaButton
-  mediaId={post.media[0].id}
-  onDeleted={() => {
-    router.replace(router.asPath);
-  }}
-/>
-
-  ) : (
-    <PostActionMenu
-      postId={post.id}
-      canDelete={false}
-      canEdit={false}
-      canReport={!isBlocked}
-    />
-  )
-) : (
   <PostActionMenu
     postId={post.id}
+    postType={post.type}   
+    mediaId={post.media?.[0]?.id} 
     canDelete={!isBlocked && post.canDelete}
     canEdit={!isBlocked && post.canDelete}
     canReport={!isBlocked && !post.canDelete}
@@ -211,7 +193,6 @@ const closeLikes = () => {
       router.replace("/feed");
     }}
   />
-)}
 
         </div>
       </header>

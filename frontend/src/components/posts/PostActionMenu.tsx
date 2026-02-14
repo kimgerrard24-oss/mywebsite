@@ -3,9 +3,12 @@ import { useState, useRef, useEffect } from "react";
 import Link from "next/link";
 import DeletePostButton from "@/components/posts/DeletePostButton";
 import ReportDialog from "@/components/report/ReportDialog";
+import { useDeleteProfileMedia } from "@/hooks/useDeleteProfileMedia";
 
 type Props = {
   postId: string;
+  postType?: string;    
+  mediaId?: string; 
   canEdit?: boolean;
   canDelete?: boolean;
   canReport?: boolean;
@@ -20,6 +23,8 @@ type Props = {
 
 export default function PostActionMenu({
   postId,
+  postType,
+  mediaId,
   canEdit = false,
   canDelete = false,
   canReport = false,
@@ -36,6 +41,11 @@ export default function PostActionMenu({
   const [actionLoading, setActionLoading] = useState(false);
 
   const ref = useRef<HTMLDivElement | null>(null);
+  const { deleteProfileMedia } = useDeleteProfileMedia();
+
+  const isProfileMediaPost =
+  postType === "PROFILE_UPDATE" ||
+  postType === "COVER_UPDATE";
 
   // Close dropdown when click outside
   useEffect(() => {
@@ -175,25 +185,64 @@ export default function PostActionMenu({
           )}
 
           {canDelete && (
-            <li
-              className="
-                px-3
-                sm:px-4
-                py-1
-                hover:bg-gray-100
-              "
-            >
-              <DeletePostButton
-                postId={postId}
-                canDelete={canDelete}
-                variant="menu"
-                onDone={() => {
-                  setOpen(false);
-                  onDeleted?.();
-                }}
-              />
-            </li>
-          )}
+  <li
+    className="
+      px-3
+      sm:px-4
+      py-1
+      hover:bg-gray-100
+    "
+  >
+    {isProfileMediaPost && mediaId ? (
+  <button
+    type="button"
+    role="menuitem"
+    disabled={actionLoading}
+    className={`
+      w-full
+      text-left
+      text-red-600
+      ${actionLoading ? "opacity-50 cursor-not-allowed" : ""}
+    `}
+    onClick={async () => {
+      if (actionLoading) return;
+
+      const confirmed = window.confirm(
+        "คุณต้องการลบรูปนี้ใช่หรือไม่?"
+      );
+      if (!confirmed) return;
+
+      setOpen(false);
+      setActionLoading(true);
+
+      try {
+        const success = await deleteProfileMedia(mediaId);
+        if (success) {
+          window.location.reload();
+          return;
+        }
+      } finally {
+        setActionLoading(false);
+      }
+    }}
+  >
+    Delete
+  </button>
+) : (
+
+      <DeletePostButton
+        postId={postId}
+        canDelete={canDelete}
+        variant="menu"
+        onDone={() => {
+          setOpen(false);
+          onDeleted?.();
+        }}
+      />
+    )}
+  </li>
+)}
+
 
           {canHideTaggedPost && (
   <li>
