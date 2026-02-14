@@ -15,6 +15,8 @@ import ProfilePosts from "@/components/profile/ProfilePosts";
 import { useCurrentProfileMedia } from "@/hooks/useCurrentProfileMedia";
 import ProfileUpdateModal from "@/components/profile/ProfileUpdateModal";
 import CoverUpdateModal from "@/components/profile/CoverUpdateModal";
+import { ProfileUpdateStoreProvider } from "@/stores/profile-update.store";
+import { CoverUpdateStoreProvider } from "@/stores/cover-update.store";
 
 interface ProfilePageProps {
   initialProfile: UserProfile | null;
@@ -181,115 +183,115 @@ const ProfilePage: NextPage<ProfilePageProps> = ({
     process.env.NEXT_PUBLIC_SITE_URL || "https://www.phlyphant.com";
 
 return (
-  <>
-    <Head>
-      <title>โปรไฟล์ของฉัน | Phlyphant</title>
-      <meta
-        name="description"
-        content="ดูและจัดการข้อมูลโปรไฟล์ของคุณบน Phlyphant โซเชียลมีเดียสำหรับทุกคน"
-      />
-      <link rel="canonical" href={`${siteUrl}/profile`} />
-      <meta property="og:title" content="โปรไฟล์ของฉัน | Phlyphant" />
-      <meta
-        property="og:description"
-        content="ดูและจัดการข้อมูลโปรไฟล์ของคุณบน Phlyphant"
-      />
-      <meta property="og:url" content={`${siteUrl}/profile`} />
-      <meta property="og:type" content="profile" />
-    </Head>
+  <ProfileUpdateStoreProvider>
+    <CoverUpdateStoreProvider>
+    <>
+      <Head>
+        <title>โปรไฟล์ของฉัน | Phlyphant</title>
+        <meta
+          name="description"
+          content="ดูและจัดการข้อมูลโปรไฟล์ของคุณบน Phlyphant โซเชียลมีเดียสำหรับทุกคน"
+        />
+        <link rel="canonical" href={`${siteUrl}/profile`} />
+        <meta property="og:title" content="โปรไฟล์ของฉัน | Phlyphant" />
+        <meta
+          property="og:description"
+          content="ดูและจัดการข้อมูลโปรไฟล์ของคุณบน Phlyphant"
+        />
+        <meta property="og:url" content={`${siteUrl}/profile`} />
+        <meta property="og:type" content="profile" />
+      </Head>
 
-    <main
-      className="
-        min-h-screen
-        bg-gray-50
-        text-gray-900
-        flex
-        flex-col
-      "
-    >
-      {/* ================= Header ================= */}
-      <header
+      <main
         className="
-          w-full
-          bg-white
-          shadow-sm
-          sticky
-          top-0
-          z-20
+          min-h-screen
+          bg-gray-50
+          text-gray-900
+          flex
+          flex-col
         "
       >
-        <nav
+        {/* ================= Header ================= */}
+        <header
           className="
-            max-w-5xl
-            mx-auto
-            px-3
-            sm:px-4
-            md:px-6
-            py-3
-            sm:py-4
-            flex
-            items-center
-            justify-between
-            gap-3
+            w-full
+            bg-white
+            shadow-sm
+            sticky
+            top-0
+            z-20
           "
         >
-          <Link
-            href="/feed"
-            prefetch={false}
+          <nav
             className="
-              text-xl
-              sm:text-2xl
-              font-semibold
-              tracking-tight
-              text-blue-600
-              shrink-0
+              max-w-5xl
+              mx-auto
+              px-3
+              sm:px-4
+              md:px-6
+              py-3
+              sm:py-4
+              flex
+              items-center
+              justify-between
+              gap-3
             "
           >
-            PhlyPhant
-          </Link>
+            <Link
+              href="/feed"
+              prefetch={false}
+              className="
+                text-xl
+                sm:text-2xl
+                font-semibold
+                tracking-tight
+                text-blue-600
+                shrink-0
+              "
+            >
+              PhlyPhant
+            </Link>
+          </nav>
+        </header>
 
-          
-        </nav>
-      </header>
+        {/* ================= Content ================= */}
+        <div
+          className="
+            mx-auto
+            w-full
+            max-w-5xl
+            px-3
+            sm:px-6
+            lg:px-8
+            pb-10
+            sm:pb-12
+            pt-1 sm:pt-2
+          "
+        >
+          {loading && <ProfileSkeleton />}
+          {!loading && error && (
+            <ProfileSkeleton errorMessage={error} />
+          )}
 
-      {/* ================= Content ================= */}
-      <div
-        className="
-          mx-auto
-          w-full
-          max-w-5xl
-          px-3
-          sm:px-6
-          lg:px-8
-          pb-10
-          sm:pb-12
-          pt-1 sm:pt-2
-          
-        "
-      >
-        {loading && <ProfileSkeleton />}
-        {!loading && error && <ProfileSkeleton errorMessage={error} />}
+          {!loading && !error && profile && (
+            <>
+              <ProfileCard profile={profile} />
 
-        {!loading && !error && profile && (
-  <>
-<ProfileCard
-  profile={profile}
-/>
+              <div className="mt-6 sm:mt-8">
+                <ProfilePosts userId={profile.id} />
+              </div>
 
-    <div className="mt-6 sm:mt-8">
-      <ProfilePosts userId={profile.id} />
-    </div>
+              <ProfileUpdateModal />
+              <CoverUpdateModal />
+            </>
+          )}
+        </div>
+      </main>
+    </>
+    </CoverUpdateStoreProvider>
+  </ProfileUpdateStoreProvider>
+);
 
-    <ProfileUpdateModal />
-    <CoverUpdateModal />
-  </>
-)}
-
-
-      </div>
-    </main>
-  </>
- );
 
  };
 
