@@ -14,6 +14,8 @@ import { AvatarClickable } from "@/components/profile/AvatarClickable";
 import { CoverClickable } from "@/components/profile/CoverClickable";
 import { useProfileMedia } from "@/hooks/useProfileMedia";
 import { ProfileMediaModal } from "@/components/profile/ProfileMediaModal";
+import { useProfileUpdateStore } from "@/stores/profile-update.store";
+import { useCoverUpdateStore } from "@/stores/cover-update.store";
 
 export interface ProfileCardProps {
   profile: UserProfile | PublicUserProfile | null;
@@ -50,6 +52,8 @@ export const ProfileCard: React.FC<ProfileCardProps> = ({
 
 const avatarMedia = useProfileMedia(profile.id, "AVATAR");
 const coverMedia = useProfileMedia(profile.id, "COVER");
+const { setDraft: setAvatarDraft } = useProfileUpdateStore();
+const { setDraft: setCoverDraft } = useCoverUpdateStore();
 
 const [viewerIndex, setViewerIndex] = React.useState<number | null>(null);
 const [viewerType, setViewerType] =
@@ -111,17 +115,54 @@ const isPrivateLocked =
       "
     >
  {/* ===== Cover ===== */}
-<CoverClickable
-  coverUrl={currentMedia?.cover?.url}
-  onClick={() => {
-    setViewerType("COVER");
-    setViewerIndex(0);
+<div className="relative">
+  <CoverClickable
+    coverUrl={currentMedia?.cover?.url}
+    onClick={() => {
+      setViewerType("COVER");
+      setViewerIndex(0);
 
-    if (coverMedia.items.length === 0) {
-      coverMedia.loadMore();
-    }
-  }}
-/>
+      if (coverMedia.items.length === 0) {
+        coverMedia.loadMore();
+      }
+    }}
+  />
+
+  {isSelf && (
+    <button
+      type="button"
+      onClick={() => {
+        if (!currentMedia?.cover?.mediaId) return;
+
+setCoverDraft({
+  id: `temp-cover-${currentMedia.cover.mediaId}`,
+  type: "COVER",
+  mediaId: currentMedia.cover.mediaId,
+
+          visibility: "PUBLIC",
+          content: null,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
+      }}
+      className="
+        absolute
+        top-2
+        right-2
+        bg-blue-600
+        text-white
+        text-xs
+        px-2
+        py-1
+        rounded-md
+        shadow
+      "
+    >
+      อัปเดต
+    </button>
+  )}
+</div>
+
 
       <div
         className="
@@ -162,18 +203,55 @@ const isPrivateLocked =
     gap-2
   "
 >
-<AvatarClickable
-  avatarUrl={currentMedia?.avatar?.url}
-  displayName={displayName}
-  onClick={() => {
-    setViewerType("AVATAR");
-    setViewerIndex(0);
+<div className="relative">
+  <AvatarClickable
+    avatarUrl={currentMedia?.avatar?.url}
+    displayName={displayName}
+    onClick={() => {
+      setViewerType("AVATAR");
+      setViewerIndex(0);
 
-    if (avatarMedia.items.length === 0) {
-      avatarMedia.loadMore();
-    }
-  }}
-/>
+      if (avatarMedia.items.length === 0) {
+        avatarMedia.loadMore();
+      }
+    }}
+  />
+
+  {isSelf && (
+    <button
+      type="button"
+      onClick={() => {
+        if (!currentMedia?.avatar?.mediaId) return;
+
+setAvatarDraft({
+  id: `temp-avatar-${currentMedia.avatar.mediaId}`,
+  type: "AVATAR",
+  mediaId: currentMedia.avatar.mediaId,
+
+          visibility: "PUBLIC",
+          content: null,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        });
+      }}
+      className="
+        absolute
+        bottom-0
+        right-0
+        bg-blue-600
+        text-white
+        text-xs
+        px-2
+        py-1
+        rounded-md
+        shadow
+      "
+    >
+      อัปเดต
+    </button>
+  )}
+</div>
+
 
 </div>
 
