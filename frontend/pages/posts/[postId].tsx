@@ -6,8 +6,6 @@ import { useRouter } from "next/router";
 import { useState, useEffect} from "react";
 
 import PostDetail from "@/components/posts/PostDetail";
-import CommentComposer from "@/components/comments/CommentComposer";
-import CommentList from "@/components/comments/CommentList";
 import PostVisibilityGuard from "@/components/posts/PostVisibilityGuard";
 import { getPostById } from "@/lib/api/posts";
 import { requireSessionSSR } from "@/lib/auth/require-session-ssr";
@@ -19,13 +17,6 @@ type Props = {
 
 export default function PostDetailPage({ post }: Props) {
   const router = useRouter();
-
-  // ==============================
-  // 🆕 Comment state (UI-only, fail-soft)
-  // ==============================
-  const [commentCount, setCommentCount] = useState<number>(0);
-  const [commentListKey, setCommentListKey] = useState(0);
-
   const firstMedia = post.media?.[0];
   const mediaSrc = firstMedia?.cdnUrl ?? firstMedia?.url;
 
@@ -135,33 +126,9 @@ export default function PostDetailPage({ post }: Props) {
       className="w-full"
     >
       {/* ===== Post ===== */}
-      <PostDetail post={post} />
+      <PostDetail post={post} showComments />
 
-      {/* ===== Comments ===== */}
-      <section
-        className="mt-6"
-        aria-label="Post comments"
-      >
-       <CommentComposer
-  postId={post.id}
-  onCreated={() => {
-    setCommentCount((c) => c + 1);
-    setCommentListKey((k) => k + 1); 
-  }}
-/>
-
-
-        <CommentList
-  key={commentListKey}
-  postId={post.id}
-  onDeleted={() => {
-    setCommentCount((c) =>
-      Math.max(0, c - 1)
-    );
-  }}
-/>
-
-      </section>
+      
     </article>
   </PostVisibilityGuard>
 </main>

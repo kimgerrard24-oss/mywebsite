@@ -14,13 +14,20 @@ import PostCard from "@/components/posts/PostCard";
 import PostShareMenu from "@/components/posts/PostShareMenu";
 import { getDisplayName } from "@/utils/getDisplayName";
 import PostLikeButton from "@/components/posts/PostLikeButton";
+import CommentComposer from "@/components/comments/CommentComposer";
+import CommentList from "@/components/comments/CommentList";
 
 type Props = {
   post: PostDetailType;
   embedded?: boolean;
+  showComments?: boolean;
 };
 
-export default function PostDetail({ post, embedded }: Props) {
+export default function PostDetail({ 
+  post, 
+  embedded,
+  showComments = false, 
+}: Props) {
 
   const router = useRouter();
 
@@ -48,7 +55,9 @@ export default function PostDetail({ post, embedded }: Props) {
   });
 
   const [isLikeModalOpen, setIsLikeModalOpen] = useState(false);
-  
+  const [commentCount, setCommentCount] = useState(0);
+  const [commentListKey, setCommentListKey] = useState(0);
+
   const openLikes = () => {
   if (isBlocked) return;
 
@@ -338,6 +347,28 @@ const closeLikes = () => {
   hasMore={hasMoreLikes}
   onLoadMore={() => loadLikes()}
 />
+
+{/* ================= Comments ================= */}
+{showComments && !isBlocked && (
+  <section className="mt-6" aria-label="Post comments">
+    <CommentComposer
+      postId={post.id}
+      onCreated={() => {
+        setCommentCount((c) => c + 1);
+        setCommentListKey((k) => k + 1);
+      }}
+    />
+
+    <CommentList
+      key={commentListKey}
+      postId={post.id}
+      onDeleted={() => {
+        setCommentCount((c) => Math.max(0, c - 1));
+      }}
+    />
+  </section>
+)}
+
 
     </>
 </article>

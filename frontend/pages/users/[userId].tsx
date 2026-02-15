@@ -15,6 +15,8 @@ import type { PostFeedItem } from "@/types/post-feed";
 import { useCurrentProfileMedia } from "@/hooks/useCurrentProfileMedia";
 import { ProfileUpdateStoreProvider } from "@/stores/profile-update.store";
 import { CoverUpdateStoreProvider } from "@/stores/cover-update.store";
+import ProfileUpdateModal from "@/components/profile/ProfileUpdateModal";
+import CoverUpdateModal from "@/components/profile/CoverUpdateModal";
 
 type Props = {
   profile: PublicUserProfile;
@@ -106,6 +108,13 @@ export default function UserProfilePage({ profile }: Props) {
   isSelf={profile.isSelf === true}
 />
 
+  {/* 🔥 IMPORTANT: mount modal here */}
+    {profile.isSelf && (
+      <>
+        <ProfileUpdateModal currentMedia={currentMedia} />
+        <CoverUpdateModal currentMedia={currentMedia} />
+      </>
+    )}
 
             </div>
           </section>
