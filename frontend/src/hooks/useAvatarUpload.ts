@@ -5,7 +5,6 @@ import {
   buildPresignValidatePayload,
   requestPresignValidate,
 } from "@/lib/api/media";
-import { setAvatar } from "@/lib/api/profile-media";
 import { useUserStore } from "@/stores/user.store";
 import { api } from "@/lib/api/api";
 
@@ -39,7 +38,11 @@ export function useAvatarUpload() {
    * so composer binds draft.mediaId to NEW uploaded avatar
    * ============================================================
    */
-  async function upload(file: File): Promise<UploadResult> {
+  async function upload(
+  file: File,
+  caption?: string | null
+): Promise<UploadResult>
+ {
     if (!user) {
       throw new Error("Not authenticated");
     }
@@ -101,42 +104,39 @@ export function useAvatarUpload() {
        * 4️⃣ Complete upload
        * ===============================
        */
-      const completeRes =
-        await api.post<CompleteResponse>(
-          "/media/complete",
-          {
-            objectKey,
-            mediaType: "image",
-            mimeType: file.type,
-            mediaCategory: "AVATAR",
-          },
-          { withCredentials: true },
-        );
+     const completeRes = await api.post<CompleteResponse>(
+  "/media/complete",
+  {
+    objectKey,
+    mediaType: "image",
+    mimeType: file.type,
+    mediaCategory: "AVATAR",
+  },
+  { withCredentials: true },
+);
 
-      const { mediaId } = completeRes.data;
+const { mediaId } = completeRes.data;
 
-      /**
-       * ===============================
-       * 5️⃣ Set avatar (backend authority)
-       * ===============================
-       */
-      const result = await setAvatar(mediaId);
+const profileRes = await api.post(
+  "/users/me/profile-media",
+  {
+    mediaId,
+    type: "AVATAR",
+    caption: caption ?? null,
+    setAsCurrent: true,
+  },
 
-      /**
-       * ===============================
-       * 6️⃣ Cache-bust URL
-       * ===============================
-       */
-      let avatarUrl: string | null = null;
+  { withCredentials: true }
+);
 
-      if (result?.avatarUrl) {
-        avatarUrl = `${result.avatarUrl}?t=${Date.now()}`;
+let avatarUrl: string | null = null;
 
-        /**
-         * Sync avatar in global store
-         */
-        updateAvatar(avatarUrl);
-      }
+if (profileRes.data?.url) {
+  avatarUrl = `${profileRes.data.url}?t=${Date.now()}`;
+  updateAvatar(avatarUrl);
+}
+
+
 
       /**
        * ============================================================

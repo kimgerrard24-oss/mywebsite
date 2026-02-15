@@ -10,9 +10,11 @@ import { createProfileUpdateDraft } from "@/lib/api/profile-update";
 
 type Props = {
   currentMedia: ReturnType<typeof useCurrentProfileMedia>;
+  caption?: string;
 };
 
-export function AvatarUploader({ currentMedia }: Props) {
+export function AvatarUploader({ currentMedia, caption }: Props)
+ {
   const inputRef = useRef<HTMLInputElement>(null);
 
   const { upload, loading, error } = useAvatarUpload();
@@ -39,7 +41,7 @@ export function AvatarUploader({ currentMedia }: Props) {
       /**
        * Upload avatar
        */
-      const uploaded = await upload(file);
+      const uploaded = await upload(file, caption);
 
       /**
        * ====================================================

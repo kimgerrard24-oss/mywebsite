@@ -1,7 +1,7 @@
 // frontend/src/components/profile/ProfileUpdateComposer.tsx
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { AvatarUploader } from "./AvatarUploader";
 import { useCurrentProfileMedia } from "@/hooks/useCurrentProfileMedia";
 import { DeleteProfileMediaButton } from "@/components/profile/DeleteProfileMediaButton";
@@ -49,6 +49,9 @@ export default function ProfileUpdateComposer({
     };
 
   }, [onClose]);
+
+  const [caption, setCaption] = useState("");
+
 
   return (
     <section
@@ -132,21 +135,48 @@ export default function ProfileUpdateComposer({
           </div>
 
 
-          {/* Upload + delete */}
-          <div className="flex flex-col gap-2">
+          {/* Upload + delete + caption */}
+<div className="flex flex-col gap-2 w-full">
 
-            <AvatarUploader currentMedia={currentMedia} />
+  {/* caption input */}
+  <textarea
+    value={caption}
+    onChange={(e) => setCaption(e.target.value)}
+    placeholder="เขียนคำอธิบายเกี่ยวกับรูปโปรไฟล์..."
+    maxLength={500}
+    rows={3}
+    className="
+      w-full
+      border
+      border-gray-300
+      rounded-md
+      px-3
+      py-2
+      text-sm
+      focus:outline-none
+      focus:ring-2
+      focus:ring-blue-500
+      resize-none
+      bg-white
+    "
+  />
 
-            {currentMedia.data?.avatar?.mediaId && (
+  {/* uploader */}
+  <AvatarUploader
+    currentMedia={currentMedia}
+    caption={caption}
+  />
 
-              <DeleteProfileMediaButton
-                mediaId={currentMedia.data.avatar.mediaId}
-                onDeleted={currentMedia.refetch}
-              />
+  {/* delete */}
+  {currentMedia.data?.avatar?.mediaId && (
+    <DeleteProfileMediaButton
+      mediaId={currentMedia.data.avatar.mediaId}
+      onDeleted={currentMedia.refetch}
+    />
+  )}
 
-            )}
+</div>
 
-          </div>
 
         </div>
 

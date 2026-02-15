@@ -22,6 +22,7 @@ import { CurrentUser } from '../auth/decorators/current-user.decorator';
 import type { SessionUser } from '../auth/services/validate-session.service';
 import { RateLimit } from '../common/rate-limit/rate-limit.decorator';
 import { DeleteProfileMediaParamsDto } from './dto/delete-profile-media.params.dto';
+import { CreateProfileMediaDto } from './dto/create-profile-media.dto';
 
 @Controller('users')
 export class ProfileMediaController {
@@ -120,5 +121,22 @@ export class ProfileMediaController {
       mediaId: params.mediaId,
     });
   }
+
+  // ==========================
+// POST /users/me/profile-media
+// ==========================
+@UseGuards(AccessTokenCookieAuthGuard)
+@RateLimit('uploadProfileMedia')
+@Post('me/profile-media')
+async createProfileMedia(
+  @CurrentUser() user: SessionUser,
+  @Body() dto: CreateProfileMediaDto,
+) {
+  return this.service.createProfileMedia({
+    actorUserId: user.userId,
+    dto,
+  });
+}
+
 }
 

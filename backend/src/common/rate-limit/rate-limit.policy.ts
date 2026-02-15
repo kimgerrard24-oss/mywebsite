@@ -16,6 +16,7 @@ export type RateLimitAction =
   | 'coverUpdatePublish'
   | 'profileUpdateDraft'
   | 'profileUpdatePublish'
+  | 'uploadProfileMedia'
   | 'unfollowUser'
   | 'commentUpdate'   
   | 'commentDelete'
@@ -1579,6 +1580,37 @@ coverUpdatePublish: {
     longBlockSec: 21600,
   },
 },
+
+uploadProfileMedia: {
+
+  /**
+   * Upload avatar / cover
+   * Includes:
+   * - DB write
+   * - R2 storage usage
+   * - profile media update
+   * - optional post creation
+   *
+   * Must be stricter than mediaPresign
+   */
+
+  windowSec: 300,        // 5 minutes
+  max: 15,               // allow 15 uploads / 5 min
+  blockDurationSec: 900, // block 15 minutes
+
+  // legacy fields (required)
+  points: 15,
+  duration: 300,
+  blockDuration: 900,
+
+  escalation: {
+    maxViolations: 3,
+    windowSec: 86400,     // within 24h
+    longBlockSec: 21600,  // block 6 hours
+  },
+
+},
+
 
 };
 

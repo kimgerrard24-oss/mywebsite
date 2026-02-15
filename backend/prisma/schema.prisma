@@ -295,6 +295,7 @@ model Post {
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
   visibility  PostVisibility @default(PUBLIC)
+  profileMedia Media[] @relation("MediaProfilePost")
 
   comments Comment[]
   media    PostMedia[]
@@ -398,6 +399,10 @@ model Media {
   avatarForUsers User[] @relation("UserAvatar")
   coverForUsers  User[] @relation("UserCover")
 
+  caption String? @db.VarChar(500)
+  visibility PostVisibility @default(PUBLIC)
+  profilePostId String?
+  profilePost Post? @relation("MediaProfilePost", fields: [profilePostId], references: [id], onDelete: SetNull)
   createdAt   DateTime    @default(now())
 
   deletedAt   DateTime?   // เมื่อ user ลบ post / media
