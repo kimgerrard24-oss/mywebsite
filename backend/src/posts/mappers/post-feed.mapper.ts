@@ -167,6 +167,11 @@ export class PostFeedMapper {
 
       canDelete: isOwner,
 
+      isLikedByViewer:
+  Array.isArray(row.likes) &&
+  row.likes.length > 0,
+
+
       taggedUsers,
 
       /**

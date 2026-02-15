@@ -72,6 +72,8 @@ export class PostFeedItemDto {
     repostCount: number;
   };
 
+  isLikedByViewer!: boolean;
+
   hasReposted?: boolean;
 
 
