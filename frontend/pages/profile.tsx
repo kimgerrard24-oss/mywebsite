@@ -281,8 +281,14 @@ return (
                 <ProfilePosts userId={profile.id} />
               </div>
 
-              <ProfileUpdateModal />
-              <CoverUpdateModal />
+               {/* ✅ Pass media authority */}
+    <ProfileUpdateModal
+      currentMedia={currentMedia}
+    />
+
+    <CoverUpdateModal
+      currentMedia={currentMedia}
+    />
             </>
           )}
         </div>

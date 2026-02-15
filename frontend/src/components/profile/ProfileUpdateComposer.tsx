@@ -1,5 +1,3 @@
-// frontend/src/components/profile/ProfileUpdateComposer.tsx
-
 "use client";
 
 import { useState, useEffect } from "react";
@@ -8,13 +6,20 @@ import { useProfileUpdatePublish } from "@/hooks/useProfileUpdatePublish";
 import { useProfileUpdateStore } from "@/stores/profile-update.store";
 import ProfileUpdateVisibilitySelector from "./ProfileUpdateVisibilitySelector";
 import ProfileUpdateActions from "./ProfileUpdateActions";
+import { AvatarUploader } from "./AvatarUploader";
+import { useCurrentProfileMedia } from "@/hooks/useCurrentProfileMedia";
 import type { PostVisibility } from "@/types/profile-update";
+
+type Props = {
+  onClose: () => void;
+  currentMedia: ReturnType<typeof useCurrentProfileMedia>;
+};
 
 export default function ProfileUpdateComposer({
   onClose,
-}: {
-  onClose: () => void;
-}) {
+  currentMedia,
+}: Props) {
+
   const { draft, setDraft, clear } = useProfileUpdateStore();
   const { createDraft } = useProfileUpdateDraft();
   const { publish, loading } = useProfileUpdatePublish();
@@ -24,22 +29,21 @@ export default function ProfileUpdateComposer({
     useState<PostVisibility>("PUBLIC");
 
   /**
-   * ✅ Sync draft → local state
-   * Production-grade behavior:
-   * - Restore existing draft content
-   * - Restore existing draft visibility
+   * Sync draft → local state
    */
   useEffect(() => {
     if (!draft) return;
 
     setContent(draft.content ?? "");
     setVisibility(draft.visibility ?? "PUBLIC");
+
   }, [draft]);
 
   /**
    * Save Draft
    */
-  const handleSaveDraft = async () => {
+  async function handleSaveDraft() {
+
     if (!draft) return;
 
     const result = await createDraft({
@@ -51,46 +55,120 @@ export default function ProfileUpdateComposer({
     if (result) {
       setDraft(result);
     }
-  };
+  }
 
   /**
    * Publish Draft
    */
-  const handlePublish = async () => {
+  async function handlePublish() {
+
     if (!draft) return;
 
     const res = await publish();
 
     if (res) {
+
       clear();
+
       setContent("");
       setVisibility("PUBLIC");
+
       onClose();
     }
-  };
+  }
 
   return (
-    <div className="space-y-4">
-      <textarea
-        className="w-full border rounded-lg p-2"
-        placeholder="Write something..."
-        value={content}
-        onChange={(e) => setContent(e.target.value)}
-      />
+    <section
+      aria-labelledby="profile-update-heading"
+      className="
+        w-full
+        bg-white
+        border
+        rounded-xl
+        p-4
+        sm:p-5
+        space-y-4
+      "
+    >
 
-      <ProfileUpdateVisibilitySelector
-        value={visibility}
-        onChange={setVisibility}
-      />
+      {/* Heading */}
+      <header>
+        <h2
+          id="profile-update-heading"
+          className="text-base font-semibold text-gray-900"
+        >
+          อัปเดตโปรไฟล์
+        </h2>
+      </header>
 
-      <ProfileUpdateActions
-        onSave={handleSaveDraft}
-        onPublish={handlePublish}
-        loading={loading}
-      />
-    </div>
+
+      {/* Avatar uploader */}
+      <div className="border rounded-lg p-3 sm:p-4 bg-gray-50">
+
+        <AvatarUploader
+          currentMedia={currentMedia}
+        />
+
+      </div>
+
+
+      {/* Composer */}
+      <div className="space-y-3">
+
+        <label
+          htmlFor="profile-update-content"
+          className="sr-only"
+        >
+          เนื้อหาโพสต์
+        </label>
+
+        <textarea
+          id="profile-update-content"
+          className="
+            w-full
+            border
+            rounded-lg
+            p-3
+            text-sm
+            sm:text-base
+            focus:outline-none
+            focus:ring-2
+            focus:ring-blue-500
+            resize-none
+          "
+          placeholder="Write something..."
+          value={content}
+          onChange={(e) =>
+            setContent(e.target.value)
+          }
+          rows={3}
+        />
+
+      </div>
+
+
+      {/* Visibility */}
+      <div className="flex items-center justify-between">
+
+        <ProfileUpdateVisibilitySelector
+          value={visibility}
+          onChange={setVisibility}
+        />
+
+      </div>
+
+
+      {/* Actions */}
+      <footer>
+
+        <ProfileUpdateActions
+          onSave={handleSaveDraft}
+          onPublish={handlePublish}
+          loading={loading}
+        />
+
+      </footer>
+
+    </section>
   );
 }
-
-
-

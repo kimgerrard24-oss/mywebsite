@@ -6,36 +6,48 @@ import { PrismaService } from '../prisma/prisma.service';
 export class ChatRepository {
   constructor(private readonly prisma: PrismaService) {}
 
-  async findDirectChat(
-    userA: string,
-    userB: string,
-  ) {
-    return this.prisma.chat.findFirst({
-      where: {
-        isGroup: false,
-        participants: {
-          every: {
-            userId: { in: [userA, userB] },
+  async findDirectChat(userA: string, userB: string) {
+  return this.prisma.chat.findFirst({
+    where: {
+      isGroup: false,
+
+      AND: [
+        {
+          participants: {
+            some: { userId: userA },
           },
         },
+        {
+          participants: {
+            some: { userId: userB },
+          },
+        },
+      ],
+
+      participants: {
+        every: {
+          userId: { in: [userA, userB] },
+        },
       },
-      include: {
-        participants: {
-          include: {
-            user: {
-              select: {
-                id: true,
-                displayName: true,
-                avatarMedia: {
-      select: { objectKey: true },
     },
+
+    include: {
+      participants: {
+        include: {
+          user: {
+            select: {
+              id: true,
+              displayName: true,
+              avatarMedia: {
+                select: { objectKey: true },
               },
             },
           },
         },
       },
-    });
-  }
+    },
+  });
+}
 
   async createDirectChat(
     userA: string,

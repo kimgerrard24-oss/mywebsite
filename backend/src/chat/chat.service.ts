@@ -302,25 +302,30 @@ async sendMessage(params: {
    * - do NOT spam (DM only)
    */
   try {
-  if (!chat.isGroup) {
-    const recipientId =
-      chat.participants.find(
-        (p) => p.userId !== senderUserId,
-      )?.userId;
+ if (!chat.isGroup) {
+  const recipients = chat.participants
+    .map((p) => p.userId)
+    .filter(
+      (id) =>
+        typeof id === 'string' &&
+        id.length > 0 &&
+        id !== senderUserId,
+    );
 
-    if (recipientId) {
-      this.notifications.createNotification({
-        userId: recipientId,
-        actorUserId: senderUserId,
-        type: 'chat_message',
-        entityId: chatId,
-        payload: {
-          chatId,
-          messageId: message.id, 
-        },
-      });
-    }
+  for (const recipientId of recipients) {
+    await this.notifications.createNotification({
+      userId: recipientId,
+      actorUserId: senderUserId,
+      type: 'chat_message',
+      entityId: chatId,
+      payload: {
+        chatId,
+        messageId: message.id,
+      },
+    });
   }
+}
+
 } catch {
     // notification must never break chat send
   }

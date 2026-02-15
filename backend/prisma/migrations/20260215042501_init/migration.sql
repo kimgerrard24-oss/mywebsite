@@ -1010,6 +1010,9 @@ CREATE INDEX "ChatMessage_senderId_idx" ON "ChatMessage"("senderId");
 CREATE INDEX "ChatMessage_sharedPostId_idx" ON "ChatMessage"("sharedPostId");
 
 -- CreateIndex
+CREATE INDEX "ChatMessage_chatId_isDeleted_createdAt_idx" ON "ChatMessage"("chatId", "isDeleted", "createdAt");
+
+-- CreateIndex
 CREATE INDEX "ChatMessageMedia_messageId_idx" ON "ChatMessageMedia"("messageId");
 
 -- CreateIndex

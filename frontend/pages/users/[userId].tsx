@@ -13,6 +13,8 @@ import { getUserPosts } from "@/lib/api/posts";
 import type { PublicUserProfile } from "@/types/user-profile";
 import type { PostFeedItem } from "@/types/post-feed";
 import { useCurrentProfileMedia } from "@/hooks/useCurrentProfileMedia";
+import { ProfileUpdateStoreProvider } from "@/stores/profile-update.store";
+import { CoverUpdateStoreProvider } from "@/stores/cover-update.store";
 
 type Props = {
   profile: PublicUserProfile;
@@ -25,6 +27,8 @@ export default function UserProfilePage({ profile }: Props) {
     process.env.NEXT_PUBLIC_SITE_URL || "https://www.phlyphant.com";
 
   return (
+    <ProfileUpdateStoreProvider>
+    <CoverUpdateStoreProvider>
     <>
       <Head>
         <title>{profile.displayName ?? "User"} | PhlyPhant</title>
@@ -123,6 +127,8 @@ export default function UserProfilePage({ profile }: Props) {
         </main>
       </ProfileLayout>
     </>
+    </CoverUpdateStoreProvider>
+  </ProfileUpdateStoreProvider>
   );
 }
 

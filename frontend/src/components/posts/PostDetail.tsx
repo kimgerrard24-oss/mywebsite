@@ -277,15 +277,23 @@ const closeLikes = () => {
     />
   </div>
 
-  <button
-    type="button"
-    onClick={openLikes}
-    disabled={isBlocked}
-    aria-disabled={isBlocked}
-    className={isBlocked ? "opacity-60 cursor-not-allowed" : undefined}
-  >
-    ดูรายชื่อคนกดไลค์
-  </button>
+ <button
+  type="button"
+  onClick={openLikes}
+  disabled={isBlocked}
+  aria-disabled={isBlocked}
+  aria-label="ดูรายชื่อคนที่กดถูกใจโพสต์นี้"
+  className={[
+    "inline-flex items-center gap-1.5 text-xs sm:text-sm",
+    "text-gray-500 hover:text-gray-700",
+    "transition-colors",
+    isBlocked ? "opacity-60 cursor-not-allowed" : "cursor-pointer",
+  ].join(" ")}
+>
+  <span aria-hidden="true">👥</span>
+  <span className="font-medium">{likeCount}</span>
+</button>
+
 </div>
 
 
