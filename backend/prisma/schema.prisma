@@ -753,6 +753,7 @@ model ChatMessage {
   @@index([chatId, createdAt])
   @@index([senderId])
   @@index([sharedPostId])
+  @@index([chatId, isDeleted, createdAt])
 }
 
 model ChatMessageMedia {
