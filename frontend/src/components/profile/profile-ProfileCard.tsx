@@ -446,32 +446,6 @@ setAvatarDraft({
           </p>
         </div>
 
-        {/* ===== Meta ===== */}
-        <dl
-          className="
-            mt-3
-            sm:mt-4
-            grid
-            gap-3
-            sm:gap-4
-            text-xs
-            sm:text-sm
-            text-gray-600
-            sm:grid-cols-2
-          "
-        >
-          <div>
-            <dt className="font-medium text-gray-700">
-              เข้าร่วมเมื่อ
-            </dt>
-            <dd>
-              <time dateTime={profile.createdAt}>
-                {formatDate(profile.createdAt)}
-              </time>
-            </dd>
-          </div>
-        </dl>
-
         {/* ===== Followers / Following ===== */}
 {isPublicUserProfile(profile) &&
   !isBlocked &&

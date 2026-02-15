@@ -146,7 +146,7 @@ export default function PostDetailPage({ post }: Props) {
   postId={post.id}
   onCreated={() => {
     setCommentCount((c) => c + 1);
-    setCommentListKey((k) => k + 1); // 🔥 force remount
+    setCommentListKey((k) => k + 1); 
   }}
 />
 

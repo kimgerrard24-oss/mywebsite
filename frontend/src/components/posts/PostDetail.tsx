@@ -14,9 +14,6 @@ import PostCard from "@/components/posts/PostCard";
 import PostShareMenu from "@/components/posts/PostShareMenu";
 import { getDisplayName } from "@/utils/getDisplayName";
 import PostLikeButton from "@/components/posts/PostLikeButton";
-import { useEffect } from "react";
-import CommentComposer from "@/components/comments/CommentComposer";
-import CommentList from "@/components/comments/CommentList";
 
 type Props = {
   post: PostDetailType;
@@ -49,8 +46,6 @@ export default function PostDetail({ post, embedded }: Props) {
     initialLiked: post.isLikedByViewer ?? false,
     initialLikeCount: post.likeCount ?? 0,
   });
-  const [commentCount, setCommentCount] = useState<number>(0);
-  const [commentListKey, setCommentListKey] = useState(0);
 
   const [isLikeModalOpen, setIsLikeModalOpen] = useState(false);
   
@@ -334,7 +329,6 @@ const closeLikes = () => {
 )}
 
 
-
       <PostLikeListModal
   open={isLikeModalOpen}
   onClose={closeLikes}
@@ -344,25 +338,6 @@ const closeLikes = () => {
   hasMore={hasMoreLikes}
   onLoadMore={() => loadLikes()}
 />
-
-{/* ================= Comments ================= */}
-<section className="mt-6" aria-label="Post comments">
-  <CommentComposer
-    postId={post.id}
-    onCreated={() => {
-      setCommentCount((c) => c + 1);
-      setCommentListKey((k) => k + 1); // force remount
-    }}
-  />
-
-  <CommentList
-    key={commentListKey}
-    postId={post.id}
-    onDeleted={() => {
-      setCommentCount((c) => Math.max(0, c - 1));
-    }}
-  />
-</section>
 
     </>
 </article>

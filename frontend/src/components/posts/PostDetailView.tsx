@@ -3,6 +3,9 @@
 import { useEffect } from "react";
 import type { PostDetail as PostDetailType } from "@/types/post-detail";
 import PostDetail from "@/components/posts/PostDetail";
+import { useState } from "react";
+import CommentComposer from "@/components/comments/CommentComposer";
+import CommentList from "@/components/comments/CommentList";
 
 type Props = {
   post: PostDetailType;
@@ -14,6 +17,8 @@ export default function PostDetailView({
   onClose,
 }: Props) {
   
+  const [commentCount, setCommentCount] = useState<number>(0);
+  const [commentListKey, setCommentListKey] = useState(0);
 
   /* =========================================
    * ESC Close
@@ -93,10 +98,31 @@ export default function PostDetailView({
       >
        
         {/* Real Post */}
-        <PostDetail
-          post={post}
-          embedded
-        />
+        <>
+  <PostDetail
+    post={post}
+    embedded
+  />
+
+  <section className="mt-6 px-4 pb-6" aria-label="Post comments">
+    <CommentComposer
+      postId={post.id}
+      onCreated={() => {
+        setCommentCount((c) => c + 1);
+        setCommentListKey((k) => k + 1);
+      }}
+    />
+
+    <CommentList
+      key={commentListKey}
+      postId={post.id}
+      onDeleted={() => {
+        setCommentCount((c) => Math.max(0, c - 1));
+      }}
+    />
+  </section>
+</>
+
       </div>
     </div>
   );

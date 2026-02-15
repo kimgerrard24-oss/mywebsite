@@ -271,7 +271,8 @@ return (
 
           {!loading && !error && profile && (
             <>
-              <ProfileCard profile={profile} />
+              <ProfileCard profile={profile} isSelf />
+
 
               <div className="mt-6 sm:mt-8">
                 <ProfilePosts userId={profile.id} />
