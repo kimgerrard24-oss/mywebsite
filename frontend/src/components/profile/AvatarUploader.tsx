@@ -4,6 +4,8 @@ import { useRef, useState } from "react";
 import { useAvatarUpload } from "@/hooks/useAvatarUpload";
 import { useCurrentProfileMedia } from "@/hooks/useCurrentProfileMedia";
 import { useAuth } from "@/context/AuthContext";
+import { useProfileUpdateStore } from "@/stores/profile-update.store";
+import type { PostVisibility } from "@/types/profile-update";
 
 type Props = {
   currentMedia: ReturnType<typeof useCurrentProfileMedia>;
@@ -11,11 +13,16 @@ type Props = {
 
 export function AvatarUploader({ currentMedia }: Props) {
   const inputRef = useRef<HTMLInputElement>(null);
-  const { upload, loading, error } = useAvatarUpload();
-  const { user, refreshUser } = useAuth();
 
-  const userId = user?.id ?? null;
+  const { upload, loading, error } = useAvatarUpload();
+  const { refreshUser } = useAuth();
+
   const { refetch, setAvatarLocally } = currentMedia;
+
+  /**
+   * Bind uploaded media to composer draft
+   */
+  const { draft, setDraft } = useProfileUpdateStore();
 
   const [success, setSuccess] = useState(false);
 
@@ -28,25 +35,80 @@ export function AvatarUploader({ currentMedia }: Props) {
     setSuccess(false);
 
     try {
-      await upload(file);
+      /**
+       * Upload avatar
+       */
+      const uploaded = await upload(file);
 
-// Optimistic update (instant UI)
-if (user) {
-  const newUrl = `${user.avatarUrl}?t=${Date.now()}`;
-  setAvatarLocally(newUrl);
+      /**
+       * ====================================================
+       * PRODUCTION CRITICAL FIX
+       *
+       * Ensure draft always exists before updating mediaId
+       * ====================================================
+       */
+      if (uploaded?.mediaId) {
+
+        if (draft) {
+
+  setDraft({
+    ...draft,
+    mediaId: uploaded.mediaId,
+    updatedAt: new Date().toISOString(),
+  });
+
+} else {
+
+  const now = new Date().toISOString();
+
+  setDraft({
+    id: crypto.randomUUID(),
+
+    type: "AVATAR",   // ✅ FIX
+
+    mediaId: uploaded.mediaId,
+
+    content: null,
+
+    visibility: "PUBLIC",
+
+    createdAt: now,
+    updatedAt: now,
+  });
+
 }
 
-await refreshUser();
-await refetch();
+      }
 
+      /**
+       * Optimistic UI update
+       */
+      if (uploaded?.url) {
+        setAvatarLocally(uploaded.url);
+      }
+
+      /**
+       * Sync auth context
+       */
+      await refreshUser();
+
+      /**
+       * Sync profile media source of truth
+       */
+      await refetch();
 
       setSuccess(true);
+
     } catch {
-      // error handled in hook
+      /**
+       * error handled in hook
+       */
     } finally {
+
       if (inputRef.current) {
         inputRef.current.value = "";
       }
+
     }
   }
 
@@ -71,7 +133,33 @@ await refetch();
         type="button"
         disabled={loading}
         onClick={() => inputRef.current?.click()}
-        className="inline-flex items-center justify-center w-full sm:w-auto rounded-md sm:rounded-lg border border-gray-300 bg-white px-3 sm:px-4 py-2 sm:py-2.5 text-sm sm:text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-60 disabled:cursor-not-allowed transition"
+        className="
+          inline-flex
+          items-center
+          justify-center
+          w-full
+          sm:w-auto
+          rounded-md
+          sm:rounded-lg
+          border
+          border-gray-300
+          bg-white
+          px-3
+          sm:px-4
+          py-2
+          sm:py-2.5
+          text-sm
+          sm:text-base
+          font-medium
+          text-gray-700
+          hover:bg-gray-50
+          focus:outline-none
+          focus:ring-2
+          focus:ring-blue-500
+          disabled:opacity-60
+          disabled:cursor-not-allowed
+          transition
+        "
       >
         {loading
           ? "กำลังอัปโหลดรูปโปรไฟล์…"
@@ -92,4 +180,3 @@ await refetch();
     </section>
   );
 }
-
