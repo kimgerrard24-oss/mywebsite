@@ -298,6 +298,15 @@ async findPublicFeed(params: {
       likeCount: true,
       commentCount: true,
 
+        likes: viewerUserId
+    ? {
+        where: { userId: viewerUserId },
+        select: { id: true },
+        take: 1,
+      }
+    : false,
+
+
       author: {
         select: {
           id: true,
@@ -936,6 +945,15 @@ async findUserPosts(params: {
       likeCount: true,
       commentCount: true,
 
+        likes: viewerUserId
+    ? {
+        where: { userId: viewerUserId },
+        select: { id: true },
+        take: 1,
+      }
+    : false,
+
+
       author: {
         select: {
           id: true,
@@ -1194,6 +1212,15 @@ async findPostsByTag(params: {
 
       likeCount: true,
       commentCount: true,
+
+        likes: viewerUserId
+    ? {
+        where: { userId: viewerUserId },
+        select: { id: true },
+        take: 1,
+      }
+    : false,
+
 
       author: {
         select: {
@@ -1466,6 +1493,15 @@ async findPublicPosts(params: {
 
       likeCount: true,
       commentCount: true,
+
+        likes: viewerUserId
+    ? {
+        where: { userId: viewerUserId },
+        select: { id: true },
+        take: 1,
+      }
+    : false,
+
 
       author: {
         select: {
@@ -2552,6 +2588,15 @@ async findHiddenTaggedPosts(params: {
 
       likeCount: true,
       commentCount: true,
+
+        likes: viewerUserId
+    ? {
+        where: { userId: viewerUserId },
+        select: { id: true },
+        take: 1,
+      }
+    : false,
+
 
       author: {
         select: {

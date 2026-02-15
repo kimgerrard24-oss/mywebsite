@@ -9,8 +9,6 @@ import { AvatarUploader } from "@/components/profile/AvatarUploader";
 import { CoverUploader } from "@/components/profile/CoverUploader";
 import { useCurrentProfileMedia } from "@/hooks/useCurrentProfileMedia";
 import { DeleteProfileMediaButton } from "@/components/profile/DeleteProfileMediaButton";
-import { ProfileUpdateStoreProvider } from "@/stores/profile-update.store";
-import { CoverUpdateStoreProvider } from "@/stores/cover-update.store";
 
 type Props = {
   user: UserProfile | null;
@@ -27,8 +25,6 @@ const mediaLoading = currentMedia.loading;
 
 
   return (
-     <ProfileUpdateStoreProvider>
-    <CoverUpdateStoreProvider>
     <>
       <Head>
         <title>Edit Profile | PhlyPhant</title>
@@ -135,8 +131,6 @@ const mediaLoading = currentMedia.loading;
         </section>
       </main>
     </>
-    </CoverUpdateStoreProvider>
-  </ProfileUpdateStoreProvider>
   );
 }
 

@@ -11,6 +11,8 @@ import { getFirebaseAuth } from "firebase/client";
 import { AuthProvider } from "@/context/AuthContext";
 import { UserProvider } from "@/stores/user.store";
 import NotificationRealtimeBridge from "@/components/notifications/NotificationRealtimeBridge";
+import { ProfileUpdateStoreProvider } from "@/stores/profile-update.store";
+import { CoverUpdateStoreProvider } from "@/stores/cover-update.store";
 
 function exposeFirebaseAuthSafeOnce() {
   if (typeof window === "undefined") return;
@@ -48,20 +50,27 @@ export default function App({ Component, pageProps }: AppProps) {
   return (
   <AuthProvider>
     <UserProvider>
-      {/* 🔔 Global Notification Realtime */}
-      <NotificationRealtimeBridge />
+      <ProfileUpdateStoreProvider>
+        <CoverUpdateStoreProvider>
 
-      <Component {...pageProps} />
+          {/* 🔔 Global Notification Realtime */}
+          <NotificationRealtimeBridge />
 
-      {/* 🔔 Global Toast */}
-      <Toaster
-        position="top-center"
-        toastOptions={{
-          duration: 3000,
-        }}
-      />
+          <Component {...pageProps} />
+
+          {/* 🔔 Global Toast */}
+          <Toaster
+            position="top-center"
+            toastOptions={{
+              duration: 3000,
+            }}
+          />
+
+        </CoverUpdateStoreProvider>
+      </ProfileUpdateStoreProvider>
     </UserProvider>
   </AuthProvider>
 );
+
 
 }

@@ -40,9 +40,16 @@ const formatDate = (iso: string) => {
 
 export const ProfileCard: React.FC<ProfileCardProps> = ({
   profile,
-  isSelf = true,
+  isSelf,
 }) => {
   if (!profile) return null;
+  const actualIsSelf =
+  typeof isSelf === "boolean"
+    ? isSelf
+    : "isSelf" in profile
+    ? profile.isSelf === true
+    : false;
+
   const {
   data: currentMedia,
   loading: mediaLoading,
@@ -94,7 +101,7 @@ const [isFollowRequested, setIsFollowRequested] = React.useState<boolean>(
 const isPrivateLocked =
   isPublic &&
   publicProfile?.isPrivate === true &&
-  !isSelf &&
+  !actualIsSelf &&
   !isFollowing;
 
   return (
@@ -128,7 +135,7 @@ const isPrivateLocked =
     }}
   />
 
-  {isSelf && (
+  {actualIsSelf && (
     <button
       type="button"
       onClick={() => {
@@ -218,7 +225,7 @@ setCoverDraft({
     }}
   />
 
-  {isSelf && (
+  {actualIsSelf && (
     <button
       type="button"
       onClick={() => {
@@ -272,7 +279,7 @@ setAvatarDraft({
               </h1>
 
               {/* email แสดงเฉพาะเจ้าของ */}
-              {isSelf && "email" in profile && (
+              {actualIsSelf && "email" in profile && (
                 <p
                   className="
                     text-xs
@@ -290,7 +297,7 @@ setAvatarDraft({
           {/* ===== Right-side actions ===== */}
 <div className="flex items-center gap-2 sm:gap-3">
   {/* Edit (owner only) */}
-  {isSelf && (
+  {actualIsSelf && (
     <Link
       href="/settings/profile"
       prefetch={false}
@@ -319,7 +326,7 @@ setAvatarDraft({
     </Link>
   )}
 
-  {isSelf && (
+  {actualIsSelf && (
   <Link
     href="/media/me"
     prefetch={false}
@@ -350,7 +357,7 @@ setAvatarDraft({
 
 
   {/* ===== FOLLOW / REQUEST FOLLOW ===== */}
-  {publicProfile && !isSelf && !hasBlockedViewer && (
+  {publicProfile && !actualIsSelf && !hasBlockedViewer && (
   isFollowing ? (
     <FollowController
       userId={publicProfile.id}
@@ -389,7 +396,7 @@ setAvatarDraft({
 
 
   {/* ===== Block / Unblock ===== */}
-  {!isSelf && isPublic && !hasBlockedViewer && (
+  {!actualIsSelf && isPublic && !hasBlockedViewer && (
     <>
       {isBlocked ? (
         <UnblockUserButton

@@ -2,15 +2,9 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
-import { useCoverUpdateDraft } from "@/hooks/useCoverUpdateDraft";
-import { useCoverUpdatePublish } from "@/hooks/useCoverUpdatePublish";
-import { useCoverUpdateStore } from "@/stores/cover-update.store";
-import CoverUpdateVisibilitySelector from "./CoverUpdateVisibilitySelector";
-import CoverUpdateActions from "./CoverUpdateActions";
+import { useEffect } from "react";
 import { CoverUploader } from "./CoverUploader";
 import { useCurrentProfileMedia } from "@/hooks/useCurrentProfileMedia";
-import type { PostVisibility } from "@/types/cover-update";
 import { DeleteProfileMediaButton } from "@/components/profile/DeleteProfileMediaButton";
 
 type Props = {
@@ -23,97 +17,35 @@ export default function CoverUpdateComposer({
   currentMedia,
 }: Props) {
 
-  const { draft, setDraft } = useCoverUpdateStore();
-  const { createDraft } = useCoverUpdateDraft();
-  const { publish, loading } = useCoverUpdatePublish();
-
-  const [content, setContent] = useState("");
-  const [visibility, setVisibility] =
-    useState<PostVisibility>("PUBLIC");
-
-    useEffect(() => {
-
-  function handleEsc(e: KeyboardEvent) {
-
-    if (e.key !== "Escape") return;
-
-    const target = e.target as HTMLElement | null;
-
-    if (!target) {
-      onClose();
-      return;
-    }
-
-    const tag = target.tagName;
-
-    if (
-      tag === "TEXTAREA" ||
-      tag === "INPUT" ||
-      target.isContentEditable
-    ) {
-      return;
-    }
-
-    onClose();
-  }
-
-  window.addEventListener("keydown", handleEsc);
-
-  return () => {
-    window.removeEventListener("keydown", handleEsc);
-  };
-
-}, [onClose]);
-
-
-
   /**
-   * Sync draft → local state
+   * ESC close support
    */
   useEffect(() => {
+    function handleEsc(e: KeyboardEvent) {
+      if (e.key !== "Escape") return;
 
-    if (!draft) return;
+      const target = e.target as HTMLElement | null;
 
-    setContent(draft.content ?? "");
-    setVisibility(draft.visibility ?? "PUBLIC");
-
-  }, [draft]);
-
-  /**
-   * Save Draft
-   */
-  async function handleSaveDraft() {
-
-    if (!draft) return;
-
-    const result = await createDraft({
-      mediaId: draft.mediaId,
-      content,
-      visibility,
-    });
-
-    if (result) {
-      setDraft(result);
-    }
-  }
-
-  /**
-   * Publish Draft
-   */
-  async function handlePublish() {
-
-    if (!draft) return;
-
-    const res = await publish();
-
-    if (res) {
-
-      setContent("");
-      setVisibility("PUBLIC");
+      if (
+        target &&
+        (
+          target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable
+        )
+      ) {
+        return;
+      }
 
       onClose();
     }
-  }
+
+    window.addEventListener("keydown", handleEsc);
+
+    return () => {
+      window.removeEventListener("keydown", handleEsc);
+    };
+  }, [onClose]);
 
   return (
     <section
@@ -128,147 +60,87 @@ export default function CoverUpdateComposer({
         space-y-4
       "
     >
-
-      {/* Heading */}
+      {/* Header */}
       <header className="flex items-center justify-between">
 
-  <h2
-    id="cover-update-heading"
-    className="text-base font-semibold text-gray-900"
-  >
-    อัปเดตรูปปก
-  </h2>
-
-  <button
-    type="button"
-    onClick={onClose}
-    aria-label="Close"
-    className="
-      inline-flex
-      items-center
-      justify-center
-      w-8
-      h-8
-      rounded-full
-      hover:bg-gray-100
-      text-gray-500
-      hover:text-gray-700
-      transition
-    "
-  >
-    ✕
-  </button>
-
-</header>
-
-
-      {/* ================================
-   COVER SECTION (PREVIEW + UPLOAD + DELETE)
-   ================================ */}
-<section className="border rounded-lg p-3 sm:p-4 bg-gray-50 space-y-3">
-
- 
-  {/* Upload + Delete */}
-  <div className="flex flex-col gap-2">
-
-    <CoverUploader
-      currentMedia={currentMedia}
-    />
-
-    {currentMedia.data?.cover?.mediaId && (
-
-      <DeleteProfileMediaButton
-        mediaId={currentMedia.data.cover.mediaId}
-        onDeleted={() => {
-          currentMedia.refetch();
-        }}
-      />
-
-    )}
-
-  </div>
-
-</section>
-
-
-
-      {/* Composer */}
-      <div className="space-y-3">
-
-        <label
-          htmlFor="cover-update-content"
-          className="sr-only"
+        <h2
+          id="cover-update-heading"
+          className="text-base font-semibold text-gray-900"
         >
-          คำอธิบายรูปปก
-        </label>
+          อัปเดตรูปปก
+        </h2>
 
-        <textarea
-          id="cover-update-content"
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close"
           className="
-            w-full
-            border
-            rounded-lg
-            p-3
-            text-sm
-            sm:text-base
-            focus:outline-none
-            focus:ring-2
-            focus:ring-blue-500
-            resize-none
+            inline-flex
+            items-center
+            justify-center
+            w-8
+            h-8
+            rounded-full
+            hover:bg-gray-100
+            text-gray-500
+            hover:text-gray-700
+            transition
           "
-          placeholder="Write something about your new cover..."
-          value={content}
-          onChange={(e) =>
-            setContent(e.target.value)
-          }
-          rows={3}
-        />
+        >
+          ✕
+        </button>
 
-      </div>
+      </header>
 
+      {/* Cover section */}
+      <section className="border rounded-lg p-3 sm:p-4 bg-gray-50">
 
-      {/* Visibility */}
-      <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-3">
 
-        <CoverUpdateVisibilitySelector
-          value={visibility}
-          onChange={setVisibility}
-        />
+          {/* Preview */}
+          {currentMedia.loading ? (
 
-      </div>
+            <div className="w-full h-40 bg-gray-200 animate-pulse rounded-md" />
 
+          ) : currentMedia.data?.cover?.url ? (
 
-      {/* Actions */}
-      <footer className="flex items-center justify-between">
+            <div className="w-full h-40 rounded-md overflow-hidden border">
 
-  <button
-    type="button"
-    onClick={onClose}
-    className="
-      px-4
-      py-2
-      text-sm
-      font-medium
-      text-gray-700
-      bg-gray-100
-      hover:bg-gray-200
-      rounded-md
-      transition
-    "
-  >
-    Cancel
-  </button>
+              <img
+                src={currentMedia.data.cover.url}
+                alt="Current cover"
+                className="w-full h-full object-cover"
+              />
 
-  <CoverUpdateActions
-    onSave={handleSaveDraft}
-    onPublish={handlePublish}
-    loading={loading}
-  />
+            </div>
 
-</footer>
+          ) : (
 
+            <div className="w-full h-40 bg-gray-100 flex items-center justify-center text-gray-400 text-sm border rounded-md">
+              No cover photo
+            </div>
 
+          )}
+
+          {/* Upload */}
+          <CoverUploader currentMedia={currentMedia} />
+
+          {/* Delete */}
+          {currentMedia.data?.cover?.mediaId && (
+
+            <DeleteProfileMediaButton
+              mediaId={currentMedia.data.cover.mediaId}
+              onDeleted={currentMedia.refetch}
+            />
+
+          )}
+
+        </div>
+
+      </section>
+      
     </section>
   );
 }
+
 

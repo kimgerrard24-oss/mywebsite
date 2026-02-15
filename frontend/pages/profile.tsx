@@ -15,8 +15,6 @@ import ProfilePosts from "@/components/profile/ProfilePosts";
 import { useCurrentProfileMedia } from "@/hooks/useCurrentProfileMedia";
 import ProfileUpdateModal from "@/components/profile/ProfileUpdateModal";
 import CoverUpdateModal from "@/components/profile/CoverUpdateModal";
-import { ProfileUpdateStoreProvider } from "@/stores/profile-update.store";
-import { CoverUpdateStoreProvider } from "@/stores/cover-update.store";
 
 interface ProfilePageProps {
   initialProfile: UserProfile | null;
@@ -183,8 +181,6 @@ const ProfilePage: NextPage<ProfilePageProps> = ({
     process.env.NEXT_PUBLIC_SITE_URL || "https://www.phlyphant.com";
 
 return (
-  <ProfileUpdateStoreProvider>
-    <CoverUpdateStoreProvider>
     <>
       <Head>
         <title>โปรไฟล์ของฉัน | Phlyphant</title>
@@ -294,8 +290,6 @@ return (
         </div>
       </main>
     </>
-    </CoverUpdateStoreProvider>
-  </ProfileUpdateStoreProvider>
 );
 
 
