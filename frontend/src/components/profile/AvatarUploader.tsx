@@ -6,6 +6,7 @@ import { useCurrentProfileMedia } from "@/hooks/useCurrentProfileMedia";
 import { useAuth } from "@/context/AuthContext";
 import { useProfileUpdateStore } from "@/stores/profile-update.store";
 import type { PostVisibility } from "@/types/profile-update";
+import { createProfileUpdateDraft } from "@/lib/api/profile-update";
 
 type Props = {
   currentMedia: ReturnType<typeof useCurrentProfileMedia>;
@@ -49,36 +50,28 @@ export function AvatarUploader({ currentMedia }: Props) {
        */
       if (uploaded?.mediaId) {
 
-        if (draft) {
-
-  setDraft({
-    ...draft,
-    mediaId: uploaded.mediaId,
-    updatedAt: new Date().toISOString(),
-  });
-
-} else {
-
-  const now = new Date().toISOString();
-
-  setDraft({
-    id: crypto.randomUUID(),
-
-    type: "AVATAR",   // ✅ FIX
+  /**
+   * CRITICAL: create draft in backend
+   * backend is authority
+   */
+  const newDraft = await createProfileUpdateDraft({
 
     mediaId: uploaded.mediaId,
 
-    content: null,
+    content: draft?.content ?? undefined,
 
-    visibility: "PUBLIC",
+    visibility: draft?.visibility ?? ("PUBLIC" as PostVisibility),
 
-    createdAt: now,
-    updatedAt: now,
+
   });
+
+  /**
+   * sync zustand store with backend draft
+   */
+  setDraft(newDraft);
 
 }
 
-      }
 
       /**
        * Optimistic UI update
