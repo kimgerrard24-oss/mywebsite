@@ -19,6 +19,11 @@ type CompleteResponse = {
   mediaId: string;
 };
 
+type UploadResult = {
+  mediaId: string;
+  url: string | null;
+};
+
 const MAX_AVATAR_SIZE = 5 * 1024 * 1024; // 5MB
 
 export function useAvatarUpload() {
@@ -27,16 +32,27 @@ export function useAvatarUpload() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  async function upload(file: File) {
+  /**
+   * ============================================================
+   * PRODUCTION-CRITICAL:
+   * upload() MUST return mediaId + url
+   * so composer binds draft.mediaId to NEW uploaded avatar
+   * ============================================================
+   */
+  async function upload(file: File): Promise<UploadResult> {
     if (!user) {
       throw new Error("Not authenticated");
     }
 
-    if (loading) return;
+    if (loading) {
+      throw new Error("Upload already in progress");
+    }
 
-    // ===============================
-    // 1️⃣ Client-side validation (UX + abuse guard)
-    // ===============================
+    /**
+     * ===============================
+     * 1️⃣ Client-side validation
+     * ===============================
+     */
     if (!file.type.startsWith("image/")) {
       const msg = "ไฟล์ต้องเป็นรูปภาพเท่านั้น";
       setError(msg);
@@ -61,11 +77,11 @@ export function useAvatarUpload() {
       const payload = buildPresignValidatePayload(file);
 
       const { uploadUrl, objectKey } =
-         await requestPresignValidate(payload);
+        await requestPresignValidate(payload);
 
       /**
        * ===============================
-       * 3️⃣ Upload to R2 (direct)
+       * 3️⃣ Upload to R2
        * ===============================
        */
       const uploadRes = await fetch(uploadUrl, {
@@ -82,19 +98,20 @@ export function useAvatarUpload() {
 
       /**
        * ===============================
-       * 4️⃣ Complete upload (persist media)
+       * 4️⃣ Complete upload
        * ===============================
        */
-      const completeRes = await api.post<CompleteResponse>(
-        "/media/complete",
-        {
-          objectKey,
-          mediaType: "image",
-          mimeType: file.type,
-          mediaCategory: "AVATAR",
-        },
-        { withCredentials: true },
-      );
+      const completeRes =
+        await api.post<CompleteResponse>(
+          "/media/complete",
+          {
+            objectKey,
+            mediaType: "image",
+            mimeType: file.type,
+            mediaCategory: "AVATAR",
+          },
+          { withCredentials: true },
+        );
 
       const { mediaId } = completeRes.data;
 
@@ -104,30 +121,45 @@ export function useAvatarUpload() {
        * ===============================
        */
       const result = await setAvatar(mediaId);
-      // result ต้อง return { avatarUrl: string }
 
       /**
        * ===============================
-       * 6️⃣ Sync avatar in store (no reload)
+       * 6️⃣ Cache-bust URL
        * ===============================
        */
+      let avatarUrl: string | null = null;
+
       if (result?.avatarUrl) {
-  // force cache-bust
-  const bustedUrl = `${result.avatarUrl}?t=${Date.now()}`;
+        avatarUrl = `${result.avatarUrl}?t=${Date.now()}`;
 
-  updateAvatar(bustedUrl);
-}
+        /**
+         * Sync avatar in global store
+         */
+        updateAvatar(avatarUrl);
+      }
 
+      /**
+       * ============================================================
+       * CRITICAL FIX:
+       * return mediaId and url so composer binds correct media
+       * ============================================================
+       */
+      return {
+        mediaId,
+        url: avatarUrl,
+      };
 
-   } catch (err: any) {
-  const message =
-    err?.response?.data?.message ||
-    err?.message ||
-    "เกิดข้อผิดพลาดในการอัปโหลด";
+    } catch (err: any) {
 
+      const message =
+        err?.response?.data?.message ||
+        err?.message ||
+        "เกิดข้อผิดพลาดในการอัปโหลด";
 
       setError(message);
+
       throw err;
+
     } finally {
       setLoading(false);
     }

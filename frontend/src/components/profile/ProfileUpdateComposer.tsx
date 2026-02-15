@@ -9,6 +9,7 @@ import ProfileUpdateActions from "./ProfileUpdateActions";
 import { AvatarUploader } from "./AvatarUploader";
 import { useCurrentProfileMedia } from "@/hooks/useCurrentProfileMedia";
 import type { PostVisibility } from "@/types/profile-update";
+import { DeleteProfileMediaButton } from "@/components/profile/DeleteProfileMediaButton";
 
 type Props = {
   onClose: () => void;
@@ -20,13 +21,49 @@ export default function ProfileUpdateComposer({
   currentMedia,
 }: Props) {
 
-  const { draft, setDraft, clear } = useProfileUpdateStore();
+  const { draft, setDraft } = useProfileUpdateStore();
   const { createDraft } = useProfileUpdateDraft();
   const { publish, loading } = useProfileUpdatePublish();
 
   const [content, setContent] = useState("");
   const [visibility, setVisibility] =
     useState<PostVisibility>("PUBLIC");
+
+   useEffect(() => {
+
+  function handleEsc(e: KeyboardEvent) {
+
+    if (e.key !== "Escape") return;
+
+    const target = e.target as HTMLElement | null;
+
+    if (!target) {
+      onClose();
+      return;
+    }
+
+    const tag = target.tagName;
+
+    if (
+      tag === "TEXTAREA" ||
+      tag === "INPUT" ||
+      target.isContentEditable
+    ) {
+      return;
+    }
+
+    onClose();
+  }
+
+  window.addEventListener("keydown", handleEsc);
+
+  return () => {
+    window.removeEventListener("keydown", handleEsc);
+  };
+
+}, [onClose]);
+
+
 
   /**
    * Sync draft → local state
@@ -68,8 +105,6 @@ export default function ProfileUpdateComposer({
 
     if (res) {
 
-      clear();
-
       setContent("");
       setVisibility("PUBLIC");
 
@@ -92,24 +127,101 @@ export default function ProfileUpdateComposer({
     >
 
       {/* Heading */}
-      <header>
-        <h2
-          id="profile-update-heading"
-          className="text-base font-semibold text-gray-900"
-        >
-          อัปเดตโปรไฟล์
-        </h2>
-      </header>
+      <header className="flex items-center justify-between">
+
+  <h2
+    id="profile-update-heading"
+    className="text-base font-semibold text-gray-900"
+  >
+    อัปเดตโปรไฟล์
+  </h2>
+
+  {/* Close button */}
+  <button
+    type="button"
+    onClick={onClose}
+    aria-label="Close"
+    className="
+      inline-flex
+      items-center
+      justify-center
+      w-8
+      h-8
+      rounded-full
+      hover:bg-gray-100
+      text-gray-500
+      hover:text-gray-700
+      transition
+    "
+  >
+    ✕
+  </button>
+
+</header>
 
 
-      {/* Avatar uploader */}
-      <div className="border rounded-lg p-3 sm:p-4 bg-gray-50">
 
-        <AvatarUploader
-          currentMedia={currentMedia}
+      {/* ================================
+   AVATAR SECTION (PREVIEW + UPLOAD + DELETE)
+   ================================ */}
+<section className="border rounded-lg p-3 sm:p-4 bg-gray-50">
+
+  <div className="flex items-start gap-4">
+
+    {/* Avatar Preview */}
+    <div className="relative h-20 w-20 shrink-0">
+
+      {currentMedia.loading ? (
+
+        <div className="h-20 w-20 rounded-full bg-gray-200 animate-pulse" />
+
+      ) : currentMedia.data?.avatar?.url ? (
+
+        <div className="h-20 w-20 rounded-full overflow-hidden border">
+
+          <img
+            src={currentMedia.data.avatar.url}
+            alt="Current avatar"
+            className="h-full w-full object-cover"
+          />
+
+        </div>
+
+      ) : (
+
+        <div className="h-20 w-20 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 text-lg font-semibold border">
+          U
+        </div>
+
+      )}
+
+    </div>
+
+
+    {/* Upload + Delete */}
+    <div className="flex flex-col gap-2">
+
+      <AvatarUploader
+        currentMedia={currentMedia}
+      />
+
+      {currentMedia.data?.avatar?.mediaId && (
+
+        <DeleteProfileMediaButton
+          mediaId={currentMedia.data.avatar.mediaId}
+          onDeleted={() => {
+            currentMedia.refetch();
+          }}
         />
 
-      </div>
+      )}
+
+    </div>
+
+  </div>
+
+</section>
+
 
 
       {/* Composer */}
@@ -159,15 +271,36 @@ export default function ProfileUpdateComposer({
 
 
       {/* Actions */}
-      <footer>
+      <footer className="flex items-center justify-between">
 
-        <ProfileUpdateActions
-          onSave={handleSaveDraft}
-          onPublish={handlePublish}
-          loading={loading}
-        />
+  {/* Cancel button */}
+  <button
+    type="button"
+    onClick={onClose}
+    className="
+      px-4
+      py-2
+      text-sm
+      font-medium
+      text-gray-700
+      bg-gray-100
+      hover:bg-gray-200
+      rounded-md
+      transition
+    "
+  >
+    Cancel
+  </button>
 
-      </footer>
+
+  <ProfileUpdateActions
+    onSave={handleSaveDraft}
+    onPublish={handlePublish}
+    loading={loading}
+  />
+
+</footer>
+
 
     </section>
   );
