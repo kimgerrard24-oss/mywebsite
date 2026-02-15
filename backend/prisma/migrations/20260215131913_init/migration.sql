@@ -291,6 +291,9 @@ CREATE TABLE "Media" (
     "thumbnailObjectKey" TEXT,
     "thumbnailWidth" INTEGER,
     "thumbnailHeight" INTEGER,
+    "caption" VARCHAR(500),
+    "visibility" "PostVisibility" NOT NULL DEFAULT 'PUBLIC',
+    "profilePostId" TEXT,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "deletedAt" TIMESTAMP(3),
     "cleanupAt" TIMESTAMP(3),
@@ -1239,6 +1242,9 @@ ALTER TABLE "PostMedia" ADD CONSTRAINT "PostMedia_postId_fkey" FOREIGN KEY ("pos
 
 -- AddForeignKey
 ALTER TABLE "Media" ADD CONSTRAINT "Media_ownerUserId_fkey" FOREIGN KEY ("ownerUserId") REFERENCES "User"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "Media" ADD CONSTRAINT "Media_profilePostId_fkey" FOREIGN KEY ("profilePostId") REFERENCES "Post"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "Comment" ADD CONSTRAINT "Comment_authorId_fkey" FOREIGN KEY ("authorId") REFERENCES "User"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

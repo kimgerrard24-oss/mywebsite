@@ -339,4 +339,106 @@ async clearCover(userId: string) {
       });
     });
   }
+
+ async createProfileMedia(params: {
+  userId: string;
+  objectKey: string;
+  type: "AVATAR" | "COVER";
+  caption?: string | null;
+}) {
+
+  return this.prisma.media.create({
+    data: {
+
+      ownerUserId: params.userId,
+
+      objectKey: params.objectKey,
+
+      mediaType: "IMAGE",
+
+      mimeType: "image/jpeg",
+
+      mediaCategory: params.type,
+
+      profileType: null,
+
+      caption: params.caption,
+      
+    }
+
+  });
+
+}
+
+async attachProfilePost(mediaId: string, postId: string) {
+
+  return this.prisma.media.update({
+
+    where: { id: mediaId },
+
+    data: {
+      profilePostId: postId,
+    },
+
+  });
+
+}
+
+async createAndSetCurrentProfileMediaAtomic(params: {
+  userId: string;
+  objectKey: string;
+  type: ProfileMediaType;
+  caption?: string | null;
+}) {
+
+  return this.prisma.$transaction(async (tx) => {
+
+    const media = await tx.media.create({
+      data: {
+        ownerUserId: params.userId,
+        objectKey: params.objectKey,
+        mediaType: "IMAGE",
+        mimeType: "image/jpeg",
+        mediaCategory: params.type,
+        profileType: params.type,
+        caption: params.caption,
+      }
+    });
+
+    await tx.media.updateMany({
+      where: {
+        ownerUserId: params.userId,
+        profileType: params.type,
+        NOT: { id: media.id },
+      },
+      data: {
+        profileType: null,
+      }
+    });
+
+    if (params.type === "AVATAR") {
+
+      await tx.user.update({
+        where: { id: params.userId },
+        data: { avatarMediaId: media.id }
+      });
+
+    }
+
+    if (params.type === "COVER") {
+
+      await tx.user.update({
+        where: { id: params.userId },
+        data: { coverMediaId: media.id }
+      });
+
+    }
+
+    return media;
+
+  });
+
+}
+
+
 }

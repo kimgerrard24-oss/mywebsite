@@ -1,8 +1,7 @@
 // frontend/src/components/profile/CoverUpdateComposer.tsx
-
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { CoverUploader } from "./CoverUploader";
 import { useCurrentProfileMedia } from "@/hooks/useCurrentProfileMedia";
 import { DeleteProfileMediaButton } from "@/components/profile/DeleteProfileMediaButton";
@@ -21,7 +20,9 @@ export default function CoverUpdateComposer({
    * ESC close support
    */
   useEffect(() => {
+
     function handleEsc(e: KeyboardEvent) {
+
       if (e.key !== "Escape") return;
 
       const target = e.target as HTMLElement | null;
@@ -38,6 +39,7 @@ export default function CoverUpdateComposer({
       }
 
       onClose();
+
     }
 
     window.addEventListener("keydown", handleEsc);
@@ -45,9 +47,16 @@ export default function CoverUpdateComposer({
     return () => {
       window.removeEventListener("keydown", handleEsc);
     };
+
   }, [onClose]);
 
+  /**
+   * caption state (same pattern as ProfileUpdateComposer)
+   */
+  const [caption, setCaption] = useState("");
+
   return (
+
     <section
       aria-labelledby="cover-update-heading"
       className="
@@ -60,6 +69,7 @@ export default function CoverUpdateComposer({
         space-y-4
       "
     >
+
       {/* Header */}
       <header className="flex items-center justify-between">
 
@@ -122,25 +132,56 @@ export default function CoverUpdateComposer({
 
           )}
 
-          {/* Upload */}
-          <CoverUploader currentMedia={currentMedia} />
+          {/* Upload + caption + delete */}
+          <div className="flex flex-col gap-2 w-full">
 
-          {/* Delete */}
-          {currentMedia.data?.cover?.mediaId && (
-
-            <DeleteProfileMediaButton
-              mediaId={currentMedia.data.cover.mediaId}
-              onDeleted={currentMedia.refetch}
+            {/* caption input */}
+            <textarea
+              value={caption}
+              onChange={(e) => setCaption(e.target.value)}
+              placeholder="เขียนคำอธิบายเกี่ยวกับรูปปก..."
+              maxLength={500}
+              rows={3}
+              className="
+                w-full
+                border
+                border-gray-300
+                rounded-md
+                px-3
+                py-2
+                text-sm
+                focus:outline-none
+                focus:ring-2
+                focus:ring-blue-500
+                resize-none
+                bg-white
+              "
             />
 
-          )}
+            {/* uploader */}
+            <CoverUploader
+              currentMedia={currentMedia}
+              caption={caption}
+            />
+
+            {/* delete */}
+            {currentMedia.data?.cover?.mediaId && (
+
+              <DeleteProfileMediaButton
+                mediaId={currentMedia.data.cover.mediaId}
+                onDeleted={currentMedia.refetch}
+              />
+
+            )}
+
+          </div>
 
         </div>
 
       </section>
-      
+
     </section>
+
   );
+
 }
-
-

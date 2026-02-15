@@ -27,6 +27,7 @@ import {
   ProfileMediaDeleteAccessDeniedError,
   ProfileMediaDeleteNotFoundError,
 } from './profile-media-delete.errors';
+import { CreateProfileMediaDto } from './dto/create-profile-media.dto';
 
 @Injectable()
 export class ProfileMediaService {
@@ -391,4 +392,68 @@ if (!media || media.mediaCategory !== type) {
 
     return { success: true };
   }
+
+ async createProfileMedia(params: {
+  actorUserId: string;
+  dto: CreateProfileMediaDto;
+}) {
+
+  const { actorUserId, dto } = params;
+
+  // validate media ownership
+  const media = await this.repo.findOwnedMedia(
+    dto.mediaId,
+    actorUserId,
+  );
+
+  if (!media) {
+    throw new ProfileMediaNotFoundError();
+  }
+
+  // set current if requested
+  if (dto.setAsCurrent) {
+
+    await this.repo.setCurrentProfileMedia({
+      userId: actorUserId,
+      mediaId: dto.mediaId,
+      type: dto.type,
+    });
+
+  }
+
+  // optional post
+  try {
+
+    const post = await this.postsService.createPost({
+
+      authorId: actorUserId,
+
+      typeOverride:
+        dto.type === "AVATAR"
+          ? PostType.PROFILE_UPDATE
+          : PostType.COVER_UPDATE,
+
+      dto: {
+        content: dto.caption ?? "",
+        mediaIds: [dto.mediaId],
+        visibility: PostVisibility.PUBLIC,
+      },
+
+    });
+
+    await this.repo.attachProfilePost(dto.mediaId, post.id);
+
+  } catch {}
+
+  return {
+    mediaId: dto.mediaId,
+    url: this.r2.buildPublicUrl(media.objectKey),
+    type: dto.type,
+    caption: dto.caption ?? null,
+  };
+
+}
+
+
+
 }
