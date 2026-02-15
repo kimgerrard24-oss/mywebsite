@@ -127,7 +127,7 @@ export function useCoverUpload() {
       const profileRes = await api.post(
         "/users/me/profile-media",
         {
-          mediaId,
+          objectKey,
           type: "COVER",
           caption: caption ?? null,
           setAsCurrent: true,

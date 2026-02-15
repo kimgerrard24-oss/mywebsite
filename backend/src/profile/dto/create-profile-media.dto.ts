@@ -2,13 +2,9 @@
 
 
 export class CreateProfileMediaDto {
-
-  mediaId!: string;
-
+  objectKey!: string;
   type!: "AVATAR" | "COVER";
-
   caption?: string;
-
   setAsCurrent?: boolean;
-
 }
+

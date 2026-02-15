@@ -120,7 +120,7 @@ const { mediaId } = completeRes.data;
 const profileRes = await api.post(
   "/users/me/profile-media",
   {
-    mediaId,
+    objectKey,
     type: "AVATAR",
     caption: caption ?? null,
     setAsCurrent: true,
