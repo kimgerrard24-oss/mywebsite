@@ -1,14 +1,9 @@
+// frontend/src/components/profile/ProfileUpdateComposer.tsx
 "use client";
 
-import { useState, useEffect } from "react";
-import { useProfileUpdateDraft } from "@/hooks/useProfileUpdateDraft";
-import { useProfileUpdatePublish } from "@/hooks/useProfileUpdatePublish";
-import { useProfileUpdateStore } from "@/stores/profile-update.store";
-import ProfileUpdateVisibilitySelector from "./ProfileUpdateVisibilitySelector";
-import ProfileUpdateActions from "./ProfileUpdateActions";
+import { useEffect } from "react";
 import { AvatarUploader } from "./AvatarUploader";
 import { useCurrentProfileMedia } from "@/hooks/useCurrentProfileMedia";
-import type { PostVisibility } from "@/types/profile-update";
 import { DeleteProfileMediaButton } from "@/components/profile/DeleteProfileMediaButton";
 
 type Props = {
@@ -21,96 +16,39 @@ export default function ProfileUpdateComposer({
   currentMedia,
 }: Props) {
 
-  const { draft, setDraft } = useProfileUpdateStore();
-  const { createDraft } = useProfileUpdateDraft();
-  const { publish, loading } = useProfileUpdatePublish();
-
-  const [content, setContent] = useState("");
-  const [visibility, setVisibility] =
-    useState<PostVisibility>("PUBLIC");
-
-   useEffect(() => {
-
-  function handleEsc(e: KeyboardEvent) {
-
-    if (e.key !== "Escape") return;
-
-    const target = e.target as HTMLElement | null;
-
-    if (!target) {
-      onClose();
-      return;
-    }
-
-    const tag = target.tagName;
-
-    if (
-      tag === "TEXTAREA" ||
-      tag === "INPUT" ||
-      target.isContentEditable
-    ) {
-      return;
-    }
-
-    onClose();
-  }
-
-  window.addEventListener("keydown", handleEsc);
-
-  return () => {
-    window.removeEventListener("keydown", handleEsc);
-  };
-
-}, [onClose]);
-
-
-
   /**
-   * Sync draft → local state
+   * ESC close support
    */
   useEffect(() => {
-    if (!draft) return;
 
-    setContent(draft.content ?? "");
-    setVisibility(draft.visibility ?? "PUBLIC");
+    function handleEsc(e: KeyboardEvent) {
 
-  }, [draft]);
+      if (e.key !== "Escape") return;
 
-  /**
-   * Save Draft
-   */
-  async function handleSaveDraft() {
+      const target = e.target as HTMLElement | null;
 
-    if (!draft) return;
-
-    const result = await createDraft({
-      mediaId: draft.mediaId,
-      content,
-      visibility,
-    });
-
-    if (result) {
-      setDraft(result);
-    }
-  }
-
-  /**
-   * Publish Draft
-   */
-  async function handlePublish() {
-
-    if (!draft) return;
-
-    const res = await publish();
-
-    if (res) {
-
-      setContent("");
-      setVisibility("PUBLIC");
+      if (
+        target &&
+        (
+          target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable
+        )
+      ) {
+        return;
+      }
 
       onClose();
+
     }
-  }
+
+    window.addEventListener("keydown", handleEsc);
+
+    return () => {
+      window.removeEventListener("keydown", handleEsc);
+    };
+
+  }, [onClose]);
 
   return (
     <section
@@ -126,182 +64,119 @@ export default function ProfileUpdateComposer({
       "
     >
 
-      {/* Heading */}
+      {/* Header */}
       <header className="flex items-center justify-between">
 
-  <h2
-    id="profile-update-heading"
-    className="text-base font-semibold text-gray-900"
-  >
-    อัปเดตโปรไฟล์
-  </h2>
-
-  {/* Close button */}
-  <button
-    type="button"
-    onClick={onClose}
-    aria-label="Close"
-    className="
-      inline-flex
-      items-center
-      justify-center
-      w-8
-      h-8
-      rounded-full
-      hover:bg-gray-100
-      text-gray-500
-      hover:text-gray-700
-      transition
-    "
-  >
-    ✕
-  </button>
-
-</header>
-
-
-
-      {/* ================================
-   AVATAR SECTION (PREVIEW + UPLOAD + DELETE)
-   ================================ */}
-<section className="border rounded-lg p-3 sm:p-4 bg-gray-50">
-
-  <div className="flex items-start gap-4">
-
-    {/* Avatar Preview */}
-    <div className="relative h-20 w-20 shrink-0">
-
-      {currentMedia.loading ? (
-
-        <div className="h-20 w-20 rounded-full bg-gray-200 animate-pulse" />
-
-      ) : currentMedia.data?.avatar?.url ? (
-
-        <div className="h-20 w-20 rounded-full overflow-hidden border">
-
-          <img
-            src={currentMedia.data.avatar.url}
-            alt="Current avatar"
-            className="h-full w-full object-cover"
-          />
-
-        </div>
-
-      ) : (
-
-        <div className="h-20 w-20 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 text-lg font-semibold border">
-          U
-        </div>
-
-      )}
-
-    </div>
-
-
-    {/* Upload + Delete */}
-    <div className="flex flex-col gap-2">
-
-      <AvatarUploader
-        currentMedia={currentMedia}
-      />
-
-      {currentMedia.data?.avatar?.mediaId && (
-
-        <DeleteProfileMediaButton
-          mediaId={currentMedia.data.avatar.mediaId}
-          onDeleted={() => {
-            currentMedia.refetch();
-          }}
-        />
-
-      )}
-
-    </div>
-
-  </div>
-
-</section>
-
-
-
-      {/* Composer */}
-      <div className="space-y-3">
-
-        <label
-          htmlFor="profile-update-content"
-          className="sr-only"
+        <h2
+          id="profile-update-heading"
+          className="text-base font-semibold text-gray-900"
         >
-          เนื้อหาโพสต์
-        </label>
+          อัปเดตโปรไฟล์
+        </h2>
 
-        <textarea
-          id="profile-update-content"
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close"
           className="
-            w-full
-            border
-            rounded-lg
-            p-3
-            text-sm
-            sm:text-base
-            focus:outline-none
-            focus:ring-2
-            focus:ring-blue-500
-            resize-none
+            inline-flex
+            items-center
+            justify-center
+            w-8
+            h-8
+            rounded-full
+            hover:bg-gray-100
+            text-gray-500
+            hover:text-gray-700
+            transition
           "
-          placeholder="Write something..."
-          value={content}
-          onChange={(e) =>
-            setContent(e.target.value)
-          }
-          rows={3}
-        />
+        >
+          ✕
+        </button>
 
-      </div>
+      </header>
 
 
-      {/* Visibility */}
-      <div className="flex items-center justify-between">
+      {/* Avatar section */}
+      <section className="border rounded-lg p-3 sm:p-4 bg-gray-50">
 
-        <ProfileUpdateVisibilitySelector
-          value={visibility}
-          onChange={setVisibility}
-        />
+        <div className="flex items-start gap-4">
 
-      </div>
+          {/* Avatar preview */}
+          <div className="relative h-20 w-20 shrink-0">
+
+            {currentMedia.loading ? (
+
+              <div className="h-20 w-20 rounded-full bg-gray-200 animate-pulse" />
+
+            ) : currentMedia.data?.avatar?.url ? (
+
+              <div className="h-20 w-20 rounded-full overflow-hidden border">
+
+                <img
+                  src={currentMedia.data.avatar.url}
+                  alt="Current avatar"
+                  className="h-full w-full object-cover"
+                />
+
+              </div>
+
+            ) : (
+
+              <div className="h-20 w-20 rounded-full bg-gray-100 flex items-center justify-center text-gray-400 text-lg font-semibold border">
+                U
+              </div>
+
+            )}
+
+          </div>
 
 
-      {/* Actions */}
-      <footer className="flex items-center justify-between">
+          {/* Upload + delete */}
+          <div className="flex flex-col gap-2">
 
-  {/* Cancel button */}
-  <button
-    type="button"
-    onClick={onClose}
-    className="
-      px-4
-      py-2
-      text-sm
-      font-medium
-      text-gray-700
-      bg-gray-100
-      hover:bg-gray-200
-      rounded-md
-      transition
-    "
-  >
-    Cancel
-  </button>
+            <AvatarUploader currentMedia={currentMedia} />
+
+            {currentMedia.data?.avatar?.mediaId && (
+
+              <DeleteProfileMediaButton
+                mediaId={currentMedia.data.avatar.mediaId}
+                onDeleted={currentMedia.refetch}
+              />
+
+            )}
+
+          </div>
+
+        </div>
+
+      </section>
 
 
-  <ProfileUpdateActions
-    onSave={handleSaveDraft}
-    onPublish={handlePublish}
-    loading={loading}
-  />
+      {/* Footer */}
+      <footer className="flex justify-end">
 
-</footer>
+        <button
+          type="button"
+          onClick={onClose}
+          className="
+            px-4
+            py-2
+            text-sm
+            font-medium
+            text-gray-700
+            bg-gray-100
+            hover:bg-gray-200
+            rounded-md
+            transition
+          "
+        >
+          Cancel
+        </button>
 
+      </footer>
 
     </section>
   );
+
 }

@@ -132,18 +132,19 @@ const isPrivateLocked =
     <button
       type="button"
       onClick={() => {
-        if (!currentMedia?.cover?.mediaId) return;
+        const mediaId = currentMedia?.cover?.mediaId ?? "";
+
 
 setCoverDraft({
-  id: `temp-cover-${currentMedia.cover.mediaId}`,
+  id: `temp-cover-${mediaId ?? "new"}`,
   type: "COVER",
-  mediaId: currentMedia.cover.mediaId,
+  mediaId,
+  visibility: "PUBLIC",
+  content: null,
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+});
 
-          visibility: "PUBLIC",
-          content: null,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        });
       }}
       className="
         absolute
@@ -221,18 +222,19 @@ setCoverDraft({
     <button
       type="button"
       onClick={() => {
-        if (!currentMedia?.avatar?.mediaId) return;
+   const mediaId = currentMedia?.avatar?.mediaId ?? "";
+
 
 setAvatarDraft({
-  id: `temp-avatar-${currentMedia.avatar.mediaId}`,
+  id: `temp-avatar-${mediaId ?? "new"}`,
   type: "AVATAR",
-  mediaId: currentMedia.avatar.mediaId,
+  mediaId,
+  visibility: "PUBLIC",
+  content: null,
+  createdAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString(),
+});
 
-          visibility: "PUBLIC",
-          content: null,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-        });
       }}
       className="
         absolute
