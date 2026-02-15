@@ -393,35 +393,47 @@ if (!media || media.mediaCategory !== type) {
     return { success: true };
   }
 
- async createProfileMedia(params: {
+async createProfileMedia(params: {
   actorUserId: string;
   dto: CreateProfileMediaDto;
 }) {
 
   const { actorUserId, dto } = params;
 
-  // validate media ownership
-  const media = await this.repo.findOwnedMedia(
-    dto.mediaId,
-    actorUserId,
-  );
+  /**
+   * =====================================================
+   * 1️⃣ Create Media row (authoritative)
+   * =====================================================
+   */
+  let media;
 
-  if (!media) {
-    throw new ProfileMediaNotFoundError();
-  }
-
-  // set current if requested
   if (dto.setAsCurrent) {
 
-    await this.repo.setCurrentProfileMedia({
-      userId: actorUserId,
-      mediaId: dto.mediaId,
-      type: dto.type,
-    });
+    media =
+      await this.repo.createAndSetCurrentProfileMediaAtomic({
+        userId: actorUserId,
+        objectKey: dto.objectKey,
+        type: dto.type,
+        caption: dto.caption ?? null,
+      });
+
+  } else {
+
+    media =
+      await this.repo.createProfileMedia({
+        userId: actorUserId,
+        objectKey: dto.objectKey,
+        type: dto.type,
+        caption: dto.caption ?? null,
+      });
 
   }
 
-  // optional post
+  /**
+   * =====================================================
+   * 2️⃣ Optional: create PROFILE_UPDATE / COVER_UPDATE post
+   * =====================================================
+   */
   try {
 
     const post = await this.postsService.createPost({
@@ -435,25 +447,43 @@ if (!media || media.mediaCategory !== type) {
 
       dto: {
         content: dto.caption ?? "",
-        mediaIds: [dto.mediaId],
+        mediaIds: [media.id],
         visibility: PostVisibility.PUBLIC,
       },
 
     });
 
-    await this.repo.attachProfilePost(dto.mediaId, post.id);
+    await this.repo.attachProfilePost(
+      media.id,
+      post.id,
+    );
 
-  } catch {}
+  } catch {
+    /**
+     * Fail-soft
+     * profile media must never fail because post failed
+     */
+  }
 
+  /**
+   * =====================================================
+   * 3️⃣ Return authoritative response
+   * =====================================================
+   */
   return {
-    mediaId: dto.mediaId,
-    url: this.r2.buildPublicUrl(media.objectKey),
-    type: dto.type,
-    caption: dto.caption ?? null,
+
+    mediaId: media.id,
+
+    url: this.r2.buildPublicUrl(
+      media.objectKey,
+    ),
+
+    type: media.mediaCategory,
+
+    caption: media.caption ?? null,
+
   };
 
 }
-
-
 
 }

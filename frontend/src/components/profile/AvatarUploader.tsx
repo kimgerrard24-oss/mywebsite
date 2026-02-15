@@ -4,9 +4,6 @@ import { useRef, useState } from "react";
 import { useAvatarUpload } from "@/hooks/useAvatarUpload";
 import { useCurrentProfileMedia } from "@/hooks/useCurrentProfileMedia";
 import { useAuth } from "@/context/AuthContext";
-import { useProfileUpdateStore } from "@/stores/profile-update.store";
-import type { PostVisibility } from "@/types/profile-update";
-import { createProfileUpdateDraft } from "@/lib/api/profile-update";
 
 type Props = {
   currentMedia: ReturnType<typeof useCurrentProfileMedia>;
@@ -21,11 +18,6 @@ export function AvatarUploader({ currentMedia, caption }: Props)
   const { refreshUser } = useAuth();
 
   const { refetch, setAvatarLocally } = currentMedia;
-
-  /**
-   * Bind uploaded media to composer draft
-   */
-  const { draft, setDraft } = useProfileUpdateStore();
 
   const [success, setSuccess] = useState(false);
 
@@ -42,38 +34,6 @@ export function AvatarUploader({ currentMedia, caption }: Props)
        * Upload avatar
        */
       const uploaded = await upload(file, caption);
-
-      /**
-       * ====================================================
-       * PRODUCTION CRITICAL FIX
-       *
-       * Ensure draft always exists before updating mediaId
-       * ====================================================
-       */
-      if (uploaded?.mediaId) {
-
-  /**
-   * CRITICAL: create draft in backend
-   * backend is authority
-   */
-  const newDraft = await createProfileUpdateDraft({
-
-    mediaId: uploaded.mediaId,
-
-    content: draft?.content ?? undefined,
-
-    visibility: draft?.visibility ?? ("PUBLIC" as PostVisibility),
-
-
-  });
-
-  /**
-   * sync zustand store with backend draft
-   */
-  setDraft(newDraft);
-
-}
-
 
       /**
        * Optimistic UI update

@@ -4,9 +4,6 @@ import { useEffect, useRef, useState } from "react";
 import { useCoverUpload } from "@/hooks/useCoverUpload";
 import { useCurrentProfileMedia } from "@/hooks/useCurrentProfileMedia";
 import { useAuth } from "@/context/AuthContext";
-import { useCoverUpdateStore } from "@/stores/cover-update.store";
-import type { PostVisibility } from "@/types/profile-update";
-import { createProfileUpdateDraft } from "@/lib/api/profile-update";
 
 type Props = {
   currentMedia: ReturnType<typeof useCurrentProfileMedia>;
@@ -20,13 +17,7 @@ export function CoverUploader({ currentMedia, caption }: Props) {
   const { upload, loading, error } = useCoverUpload();
   const { refreshUser } = useAuth();
 
-  const { data, refetch } = currentMedia;
-
-  /**
-   * Bind uploaded media to composer draft
-   * cover uses cover-update store
-   */
-  const { draft, setDraft } = useCoverUpdateStore();
+  const { data, refetch, setCoverLocally } = currentMedia;
 
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
@@ -65,28 +56,11 @@ export function CoverUploader({ currentMedia, caption }: Props) {
       const uploaded = await upload(file, caption);
 
       /**
-       * ====================================================
-       * PRODUCTION CRITICAL FIX
-       * Ensure draft exists and bind mediaId
-       * ====================================================
-       */
-      if (uploaded?.mediaId) {
-
-        const newDraft = await createProfileUpdateDraft({
-
-          mediaId: uploaded.mediaId,
-
-          content: draft?.content ?? caption ?? undefined,
-
-          visibility:
-            draft?.visibility ??
-            ("PUBLIC" as PostVisibility),
-
-        });
-
-        setDraft(newDraft);
-
-      }
+ * Optimistic UI update (เหมือน avatar)
+ */
+if (uploaded?.url) {
+  setCoverLocally(uploaded.url);
+}
 
       /**
        * Sync auth context (source of truth)
