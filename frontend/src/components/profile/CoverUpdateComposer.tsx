@@ -167,32 +167,7 @@ export default function CoverUpdateComposer({
    ================================ */}
 <section className="border rounded-lg p-3 sm:p-4 bg-gray-50 space-y-3">
 
-  {/* Cover Preview */}
-  <div className="relative w-full h-32 sm:h-40 overflow-hidden rounded-lg border">
-
-    {currentMedia.loading ? (
-
-      <div className="w-full h-full bg-gray-200 animate-pulse" />
-
-    ) : currentMedia.data?.cover?.url ? (
-
-      <img
-        src={currentMedia.data.cover.url}
-        alt="Current cover"
-        className="w-full h-full object-cover"
-      />
-
-    ) : (
-
-      <div className="w-full h-full bg-gray-100 flex items-center justify-center text-gray-400 text-sm">
-        No cover photo
-      </div>
-
-    )}
-
-  </div>
-
-
+ 
   {/* Upload + Delete */}
   <div className="flex flex-col gap-2">
 
